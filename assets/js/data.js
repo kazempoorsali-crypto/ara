@@ -156,6 +156,34 @@ const SAMPLE_LISTINGS = (() => {
       out.push(it);
     });
   });
+  // خوشهٔ پرتراکم نمونه برای نمایش صفحهٔ بازار (آپارتمان فروش رشت)؛ همه ساختگی
+  const rasht = CITIES.find((c) => c.id === "rasht");
+  const hoodLevel = { "مرکز شهر": 1.25, "شهرک دریاکنار": 1.1, "بلوار ساحلی": 1.15, "کمربندی": 0.85, "محله قدیم": 0.75, "دامنه کوه": 0.95, "جاده جنگل": 0.9, "جاده ییلاقی": 0.8 };
+  const cues = ["", "", "", "", " فوری", " از مالک", " با سند تک‌برگ", " قولنامه‌ای", " مستاجر دارد"];
+  for (let i = 0; i < 170; i++) {
+    const hood = pick(Object.keys(hoodLevel));
+    const area = Math.round(between(55, 190));
+    const rooms = area < 65 && rnd() > 0.5 ? 0 : Math.min(4, Math.max(1, Math.round(area / 55)));
+    const year = 1375 + Math.floor(rnd() * 29);
+    const am = new Set();
+    if (rnd() > (year > 1395 ? 0.15 : 0.6)) am.add("elevator");
+    if (rnd() > 0.35) am.add("parking");
+    if (rnd() > 0.5) am.add("warehouse");
+    if (rnd() > 0.5) am.add("deed");
+    const age = 1404 - year;
+    let perM = 34e6 * hoodLevel[hood] * Math.exp(-0.012 * age) * (am.has("elevator") ? 1.07 : 1) * (am.has("parking") ? 1.05 : 1) * Math.exp((rnd() + rnd() + rnd() - 1.5) * 0.16);
+    const cue = pick(cues);
+    if (i % 23 === 5) perM *= 0.74;      // چند آگهی زیر قیمت
+    if (i % 41 === 7) perM *= 0.45;      // قیمت مشکوک
+    out.push({
+      id: "smp-r" + i, source: "sample", vertical: "estate", kind: "apartment", deal: "sale",
+      title: `آپارتمان ${area.toLocaleString("fa-IR")} متری ${hood}${cue}`, description: cue ? cue.trim() : "",
+      city_key: "rasht", city_name: rasht.name, province: "gilan", district: hood, area, rooms, year,
+      amenities: [...am], image: null, images: [], lat: rasht.lat + between(-0.025, 0.025), lng: rasht.lng + between(-0.035, 0.035),
+      first_seen: now - Math.floor(rnd() * 20 * 86400), price_drop: rnd() > 0.9 ? +between(0.03, 0.1).toFixed(3) : 0, featured: 0, scene: "city",
+      price: Math.round((area * perM) / 1e7) * 1e7,
+    });
+  }
   out.forEach((l) => {
     l.pp = l.deal === "rent" ? (l.deposit || 0) + (l.rent || 0) / 0.03 : l.price;
     l.ppm = l.vertical === "estate" && l.deal === "sale" && l.area ? l.price / l.area : null;

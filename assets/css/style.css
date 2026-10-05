@@ -599,3 +599,147 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .pin-dot { display: grid; place-items: center; width: 30px; height: 30px; transform: translate(-50%, -50%); border-radius: 50%; color: #fff; font: 800 11.5px Vazirmatn, sans-serif; border: 2px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.3); cursor: pointer; }
 .pin-dot--hi { background: var(--great); } .pin-dot--mid { background: #b07a1e; } .pin-dot--lo, .pin-dot--na { background: #6f7770; }
 .is-hot .pin-dot { transform: translate(-50%, -50%) scale(1.3); }
+
+/* ==========================================================
+   حکم قیمت، شناسنامه، بازار و پرداخت (نسخهٔ محله‌محور)
+   ========================================================== */
+:root { --gold-hl: #d6fb00; --gold-ink: #13201c; --sus: #b26a00; --sus-bg: #fff4dc; }
+:root[data-theme="dark"] { --sus: #f0b44a; --sus-bg: #2c2210; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sus: #f0b44a; --sus-bg: #2c2210; } }
+.lab { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.lab--gold { background: var(--gold-hl); color: var(--gold-ink); box-shadow: inset 0 -2px 0 rgba(0,0,0,.12); }
+.lab--good { background: color-mix(in srgb, var(--great) 16%, var(--surface)); color: var(--great); border: 1px solid color-mix(in srgb, var(--great) 40%, transparent); }
+.lab--fair { background: var(--sunk); color: var(--ink-2); border: 1px solid var(--line); }
+.lab--high { background: color-mix(in srgb, var(--over) 12%, var(--surface)); color: var(--over); }
+.lab--sus { background: var(--sus-bg); color: var(--sus); background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--sus) 14%, transparent) 6px 8px); }
+.lab--pending { background: var(--sunk); color: var(--muted); border: 1px dashed var(--line-2); }
+.gap { font-size: 13px; font-weight: 700; } .gap--below { color: var(--great); } .gap--above { color: var(--over); }
+.card__verdict { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 2px; }
+.card__conf { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.card__warn { display: flex; gap: 6px; align-items: center; margin: 8px 0 0; font-size: 12px; color: var(--sus); }
+.card__warn svg { width: 15px; flex: none; }
+.card--gold { box-shadow: 0 0 0 2px var(--gold-hl), var(--shadow-2); }
+.card--lock { display: grid; place-items: center; min-height: 260px; border: 1.5px dashed var(--line-2); background: var(--sunk); }
+.lockbox { padding: 24px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.lockbox svg { width: 34px; color: var(--muted); }
+.lockbox p { font-size: 13.5px; color: var(--ink-2); margin: 0; max-width: 320px; }
+.chip--sus svg { opacity: .7; }
+.chip small { color: var(--muted); font-weight: 500; }
+.chip.is-on small { color: inherit; opacity: .75; }
+.dd__grid--scroll { max-height: 220px; overflow-y: auto; margin-top: 8px; padding: 2px; }
+/* نوار قیمت */
+.pbar { display: grid; gap: 8px; }
+.pbar__track { position: relative; height: 10px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); }
+.pbar--mini .pbar__track { height: 6px; }
+.pbar__gap { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.pbar__gap--below { background: color-mix(in srgb, var(--great) 45%, transparent); }
+.pbar__gap--above { background: color-mix(in srgb, var(--over) 40%, transparent); }
+.pbar__exp { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); transform: translateX(50%); }
+.pbar__me { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 2px solid var(--surface); transform: translate(50%, -50%); }
+.pbar__labs { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.pbar__lab--me { font-weight: 800; color: var(--ink); }
+.vcard--sus { border-color: var(--sus); background: var(--sus-bg); }
+.note-soft { display: flex; gap: 8px; align-items: flex-start; background: var(--sunk); padding: 10px 12px; border-radius: var(--r-sm); margin: 0; }
+.note-soft svg { flex: none; margin-top: 3px; }
+/* شناسنامهٔ قیمت */
+.pid__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.pid__head h2 { margin: 0; } .pid__head span { color: var(--muted); font-size: 13px; }
+.pid__row { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.pid__row span { color: var(--ink-2); font-size: 14px; }
+.pid__row b { font-weight: 800; }
+.pid__row small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.pid__fx { margin-top: 12px; } .pid__fx > b { display: block; margin-bottom: 6px; font-size: 13.5px; }
+.pid__foot, .fn { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+.block h2 small { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+/* چرا این قیمت */
+.why__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.why__col { background: var(--sunk); border-radius: var(--r); padding: 14px; }
+.why__col h3 { display: flex; gap: 6px; align-items: center; font-size: 14px; margin: 0 0 8px; }
+.why__col h3 svg { width: 17px; flex: none; }
+.why__col ul { margin: 0; padding-inline-start: 18px; font-size: 13.5px; display: grid; gap: 4px; }
+.why__col p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.why__col--warn { background: var(--sus-bg); } .why__col--warn h3 { color: var(--sus); }
+@media (max-width: 760px) { .why__grid { grid-template-columns: 1fr; } }
+/* مشابه‌ها */
+.cmps-head, .cmps li { display: grid; grid-template-columns: 1.4fr .9fr 1.6fr auto; gap: 12px; align-items: center; }
+.cmps-head { font-size: 12px; color: var(--muted); padding: 0 10px 6px; }
+.cmps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cmps li { padding: 10px; border-radius: var(--r-sm); background: var(--sunk); font-size: 13.5px; }
+.cmps li.is-self { outline: 2px solid var(--ink); background: var(--surface); }
+.cmps li > span:first-child { display: grid; } .cmps small { color: var(--muted); font-size: 12px; }
+.cmps__bar { position: relative; height: 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+@media (max-width: 640px) { .cmps-head { display: none; } .cmps li { grid-template-columns: 1fr auto; } .cmps__bar { grid-column: 1 / -1; } }
+.quote { margin: 0; padding: 14px 16px; border-inline-start: 3px solid var(--line-2); background: var(--sunk); border-radius: var(--r-sm); font-size: 14.5px; }
+.quote-src { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.contact { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.contact > div { display: grid; }
+.contact--lock { grid-template-columns: auto 1fr; align-items: start; background: var(--sunk); border-style: dashed; }
+.contact--lock div span { font-size: 12.5px; color: var(--muted); }
+/* بازار */
+.mkt-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 18px; }
+.mkt-bar .field { min-width: 200px; }
+.mkt-hero h1 { font-size: clamp(22px, 3.4vw, 34px); line-height: 1.45; margin: 6px 0 10px; }
+.hl { background: linear-gradient(transparent 58%, var(--gold-hl) 58%, var(--gold-hl) 92%, transparent 92%); color: var(--ink); padding: 0 2px; }
+:root[data-theme="dark"] .hl { color: var(--ink); background: linear-gradient(transparent 70%, color-mix(in srgb, var(--gold-hl) 55%, transparent) 70%); }
+.mkt-kpis, .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin: 18px 0 10px; }
+.mkt-kpis > div, .glance > div { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.mkt-kpis b, .glance b { font-size: 20px; font-weight: 900; }
+.mkt-kpis span, .glance span { font-size: 12.5px; color: var(--muted); }
+.mkt-note { font-size: 14px; color: var(--ink-2); }
+.mkt-toc { display: flex; gap: 6px; flex-wrap: wrap; position: sticky; top: 64px; z-index: 5; background: var(--paper); padding: 10px 0; margin-bottom: 6px; }
+.mkt-toc a { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; background: var(--surface); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin: 8px 0; }
+.lg { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-inline-end: 4px; }
+.lg--all { background: var(--line-2); } .lg--gold { background: var(--gold-hl); } .lg--good { background: var(--great); }
+.bud { display: grid; gap: 6px; }
+.bud__row { display: grid; grid-template-columns: 150px 1fr 90px; gap: 10px; align-items: center; font-size: 13.5px; padding: 4px 0; }
+.bud__track { height: 18px; background: var(--sunk); border-radius: 4px; overflow: hidden; }
+.bud__track > i { display: flex; height: 100%; background: var(--line-2); border-radius: 4px; overflow: hidden; }
+.bud__track em { display: block; height: 100%; } .bud__track em.g { background: var(--gold-hl); } .bud__track em.d { background: var(--great); }
+.bud__row b { display: grid; text-align: left; } .bud__row b small { font-weight: 500; color: var(--muted); font-size: 11.5px; }
+.hot { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.hot__cell { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.hot__cell small { font-size: 12px; color: var(--muted); }
+.hot__dots { display: flex; flex-wrap: wrap; gap: 3px; }
+.hot__dots i { width: 10px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(135deg, var(--great) 0 2px, transparent 2px 4px); border: 1px solid var(--great); }
+.hot__dots i.g { background: var(--gold-hl); border-color: #8fae00; }
+.tri { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.tri h3, .two h3 { font-size: 14px; margin: 0 0 8px; }
+@media (max-width: 860px) { .tri, .two { grid-template-columns: 1fr; } }
+.hb { display: grid; gap: 7px; }
+.hb__row { display: grid; grid-template-columns: 112px 1fr 44px; gap: 8px; align-items: center; font-size: 13px; }
+.hb__lab { display: grid; line-height: 1.4; } .hb__lab small { font-size: 11px; color: var(--muted); }
+.hb__track { position: relative; height: 14px; background: var(--sunk); border-radius: 3px; }
+.hb__track i { position: absolute; inset-block: 0; right: 0; background: var(--forest-2); border-radius: 3px; opacity: .8; }
+.hb__track em { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.hb__row b { text-align: left; font-weight: 800; }
+.amen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.amen__cell { padding: 14px; border-radius: var(--r); background: var(--sunk); }
+.amen__cell h3 { margin: 0 0 4px; font-size: 14px; } .amen__cell p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.amen__pct { font-size: 26px; font-weight: 900; color: var(--great); display: block; }
+@media (max-width: 760px) { .amen { grid-template-columns: 1fr; } .bud__row { grid-template-columns: 110px 1fr 70px; } }
+.ledger-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; } .ledger-tools .input { max-width: 260px; } .ledger-tools .select { max-width: 200px; }
+.mkt th small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+.mkt .up { color: var(--over); } .mkt .down { color: var(--great); }
+.funnel { display: grid; gap: 8px; margin-top: 8px; }
+.funnel__row { display: grid; grid-template-columns: minmax(150px, 280px) 1fr 70px; gap: 10px; align-items: center; font-size: 13px; }
+.funnel__track { height: 16px; background: var(--sunk); border-radius: 3px; }
+.funnel__track i { display: block; height: 100%; border-radius: 3px; background: var(--line-2); }
+.funnel__row--scored i { background: var(--forest-2); } .funnel__row--opp i { background: var(--gold-hl); }
+.funnel__row--sus i { background: repeating-linear-gradient(135deg, var(--sus) 0 3px, transparent 3px 6px); }
+.funnel__row b { text-align: left; }
+.funnel--mini { margin-top: 18px; }
+@media (max-width: 640px) { .funnel__row { grid-template-columns: 1fr 60px; } .funnel__track { grid-column: 1 / -1; grid-row: 2; } }
+.method-mini { margin-top: 16px; font-size: 14px; color: var(--ink-2); }
+/* پرسش‌ها */
+.faq { display: grid; gap: 8px; }
+.faq details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; }
+.faq summary { cursor: pointer; font-weight: 800; }
+.faq details p { margin: 8px 0 0; color: var(--ink-2); font-size: 14.5px; }
+.plan li.is-off { color: var(--muted); } .plan li.is-off::before { content: "–"; color: var(--muted); }
+/* کارت‌به‌کارت */
+.pay-steps { margin: 0 0 16px; padding-inline-start: 20px; display: grid; gap: 12px; font-size: 14px; }
+.pay-steps li span { display: block; color: var(--ink-2); }
+.pay-amt { display: inline-block; margin-top: 4px; font-size: 26px; font-weight: 900; background: linear-gradient(transparent 60%, var(--gold-hl) 60%); }
+.pay-amt small { font-size: 13px; font-weight: 600; }
+.pay-card { display: inline-flex; gap: 8px; align-items: center; margin-top: 4px; padding: 8px 14px; border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); font-size: 18px; font-weight: 800; letter-spacing: .04em; }

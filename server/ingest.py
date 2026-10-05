@@ -297,6 +297,10 @@ class Ingestor:
             item["lat"], item["lng"] = d["latlng"]
             item["latlng_exact"] = 1
         item["seller_type"] = d.get("seller_type")
+        # شماره و نشانی فقط وقتی ذخیره می‌شود که منبع آن را به‌صورت عمومی برگرداند (بدون ورود به حساب کاربری)
+        for k in ("phone", "address"):
+            if d.get(k):
+                item[k] = str(d[k])[:200]
         item["feat"] = features.extract({**current, **item})
         return item
 

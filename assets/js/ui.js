@@ -58,6 +58,10 @@ const UI = (() => {
     arrow: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
     tg: '<path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/>',
+    alert: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17h.01"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/>',
+    upload: '<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
   };
   const icon = (n, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n] || ""}</svg>`;
 
@@ -113,8 +117,27 @@ const UI = (() => {
     return money(p.price) + (p.deal === "daily" ? "/شب" : "");
   }
   const pct = (d) => fa(Math.abs(Math.round(d * 100))) + "٪";
-  const dealPill = (v) => (v ? `<span class="deal deal--${v.band}" title="مقایسه با قیمت منصفانه برآوردشده">${v.delta < -0.005 ? pct(v.delta) + " زیر قیمت" : v.delta > 0.005 ? pct(v.delta) + " بالای قیمت" : "هم‌قیمت بازار"}</span>` : "");
-  const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 75 ? "hi" : l.score >= 55 ? "mid" : "lo"}" title="امتیاز فرصت از ۱۰۰"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
+  const LABELS = { gold: "فرصت طلایی", good: "زیر قیمت بازار", fair: "منصفانه", high: "بالاتر از بازار", sus: "قیمت مشکوک", pending: "در انتظار داده" };
+  const CONF = { high: "اطمینان بالا", medium: "اطمینان متوسط", low: "اطمینان کم" };
+  const labelPill = (v) => (v && v.label ? `<span class="lab lab--${v.label}">${LABELS[v.label] || ""}</span>` : "");
+  const gapText = (v) => (!v ? "" : v.delta < -0.005 ? `${pct(v.delta)} زیر قیمت محله` : v.delta > 0.005 ? `${pct(v.delta)} بالاتر از قیمت محله` : "هم‌قیمت محله");
+  // سازگاری با فراخوانی‌های قبلی: برچسب + فاصله
+  const dealPill = (v) => (v ? `${labelPill(v)} <span class="gap gap--${v.delta < 0 ? "below" : "above"}">${gapText(v)}</span>` : "");
+  const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
+  const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"}" title="امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
+  const seen = { has: (id) => store.get("seen", []).includes(id), add: (id) => { const s = store.get("seen", []); if (!s.includes(id)) { s.unshift(id); store.set("seen", s.slice(0, 400)); } } };
+  /* نوار قیمت: این آگهی در برابر قیمت محله برای همین خانه */
+  function priceBar(me, exp, opts = {}) {
+    if (!me || !exp) return "";
+    const lo = Math.min(me, exp) * 0.8, hi = Math.max(me, exp) * 1.15;
+    const X = (v) => ((v - lo) / (hi - lo)) * 100;
+    const below = me < exp;
+    return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت محله برای این خانه متری ${money(exp)}">
+      <div class="pbar__track"><i class="pbar__gap pbar__gap--${below ? "below" : "above"}" style="right:${Math.min(X(me), X(exp))}%;width:${Math.abs(X(me) - X(exp))}%"></i>
+      <b class="pbar__exp" style="right:${X(exp)}%"></b><b class="pbar__me" style="right:${X(me)}%"></b></div>
+      ${opts.mini ? "" : `<div class="pbar__labs"><span class="pbar__lab pbar__lab--me">این آگهی: متری ${money(me)}</span><span class="pbar__lab pbar__lab--exp">قیمت محله برای این خانه: متری ${money(exp)}</span></div>`}
+    </div>`;
+  }
   function typePill(l) {
     return `<span class="pill pill--${l.deal}">${dealName(l.deal)}</span>`;
   }
@@ -124,22 +147,34 @@ const UI = (() => {
 
   /* ---------- کارت ---------- */
   function card(l, opts = {}) {
-    const favs = App.favs, c = cityOf(l.city_key);
+    const favs = App.favs, c = cityOf(l.city_key), v = l.verdict;
     const loc = [c ? c.name : l.city_name, l.district].filter(Boolean).join("، ");
-    return `<article class="card" data-id="${esc(l.id)}">
+    const sig = l.signals || {};
+    const ppmLine = l.deal === "sale" && l.ppm ? `، متری ${money(l.ppm)}` : "";
+    const verdictRow = l.label === "sus"
+      ? `<p class="card__verdict"><span class="lab lab--sus">قیمت مشکوک</span> <span class="small">${esc(l.sus_reason || "")}</span></p>`
+      : v ? `<p class="card__verdict">${dealPill(v)}</p><p class="card__conf">${confLine(v)}${v.wide ? " · قیمت‌های این محله پراکنده‌اند" : ""}</p>`
+      : `<p class="card__verdict"><span class="lab lab--pending">در انتظار داده</span></p>`;
+    return `<article class="card${l.label === "gold" ? " card--gold" : ""}" data-id="${esc(l.id)}">
       <div class="card__media">${media(l)}
         ${scoreBadge(l)}
-        <div class="card__badges">${typePill(l)}${dealPill(l.verdict)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}</div>
+        <div class="card__badges">${typePill(l)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>
       </div>
       <div class="card__body">
-        <div class="card__price">${priceHTML(l)}</div>
+        ${verdictRow}
+        <div class="card__price">${priceHTML(l)}<small class="muted">${ppmLine}</small></div>
         <h3 class="card__title"><a href="#/ad/${encodeURIComponent(l.id)}">${tt(l.title)}</a></h3>
-        <p class="card__loc">${esc(loc)}${l.first_seen ? " · " + ago(l.first_seen) : l.time_text ? " · " + esc(l.time_text) : ""}</p>
+        <p class="card__loc">${esc(loc)}${l.first_seen ? "، " + ago(l.first_seen) : l.time_text ? "، " + esc(l.time_text) : ""}</p>
         <div class="card__specs">${specs(l).map((s) => `<span>${esc(s)}</span>`).join("")}</div>
+        ${sig.caution || sig.fake ? `<p class="card__warn">${icon("alert")} پیش از خرید: ${[sig.fake && "عکس‌ها مال این ملک نیست", sig.caution && fa(sig.caution) + " مورد برای استعلام"].filter(Boolean).join("، ")}</p>` : ""}
         ${opts.compare !== false ? `<label class="card__cmp"><input type="checkbox" data-cmp="${esc(l.id)}" ${App.compare.includes(l.id) ? "checked" : ""}> مقایسه</label>` : ""}
       </div>
     </article>`;
+  }
+  /* کارت قفل: نتیجه‌های بعد از سهم رایگان */
+  function lockCard(n) {
+    return `<article class="card card--lock"><div class="lockbox">${icon("lock")}<h3>${fa(n)} نتیجهٔ دیگر برای مشترکان</h3><p>${fa(DataLayer.config.free_results || 10)} نتیجهٔ اول هر جست‌وجو رایگان است. با اشتراک، همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل و پیوند مستقیم آگهی اصلی باز می‌شود.</p><a class="btn btn--hot" href="#/account">دیدن اشتراک‌ها</a></div></article>`;
   }
 
   /* ---------- نمودار تاریخچه قیمت ---------- */
@@ -156,7 +191,7 @@ const UI = (() => {
     const last = pts[pts.length - 1], first = pts[0];
     const ch = (last.v - first.v) / first.v;
     return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr"><path class="area" d="${d} L${X(last.at)} ${H} L${X(first.at)} ${H}Z"/><path class="line" d="${d}" vector-effect="non-scaling-stroke"/>${pts.map((p) => `<circle cx="${X(p.at)}" cy="${Y(p.v)}" r="4.5" vector-effect="non-scaling-stroke"/>`).join("")}</svg>
-      <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? ` · ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>`;
+      <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? `، ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>`;
   }
 
   /* ---------- نقشه ---------- */
@@ -169,5 +204,5 @@ const UI = (() => {
     return map;
   }
 
-  return { pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  return { LABELS, CONF, labelPill, gapText, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
 })();

@@ -216,3 +216,19 @@ LABELS = {
     "forest": "دید جنگل", "furnished": "مبله", "log_land": "متراژ زمین", "residential_use": "کاربری مسکونی",
     "frontage": "عرض بر", "in_city": "داخل بافت", "agency": "آگهی مشاور املاک", "units": "واحد در هر طبقه",
 }
+
+
+RURAL_RX = r"روستا|دهستان|خارج ?از ?(?:شهر|محدوده|بافت)|حاشیه ?شهر|ییلاق|ده ?کده"
+
+
+def settlement(title: str | None, desc: str | None, district: str | None, feat: dict | None = None) -> str:
+    """«rural» اگر محله یا متن آگهی به روستا، دهستان یا خارج از محدودهٔ شهر اشاره کند؛ وگرنه «urban»."""
+    d = norm(district)
+    if re.search(RURAL_RX, d):
+        return "rural"
+    blob = f"{norm(title)} {norm(desc)[:400]}"
+    if re.search(r"روستای|در ?روستا|دهستان|خارج ?از ?(?:شهر|محدوده|بافت)", blob):
+        return "rural"
+    if (feat or {}).get("in_city") == 0:
+        return "rural"
+    return "urban"

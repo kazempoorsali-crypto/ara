@@ -58,10 +58,10 @@ COLUMNS = ["id", "source", "token", "url", "vertical", "category", "kind", "deal
            "area", "rooms", "year", "mileage", "floor", "brand", "gearbox", "fuel", "color", "body",
            "amenities", "attributes", "images", "image", "lat", "lng", "latlng_exact", "seller_type", "time_text",
            "first_seen", "last_seen", "detail_at", "checked_at", "status", "featured", "hidden", "price_drop",
-           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label"]
+           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address"]
 JSON_COLS = {"amenities", "attributes", "images", "feat", "flags", "explain"}
 NEW_COLS = {"feat": "TEXT", "flags": "TEXT", "excluded": "INTEGER DEFAULT 0", "fair_ppm": "REAL", "fair_price": "REAL",
-            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT"}
+            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT"}
 
 
 def primary_price(d: dict) -> float | None:
@@ -162,6 +162,10 @@ class Store:
             if d.get("pp"):
                 self.x("INSERT INTO price_history VALUES(?,?,?,?,?)",
                        (d["id"], now, d.get("price"), d.get("deposit"), d.get("rent")))
+        if d.get("vertical") == "estate":
+            from features import settlement
+            d["settlement"] = settlement(d.get("title"), d.get("description"), d.get("district"),
+                                         d.get("feat") if isinstance(d.get("feat"), dict) else None)
         for c, default in (("status", "active"), ("hidden", 0), ("featured", 0), ("negotiable", 0),
                            ("price_drop", 0), ("latlng_exact", 0), ("excluded", 0)):
             if d.get(c) is None:
@@ -234,6 +238,8 @@ class Store:
             add("deposit <= ?", float(f["depMax"]))
         if f.get("rentMax"):
             add("rent <= ?", float(f["rentMax"]))
+        if f.get("settle") in ("urban", "rural"):
+            add("COALESCE(settlement,'urban') = ?", f["settle"])
         if f.get("opp"):
             where.append("label IN ('gold','good')")
         if f.get("label"):
@@ -293,6 +299,26 @@ class Store:
             if ck in cities and len(vals) >= 5:
                 cities[ck].setdefault("ppm", {})[kind] = vals[len(vals) // 2]
         return {**{k: (r[k] or 0) for k in r.keys()}, "car": 0, "cities": cities}
+
+    def districts(self, city: str, deal: str | None = None) -> list:
+        """همهٔ محله‌های یک شهر با تعداد آگهی فعال، نوع سکونتگاه و تعداد فرصت (برای فیلتر محله)."""
+        sql = """SELECT district, COUNT(*) n, SUM(label IN ('gold','good')) opp,
+                        SUM(COALESCE(settlement,'urban')='rural') rural
+                 FROM listings WHERE status='active' AND hidden=0 AND vertical='estate' AND COALESCE(excluded,0)=0
+                   AND city_key=? AND district IS NOT NULL AND district != ''"""
+        args = [city]
+        if deal:
+            sql += " AND deal=?"
+            args.append(deal)
+        groups = {}
+        for r in self.q(sql + " GROUP BY district", args):
+            key = r["district"].replace(" ", "").replace("\u200c", "")
+            g = groups.setdefault(key, {"name": r["district"], "n": 0, "opp": 0, "rural": 0, "_best": 0})
+            g["n"] += r["n"]; g["opp"] += r["opp"] or 0; g["rural"] += r["rural"] or 0
+            if r["n"] > g["_best"]:
+                g["name"], g["_best"] = r["district"], r["n"]
+        out = [{"name": g["name"], "n": g["n"], "opp": g["opp"], "rural": g["rural"] * 2 > g["n"]} for g in groups.values()]
+        return sorted(out, key=lambda x: -x["n"])
 
     def market_rows(self, city=None):
         sql, args = "SELECT * FROM market", []

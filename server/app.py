@@ -33,7 +33,8 @@ from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
 DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "قیمت منصفانه ملک در شمال", "about": "", "email": ""}
-DEFAULT_DISPLAY = {"show_samples": True}
+# contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
+DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
 DEFAULT_OWNER = {"support_url": "", "support_label": "", "legal_name": "", "refund_text": "", "enamad_url": ""}
 PUBLIC_DIRS = ("assets",)
@@ -59,7 +60,7 @@ class App:
         return {
             "mode": "server",
             "site": {**DEFAULT_SITE, **(s.get_setting("site") or {})},
-            "display": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
+            "display": {k: v for k, v in {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})}.items() if k != "contact_mode"},
             "plans": b.plans(), "payable": b.payable(), "test_payments": b.cfg()["test_mode"],
             "free_preview": int(b.cfg().get("free_preview") or 0),
             "free_results": int(b.cfg().get("free_results") or 0),
@@ -180,8 +181,10 @@ class Handler(BaseHTTPRequestHandler):
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
         if not active:
-            for k in LOCKED_FIELDS + ("fair_price", "fair_ppm"):
+            for k in LOCKED_FIELDS + ("fair_price", "fair_ppm", "phone", "address"):
                 d.pop(k, None)
+            if d.get("lat") is not None:  # موقعیت دقیق فقط برای مشترکان؛ برای بقیه حدود یک کیلومتر
+                d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
             if isinstance(d.get("verdict"), dict):
                 d["verdict"].pop("fair", None)
                 d["verdict"].pop("fair_ppm", None)
@@ -192,6 +195,13 @@ class Handler(BaseHTTPRequestHandler):
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
         else:
             d.pop("token", None)
+            disp = {**DEFAULT_DISPLAY, **(self.app.store.get_setting("display") or {})}
+            agency = (d.get("feat") or {}).get("agency") == 1 or (d.get("seller_type") or "").lower() in ("business", "real-estate-business", "shop")
+            if disp["contact_mode"] == "none" or (disp["contact_mode"] == "owner" and agency):
+                d.pop("phone", None)
+            if not disp["show_address"]:
+                d.pop("address", None)
+            d["contact_mode"] = disp["contact_mode"]
         return d
 
     def free_ids(self):
@@ -256,6 +266,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(r)
         if path == "/api/stats":
             return self.send_json(a.store.stats())
+        if path == "/api/districts":
+            if qs.get("city") not in catalog.CITY_BY_KEY:
+                return self.send_json({"items": []})
+            return self.send_json({"items": a.store.districts(qs["city"], qs.get("deal") or None)})
         if path == "/api/market":
             out = {"rows": a.store.market_rows(qs.get("city"))}
             if qs.get("city") in catalog.CITY_BY_KEY:
@@ -363,6 +377,7 @@ class Handler(BaseHTTPRequestHandler):
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source='divar' AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
+                "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
                 "owner": {**DEFAULT_OWNER, **(s.get_setting("owner") or {})},
                 "valuation_full": s.get_setting("valuation_info"),
                 "users": {"total": s.q("SELECT COUNT(*) n FROM users", one=True)["n"],
@@ -405,6 +420,8 @@ class Handler(BaseHTTPRequestHandler):
     def admin_post(self, path, data):
         a, s = self.app, self.app.store
         if path == "/api/admin/settings":
+            if isinstance(data.get("display"), dict) and data["display"].get("contact_mode") not in (None, "none", "owner", "all"):
+                raise ValueError("حالت نمایش شماره نامعتبر است")
             for key, default in (("site", DEFAULT_SITE), ("display", DEFAULT_DISPLAY), ("billing", DEFAULT_BILLING)):
                 if isinstance(data.get(key), dict):
                     clean = {k: v for k, v in data[key].items() if k in default}

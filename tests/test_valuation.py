@@ -64,6 +64,12 @@ add("presale", title="پیش فروش آپارتمان ۱۰۰ متری", price=r
 add("token", title="آپارتمان ۱۰۰ متری", price=1000)
 add("deal", title="آپارتمان ۱۰۰ متری فوری", price=round(fair_ref * 0.78 / 1e6) * 1e6, images=["a", "b", "c", "d"], first_seen=10**10)
 add("pricey", title="آپارتمان ۱۰۰ متری", price=round(fair_ref * 1.25 / 1e6) * 1e6)
+# هم‌قیمت میانهٔ شهر، ولی در گران‌ترین محله: باید فرصت باشد (مقایسه فقط با محله)
+golsar_ref = 95e6 * math.exp(-0.012 * 5 + 0.08 + 0.06) * 100
+add("golsar", title="آپارتمان ۱۰۰ متری", district="گلسار", price=round(golsar_ref * 0.70 / 1e6) * 1e6)
+# محلهٔ کم‌آگهی: با میانهٔ شهر سنجیده نمی‌شود
+add("rare1", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref * 0.6 / 1e6) * 1e6)
+add("rare2", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref / 1e6) * 1e6)
 
 info = valuation.recompute(store)
 print("   ", {k: info[k] for k in ("listings", "excluded", "ranked", "seconds")})
@@ -81,6 +87,10 @@ check(get("presale")["label"] == "excluded", "پیش‌فروش: برچسب «ک
 p = get("pricey")
 check(p["label"] == "high" and p["score"] <= 64, f"برچسب آگهی گران: {p['label']}، امتیاز {p['score']}")
 check(-0.32 < p["discount"] < -0.18, f"آگهی گران: {-p['discount']:.0%} بالای قیمت منصفانه (واقعی ۲۵٪)")
+g = get("golsar")
+check(g["label"] == "gold" and 0.25 < g["discount"] < 0.35, f"قیمت نزدیک میانهٔ شهر در گلسار: {g['label']}، {g['discount']:.0%} زیر قیمت محله")
+r1 = get("rare1")
+check(r1["label"] == "pending" and r1["score"] is None, f"محلهٔ کم‌آگهی بدون سنجش: {r1['label']}")
 rank = [r["id"] for r in store.q("SELECT id FROM listings WHERE score IS NOT NULL ORDER BY score DESC LIMIT 15")]
 check("deal" in rank, f"آگهی ارزان در ۱۵ رتبه اول ({rank.index('deal') + 1 if 'deal' in rank else '-'})")
 m = next(m for m in info["models"] if m["scope"] == "rasht")
@@ -89,5 +99,5 @@ check(eff.get("سن بنا", 0) < 0 and eff.get("آسانسور", 0) > 0 and eff
 errs = [abs(get(i)["fair_ppm"] - truth[i]) / truth[i] for i in truth if get(i)["fair_ppm"]]
 med_err = sorted(errs)[len(errs) // 2]
 check(med_err < 0.08, f"میانه خطای قیمت منصفانه هر متر: {med_err:.1%} (نویز داده ۶٪)")
-check(store.market_rows("rasht") and len(store.market_rows("rasht")) == 4, "جدول بازار ۴ محله رشت")
+check({"گلسار", "منظریه", "معلم", "بلوار گیلان"} <= {r["district"] for r in store.market_rows("rasht")}, "جدول بازار ۴ محله اصلی رشت")
 print("همه آزمون‌های ارزش‌گذاری موفق بود.")

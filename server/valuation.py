@@ -2,7 +2,8 @@
 
 مراحل (روی همه آگهی‌های فعال، هر بار از نو):
   ۱. پاک‌سازی: قیمت نمادین، بازارهای جدا (پیش‌فروش، مشارکت، معاوضه، دانگی، هم‌خانه)، آگهی تکراری
-  ۲. خط پایه مکانی: میانه لگاریتم «قیمت هر متر» در محله، با انقباض به سمت میانه شهر و استان وقتی نمونه کم است
+  ۲. قیمت محله: میانهٔ لگاریتم «قیمت هر متر» آگهی‌های معتبر هم‌نوع همان محله (دست‌کم ۵ آگهی)؛
+     میانهٔ شهر هرگز مبنای فرصت نیست و محلهٔ کم‌آگهی «در انتظار داده» می‌ماند
   ۳. پرت‌یابی مقاوم: فاصله از خط پایه با معیار MAD؛ تشخیص جداگانه اشتباه صفر (۱۰ یا ۱۰۰ برابر)
   ۴. مدل هدونیک: رگرسیون ریج روی باقی‌مانده لگاریتمی با ویژگی‌های ملک (سن، طبقه، آسانسور، پارکینگ، ...)
   ۵. قیمت منصفانه، درصد زیر/بالای قیمت، اطمینان، امتیاز ۰ تا ۱۰۰ و توضیح اثر هر ویژگی
@@ -16,11 +17,10 @@ import statistics
 import time
 
 from catalog import norm
-from features import LABELS, SIGNAL_TEXT, kind_group
+from features import LABELS, SIGNAL_TEXT, kind_group, settlement
 
-K_SHRINK = 8           # نمونه معادل برای انقباض میانه محله به میانه شهر
+MIN_DISTRICT = 5       # کمترین آگهی معتبر هم‌نوع در محله تا قیمت محله ساخته و آگهی سنجیده شود
 MAD_Z = 3.5            # آستانه پرت مقاوم
-MIN_CITY = 5           # کمترین نمونه شهر برای رتبه‌دادن
 MIN_MODEL = 60         # کمترین نمونه برای مدل هدونیک
 RIDGE = 2.0
 LN10 = math.log(10)
@@ -216,30 +216,35 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 city_vals.setdefault(l["city_key"], []).append(l["_v"])
                 if l["_district"]:
                     dist_vals.setdefault((l["city_key"], l["_district"]), []).append(l["_v"])
-            city_base = {}
-            for ck, vals in city_vals.items():
-                n = len(vals)
-                city_base[ck] = ((_median(vals) * n + prov_med * K_SHRINK) / (n + K_SHRINK), n)
+            city_med = {ck: _median(v) for ck, v in city_vals.items()}
             for l in items:
-                cb, cn = city_base.get(l["city_key"], (prov_med, 0))
+                # قیمت محله فقط از آگهی‌های همان محله؛ هیچ انقباضی به سمت میانهٔ شهر نیست
                 dv = dist_vals.get((l["city_key"], l["_district"])) if l["_district"] else None
                 dn = len(dv) if dv else 0
-                base = (_median(dv) * dn + cb * K_SHRINK) / (dn + K_SHRINK) if dn else cb
-                l["_base"], l["_cn"], l["_dn"] = base, cn, dn
+                l["_base"] = _median(dv) if dn >= MIN_DISTRICT else None
+                l["_dn"], l["_cn"] = dn, len(city_vals.get(l["city_key"], []))
+                l["_cmed"] = city_med.get(l["city_key"], prov_med)
             if _round == 0:
-                res = [l["_v"] - l["_base"] for l in clean]
+                res = [l["_v"] - l["_base"] for l in clean if l["_base"] is not None]
                 med = _median(res) or 0
                 mad = _mad(res, med) or 0.15
                 for l in items:
                     if l["_v"] is None or "placeholder" in l["_flags"] or l["id"] in overrides:
                         continue
-                    r = l["_v"] - l["_base"]
-                    z = 0.6745 * (r - med) / mad
-                    if abs(z) > MAD_Z:
-                        if min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35:
+                    if l["_base"] is not None:
+                        r = l["_v"] - l["_base"]
+                        z = 0.6745 * (r - med) / mad
+                        typo = min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35
+                        if abs(z) > MAD_Z:
+                            if typo:
+                                l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
+                            else:
+                                l["_flags"].append("outlier_high" if z > 0 else "outlier_low")
+                    else:
+                        # محلهٔ کم‌آگهی: فقط خطای آشکار ورود داده (۱۰ یا ۱۰۰ برابر) پاک‌سازی می‌شود، بدون سنجش فرصت
+                        r = l["_v"] - l["_cmed"]
+                        if abs(r) > 1.6 and min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35:
                             l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
-                        else:
-                            l["_flags"].append("outlier_high" if z > 0 else "outlier_low")
 
         # مدل هدونیک: سطح شهر اگر نمونه کافی باشد، وگرنه استان
         clean = [l for l in items if usable(l) and l.get("_base") is not None]
@@ -283,17 +288,12 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 if usable(l):
                     res_cell.setdefault((l["city_key"], l["_district"] or ""), []).append(l["_r"])
                     res_city.setdefault(l["city_key"], []).append(l["_r"])
-        sig_city = {ck: max(0.06, 1.4826 * _mad(v, _median(v))) for ck, v in res_city.items() if len(v) >= 5}
-        sig_prov = max(0.06, 1.4826 * _mad(sum(res_city.values(), []), _median(sum(res_city.values(), [])))) if res_city else 0.2
         for l in items:
             if l.get("_r") is None:
                 continue
-            sc = sig_city.get(l["city_key"], sig_prov)
             rv = res_cell.get((l["city_key"], l["_district"] or ""), [])
-            n = len(rv)
-            sd = max(0.04, 1.4826 * _mad(rv, _median(rv))) if n >= 3 else sc
-            l["_sigma"] = (sd * n + sc * K_SHRINK) / (n + K_SHRINK) if n >= 3 else sc
-            l["_dmed"] = None
+            # پراکندگی عادی همان محله (بدون قرض گرفتن از شهر)
+            l["_sigma"] = max(0.06, 1.4826 * _mad(rv, _median(rv))) if len(rv) >= 3 else 0.15
         # جدول بازار هر محله
         cells = {}
         for l in items:
@@ -317,7 +317,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         l["_disc"] = (fair - ask) / fair if fair and ask else None
         d = l["_disc"]
         sig = (l.get("feat") or {}).get("sus") or []
-        if not flags and d is not None and l.get("_cn", 0) >= MIN_CITY and l["id"] not in overrides:
+        if not flags and d is not None and l.get("_base") is not None and l["id"] not in overrides:
             if d >= th["sus"]:
                 flags.append("too_cheap")
             elif d >= th["sus_flagged"] and set(sig) & {"fake_photos", "multi_price"}:
@@ -326,7 +326,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 flags.append("scam_text")
         if flags:
             l["_label"] = "sus" if set(flags) & SUS_FLAGS else "excluded"
-        elif d is None or l.get("_cn", 0) < MIN_CITY:
+        elif d is None or l.get("_base") is None:
             l["_label"] = "pending"
         else:
             outside = -(l.get("_r") or 0) >= th["disp_k"] * (l.get("_sigma") or 0.15)
@@ -352,7 +352,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         filled = sum(1 for k in FEATURE_SETS[l["_kg"]] if design_row(feat, l["_kg"]).get(k) is not None) / len(FEATURE_SETS[l["_kg"]])
         conf, score = None, None
         if label in ("gold", "good", "fair", "high"):
-            conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 5 or cn >= 15 else "low"
+            conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 8 else "low"
             if label in ("gold", "good"):
                 p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]
                 depth = max(0.0, min(1.0, (d - th["opp"]) / max(0.01, th["sus"] - th["opp"])))
@@ -372,10 +372,11 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
         updates.append((round(l["_fair_v"]) if l.get("_fair_v") else None, round(fair) if fair else None,
                         round(d, 4) if d is not None else None, score, conf,
-                        json.dumps(explain, ensure_ascii=False), excluded, json.dumps(flags), label, l["id"]))
+                        json.dumps(explain, ensure_ascii=False), excluded, json.dumps(flags), label,
+                        settlement(l.get("title"), l.get("description"), l.get("district"), feat), l["id"]))
     with store.lock:
         store.db.executemany("""UPDATE listings SET fair_ppm=?, fair_price=?, discount=?, score=?, confidence=?, explain=?,
-                                excluded=?, flags=?, label=? WHERE id=?""", updates)
+                                excluded=?, flags=?, label=?, settlement=? WHERE id=?""", updates)
         store.db.execute("DELETE FROM market")
         store.db.executemany("INSERT INTO market VALUES(?,?,?,?,?,?,?,?)", market)
         store.db.commit()

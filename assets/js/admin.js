@@ -48,7 +48,7 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت از دیوار"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
@@ -84,7 +84,7 @@
     const st = S.stats, cfg = S.ingest;
     const missing = [];
     if (!S.plans.length) missing.push("تعرفه اشتراک");
-    if (!S.billing.merchant_id && !S.billing.test_mode) missing.push("درگاه پرداخت");
+    if (!S.billing.merchant_id && !S.billing.card_number && !S.billing.test_mode) missing.push("درگاه پرداخت یا شمارهٔ کارت");
     if (!S.sms_live) missing.push("سامانه پیامک (فعلاً کد ورود روی صفحه نمایش داده می‌شود)");
     main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی</p>
       ${missing.length ? `<div class="note" style="margin-bottom:18px">برای شروع: ${missing.join("، ")} را در بخش «اشتراک، درگاه و پیامک» تنظیم کنید.</div>` : ""}
@@ -177,7 +177,7 @@
 
   /* ---------- ارزش‌گذاری ---------- */
   function valuationTab() {
-    const v = S.valuation_full || {}, w = S.scoring.weights;
+    const v = S.valuation_full || {}, th = S.thresholds, lb = v.labels || {};
     const KG = { apartment: "آپارتمان", villa: "ویلا", land: "زمین و باغ", commercial: "تجاری" };
     const DEAL = { sale: "فروش", rent: "رهن و اجاره", daily: "روزانه" };
     const cityName = (k) => (S.catalog.cities.find((c) => c.key === k) || {}).name || (S.catalog.provinces[k] || {}).name || k;
@@ -188,21 +188,22 @@
         <div><b>${fa(v.excluded)}</b><span>کنار گذاشته</span></div>
         <div><b>${v.at ? when(v.at) : "—"}</b><span>آخرین محاسبه (${fa(v.seconds || 0)} ثانیه)</span></div>
       </div>
-      <div class="panel"><h2>وزن اجزای امتیاز <button class="btn btn--line btn--sm" id="revalue">محاسبه دوباره اکنون</button></h2>
+      <div class="kpis">${[["gold", "فرصت طلایی"], ["good", "زیر قیمت بازار"], ["fair", "منصفانه"], ["high", "بالاتر از بازار"], ["pending", "در انتظار داده (محلهٔ کم‌آگهی)"], ["sus", "مشکوک"], ["excluded", "کنار رفت"]].map(([k, n]) => `<div><b>${fa(lb[k] || 0)}</b><span>${n}</span></div>`).join("")}</div>
+      <div class="panel"><h2>آستانه‌های حکم <button class="btn btn--line btn--sm" id="revalue">محاسبه دوباره اکنون</button></h2>
         <form id="wf" class="grid2">
-          ${[["discount", "فاصله تا قیمت منصفانه"], ["confidence", "اطمینان برآورد"], ["quality", "کیفیت آگهی (عکس، توضیح، مشخصات)"], ["momentum", "تحولات (کاهش قیمت، تازگی)"]].map(([k, n]) => `<label class="field"><span>${n}</span><input class="input" type="number" min="0" max="100" name="${k}" value="${w[k]}"></label>`).join("")}
-          <div><button class="btn btn--hot">ذخیره وزن‌ها</button></div>
+          ${[["opp", "فرصت: دست‌کم چند درصد زیر قیمت محله", 100], ["gold", "فرصت طلایی: دست‌کم چند درصد", 100], ["sus", "مشکوک: بیش از چند درصد ارزان‌تر", 100], ["sus_flagged", "مشکوک همراه با نشانهٔ متنی: بیش از چند درصد", 100], ["disp_k", "ضریب پراکندگی محله (۱ = یک انحراف معیار مقاوم)", 1]].map(([k, n, m]) => `<label class="field"><span>${n}</span><input class="input" type="number" step="${m === 1 ? "0.1" : "1"}" min="0" name="${k}" data-m="${m}" value="${+(th[k] * m).toFixed(2)}"></label>`).join("")}
+          <div><button class="btn btn--hot">ذخیره آستانه‌ها</button></div>
         </form>
-        <p class="hint">وزن‌ها نسبی‌اند؛ پیش‌فرض ۶۰، ۱۵، ۱۵ و ۱۰. تخفیف بیش از ۴۰٪ همیشه حداکثر ۶۰ امتیاز می‌گیرد.</p></div>
+        <p class="hint">قیمت محله فقط از آگهی‌های همان محله ساخته می‌شود (دست‌کم ۵ آگهی معتبر هم‌نوع) و هرگز با میانهٔ شهر جایگزین نمی‌شود. پیش‌فرض: ۱۵، ۲۲، ۴۰، ۲۵ و ۱.</p></div>
       <div class="panel"><h2>مدل‌های قیمت ساخته‌شده</h2>
         ${(v.models || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>محدوده</th><th>نوع</th><th>معامله</th><th>نمونه</th><th>R²</th><th>اثر ویژگی‌ها (ضریب استانداردشده لگاریتمی)</th></tr></thead><tbody>
           ${v.models.map((m) => `<tr><td>${esc(cityName(m.scope))}</td><td>${KG[m.kind] || m.kind}</td><td>${DEAL[m.deal] || m.deal}</td><td>${fa(m.n)}</td><td>${fa(m.r2)}</td><td class="small">${Object.entries(m.effects).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8).map(([k, e]) => `<span style="display:inline-block;margin:2px 6px" class="${e >= 0 ? "ok" : "bad"}">${esc(k)} ${e >= 0 ? "+" : "−"}${fa(Math.abs(e).toFixed(3))}</span>`).join("")}</td></tr>`).join("")}
-        </tbody></table></div>` : '<p class="muted">هنوز هیچ شهر یا استانی ۶۰ آگهی پاک‌سازی‌شده هم‌نوع ندارد؛ فعلاً قیمت منصفانه بر پایه میانه محله و شهر است.</p>'}</div>`;
+        </tbody></table></div>` : '<p class="muted">هنوز هیچ شهر یا استانی ۶۰ آگهی پاک‌سازی‌شده هم‌نوع ندارد؛ فعلاً قیمت محله بدون تعدیل ویژگی‌ها، فقط میانهٔ همان محله است.</p>'}</div>`;
     $("#revalue").addEventListener("click", async (e) => { e.target.disabled = true; try { await api("admin/revalue", {}); toast("محاسبه شد"); load(); } catch (err) { toast(err.message); } });
     $("#wf").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const weights = Object.fromEntries([...new FormData(e.target).entries()].map(([k, x]) => [k, +x]));
-      try { await api("admin/settings", { weights }); toast("ذخیره شد؛ امتیازها از نو محاسبه می‌شوند"); setTimeout(load, 1500); } catch (err) { toast(err.message); }
+      const thresholds = Object.fromEntries($$("#wf input").map((i) => [i.name, +i.value / +i.dataset.m]));
+      try { await api("admin/settings", { thresholds }); toast("ذخیره شد؛ حکم‌ها از نو محاسبه می‌شوند"); setTimeout(load, 1500); } catch (err) { toast(err.message); }
     });
   }
 
@@ -212,7 +213,7 @@
     main().innerHTML = `<h1>آگهی‌های کنارگذاشته</h1><p class="muted">این آگهی‌ها خودکار از محاسبه و رتبه‌بندی حذف شده‌اند. اگر موردی به اشتباه حذف شده، «تأیید دستی» را بزنید تا در محاسبه بیاید. سایت بدون این بازبینی هم کار می‌کند.</p>
       <div class="panel"><form id="lq" style="display:flex;gap:8px;margin-bottom:14px"><input class="input" name="q" value="${esc(q)}" placeholder="جست‌وجو در عنوان"><button class="btn btn--ink">جست‌وجو</button></form>
       <div class="tbl-scroll"><table class="tbl"><thead><tr><th>عنوان</th><th>شهر و محله</th><th>قیمت</th><th>متراژ</th><th>دلیل</th><th>تأیید دستی</th></tr></thead><tbody>
-      ${r.items.map((l) => `<tr><td><a href="./#/ad/${encodeURIComponent(l.id)}" target="_blank">${esc(l.title)}</a>${l.url ? ` <a class="small" href="${esc(l.url)}" target="_blank">دیوار</a>` : ""}</td><td>${esc([l.city_name, l.district].filter(Boolean).join("، "))}</td><td>${money(l.pp)}</td><td>${l.area ? fa(l.area) : "—"}</td><td class="small bad">${esc(((l.explain || {}).flags || []).join("، "))}</td>
+      ${r.items.map((l) => `<tr><td><a href="./#/ad/${encodeURIComponent(l.id)}" target="_blank">${esc(l.title)}</a>${l.url ? ` <a class="small" href="${esc(l.url)}" target="_blank">آگهی اصلی</a>` : ""}</td><td>${esc([l.city_name, l.district].filter(Boolean).join("، "))}</td><td>${money(l.pp)}</td><td>${l.area ? fa(l.area) : "—"}</td><td class="small bad">${esc(((l.explain || {}).flags || []).join("، "))}</td>
         <td><input type="checkbox" data-ov="${esc(l.id)}" ${l.override ? "checked" : ""}></td></tr>`).join("") || '<tr><td colspan="6" class="muted">آگهی کنارگذاشته‌ای نیست.</td></tr>'}
       </tbody></table></div></div>`;
     $("#lq").addEventListener("submit", (e) => { e.preventDefault(); excluded(e.target.q.value); });
@@ -223,16 +224,28 @@
   async function users() {
     const r = await api("admin/users");
     const now = Date.now() / 1000;
-    const ST = { paid: "موفق", pending: "در انتظار", failed: "ناموفق" };
+    const ST = { paid: "موفق", pending: "در انتظار", failed: "ناموفق", review: "رسید ثبت شد؛ در انتظار بررسی", rejected: "رد شد" };
+    const GW = { test: "آزمایشی", card: "کارت‌به‌کارت", zarinpal: "زرین‌پال", idpay: "آیدی‌پی" };
+    const rv = r.payments.filter((p) => p.status === "review");
     main().innerHTML = `<h1>کاربران و پرداخت‌ها</h1><p class="muted">ثبت‌نام، پرداخت و فعال‌سازی اشتراک کاملاً خودکار است.</p>
       <div class="kpis"><div><b>${fa(S.users.total)}</b><span>کاربر</span></div><div><b>${fa(S.users.active)}</b><span>اشتراک فعال</span></div><div><b>${money(S.revenue)}</b><span>درآمد واقعی (تومان)</span></div><div><b>${fa(r.payments.filter((p) => p.status === "paid").length)}</b><span>پرداخت موفق</span></div></div>
+      ${rv.length ? `<div class="panel"><h2>رسیدهای کارت‌به‌کارت در انتظار بررسی (${fa(rv.length)})</h2><p class="hint">مبلغ را با واریزهای حساب تطبیق دهید؛ سه رقم آخر هر مبلغ یکتاست. رد کردن، روزهای فعال‌شده را پس می‌گیرد.</p>
+        <div class="tbl-scroll"><table class="tbl"><thead><tr><th>زمان</th><th>موبایل</th><th>مبلغ دقیق</th><th>کد پیگیری</th><th>یادداشت</th><th></th></tr></thead><tbody>
+        ${rv.map((p) => `<tr><td>${when(p.created)}</td><td dir="ltr">${esc(p.phone)}</td><td><b>${fa(p.amount)}</b></td><td dir="ltr">${esc(p.ref_id || "")}</td><td class="small">${esc(p.note || "")}</td><td style="white-space:nowrap">${/رسید تصویری/.test(p.note || "") ? `<button class="btn btn--line btn--sm" data-rc="${p.id}">رسید</button> ` : ""}<button class="btn btn--ink btn--sm" data-ok="${p.id}">تأیید</button> <button class="btn btn--line btn--sm" data-no="${p.id}">رد</button></td></tr>`).join("")}
+        </tbody></table></div></div>` : ""}
       <div class="panel"><h2>فعال‌سازی دستی اشتراک</h2><form id="gf" style="display:flex;gap:8px;flex-wrap:wrap"><input class="input input--ltr" name="phone" placeholder="09123456789" style="max-width:220px"><select class="select" name="plan" style="max-width:160px"><option value="weekly">هفتگی</option><option value="monthly">ماهانه</option></select><button class="btn btn--ink">فعال کن</button></form><p class="hint">فقط برای موارد استثنایی (مثلاً جبران خطای درگاه).</p></div>
       <div class="panel"><h2>پرداخت‌ها</h2><div class="tbl-scroll"><table class="tbl"><thead><tr><th>زمان</th><th>موبایل</th><th>طرح</th><th>مبلغ</th><th>درگاه</th><th>وضعیت</th><th>کد پیگیری</th></tr></thead><tbody>
-        ${r.payments.map((p) => `<tr><td>${when(p.created)}</td><td dir="ltr">${esc(p.phone)}</td><td>${p.plan === "monthly" ? "ماهانه" : "هفتگی"}</td><td>${fa(p.amount)}</td><td>${p.gateway === "test" ? "آزمایشی" : esc(p.gateway)}</td><td class="${p.status === "paid" ? "ok" : p.status === "failed" ? "bad" : ""}">${ST[p.status] || p.status}</td><td>${esc(p.ref_id || "")}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">پرداختی ثبت نشده است.</td></tr>'}
+        ${r.payments.map((p) => `<tr><td>${when(p.created)}</td><td dir="ltr">${esc(p.phone)}</td><td>${p.plan === "monthly" ? "ماهانه" : "هفتگی"}</td><td>${fa(p.amount)}</td><td>${GW[p.gateway] || esc(p.gateway)}</td><td class="${p.status === "paid" ? "ok" : p.status === "failed" ? "bad" : ""}">${ST[p.status] || p.status}</td><td>${esc(p.ref_id || "")}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">پرداختی ثبت نشده است.</td></tr>'}
       </tbody></table></div></div>
       <div class="panel"><h2>کاربران</h2><div class="tbl-scroll"><table class="tbl"><thead><tr><th>موبایل</th><th>ثبت‌نام</th><th>آخرین ورود</th><th>اشتراک تا</th></tr></thead><tbody>
         ${r.users.map((u) => `<tr><td dir="ltr">${esc(u.phone)}</td><td>${when(u.created)}</td><td>${when(u.last_login)}</td><td class="${u.sub_until > now ? "ok" : ""}">${u.sub_until > now ? when(u.sub_until) : "—"}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">هنوز کاربری ثبت‌نام نکرده است.</td></tr>'}
       </tbody></table></div></div>`;
+    $$("[data-ok],[data-no]").forEach((b) => b.addEventListener("click", async () => { try { await api("admin/review", { id: +(b.dataset.ok || b.dataset.no), approve: !!b.dataset.ok }); toast("ثبت شد"); S = await api("admin/state"); users(); } catch (err) { toast(err.message); } }));
+    $$("[data-rc]").forEach((b) => b.addEventListener("click", async () => {
+      const res = await fetch("api/admin/receipt/" + b.dataset.rc, { headers: { "x-admin-token": token } });
+      if (!res.ok) return toast("رسید پیدا نشد");
+      window.open(URL.createObjectURL(await res.blob()), "_blank");
+    }));
     $("#gf").addEventListener("submit", async (e) => { e.preventDefault(); try { await api("admin/grant", { phone: e.target.phone.value.trim(), plan: e.target.plan.value }); toast("فعال شد"); users(); } catch (err) { toast(err.message); } });
   }
 
@@ -246,12 +259,19 @@
         <label class="field"><span>مدت هفتگی (روز)</span><input class="input" name="weekly_days" type="number" min="1" value="${b.weekly_days}"></label>
         <label class="field"><span>اشتراک ماهانه</span><input class="input" name="monthly_price" type="number" min="0" value="${b.monthly_price || ""}"></label>
         <label class="field"><span>مدت ماهانه (روز)</span><input class="input" name="monthly_days" type="number" min="1" value="${b.monthly_days}"></label>
-        <label class="field"><span>تعداد فرصت برتر رایگان با جزئیات</span><input class="input" name="free_preview" type="number" min="0" max="50" value="${b.free_preview}"></label>
+        <label class="field"><span>تعداد نتیجهٔ رایگان هر جست‌وجو (بدون اشتراک)</span><input class="input" name="free_results" type="number" min="0" max="100" value="${b.free_results}"></label>
+        <label class="field"><span>تعداد فرصت برتر رایگان با جزئیات کامل</span><input class="input" name="free_preview" type="number" min="0" max="50" value="${b.free_preview}"></label>
       </div><p class="hint">خالی یا صفر = آن طرح نمایش داده نمی‌شود.</p></div>
       <div class="panel"><h2>درگاه پرداخت</h2><div class="grid2">
-        <label class="field"><span>درگاه</span><select class="select" name="gateway"><option value="">انتخاب نشده</option><option value="zarinpal" ${b.gateway === "zarinpal" ? "selected" : ""}>زرین‌پال</option><option value="idpay" ${b.gateway === "idpay" ? "selected" : ""}>آیدی‌پی</option></select></label>
+        <label class="field"><span>درگاه</span><select class="select" name="gateway"><option value="">انتخاب نشده</option><option value="zarinpal" ${b.gateway === "zarinpal" ? "selected" : ""}>زرین‌پال</option><option value="idpay" ${b.gateway === "idpay" ? "selected" : ""}>آیدی‌پی</option><option value="card" ${b.gateway === "card" ? "selected" : ""}>کارت‌به‌کارت (مبلغ یکتا و رسید)</option></select></label>
         <label class="field"><span>کد پذیرنده (زرین‌پال: Merchant ID؛ آیدی‌پی: API Key)</span><input class="input input--ltr" name="merchant_id" value="${esc(b.merchant_id)}"></label>
       </div>
+      <h3 style="margin-top:16px">کارت‌به‌کارت</h3><div class="grid2">
+        <label class="field"><span>شمارهٔ کارت ۱۶ رقمی</span><input class="input input--ltr" name="card_number" value="${esc(b.card_number)}" placeholder="شمارهٔ کارت شما"></label>
+        <label class="field"><span>نام دارندهٔ کارت</span><input class="input" name="card_holder" value="${esc(b.card_holder)}"></label>
+        <label class="field"><span>بانک</span><input class="input" name="card_bank" value="${esc(b.card_bank)}"></label>
+      </div>
+      <label class="switch" style="margin-top:10px"><input type="checkbox" name="card_auto_activate" ${b.card_auto_activate ? "checked" : ""}><i></i>اشتراک با ثبت رسید فوراً فعال شود (بررسی بعدی در «کاربران و پرداخت‌ها»)</label><br>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="sandbox" ${b.sandbox ? "checked" : ""}><i></i>محیط آزمایشی درگاه (Sandbox)</label><br><br>
       <label class="switch"><input type="checkbox" name="test_mode" ${b.test_mode ? "checked" : ""}><i></i>حالت آزمایشی پرداخت: اشتراک بدون پرداخت فعال شود</label>
       <p class="hint" style="color:var(--over)">حالت آزمایشی پرداخت فقط برای آزمون است؛ پیش از انتشار عمومی حتماً خاموشش کنید.</p></div>
@@ -267,7 +287,8 @@
       const f = e.target;
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
-          free_preview: +f.free_preview.value || 0, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
+          free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0,
+          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_auto_activate.checked, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
         sms: { api_key: f.api_key.value.trim(), template: f.template.value.trim(), dev_mode: f.dev_mode.checked },
       };
       try { await api("admin/settings", body); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
@@ -283,12 +304,27 @@
         <label class="field"><span>شعار کوتاه</span><input class="input" name="tagline" value="${esc(s.tagline)}"></label>
         <label class="field"><span>ایمیل پشتیبانی (اختیاری)</span><input class="input input--ltr" name="email" type="email" value="${esc(s.email)}"></label>
       </div><label class="field" style="margin-top:14px"><span>درباره سایت</span><textarea class="textarea" name="about">${esc(s.about)}</textarea></label></div>
-      <div class="panel"><h2>نمایش</h2><label class="switch"><input type="checkbox" id="showSamples" ${S.display.show_samples ? "checked" : ""}><i></i>نمایش آگهی‌های نمونه تا وقتی آگهی واقعی دریافت نشده</label></div>
+      <div class="panel"><h2>نمایش</h2><label class="switch"><input type="checkbox" id="showSamples" ${S.display_full.show_samples ? "checked" : ""}><i></i>نمایش آگهی‌های نمونه تا وقتی آگهی واقعی دریافت نشده</label></div>
+      <div class="panel"><h2>اطلاعات تماس آگهی برای مشترکان</h2>
+        <label class="field"><span>شمارهٔ تلفن آگهی</span><select class="select" id="contactMode">
+          <option value="none" ${S.display_full.contact_mode === "none" ? "selected" : ""}>نمایش داده نشود</option>
+          <option value="owner" ${S.display_full.contact_mode === "owner" ? "selected" : ""}>فقط شمارهٔ مالک (آگهی‌های شخصی، نه مشاور املاک)</option>
+          <option value="all" ${S.display_full.contact_mode === "all" ? "selected" : ""}>شمارهٔ هر آگهی‌دهنده</option></select></label>
+        <label class="switch" style="margin-top:12px"><input type="checkbox" id="showAddress" ${S.display_full.show_address ? "checked" : ""}><i></i>نمایش نشانی تقریبی و موقعیت دقیق نقشه برای مشترکان</label>
+        <p class="hint">شماره فقط وقتی ذخیره و نمایش داده می‌شود که منبع آگهی آن را بدون ورود به حساب کاربری برگرداند. برای کاربران بدون اشتراک، شماره و نشانی هرگز ارسال نمی‌شود و موقعیت نقشه حدود یک کیلومتر گرد می‌شود.</p></div>
+      <div class="panel"><h2>هویت و پشتیبانی</h2><p class="hint">تا خالی است، سطر مربوط در سایت نمایش داده نمی‌شود.</p><div class="grid2">
+        <label class="field"><span>پیوند پشتیبانی (https:// یا tel: یا mailto:)</span><input class="input input--ltr" id="o_support_url" value="${esc(S.owner.support_url)}"></label>
+        <label class="field"><span>متن پیوند پشتیبانی</span><input class="input" id="o_support_label" value="${esc(S.owner.support_label)}"></label>
+        <label class="field"><span>نام حقوقی و شناسه</span><input class="input" id="o_legal_name" value="${esc(S.owner.legal_name)}"></label>
+        <label class="field"><span>پیوند نماد اعتماد الکترونیکی</span><input class="input input--ltr" id="o_enamad_url" value="${esc(S.owner.enamad_url)}"></label>
+      </div><label class="field" style="margin-top:12px"><span>سیاست بازگشت وجه (یک یا دو جمله)</span><textarea class="textarea" id="o_refund_text">${esc(S.owner.refund_text)}</textarea></label></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
     $("#sf").addEventListener("submit", async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target).entries());
-      try { await api("admin/settings", { site: data, display: { show_samples: $("#showSamples").checked } }); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
+      const owner = Object.fromEntries(["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].map((k) => [k, $("#o_" + k).value.trim()]));
+      ["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].forEach((k) => delete data[k]);
+      try { await api("admin/settings", { site: data, owner, display: { show_samples: $("#showSamples").checked, contact_mode: $("#contactMode").value, show_address: $("#showAddress").checked } }); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
     });
   }
 
