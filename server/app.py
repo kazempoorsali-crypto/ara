@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -132,6 +133,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/pay/callback":
                 return self.pay_callback(qs)
+            if url.path == "/img":
+                return self.image_proxy(qs.get("u") or "")
             if url.path.startswith("/api/"):
                 return self.api_get(url.path, qs)
             return self.static(url.path)
@@ -170,6 +173,43 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("cache-control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def image_proxy(self, u):
+        """عکس آگهی از طریق همین سرور، با کش روی دیسک؛ فقط از میزبان‌های عکس دیوار و شیپور."""
+        import hashlib as _h
+        host = (urllib.parse.urlsplit(u).hostname or "").lower()
+        if not u.startswith("https://") or not re.search(r"(^|\.)(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)$", host):
+            self.send_response(404)
+            self.end_headers()
+            return None
+        cache = self.app.data_dir / "imgcache"
+        cache.mkdir(parents=True, exist_ok=True)
+        f = cache / _h.sha1(u.encode()).hexdigest()
+        if not f.is_file():
+            from divar_client import NET, _opener, _system_proxies
+            req = urllib.request.Request(u, headers={"user-agent": "Mozilla/5.0", "referer": "https://divar.ir/" if "divar" in host else "https://www.sheypoor.com/"})
+            data = None
+            for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
+                try:
+                    with _opener(proxy).open(req, timeout=15) as r:
+                        data = r.read(6_000_000)
+                    break
+                except Exception:  # noqa: BLE001
+                    continue
+            if not data:
+                self.send_response(502)
+                self.end_headers()
+                return None
+            f.write_bytes(data)
+        data = f.read_bytes()
+        ctype = "image/webp" if data[8:12] == b"WEBP" else "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+        self.send_response(200)
+        self.send_header("content-type", ctype)
+        self.send_header("content-length", str(len(data)))
+        self.send_header("cache-control", "public, max-age=604800")
+        self.end_headers()
+        self.wfile.write(data)
+        return None
 
     def pay_callback(self, params):
         ok = self.app.billing.callback(params)
@@ -283,6 +323,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "یافت نشد"}, 404)
             d["verdict"] = a.store.verdict(d)
             d["history"] = a.store.history(d["id"])
+            if not d.get("detail_at") and d.get("source") in ("divar", "sheypoor"):
+                wanted = a.store.get_setting("detail_wanted") or []  # عکس و مشخصات این آگهی در نوبت اول دریافت
+                if d["id"] not in wanted:
+                    a.store.set_setting("detail_wanted", ([d["id"]] + wanted)[:200])
+                    a.ingest.poke()
+                d["detail_pending"] = True
             u = self.user()
             d["similar"] = [self.gate(x, u) for x in self.similar(d)]
             if d.get("excluded"):
@@ -373,6 +419,7 @@ class Handler(BaseHTTPRequestHandler):
                 "log": [dict(r) for r in s.q("SELECT * FROM requests_log ORDER BY at DESC LIMIT 60")],
                 "stats": s.stats(),
                 "sheypoor_cats": (s.get_setting("sheypoor_map") or {}).get("categories") or [],
+                "images": dict(s.q("SELECT COUNT(*) n, SUM(image IS NOT NULL AND image != '') w FROM listings WHERE status='active'", one=True)),
                 "by_source": {r["source"]: r["n"] for r in s.q("SELECT source, COUNT(*) n FROM listings WHERE status='active' GROUP BY source")},
                 "city_ids": {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})},
                 "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
@@ -475,8 +522,9 @@ class Handler(BaseHTTPRequestHandler):
             a.ingest.pause_until = 0
             a.ingest.poke()
             ids = {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})}
-            if data.get("mode") == "direct" and cfg["mode"] == "direct" and any(not ids.get(k) for k in cfg["cities"]):
-                a.ingest.discover_ids()  # شناسهٔ شهرهای بی‌شناسه خودکار و در پس‌زمینه پیدا می‌شود
+            if cfg["mode"] in ("mcp", "direct") and cfg["enabled"] and not s.get_setting("discover_done") \
+                    and any(not ids.get(k) for k in cfg["cities"]):
+                a.ingest.discover_ids()  # یک‌بار: شناسهٔ شهرها برای اتصال مستقیم (فهرست مستقیم عکس دارد) در پس‌زمینه
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
             return self.send_json(a.ingest.test_connection(data.get("source") or "divar"))

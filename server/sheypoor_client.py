@@ -16,7 +16,7 @@ from catalog import find_city, norm, parse_money_text
 import json
 import urllib.parse
 
-from divar_client import McpSource, SourceError, _http
+from divar_client import McpSource, SourceError, _http, find_images
 
 DEFAULT_SHEYPOOR_MCP = "https://sheypoor-mcp.farhamaghdasi.workers.dev/"  # نشانی رسمی در README پروژه
 SHEYPOOR_API = "https://www.sheypoor.com/api/v10.0.0"
@@ -182,7 +182,7 @@ class SheypoorSource(McpSource):
                 "token": str(it["id"]), "title": it.get("title") or "", "url": it.get("url"),
                 "price": money["price"], "deposit": money["deposit"], "rent": money["rent"], "negotiable": money["negotiable"],
                 "district": _split_location(it.get("location"), city), "city_name": city["name"],
-                "phone": it.get("phone"), "category_text": cat["name"], "raw": it,
+                "phone": it.get("phone"), "category_text": cat["name"], "image": (find_images(it, 1) or [None])[0], "raw": it,
             })
         total, per = payload.get("total") or 0, payload.get("items_per_page") or 24
         has_next = bool(rows) and (page * per < total if total else len(rows) >= per) and page < 50
@@ -202,7 +202,7 @@ class SheypoorSource(McpSource):
         money = _money(d.get("price"), crumbs)
         return {
             "token": str(token), "title": d.get("title"), "description": d.get("description"),
-            "attributes": attrs, "images": [i for i in d.get("images") or [] if isinstance(i, str)],
+            "attributes": attrs, "images": find_images(d.get("images") or []) or find_images(d, 10),
             "category_text": crumbs, "city_name": city["name"] if city else None,
             "district": _split_location(loc, city) if city else None, "address": loc or None,
             "latlng": None, "price": money["price"], "deposit": money["deposit"], "rent": money["rent"],
@@ -295,7 +295,8 @@ class SheypoorDirectSource(SheypoorSource):
                     if not it.get("id") or not at.get("title"):
                         continue
                     items.append({"id": str(it["id"]), "title": at.get("title"), "url": at.get("url"), "price": at.get("price") or [],
-                                  "location": at.get("location"), "phone": at.get("telephone")})
+                                  "location": at.get("location"), "phone": at.get("telephone"),
+                                  "image": (find_images({k: v for k, v in at.items() if re.search(r"image|thumb|photo", k, re.I)}, 1) or [None])[0]})
             meta = res.get("meta") or {}
             return {"listings": items, "total": meta.get("total") or 0, "items_per_page": 24, "next": meta.get("f")}
         if tool == "get_listing":

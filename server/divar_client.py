@@ -137,6 +137,31 @@ def _find_latlng(obj, depth=0):
     return None
 
 
+IMG_RX = re.compile(r"^https?://[^\s\"']+?(?:\.(?:jpe?g|png|webp|avif)(?:\?[^\s\"']*)?$|divarcdn|/static/photo|/images?/|/photos?/)", re.I)
+IMG_SKIP = re.compile(r"icon|logo|badge|avatar|sprite|emoji|placeholder|/static/(?!photo)", re.I)
+
+
+def find_images(obj, limit=20, depth=0, out=None):
+    """همهٔ نشانی‌های عکس آگهی، از هر فیلدی (thumbnail، photos، images، ویجت‌ها و ...)، بدون تکرار."""
+    out = [] if out is None else out
+    if depth > 8 or len(out) >= limit:
+        return out
+    if isinstance(obj, str):
+        if IMG_RX.search(obj) and not IMG_SKIP.search(obj) and obj not in out:
+            out.append(obj)
+    elif isinstance(obj, dict):
+        # ترتیب: کلیدهای عکس اول
+        keys = sorted(obj, key=lambda k: 0 if re.search(r"photo|image|thumb|picture|carousel|gallery", str(k), re.I) else 1)
+        for k in keys:
+            if re.search(r"icon|logo|avatar|badge|seller|business|map|share", str(k), re.I):
+                continue
+            find_images(obj[k], limit, depth + 1, out)
+    elif isinstance(obj, list):
+        for v in obj:
+            find_images(v, limit, depth + 1, out)
+    return out
+
+
 def _token_from(item: dict) -> str | None:
     tok = item.get("token") or item.get("post_token") or item.get("id")
     if not tok and item.get("url"):
@@ -250,10 +275,10 @@ class McpSource:
                 "deposit": _first(it, "deposit_toman") or money["deposit"],
                 "rent": _first(it, "rent_toman", "monthly_rent_toman") or money["rent"],
                 "negotiable": it.get("price_toman") is None and not it.get("deposit_toman"),
-                "image": _first(it, "thumbnail", "image", "image_url"),
+                "image": (find_images(it, 1) or [None])[0],
                 "district": _first(it, "district", "district_fa", "district_name"),
                 "city_name": _first(it, "city", "city_fa") or city["name"],
-                "url": _first(it, "url") or f"https://divar.ir/v/{tok}",
+                "url": _first(it, "ad_url", "url") or f"https://divar.ir/v/{tok}",
                 "time_text": _first(it, "time_ago", "time_text"),
                 "raw": it,
             })
@@ -269,11 +294,7 @@ class McpSource:
         specs = d.get("specs") if isinstance(d.get("specs"), dict) else {}
         if isinstance(d.get("specs"), list):
             specs = {s.get("title") or s.get("name"): s.get("value") for s in d["specs"] if isinstance(s, dict)}
-        images = []
-        for im in d.get("photos") or d.get("images") or ([d["thumbnail"]] if d.get("thumbnail") else []):
-            url = im if isinstance(im, str) else _first(im, "url", "src", "image")
-            if url:
-                images.append(url)
+        images = find_images({k: d.get(k) for k in ("thumbnail", "photos", "images", "image", "gallery", "carousel") if d.get(k)}) or find_images(d)
         amenities = d.get("amenities") or []
         if isinstance(amenities, dict):
             amenities = [k for k, v in amenities.items() if v]
@@ -291,7 +312,7 @@ class McpSource:
             "deposit": d.get("deposit_toman"),
             "rent": d.get("monthly_rent_toman"),
             "seller_type": d.get("seller_type"),
-            "url": d.get("url") or f"https://divar.ir/v/{token}",
+            "url": _first(d, "ad_url", "url") or f"https://divar.ir/v/{token}",
             "time_text": _first(d, "time_ago", "time_text", "posted_at", "created_at", "date"),
         }
 
@@ -375,11 +396,7 @@ class DirectSource:
         for w in sections.get("DESCRIPTION", []):
             if w.get("widget_type") == "DESCRIPTION_ROW":
                 out["description"] = (w.get("data") or {}).get("text")
-        for w in sections.get("IMAGE", []):
-            for it in (w.get("data") or {}).get("items", []) or []:
-                url = (it.get("image") or {}).get("url")
-                if url:
-                    out["images"].append(url)
+        out["images"] = find_images(sections.get("IMAGE", [])) or find_images(p.get("seo") or {}, 3)
         for w in sections.get("LIST_DATA", []):
             d = w.get("data") or {}
             if w.get("widget_type") == "GROUP_INFO_ROW":
@@ -419,40 +436,49 @@ class DirectSource:
 
 
 class AutoSource:
-    """دیوار، روش خودکار: اول سرور MCP؛ اگر سهمیهٔ روزانه‌اش تمام شد یا شبکه به آن نرسید،
-    تا باز شدن دوباره (سهمیه: نیمه‌شب UTC؛ شبکه: ۳۰ دقیقه) اتصال مستقیم. توکن آگهی در هر دو روش یکی است."""
+    """دیوار، روش خودکار. فهرست مستقیم دیوار عکس و محله دارد ولی MCP عکس نمی‌دهد، پس:
+    برای شهری که شناسهٔ دیوارش معلوم است اول اتصال مستقیم، وگرنه سرور MCP؛ هر کدام نرسید یا سهمیه‌اش
+    تمام شد، دیگری (سهمیهٔ MCP تا نیمه‌شب UTC و قطعی شبکه تا ۳۰ دقیقه کنار می‌رود). توکن آگهی در هر دو یکی است."""
     name = "auto"
+    NET_FAIL = (502, 503, 520, 521, 522, 523, 524, 530)
 
     def __init__(self, mcp: "McpSource", direct: "DirectSource", on_block=None):
         self.mcp, self.direct, self.on_block = mcp, direct, on_block
-        self.blocked_until = 0
-        self.reason = ""
+        self.blocked = {"mcp": 0, "direct": 0}
+        self.reason = {}
+        self.last = None
 
     def using_direct(self) -> bool:
-        return time.time() < self.blocked_until
+        """MCP در دسترس نیست؛ فقط شهرهای دارای شناسه قابل دریافت‌اند."""
+        return time.time() < self.blocked["mcp"]
 
-    def _block(self, e: SourceError):
-        self.blocked_until = time.time() + (e.retry_after if e.quota and e.retry_after else 1800)
-        self.reason = str(e)
-        if self.on_block:
+    def _block(self, which, e: SourceError):
+        self.blocked[which] = time.time() + (e.retry_after if e.quota and e.retry_after else 1800)
+        self.reason[which] = str(e)
+        if which == "mcp" and self.on_block:
             self.on_block()
 
-    def _run(self, fn):
-        if not self.using_direct():
+    def _run(self, fn, prefer_direct=True):
+        order = ["direct", "mcp"] if prefer_direct else ["mcp", "direct"]
+        order = [w for w in order if time.time() >= self.blocked[w]] or order
+        last = None
+        for w in order:
+            src = self.direct if w == "direct" else self.mcp
             try:
-                return fn(self.mcp)
+                out = fn(src)
+                self.last = w
+                return out
             except SourceError as e:
-                if not (e.quota or e.status is None or e.status in (502, 503, 520, 521, 522, 523, 524, 530)):
+                if not (e.quota or e.status is None or e.status in self.NET_FAIL):
                     raise
-                self._block(e)
-        try:
-            return fn(self.direct)
-        except SourceError as e:
-            if self.reason:
-                raise SourceError(f"MCP: {self.reason} | مستقیم: {e}", status=e.status, retry_after=e.retry_after) from e
-            raise
+                self._block(w, e)
+                last = e
+        raise SourceError(" | ".join(f"{'مستقیم' if k == 'direct' else 'MCP'}: {v}" for k, v in self.reason.items()),
+                          status=last.status if last else None, retry_after=last.retry_after if last else None) from last
 
     def search(self, city, category, page, cursor=None):
+        if not city.get("divar_id"):
+            return self._run(lambda s: s.search(city, category, page, None), prefer_direct=False)
         return self._run(lambda s: s.search(city, category, page, cursor if s is self.direct else None))
 
     def detail(self, token):
@@ -460,7 +486,7 @@ class AutoSource:
 
     def probe(self):
         info = self._run(lambda s: s.probe())
-        return {**(info or {}), "روش": "اتصال مستقیم" if self.using_direct() else "سرور MCP"}
+        return {**(info or {}), "روش": "اتصال مستقیم" if self.last == "direct" else "سرور MCP"}
 
 
 def make_source(mode: str, mcp_url: str | None = None, api: str | None = None, on_block=None):

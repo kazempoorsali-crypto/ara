@@ -1,5 +1,5 @@
 """آزمون یکپارچه: سرور فرصت‌یاب + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
-import json, os, subprocess, sys, tempfile, time, urllib.request
+import json, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "server"))
 import catalog  # noqa
@@ -43,7 +43,7 @@ def run(mode):
         call("/api/admin/settings", {"site": {"name": "فرصت‌یاب"}, "billing": {"weekly_price": 200000, "monthly_price": 600000, "test_mode": True, "free_preview": 0}}, tok)
         cfg = call("/api/config")
         check(cfg["site"]["name"] == "فرصت‌یاب" and len(cfg["plans"]) == 2 and cfg["payable"], f"[{mode}] تنظیمات و طرح‌های اشتراک")
-        r = call("/api/admin/ingest", {"enabled": True, "mode": mode, "mcp_url": "http://127.0.0.1:8799/mcp", "hourly_limit": 1200,
+        r = call("/api/admin/ingest", {"enabled": True, "mode": "mcp_only" if mode == "mcp" else mode, "mcp_url": "http://127.0.0.1:8799/mcp", "hourly_limit": 1200,
                                          "cities": ["rasht", "sari"], "categories": ["real-estate"], "detail_ratio": 1}, tok)
         check(r["ok"], f"[{mode}] پیکربندی دریافت")
         t = call("/api/admin/test", {}, tok)
@@ -56,6 +56,13 @@ def run(mode):
         check(s["detailed"] >= 1, f"[{mode}] جزئیات دریافت شد: {s['detailed']}")
         v = call("/api/admin/revalue", {}, tok)
         check("ranked" in v, f"[{mode}] ارزش‌گذاری اجرا شد: {v.get('ranked')} رتبه‌دار، {v.get('excluded')} کنارگذاشته")
+        imgs = call("/api/admin/state", tok=tok)["images"]
+        check((imgs["w"] or 0) >= 1, f"[{mode}] عکس آگهی از جزئیات دریافت شد ({imgs['w']} از {imgs['n']})")
+        try:
+            urllib.request.urlopen(B + "/img?u=" + urllib.parse.quote("https://evil.example.com/a.jpg"))
+            check(False, f"[{mode}] پراکسی عکس میزبان ناشناس را رد می‌کند")
+        except urllib.error.HTTPError as e:
+            check(e.code == 404, f"[{mode}] پراکسی عکس میزبان ناشناس را رد می‌کند")
         L = call("/api/listings?deal=rent")
         check(all(x["deal"] == "rent" for x in L["items"]), f"[{mode}] فیلتر اجاره ({L['total']})")
         call("/api/admin/settings", {"billing": {"free_results": 5}}, tok)

@@ -212,8 +212,18 @@ class Ingestor:
         stale = [f for f in feeds if now - (f["last_page1"] or 0) > cfg["refresh_hours"] * 3600]
         srcs = ("divar", "sheypoor") if cfg.get("sheypoor") else ("divar",)
         marks = ",".join("?" * len(srcs))
+        # جزئیات (عکس، مشخصات کامل): اول آگهی‌هایی که کاربری بازشان کرده، بعد فرصت‌ها، بعد بقیه به ترتیب تازگی
+        wanted = self.store.get_setting("detail_wanted") or []
+        if wanted:
+            lid = wanted.pop(0)
+            self.store.set_setting("detail_wanted", wanted)
+            row = self.store.q("SELECT id, token, source, detail_at FROM listings WHERE id=? AND status='active'", (lid,), one=True)
+            if row and not row["detail_at"] and row["source"] in srcs:
+                return self.fetch_detail(cfg, row["id"], row["token"], source=row["source"])
         pending = self.store.q(f"""SELECT id, token, source FROM listings WHERE source IN ({marks}) AND detail_at IS NULL
-                                  AND status='active' ORDER BY first_seen DESC LIMIT 1""", srcs, one=True)
+                                  AND status='active'
+                                  ORDER BY (label IN ('gold','good')) DESC, (score IS NOT NULL) DESC, score DESC, first_seen DESC LIMIT 1""",
+                               srcs, one=True)
         if stale:
             f = min(stale, key=lambda f: f["last_page1"] or 0)
             return self.fetch_page(cfg, f, first=True)
@@ -391,16 +401,6 @@ class Ingestor:
             city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")
             if cfg["mode"] == "direct" and not city.get("divar_id"):
                 city = self.city("rasht")
-            if hasattr(src, "using_direct"):
-                try:  # اول MCP را بیازما تا اگر سهمیه تمام شده، روش مستقیم با شهری که شناسه دارد آزموده شود
-                    src.mcp.probe()
-                except SourceError as e:
-                    if e.quota or e.status is None or e.status in (502, 503, 530):
-                        src._block(e)
-                        if not city.get("divar_id"):
-                            city = self.city("rasht")
-                    else:
-                        raise
             info = src.probe()
             res = src.search(city, cfg["categories"][0] if cfg["categories"] else "real-estate", 1)
             self.store.log_request("test", True, f"آزمون اتصال: {len(res['rows'])} آگهی از {city['name']}")
@@ -439,6 +439,8 @@ class Ingestor:
                     targets.pop(hit["key"])
                 time.sleep(delay)
             self.state["discover"] = f"پایان کشف شناسه‌ها؛ {len(targets)} شهر یافت نشد" if targets else "همه شناسه‌ها یافت شد"
+            if not self.stop.is_set():
+                self.store.set_setting("discover_done", int(time.time()))
 
         self.discover_thread = threading.Thread(target=run, name="discover", daemon=True)
         self.discover_thread.start()
