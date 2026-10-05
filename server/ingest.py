@@ -360,6 +360,8 @@ class Ingestor:
             item["lat"], item["lng"] = d["latlng"]
             item["latlng_exact"] = 1
         item["seller_type"] = d.get("seller_type")
+        if d.get("time_text"):
+            item["time_text"] = str(d["time_text"])[:60]
         # شماره و نشانی فقط وقتی ذخیره می‌شود که منبع آن را به‌صورت عمومی برگرداند (بدون ورود به حساب کاربری)
         for k in ("phone", "address"):
             if d.get(k):

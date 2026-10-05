@@ -165,7 +165,7 @@ const UI = (() => {
         ${verdictRow}
         <div class="card__price">${priceHTML(l)}<small class="muted">${ppmLine}</small></div>
         <h3 class="card__title"><a href="#/ad/${encodeURIComponent(l.id)}">${tt(l.title)}</a></h3>
-        <p class="card__loc">${esc(loc)}${l.first_seen ? "، " + ago(l.first_seen) : l.time_text ? "، " + esc(l.time_text) : ""}</p>
+        <p class="card__loc">${esc(loc)}${l.posted_at || l.first_seen ? "، درج " + ago(l.posted_at || l.first_seen) : l.time_text ? "، " + esc(l.time_text) : ""}</p>
         <div class="card__specs">${specs(l).map((s) => `<span>${esc(s)}</span>`).join("")}</div>
         ${sig.caution || sig.fake ? `<p class="card__warn">${icon("alert")} پیش از خرید: ${[sig.fake && "عکس‌ها مال این ملک نیست", sig.caution && fa(sig.caution) + " مورد برای استعلام"].filter(Boolean).join("، ")}</p>` : ""}
         ${opts.compare !== false ? `<label class="card__cmp"><input type="checkbox" data-cmp="${esc(l.id)}" ${App.compare.includes(l.id) ? "checked" : ""}> مقایسه</label>` : ""}

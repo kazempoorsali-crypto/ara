@@ -275,3 +275,44 @@ def enrich_from_attributes(item: dict, attrs: dict) -> None:
             n = number(v)
             if n is not None:
                 item[f] = n
+
+
+WORD_N = {"یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6, "هفت": 7, "هشت": 8, "نه": 9, "ده": 10, "یازده": 11}
+
+
+def parse_posted(text, now: float | None = None) -> int | None:
+    """زمان تقریبی درج آگهی از متن نسبی («۳ هفته پیش»، «دیروز») یا تاریخ ISO/عددی."""
+    import time as _t
+    from datetime import datetime
+    now = now or _t.time()
+    if text is None or text == "":
+        return None
+    if isinstance(text, (int, float)):
+        v = float(text)
+        v = v / 1000 if v > 1e12 else v
+        return int(v) if 1e9 < v <= now + 86400 else None
+    t = norm(str(text))
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2})?))?", t)
+    if m:
+        try:
+            dt = datetime.fromisoformat(m.group(1) + ("T" + m.group(2) if m.group(2) else ""))
+            return int(dt.timestamp())
+        except ValueError:
+            pass
+    if re.fullmatch(r"\d{10,13}", t):
+        return parse_posted(int(t), now)
+    if re.search(r"لحظاتی|دقایقی|همین الان|اکنون|ثانیه", t):
+        return int(now)
+    if re.search(r"پریروز", t):
+        return int(now - 2 * 86400)
+    if re.search(r"دیروز", t):
+        return int(now - 86400)
+    m = re.search(r"(\d+|" + "|".join(WORD_N) + r")?\s*(دقیقه|ساعت|روز|هفته|ماه|سال)", t)
+    if not m:
+        return None
+    n = m.group(1)
+    n = int(n) if n and n.isdigit() else WORD_N.get(n or "", 1)
+    unit = {"دقیقه": 60, "ساعت": 3600, "روز": 86400, "هفته": 7 * 86400, "ماه": 30 * 86400, "سال": 365 * 86400}[m.group(2)]
+    if re.search(r"بیش ?از|ماه ?ها|چند ?ماه", t) and m.group(2) in ("ماه", "سال"):
+        n = n + 1
+    return int(now - n * unit)

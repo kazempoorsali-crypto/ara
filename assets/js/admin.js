@@ -213,10 +213,15 @@
       <div class="kpis">${[["gold", "فرصت طلایی"], ["good", "زیر قیمت بازار"], ["fair", "منصفانه"], ["high", "بالاتر از بازار"], ["pending", "در انتظار داده (محلهٔ کم‌آگهی)"], ["sus", "مشکوک"], ["excluded", "کنار رفت"]].map(([k, n]) => `<div><b>${fa(lb[k] || 0)}</b><span>${n}</span></div>`).join("")}</div>
       <div class="panel"><h2>آستانه‌های حکم <button class="btn btn--line btn--sm" id="revalue">محاسبه دوباره اکنون</button></h2>
         <form id="wf" class="grid2">
-          ${[["opp", "فرصت: دست‌کم چند درصد زیر قیمت محله", 100], ["gold", "فرصت طلایی: دست‌کم چند درصد", 100], ["sus", "مشکوک: بیش از چند درصد ارزان‌تر", 100], ["sus_flagged", "مشکوک همراه با نشانهٔ متنی: بیش از چند درصد", 100], ["disp_k", "ضریب پراکندگی محله (۱ = یک انحراف معیار مقاوم)", 1]].map(([k, n, m]) => `<label class="field"><span>${n}</span><input class="input" type="number" step="${m === 1 ? "0.1" : "1"}" min="0" name="${k}" data-m="${m}" value="${+(th[k] * m).toFixed(2)}"></label>`).join("")}
+          ${[["opp", "فرصت: دست‌کم چند درصد زیر قیمت محله", 100], ["gold", "فرصت طلایی: دست‌کم چند درصد", 100], ["sus", "مشکوک: بیش از چند درصد ارزان‌تر", 100], ["sus_flagged", "مشکوک همراه با نشانهٔ متنی: بیش از چند درصد", 100], ["disp_k", "ضریب پراکندگی محله (۱ = یک انحراف معیار مقاوم)", 1], ["max_age_days", "آگهی قدیمی‌تر از چند روز کنار برود", 1], ["half_life_days", "نیمه‌عمر وزن آگهی (روز)", 1], ["trend_fixed", "روند ماهانهٔ قیمت ٪ (خالی = برآورد خودکار از داده)", 100]].map(([k, n, m]) => `<label class="field"><span>${n}</span><input class="input" type="number" step="${k === "disp_k" ? "0.1" : k === "trend_fixed" ? "0.1" : "1"}" ${k === "trend_fixed" ? "" : 'min="0"'} name="${k}" data-m="${m}" value="${th[k] == null ? "" : +(th[k] * m).toFixed(2)}"></label>`).join("")}
           <div><button class="btn btn--hot">ذخیره آستانه‌ها</button></div>
         </form>
-        <p class="hint">قیمت محله فقط از آگهی‌های همان محله ساخته می‌شود (دست‌کم ۵ آگهی معتبر هم‌نوع) و هرگز با میانهٔ شهر جایگزین نمی‌شود. پیش‌فرض: ۱۵، ۲۲، ۴۰، ۲۵ و ۱.</p></div>
+        <p class="hint">قیمت محله فقط از آگهی‌های همان محله ساخته می‌شود (دست‌کم ۵ آگهی معتبر هم‌نوع) و هرگز با میانهٔ شهر جایگزین نمی‌شود. پیش‌فرض: ۱۵، ۲۲، ۴۰، ۲۵ و ۱. برای زمان: آگهی‌های قدیمی‌تر از ۹۰ روز کنار می‌روند، وزن هر آگهی هر ۴۵ روز نصف می‌شود و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ برآوردشده به نرخ امروز آورده می‌شود.</p></div>
+      <div class="panel"><h2>روند ماهانهٔ قیمت (برای به‌روز کردن قیمت آگهی‌های قدیمی‌تر)</h2>
+        ${(v.trends || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>استان</th><th>نوع</th><th>معامله</th><th>روند ماهانه</th><th>نمونه</th><th>منبع</th></tr></thead><tbody>
+          ${v.trends.map((t) => `<tr><td>${esc(cityName(t.scope))}</td><td>${KG[t.kind] || t.kind}</td><td>${DEAL[t.deal] || t.deal}</td><td>${t.monthly >= 0 ? "+" : "−"}${fa(Math.abs(t.monthly * 100).toFixed(1))}٪</td><td>${fa(t.n)}</td><td class="small">${esc(t.source)}</td></tr>`).join("")}
+        </tbody></table></div>` : '<p class="muted">پس از اولین محاسبه نمایش داده می‌شود.</p>'}
+        <p class="hint">روند از خود آگهی‌ها برآورد می‌شود: آگهی‌ای که دو ماه پیش درج شده با قیمت آن روز است؛ اگر قیمت‌ها ماهانه رشد کنند، آگهی‌های قدیمی‌تر نسبت به محله ارزان‌تر به نظر می‌رسند و شیب همین فاصله، روند است. با کمتر از ۸۰ آگهی پاک یا وقتی همهٔ آگهی‌ها تازه‌اند، روند صفر گرفته می‌شود مگر عدد ثابت بدهید.</p></div>
       <div class="panel"><h2>مدل‌های قیمت ساخته‌شده</h2>
         ${(v.models || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>محدوده</th><th>نوع</th><th>معامله</th><th>نمونه</th><th>R²</th><th>اثر ویژگی‌ها (ضریب استانداردشده لگاریتمی)</th></tr></thead><tbody>
           ${v.models.map((m) => `<tr><td>${esc(cityName(m.scope))}</td><td>${KG[m.kind] || m.kind}</td><td>${DEAL[m.deal] || m.deal}</td><td>${fa(m.n)}</td><td>${fa(m.r2)}</td><td class="small">${Object.entries(m.effects).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8).map(([k, e]) => `<span style="display:inline-block;margin:2px 6px" class="${e >= 0 ? "ok" : "bad"}">${esc(k)} ${e >= 0 ? "+" : "−"}${fa(Math.abs(e).toFixed(3))}</span>`).join("")}</td></tr>`).join("")}
@@ -224,7 +229,7 @@
     $("#revalue").addEventListener("click", async (e) => { e.target.disabled = true; try { await api("admin/revalue", {}); toast("محاسبه شد"); load(); } catch (err) { toast(err.message); } });
     $("#wf").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const thresholds = Object.fromEntries($$("#wf input").map((i) => [i.name, +i.value / +i.dataset.m]));
+      const thresholds = Object.fromEntries($$("#wf input").map((i) => [i.name, i.value === "" ? null : +i.value / +i.dataset.m]));
       try { await api("admin/settings", { thresholds }); toast("ذخیره شد؛ حکم‌ها از نو محاسبه می‌شوند"); setTimeout(load, 1500); } catch (err) { toast(err.message); }
     });
   }

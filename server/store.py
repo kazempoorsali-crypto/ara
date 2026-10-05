@@ -58,10 +58,10 @@ COLUMNS = ["id", "source", "token", "url", "vertical", "category", "kind", "deal
            "area", "rooms", "year", "mileage", "floor", "brand", "gearbox", "fuel", "color", "body",
            "amenities", "attributes", "images", "image", "lat", "lng", "latlng_exact", "seller_type", "time_text",
            "first_seen", "last_seen", "detail_at", "checked_at", "status", "featured", "hidden", "price_drop",
-           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address"]
+           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address", "posted_at"]
 JSON_COLS = {"amenities", "attributes", "images", "feat", "flags", "explain"}
 NEW_COLS = {"feat": "TEXT", "flags": "TEXT", "excluded": "INTEGER DEFAULT 0", "fair_ppm": "REAL", "fair_price": "REAL",
-            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT"}
+            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT", "posted_at": "INTEGER"}
 
 
 def primary_price(d: dict) -> float | None:
@@ -162,6 +162,11 @@ class Store:
             if d.get("pp"):
                 self.x("INSERT INTO price_history VALUES(?,?,?,?,?)",
                        (d["id"], now, d.get("price"), d.get("deposit"), d.get("rent")))
+        # زمان درج آگهی در منبع: زودترین زمانی که تا حالا دیده یا از متن «… پیش» برداشت شده
+        from catalog import parse_posted
+        cands = [x for x in (d.get("posted_at"), parse_posted(d.get("time_text"), now), (old or {}).get("posted_at")) if x]
+        if cands:
+            d["posted_at"] = min(min(cands), d.get("first_seen") or now)
         if d.get("vertical") == "estate":
             from features import settlement
             d["settlement"] = settlement(d.get("title"), d.get("description"), d.get("district"),
@@ -234,6 +239,8 @@ class Store:
         if f.get("ageMax"):
             from features import jalali_year_now
             add("year >= ?", jalali_year_now() - int(f["ageMax"]))
+        if f.get("fresh"):  # تازگی آگهی بر پایهٔ زمان درج در منبع
+            add("COALESCE(posted_at, first_seen) >= ?", int(time.time()) - int(f["fresh"]) * 86400)
         if f.get("depMax"):
             add("deposit <= ?", float(f["depMax"]))
         if f.get("rentMax"):
@@ -265,7 +272,7 @@ class Store:
             ids = f["ids"].split(",")[:100]
             add(f"id IN ({','.join('?' * len(ids))})", *ids)
         w = " AND ".join(where)
-        order = {"new": "featured DESC, first_seen DESC", "score": "score IS NULL, score DESC, discount DESC", "deal": "discount IS NULL, discount DESC",
+        order = {"new": "featured DESC, COALESCE(posted_at, first_seen) DESC", "score": "score IS NULL, score DESC, discount DESC", "deal": "discount IS NULL, discount DESC",
                  "cheap": "pp IS NULL, pp ASC", "exp": "pp DESC", "ppm": "ppm IS NULL, ppm ASC", "area": "area DESC",
                  "drop": "price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
         total = self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]

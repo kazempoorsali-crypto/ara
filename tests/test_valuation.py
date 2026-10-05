@@ -1,5 +1,6 @@
 """آزمون موتور ارزش‌گذاری با داده مصنوعی دارای اثرهای معلوم. اجرا: python tests/test_valuation.py"""
 import math
+import time
 import os
 import random
 import sys
@@ -33,17 +34,21 @@ store = Store(Path(tempfile.mkdtemp()) / "t.db")
 districts = {"گلسار": 95e6, "منظریه": 70e6, "معلم": 60e6, "بلوار گیلان": 50e6}
 now_year = features.jalali_year_now()
 truth = {}
+TREND = 0.03  # رشد ماهانهٔ قیمت در دادهٔ مصنوعی؛ آگهی قدیمی‌تر با قیمت روز درج خودش آمده است
+NOW = time.time()
 for i in range(420):
     dist = rnd.choice(list(districts))
+    age_days = rnd.uniform(0, 80)
     area = rnd.randint(60, 180)
     age = rnd.randint(0, 25)
     elev, park = rnd.random() < 0.6, rnd.random() < 0.7
     ppm = districts[dist] * math.exp(-0.012 * age + 0.08 * elev + 0.06 * park) * math.exp(rnd.gauss(0, 0.06))
-    price = round(ppm * area / 1e6) * 1e6
+    price = round(ppm * math.exp(-TREND * age_days / 30) * area / 1e6) * 1e6
     desc = ("آسانسور دارد. " if elev else "آسانسور ندارد. ") + ("پارکینگ دارد." if park else "پارکینگ ندارد.")
     item = {"id": f"t{i}", "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
             "description": desc, "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": dist, "price": price,
-            "area": area, "rooms": 2, "year": now_year - age, "images": ["a", "b", "c"], "detail_at": 1}
+            "area": area, "rooms": 2, "year": now_year - age, "images": ["a", "b", "c"], "detail_at": 1,
+            "posted_at": int(NOW - age_days * 86400)}
     item["feat"] = features.extract(item)
     store.upsert(item)
     truth[item["id"]] = ppm
@@ -68,6 +73,7 @@ add("pricey", title="آپارتمان ۱۰۰ متری", price=round(fair_ref * 1
 golsar_ref = 95e6 * math.exp(-0.012 * 5 + 0.08 + 0.06) * 100
 add("golsar", title="آپارتمان ۱۰۰ متری", district="گلسار", price=round(golsar_ref * 0.70 / 1e6) * 1e6)
 # محلهٔ کم‌آگهی: با میانهٔ شهر سنجیده نمی‌شود
+add("old", title="آپارتمان ۱۰۰ متری", price=round(fair_ref * 0.7 / 1e6) * 1e6, posted_at=int(NOW - 120 * 86400))
 add("rare1", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref * 0.6 / 1e6) * 1e6)
 add("rare2", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref / 1e6) * 1e6)
 
@@ -89,6 +95,9 @@ check(p["label"] == "high" and p["score"] <= 64, f"برچسب آگهی گران:
 check(-0.32 < p["discount"] < -0.18, f"آگهی گران: {-p['discount']:.0%} بالای قیمت منصفانه (واقعی ۲۵٪)")
 g = get("golsar")
 check(g["label"] == "gold" and 0.25 < g["discount"] < 0.35, f"قیمت نزدیک میانهٔ شهر در گلسار: {g['label']}، {g['discount']:.0%} زیر قیمت محله")
+tr = next(t for t in info["trends"] if t["scope"] == "gilan" and t["deal"] == "sale")
+check(abs(tr["monthly"] - TREND) < 0.012, f"روند ماهانهٔ قیمت از داده: {tr['monthly']:.1%} (واقعی {TREND:.0%})")
+check("stale" in get("old")["flags"], "آگهی ۱۲۰ روز پیش: کنار رفت (قدیمی)")
 r1 = get("rare1")
 check(r1["label"] == "pending" and r1["score"] is None, f"محلهٔ کم‌آگهی بدون سنجش: {r1['label']}")
 rank = [r["id"] for r in store.q("SELECT id FROM listings WHERE score IS NOT NULL ORDER BY score DESC LIMIT 15")]

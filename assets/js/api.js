@@ -104,6 +104,7 @@ const DataLayer = (() => {
       if (ds && !ds.includes((l.district || "").replace(/[\s‌]/g, ""))) return false;
       if (f.deal && l.deal !== f.deal) return false;
       if (f.settle && l.settlement !== f.settle) return false;
+      if (f.fresh && !((l.posted_at || l.first_seen) >= Date.now() / 1000 - +f.fresh * 86400)) return false;
       if (f.kinds && !f.kinds.split(",").includes(l.kind)) return false;
       if (f.min && !(l.pp >= +f.min)) return false;
       if (f.max && !(l.pp <= +f.max)) return false;
@@ -205,7 +206,7 @@ const DataLayer = (() => {
         spread: cheap.length && pricey.length ? pricey[0].median_ppm / cheap[0].median_ppm : null, opportunities: opps.length, gold: opps.filter((l) => l.label === "gold").length,
         per100: scored.length ? (100 * opps.length) / scored.length : null, opp_median_discount: disc.length ? disc[disc.length >> 1] : null,
         fresh_7d: valid.filter((l) => l.first_seen > now - 7 * 86400).length, fresh_24h: valid.filter((l) => l.first_seen > now - 86400).length },
-      funnel: [{ k: "read", label: "خوانده شد", n: all.length }, { k: "dropped", label: "کنار رفت: پیش‌فروش، مشارکت، تکراری، بی‌قیمت", n: all.filter((l) => l.excluded && l.label !== "sus").length },
+      funnel: [{ k: "read", label: "خوانده شد", n: all.length }, { k: "dropped", label: "کنار رفت: قدیمی، پیش‌فروش، مشارکت، تکراری، بی‌قیمت", n: all.filter((l) => l.excluded && l.label !== "sus").length },
         { k: "sus", label: "قیمت مشکوک", n: all.filter((l) => l.label === "sus").length }, { k: "pending", label: "در انتظار داده: محله آگهی کافی ندارد", n: valid.length - scored.length },
         { k: "scored", label: "سنجیده شد، هر کدام با محلهٔ خودش", n: scored.length }, { k: "opp", label: "فرصت", n: opps.length }],
       budget, hotspots: districts.filter((d) => d.opportunities).sort((a, b) => b.opportunities - a.opportunities || b.gold - a.gold).slice(0, 10),

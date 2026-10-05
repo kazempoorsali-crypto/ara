@@ -208,6 +208,7 @@ class SheypoorSource(McpSource):
             "latlng": None, "price": money["price"], "deposit": money["deposit"], "rent": money["rent"],
             "seller_type": "business" if d.get("shop_profile") else "personal",
             "phone": d.get("phone"), "url": d.get("url"),
+            "time_text": d.get("added_at") or d.get("time_passed_label"),
         }
 
     def probe(self):
@@ -309,7 +310,8 @@ class SheypoorDirectSource(SheypoorSource):
             return {"id": at.get("id"), "title": at.get("title"), "url": at.get("url"), "description": at.get("description"),
                     "price": at.get("price") or [], "location": at.get("location"), "phone": at.get("phone") or at.get("telephone"),
                     "shop_profile": bool(at.get("isShopProfile")), "breadcrumbs": at.get("breadcrumbs") or [],
-                    "attributes": [a for a in at.get("attributes") or [] if isinstance(a, dict)], "images": imgs}
+                    "attributes": [a for a in at.get("attributes") or [] if isinstance(a, dict)], "images": imgs,
+                    "added_at": at.get("addedAt") or at.get("added_at"), "time_passed_label": at.get("timePassedLabel")}
         raise SourceError(f"ابزار ناشناخته: {tool}")
 
     @staticmethod

@@ -71,7 +71,7 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
     # قیف
     funnel = [
         {"k": "read", "label": "خوانده شد", "n": len(allrows)},
-        {"k": "dropped", "label": "کنار رفت: پیش‌فروش، مشارکت، تکراری، بی‌قیمت", "n": sum(1 for r in allrows if r["label"] == "excluded" or (not r["excluded"] and not (r.get("pp") and r.get("area"))))},
+        {"k": "dropped", "label": "کنار رفت: قدیمی، پیش‌فروش، مشارکت، تکراری، بی‌قیمت", "n": sum(1 for r in allrows if r["label"] == "excluded" or (not r["excluded"] and not (r.get("pp") and r.get("area"))))},
         {"k": "sus", "label": "قیمت مشکوک", "n": sum(1 for r in allrows if r["label"] == "sus")},
         {"k": "pending", "label": "در انتظار داده: محله آگهی کافی ندارد", "n": sum(1 for r in valid if r["score"] is None)},
         {"k": "scored", "label": "سنجیده شد، هر کدام با محلهٔ خودش", "n": len(scored)},

@@ -26,7 +26,12 @@ RIDGE = 2.0
 LN10 = math.log(10)
 
 # آستانه‌ها (قابل تنظیم در پنل): فرصت، فرصت طلایی، مشکوک، و ضریب پراکندگی محله
-DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.25, "disp_k": 1.0}
+DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.25, "disp_k": 1.0,
+                      # زمان: آگهی قدیمی‌تر از max_age_days کنار می‌رود؛ وزن هر آگهی با نیمه‌عمر half_life_days کم می‌شود؛
+                      # روند ماهانهٔ قیمت از خود داده برآورد می‌شود (trend_fixed خالی) یا مدیر عدد ثابت می‌دهد
+                      "max_age_days": 90, "half_life_days": 45, "trend_fixed": None}
+MIN_TREND_N = 80          # کمترین آگهی پاک برای برآورد روند قیمت از داده
+TREND_CLIP = (-0.03, 0.08)  # بازهٔ مجاز روند ماهانهٔ لگاریتمی
 SUS_FLAGS = {"outlier_low", "too_cheap", "cheap_flagged", "scam_text", "ppm_as_total", "zero_typo_low"}
 
 FEATURE_SETS = {
@@ -41,7 +46,7 @@ FLAG_TEXT = {
     "exchange": "معاوضه", "partial": "فروش دانگی", "shared": "اتاق یا هم‌خانه", "duplicate": "آگهی تکراری",
     "outlier_high": "قیمت به‌طور غیرعادی بالا", "outlier_low": "قیمت به‌طور غیرعادی پایین",
     "zero_typo": "احتمال اشتباه در تعداد صفرهای قیمت", "ppm_as_total": "احتمالاً قیمت هر متر به جای قیمت کل درج شده",
-    "no_area": "متراژ نامشخص", "zero_typo_low": "احتمال جاافتادن صفر در قیمت",
+    "no_area": "متراژ نامشخص", "stale": "آگهی قدیمی است؛ قیمتش احتمالاً به‌روز نیست", "zero_typo_low": "احتمال جاافتادن صفر در قیمت",
     "too_cheap": "بیش از حد ارزان‌تر از قیمت محله؛ باورپذیر نیست",
     "cheap_flagged": "خیلی ارزان، همراه با نشانهٔ مشکوک در متن آگهی",
     "scam_text": "ارزان، همراه با متن مشکوک",
@@ -156,6 +161,34 @@ def _median(vals):
     return statistics.median(vals) if vals else None
 
 
+def _wmedian(pairs):
+    """میانهٔ وزنی: آگهی‌های تازه‌تر وزن بیشتری دارند."""
+    if not pairs:
+        return None
+    pairs = sorted(pairs)
+    half, acc = sum(w for _, w in pairs) / 2, 0.0
+    for v, w in pairs:
+        acc += w
+        if acc >= half:
+            return v
+    return pairs[-1][0]
+
+
+def _trend(rows):
+    """روند ماهانهٔ قیمت: شیب باقی‌ماندهٔ لگاریتمی (نسبت به قیمت محله) بر حسب عمر آگهی.
+    آگهی‌ای که m ماه پیش درج شده با قیمت آن روز است؛ اگر بازار ماهانه b رشد کند، باقی‌مانده‌اش حدود −b·m است."""
+    pts = [(l["_m"], l["_v"] - l["_base"]) for l in rows if l.get("_base") is not None]
+    if len(pts) < MIN_TREND_N:
+        return None, len(pts)
+    mm = sum(m for m, _ in pts) / len(pts)
+    var = sum((m - mm) ** 2 for m, _ in pts) / len(pts)
+    if var < 0.25:  # عمر آگهی‌ها پراکندگی کافی ندارد (مثلاً همه تازه‌اند)
+        return None, len(pts)
+    rm = sum(r for _, r in pts) / len(pts)
+    slope = sum((m - mm) * (r - rm) for m, r in pts) / len(pts) / var
+    return max(TREND_CLIP[0], min(TREND_CLIP[1], -slope)), len(pts)
+
+
 def _mad(vals, med):
     return statistics.median([abs(v - med) for v in vals]) if vals else 0
 
@@ -175,6 +208,13 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             disp[l["_district"]][l["district"]] += 1
         v = value_of(l)
         l["_v"] = math.log(v) if v and v > 0 else None
+        l["_vraw"] = l["_v"]
+        # عمر آگهی از زمان درج در منبع (یا اولین باری که دیده شد)
+        l["_age"] = max(0.0, (now - (l.get("posted_at") or l.get("first_seen") or now)) / 86400)
+        l["_m"] = l["_age"] / 30
+        l["_w"] = 0.5 ** (l["_age"] / max(1.0, float(th["half_life_days"] or 45)))
+        if th.get("max_age_days") and l["_age"] > float(th["max_age_days"]):
+            l["_flags"].append("stale")
         if l.get("negotiable") or (l.get("pp") or 0) < (5e4 if l["deal"] == "daily" else 1e6):
             l["_flags"].append("placeholder")
         elif l["deal"] != "daily" and not l.get("area"):
@@ -204,6 +244,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
 
     market = []
     models_info = []
+    trends = []
     for (prov, kg, deal), items in groups.items():
         # دو دور: خط پایه ← پرت‌یابی ← خط پایه دوباره بدون پرت‌ها
         for _round in range(2):
@@ -215,13 +256,13 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             for l in clean:
                 city_vals.setdefault(l["city_key"], []).append(l["_v"])
                 if l["_district"]:
-                    dist_vals.setdefault((l["city_key"], l["_district"]), []).append(l["_v"])
+                    dist_vals.setdefault((l["city_key"], l["_district"]), []).append((l["_v"], l["_w"]))
             city_med = {ck: _median(v) for ck, v in city_vals.items()}
             for l in items:
                 # قیمت محله فقط از آگهی‌های همان محله؛ هیچ انقباضی به سمت میانهٔ شهر نیست
                 dv = dist_vals.get((l["city_key"], l["_district"])) if l["_district"] else None
                 dn = len(dv) if dv else 0
-                l["_base"] = _median(dv) if dn >= MIN_DISTRICT else None
+                l["_base"] = _wmedian(dv) if dn >= MIN_DISTRICT else None
                 l["_dn"], l["_cn"] = dn, len(city_vals.get(l["city_key"], []))
                 l["_cmed"] = city_med.get(l["city_key"], prov_med)
             if _round == 0:
@@ -245,6 +286,16 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                         r = l["_v"] - l["_cmed"]
                         if abs(r) > 1.6 and min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35:
                             l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
+                # روند قیمت: همهٔ قیمت‌ها به «قیمت امروز» برده می‌شوند تا آگهی دو ماه پیش میانهٔ محله را پایین نکشد
+                est, tn = _trend([l for l in items if usable(l)])
+                b = est if th.get("trend_fixed") in (None, "") else float(th["trend_fixed"])
+                b = b or 0.0
+                trends.append({"scope": prov, "kind": kg, "deal": deal, "monthly": round(b, 4), "n": tn,
+                               "source": "ثابت (پنل)" if th.get("trend_fixed") not in (None, "") else "برآورد از داده" if est is not None else "دادهٔ کافی نیست؛ صفر"})
+                for l in items:
+                    if l["_vraw"] is not None:
+                        l["_v"] = l["_vraw"] + b * l["_m"]
+                    l["_b"] = b
 
         # مدل هدونیک: سطح شهر اگر نمونه کافی باشد، وگرنه استان
         clean = [l for l in items if usable(l) and l.get("_base") is not None]
@@ -284,9 +335,10 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         res_cell, res_city = {}, {}
         for l in items:
             if l.get("_fair_v") and l["_v"] is not None:
-                l["_r"] = l["_v"] - math.log(l["_fair_v"])
+                # فاصلهٔ آگهی: قیمت درخواستی خودش در برابر قیمت امروزِ محله برای همین خانه
+                l["_r"] = l["_vraw"] - math.log(l["_fair_v"])
                 if usable(l):
-                    res_cell.setdefault((l["city_key"], l["_district"] or ""), []).append(l["_r"])
+                    res_cell.setdefault((l["city_key"], l["_district"] or ""), []).append(l["_v"] - math.log(l["_fair_v"]))
                     res_city.setdefault(l["city_key"], []).append(l["_r"])
         for l in items:
             if l.get("_r") is None:
@@ -353,6 +405,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         conf, score = None, None
         if label in ("gold", "good", "fair", "high"):
             conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 8 else "low"
+            if l["_age"] > 30:  # قیمت آگهی قدیمی‌تر ممکن است دیگر معتبر نباشد
+                conf = {"high": "medium", "medium": "low", "low": "low"}[conf]
             if label in ("gold", "good"):
                 p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]
                 depth = max(0.0, min(1.0, (d - th["opp"]) / max(0.01, th["sus"] - th["opp"])))
@@ -367,6 +421,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "adj": round(l["_fair_v"] / math.exp(l["_base"]) - 1, 3) if l.get("_fair_v") and l.get("_base") is not None else None,
                    "sigma": round(l["_sigma"], 3) if l.get("_sigma") else None, "wide": bool(l.get("_wide")),
                    "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
+                   "age_days": round(l["_age"]), "trend": round(l.get("_b") or 0, 4),
                    "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
                    "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT],
                    "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
@@ -383,6 +438,6 @@ def recompute(store, thresholds: dict | None = None) -> dict:
     info = {"at": int(time.time()), "listings": len(rows), "excluded": sum(1 for u in updates if u[6]),
             "ranked": sum(1 for u in updates if u[3] is not None),
             "labels": {k: sum(1 for u in updates if u[8] == k) for k in ("gold", "good", "fair", "high", "pending", "sus", "excluded")},
-            "thresholds": th, "models": models_info, "seconds": round(time.time() - t0, 2)}
+            "thresholds": th, "trends": trends, "models": models_info, "seconds": round(time.time() - t0, 2)}
     store.set_setting("valuation_info", info)
     return info

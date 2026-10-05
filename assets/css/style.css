@@ -743,3 +743,9 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .pay-amt { display: inline-block; margin-top: 4px; font-size: 26px; font-weight: 900; background: linear-gradient(transparent 60%, var(--gold-hl) 60%); }
 .pay-amt small { font-size: 13px; font-weight: 600; }
 .pay-card { display: inline-flex; gap: 8px; align-items: center; margin-top: 4px; padding: 8px 14px; border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); font-size: 18px; font-weight: 800; letter-spacing: .04em; }
+
+.tool--wide { grid-column: 1 / -1; }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 760px) { .row3 { grid-template-columns: 1fr; } }
+.tool__out .small { display: block; margin-top: 6px; }
+@media (min-width: 761px) { .tools:has(.tool--wide) { grid-template-columns: repeat(2, 1fr); } }

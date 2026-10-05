@@ -435,7 +435,16 @@ class Handler(BaseHTTPRequestHandler):
                     new.pop("api_key", None)
                 s.set_setting("sms", {**cur, **new})
             if isinstance(data.get("thresholds"), dict):
-                t = {k: max(0.0, min(3.0, float(v))) for k, v in data["thresholds"].items() if k in DEFAULT_THRESHOLDS}
+                bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10)}
+                t = {}
+                for k, v in data["thresholds"].items():
+                    if k not in DEFAULT_THRESHOLDS:
+                        continue
+                    if k == "trend_fixed" and v in (None, ""):
+                        t[k] = None
+                        continue
+                    lo, hi = bounds.get(k, (0.0, 3.0))
+                    t[k] = max(lo, min(hi, float(v)))
                 t = {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {}), **t}
                 if not t["opp"] < t["gold"] <= t["sus"]:
                     raise ValueError("آستانه‌ها باید به ترتیب «فرصت < طلایی ≤ مشکوک» باشند")

@@ -292,6 +292,7 @@ class McpSource:
             "rent": d.get("monthly_rent_toman"),
             "seller_type": d.get("seller_type"),
             "url": d.get("url") or f"https://divar.ir/v/{token}",
+            "time_text": _first(d, "time_ago", "time_text", "posted_at", "created_at", "date"),
         }
 
     def probe(self):
@@ -368,6 +369,7 @@ class DirectSource:
             if w.get("widget_type") == "LEGEND_TITLE_ROW":
                 out["title"] = d.get("title")
                 sub = d.get("subtitle") or ""
+                out["time_text"] = sub.split(" در ")[0].strip() or None
                 if "،" in sub:
                     out["district"] = sub.split("،")[-1].strip()
         for w in sections.get("DESCRIPTION", []):
