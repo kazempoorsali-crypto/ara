@@ -25,7 +25,7 @@ check(it == {"area": 120, "year": 1398, "rooms": 2}, "ویژگی‌ها")
 
 def run(mode):
     data = tempfile.mkdtemp()
-    env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799"}
+    env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0"}
     srv = subprocess.Popen([sys.executable, "server/app.py", "--port", "8788", "--data", data, "--no-browser"], cwd=ROOT, env=env)
     time.sleep(1.5)
     B = "http://127.0.0.1:8788"
@@ -104,9 +104,9 @@ def run(mode):
         call("/api/admin/review", {"id": c["payment_id"], "approve": False}, tok)
         after = ucall("/api/me")["user"]["days_left"]
         check(after <= before - 29, f"[{mode}] رد رسید، روزهای اضافه را پس گرفت ({after} روز)")
-        if mode == "mcp":
-            # منبع دوم: شیپور
-            call("/api/admin/ingest", {"sheypoor": True, "sheypoor_url": "http://127.0.0.1:8799/sheypoor/mcp"}, tok)
+        if True:
+            # منبع دوم: شیپور (در دور mcp از طریق سرور واسط، در دور direct مستقیم)
+            call("/api/admin/ingest", {"sheypoor": True, "sheypoor_mode": mode, "sheypoor_url": "http://127.0.0.1:8799/sheypoor/mcp"}, tok)
             t2 = call("/api/admin/test", {"source": "sheypoor"}, tok)
             check(t2.get("ok") and t2["count"] > 0 and t2["sample"][0].get("district") == "گلسار", f"[{mode}] آزمون اتصال شیپور: {t2.get('count')} آگهی، محله {t2.get('sample', [{}])[0].get('district')}")
             time.sleep(14)
@@ -119,13 +119,32 @@ def run(mode):
             dsp = ucall("/api/listing/" + spid) if spid else {}
             check(spid and dsp.get("phone"), f"[{mode}] مشترک با تنظیم «همه» شمارهٔ آگهی شیپور را می‌بیند")
             call("/api/admin/settings", {"display": {"contact_mode": "none"}}, tok)
+            if mode == "direct":  # خودکار: سرور MCP در دسترس نیست ← اتصال مستقیم
+                call("/api/admin/ingest", {"sheypoor_mode": "auto", "sheypoor_url": "http://127.0.0.1:9/"}, tok)
+                t3 = call("/api/admin/test", {"source": "sheypoor"}, tok)
+                check(t3.get("ok") and t3["info"].get("روش") == "اتصال مستقیم", f"[{mode}] شیپور خودکار: MCP نرسید، اتصال مستقیم ({t3.get('info', {}).get('روش') or t3.get('error')})")
             check(spid and "phone" not in ucall("/api/listing/" + spid), f"[{mode}] با تنظیم «نمایش داده نشود» شماره پنهان است")
         print("   آخرین رویدادها:", [x["note"][:60] for x in st["log"][:4]])
     finally:
         srv.terminate()
 
+# تشخیص خطای شبکه و بازگشت خودکار از پروکسی خاموش
+sys.path.insert(0, os.path.join(ROOT, "server"))
+import divar_client  # noqa: E402
+try:
+    divar_client._http("GET", "http://127.0.0.1:9/x", timeout=3)
+except divar_client.SourceError as e:
+    check("رد کرد" in str(e), f"پیام خطای اتصال ردشده: {str(e)[:70]}…")
+
 mock = subprocess.Popen([sys.executable, "tests/mock_divar.py", "8799"], cwd=ROOT)
 time.sleep(0.8)
+os.environ["http_proxy"] = "http://127.0.0.1:9"  # پروکسی خاموش
+try:
+    st_, _, _ = divar_client._http("GET", "http://127.0.0.1:8799/api/v10.0.0/general/locations", timeout=5)
+    check(st_ == 200, "پروکسی سیستم خاموش: اتصال خودکار بدون پروکسی")
+except divar_client.SourceError as e:
+    check(False, f"بازگشت از پروکسی خاموش: {e}")
+del os.environ["http_proxy"]
 try:
     run("mcp")
     run("direct")

@@ -125,6 +125,12 @@
             <option value="direct" ${cfg.mode === "direct" ? "selected" : ""}>اتصال مستقیم به API دیوار</option></select>
             <span class="hint">MCP: سرور عمومی divar-mcp (بدون کلید؛ سقف خود سرور ۲۰ درخواست در دقیقه). مستقیم: همان نقاط پایانی وب دیوار؛ به شناسه عددی شهر نیاز دارد.</span></label>
           <label class="field"><span>نشانی سرور MCP</span><input class="input input--ltr" name="mcp_url" value="${esc(cfg.mcp_url)}" placeholder="https://divar-mcp.mmdju2.workers.dev/mcp"><span class="hint">خالی بماند تا نشانی پیش‌فرض استفاده شود.</span></label>
+          <label class="field"><span>پروکسی</span><select class="select" name="proxy_sel">
+            <option value="auto" ${!cfg.proxy || cfg.proxy === "auto" ? "selected" : ""}>خودکار (پروکسی سیستم؛ اگر خاموش بود، بدون پروکسی)</option>
+            <option value="none" ${cfg.proxy === "none" ? "selected" : ""}>بدون پروکسی</option>
+            <option value="custom" ${cfg.proxy && !["auto", "none"].includes(cfg.proxy) ? "selected" : ""}>پروکسی دلخواه</option></select>
+            <input class="input input--ltr" name="proxy_url" placeholder="http://127.0.0.1:10809" value="${cfg.proxy && !["auto", "none"].includes(cfg.proxy) ? esc(cfg.proxy) : ""}" style="margin-top:6px">
+            <span class="hint">اگر فیلترشکن خاموش است ولی ویندوز هنوز پروکسی آن را دارد، «خودکار» یا «بدون پروکسی» مشکل را حل می‌کند.</span></label>
           <label class="field"><span>سقف درخواست در ساعت</span><input class="input" name="hourly_limit" type="number" min="1" max="1200" value="${cfg.hourly_limit}"><span class="hint">پیش‌فرض ۶۰ (یک درخواست در دقیقه). اگر خطای «تعداد درخواست زیاد» دیدید، کمترش کنید.</span></label>
           <label class="field"><span>تازه‌سازی صفحه اول هر فهرست (ساعت)</span><input class="input" name="refresh_hours" type="number" min="1" max="72" value="${cfg.refresh_hours}"><span class="hint">برای گرفتن آگهی‌های تازه و تغییر قیمت‌ها.</span></label>
           <label class="field"><span>تعداد جزئیات به ازای هر صفحه فهرست</span><input class="input" name="detail_ratio" type="number" min="0" max="30" value="${cfg.detail_ratio}"><span class="hint">بیشتر = عکس و مشخصات کامل‌تر؛ کمتر = پوشش سریع‌تر تعداد آگهی.</span></label>
@@ -132,7 +138,12 @@
         </div></div>
       <div class="panel"><h2>منبع دوم: شیپور</h2>
         <label class="switch"><input type="checkbox" name="sheypoor" ${cfg.sheypoor ? "checked" : ""}><i></i>دریافت آگهی‌های ملک شیپور در کنار دیوار</label>
-        <div class="grid2" style="margin-top:12px"><label class="field"><span>نشانی سرور MCP شیپور</span><input class="input input--ltr" name="sheypoor_url" value="${esc(cfg.sheypoor_url || "")}" placeholder="https://sheypoor-mcp.farhamaghdasi.workers.dev/mcp"><span class="hint">خالی بماند تا نشانی عمومی sheypoor-mcp استفاده شود.</span></label></div>
+        <div class="grid2" style="margin-top:12px">
+          <label class="field"><span>روش اتصال شیپور</span><select class="select" name="sheypoor_mode">
+            <option value="auto" ${!cfg.sheypoor_mode || cfg.sheypoor_mode === "auto" ? "selected" : ""}>خودکار: اول سرور MCP، اگر نرسید اتصال مستقیم (پیشنهادی)</option>
+            <option value="mcp" ${cfg.sheypoor_mode === "mcp" ? "selected" : ""}>فقط سرور MCP شیپور</option>
+            <option value="direct" ${cfg.sheypoor_mode === "direct" ? "selected" : ""}>فقط اتصال مستقیم به شیپور</option></select></label>
+          <label class="field"><span>نشانی سرور MCP شیپور</span><input class="input input--ltr" name="sheypoor_url" value="${esc(cfg.sheypoor_url || "")}" placeholder="https://sheypoor-mcp.farhamaghdasi.workers.dev/"><span class="hint">خالی بماند تا نشانی عمومی sheypoor-mcp استفاده شود.</span></label></div>
         <p class="hint">سقف درخواست ساعتی بین دو منبع مشترک است. دسته‌های ملک و شهرهای شمال یک‌بار خودکار کشف می‌شوند. آگهی تکراری که در هر دو سایت آمده، با تطبیق شهر، متراژ و قیمت یک‌بار شمرده می‌شود. شیپور گاهی شمارهٔ آگهی‌دهنده را عمومی برمی‌گرداند؛ نمایش آن تابع تنظیم «اطلاعات تماس» در بخش تنظیمات سایت است.</p>
         <button type="button" class="btn btn--line" id="testSp" style="margin-top:10px">آزمون اتصال شیپور</button></div>
       <div class="panel"><h2>دسته‌های دیوار</h2><div class="checks">${cat.categories.map((c) => `<label><input type="checkbox" name="cat" value="${c.slug}" ${cfg.categories.includes(c.slug) ? "checked" : ""}><span>${c.name}</span></label>`).join("")}</div>
@@ -157,7 +168,8 @@
       e.preventDefault();
       const body = {
         enabled: form.enabled.checked, mode: form.mode.value, mcp_url: form.mcp_url.value.trim(),
-        sheypoor: form.sheypoor.checked, sheypoor_url: form.sheypoor_url.value.trim(),
+        sheypoor: form.sheypoor.checked, sheypoor_url: form.sheypoor_url.value.trim(), sheypoor_mode: form.sheypoor_mode.value,
+        proxy: form.proxy_sel.value === "custom" ? form.proxy_url.value.trim() : form.proxy_sel.value,
         hourly_limit: +form.hourly_limit.value, refresh_hours: +form.refresh_hours.value, detail_ratio: +form.detail_ratio.value, recheck_days: +form.recheck_days.value,
         categories: $$("[name=cat]:checked", form).map((i) => i.value), cities: $$("[name=city]:checked", form).map((i) => i.value),
       };
@@ -174,7 +186,7 @@
         const r = await api("admin/test", { source });
         const out = $("#testOut"); out.hidden = false;
         out.innerHTML = r.ok ? `<h2 class="ok">اتصال برقرار است (${fa(r.ms)} میلی‌ثانیه)</h2><p>${fa(r.count)} آگهی در صفحه اول دریافت شد. نمونه:</p><ul>${r.sample.map((s) => `<li>${esc(s.title)} — ${money(s.price || s.deposit)}</li>`).join("")}</ul><pre class="raw">${esc(JSON.stringify(r.info, null, 1))}</pre>`
-          : `<h2 class="bad">اتصال برقرار نشد</h2><pre class="raw">${esc(r.error)}</pre><p class="hint">اگر از خارج ایران یا با فیلترشکن خاص وصل هستید، روش دیگر (MCP یا مستقیم) را امتحان کنید. متن خطا را برای پشتیبانی بفرستید.</p>`;
+          : `<h2 class="bad">اتصال برقرار نشد</h2><pre class="raw">${esc(r.error)}</pre><p class="hint">پیام بالا علت را می‌گوید (فیلتر دامنه، پروکسی خاموش یا رد اتصال). اگر یک روش وصل نشد، روش دیگر (MCP یا مستقیم) را امتحان کنید. متن خطا را برای پشتیبانی بفرستید.</p>`;
       } catch (err) { toast(err.message); }
       b.disabled = false; b.textContent = label;
     };

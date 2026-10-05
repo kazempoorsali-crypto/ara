@@ -46,6 +46,8 @@ def _hash(code: str, phone: str) -> str:
 
 
 def _http_json(method, url, body=None, headers=None, timeout=20):
+    """درخواست به درگاه یا پیامک؛ اگر پروکسی سیستم خاموش باشد، خودکار بدون پروکسی تکرار می‌شود."""
+    from divar_client import NET, _opener, _system_proxies
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("accept", "application/json")
@@ -53,16 +55,20 @@ def _http_json(method, url, body=None, headers=None, timeout=20):
         req.add_header("content-type", "application/json")
     for k, v in (headers or {}).items():
         req.add_header(k, v)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode() or "{}")
-    except urllib.error.HTTPError as e:
+    tries = [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else [])
+    err = None
+    for proxy in tries:
         try:
-            return json.loads(e.read().decode() or "{}")
-        except Exception:
-            return {"error": f"HTTP {e.code}"}
-    except Exception as e:  # شبکه
-        return {"error": str(e)}
+            with _opener(proxy).open(req, timeout=timeout) as r:
+                return json.loads(r.read().decode() or "{}")
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read().decode() or "{}")
+            except Exception:
+                return {"error": f"HTTP {e.code}"}
+        except Exception as e:  # شبکه
+            err = e
+    return {"error": str(err)}
 
 
 class Billing:

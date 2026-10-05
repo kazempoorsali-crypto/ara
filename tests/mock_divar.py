@@ -86,6 +86,8 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def do_GET(self):
+        if self.path.startswith("/api/v10.0.0/"):
+            return self.sheypoor_direct(self.path[len("/api/v10.0.0"):])
         if self.path.startswith("/v8/posts-v2/web/"):
             CALLS["direct"] += 1
             tok = self.path.rsplit("/", 1)[-1]
@@ -101,6 +103,30 @@ class H(BaseHTTPRequestHandler):
                                    {"section_name": "LIST_DATA", "widgets": [{"widget_type": "GROUP_INFO_ROW", "data": {"items": [{"title": "متراژ", "value": "۳۰۰"}, {"title": "ساخت", "value": "۱۴۰۱"}, {"title": "اتاق", "value": "۴"}]}}]},
                                ]})
         self.reply({}, 404)
+
+    def sheypoor_direct(self, path):
+        """شبیه‌ساز نقاط پایانی مستقیم شیپور (/api/v10.0.0/...)."""
+        from urllib.parse import parse_qs, urlsplit
+        u = urlsplit(path)
+        q = {k: v[-1] for k, v in parse_qs(u.query).items()}
+        if u.path == "/general/locations":
+            return self.reply({"data": {"version": 1, "list": [
+                {"provinceID": 1, "name": "گیلان", "slug": "gilan", "cities": [{"cityID": 101, "name": "رشت", "slug": "rasht"}]},
+                {"provinceID": 2, "name": "مازندران", "slug": "mazandaran", "cities": [{"cityID": 201, "name": "ساری", "slug": "sari"}]}]}})
+        if u.path == "/categories/compact":
+            return self.reply({"data": [{"id": 43603, "attributes": {"title": "املاک"}, "relationships": {"children": {"data": [
+                {"id": 44096, "title": "فروش آپارتمان"}, {"id": 44098, "title": "رهن و اجاره آپارتمان"}]}}}]})
+        if u.path.startswith("/search/"):
+            res = sheypoor_tool("search_listings", {"cityId": int(q.get("ct", 0)), "categoryId": int(q.get("c", 0)), "page": int(q.get("p", 1))})
+            groups = [{"type": "listingGroup", "items": [{"id": it["id"], "type": "normal", "attributes": {
+                "title": it["title"], "url": it["url"], "location": it["location"], "telephone": it["phone"],
+                "price": [{"label": "رهن" if it["price"]["display"] == "رهن" else "قیمت", "amount": f"{it['price']['amount']:,}", "currency": "تومان"}]}}
+                for it in res["listings"]]}]
+            return self.reply({"data": groups, "meta": {"f": "cur" + q.get("p", "1") if res["listings"] else None}})
+        if u.path.startswith("/listings/"):
+            d = sheypoor_tool("get_listing", {"id": u.path.rsplit("/", 1)[-1]})
+            return self.reply({"data": {"id": d["id"], "attributes": {**d, "isShopProfile": False, "images": [{"source": {"desktop": "https://example.com/sp.jpg"}}]}}})
+        return self.reply({}, 404)
 
     def do_POST(self):
         n = int(self.headers.get("content-length") or 0)

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 import time
@@ -20,11 +21,12 @@ import catalog
 import features
 import valuation
 from divar_client import SourceError, backoff_seconds, make_source
-from sheypoor_client import SheypoorSource
+import divar_client
+from sheypoor_client import SheypoorAutoSource, SheypoorDirectSource, SheypoorSource
 
 DEFAULT_INGEST = {
     "enabled": False,
-    "mode": "mcp",            # mcp | direct
+    "mode": "mcp",            # mcp = سرور واسط divar-mcp | direct = مستقیم به api.divar.ir
     "mcp_url": "",
     "hourly_limit": 60,
     "cities": [c["key"] for c in catalog.CITIES],
@@ -32,8 +34,10 @@ DEFAULT_INGEST = {
     "refresh_hours": 6,
     "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
     "recheck_days": 4,
-    "sheypoor": False,        # منبع دوم: شیپور از طریق MCP
+    "sheypoor": False,        # منبع دوم: شیپور
+    "sheypoor_mode": "auto",  # auto = اول سرور واسط MCP، اگر نرسید مستقیم | mcp | direct
     "sheypoor_url": "",
+    "proxy": "auto",          # auto = پروکسی سیستم با بازگشت خودکار؛ none = بدون پروکسی؛ یا نشانی پروکسی
 }
 SRC_PREFIX = {"divar": "dv-", "sheypoor": "sp-"}
 
@@ -61,6 +65,7 @@ class Ingestor:
         c = {**DEFAULT_INGEST, **(self.store.get_setting("ingest") or {})}
         c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 60), 1200))
         c["categories"] = [x for x in c["categories"] if x in catalog.CATEGORY_BY_SLUG] or ["real-estate"]
+        divar_client.NET["proxy"] = c.get("proxy") or "auto"
         return c
 
     def city(self, key) -> dict:
@@ -70,10 +75,19 @@ class Ingestor:
             c["divar_id"] = int(ids[key])
         return c
 
+    @staticmethod
+    def make_sheypoor(cfg, store):
+        api = os.environ.get("ARA_SHEYPOOR_API") or None
+        if cfg.get("sheypoor_mode") == "mcp":
+            return SheypoorSource(cfg.get("sheypoor_url") or None, store=store)
+        if cfg.get("sheypoor_mode") == "direct":
+            return SheypoorDirectSource(api, store=store)
+        return SheypoorAutoSource(cfg.get("sheypoor_url") or None, api, store=store)
+
     def get_sheypoor(self, cfg):
-        key = cfg.get("sheypoor_url") or ""
+        key = (cfg.get("sheypoor_mode"), cfg.get("sheypoor_url") or "")
         if self.sp_source is None or key != self.sp_key:
-            self.sp_source = SheypoorSource(key or None, store=self.store)
+            self.sp_source = self.make_sheypoor(cfg, self.store)
             self.sp_key = key
         return self.sp_source
 
@@ -351,7 +365,7 @@ class Ingestor:
         cfg = self.cfg()
         started = time.time()
         if source == "sheypoor":
-            src = SheypoorSource(cfg.get("sheypoor_url") or None, store=self.store)
+            src = self.make_sheypoor(cfg, self.store)
             try:
                 info = src.probe()
                 city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")

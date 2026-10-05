@@ -454,6 +454,8 @@ class Handler(BaseHTTPRequestHandler):
                 s.set_setting("admin", {"salt": salt, "hash": hash_pw(data["new_password"], salt)})
             return self.send_json({"ok": True})
         if path == "/api/admin/ingest":
+            if data.get("proxy") and data["proxy"] not in ("auto", "none") and not re.match(r"^https?://", data["proxy"]):
+                raise ValueError("نشانی پروکسی باید مثل http://127.0.0.1:10809 باشد")
             cfg = {**a.ingest.cfg(), **{k: v for k, v in data.items() if k in DEFAULT_INGEST}}
             cfg["cities"] = [c for c in cfg["cities"] if c in catalog.CITY_BY_KEY]
             cfg["categories"] = [c for c in cfg["categories"] if c in catalog.CATEGORY_BY_SLUG]
@@ -463,6 +465,9 @@ class Handler(BaseHTTPRequestHandler):
                 s.set_setting("city_ids", ids)
             a.ingest.pause_until = 0
             a.ingest.poke()
+            ids = {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})}
+            if data.get("mode") == "direct" and cfg["mode"] == "direct" and any(not ids.get(k) for k in cfg["cities"]):
+                a.ingest.discover_ids()  # شناسهٔ شهرهای بی‌شناسه خودکار و در پس‌زمینه پیدا می‌شود
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
             return self.send_json(a.ingest.test_connection(data.get("source") or "divar"))

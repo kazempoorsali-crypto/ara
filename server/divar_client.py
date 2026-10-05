@@ -14,7 +14,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from catalog import number, parse_money_text
@@ -32,6 +34,42 @@ class SourceError(Exception):
         self.retry_after = retry_after
 
 
+# تنظیم شبکه (از پنل): auto = پروکسی سیستم ویندوز/مک اگر تنظیم شده باشد؛ none = بدون پروکسی؛ یا نشانی پروکسی
+NET = {"proxy": "auto"}
+
+
+def _opener(proxy):
+    if proxy == "none":
+        return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    if proxy and proxy != "auto":
+        return urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    return urllib.request.build_opener()
+
+
+def _system_proxies() -> dict:
+    return {k: v for k, v in urllib.request.getproxies().items() if k in ("http", "https")}
+
+
+def diagnose(url: str, err: Exception, tried_direct: bool = False) -> str:
+    """توضیح قابل‌فهم برای خطای شبکه: فیلتر دامنه، پروکسی خاموش، یا قطعی اینترنت."""
+    host = urllib.parse.urlsplit(url).hostname or ""
+    proxies = _system_proxies() if NET["proxy"] == "auto" else ({} if NET["proxy"] == "none" else {"https": NET["proxy"]})
+    try:
+        ip = socket.gethostbyname(host)
+    except OSError:
+        return f"نام دامنهٔ {host} پیدا نشد؛ اتصال اینترنت یا DNS را بررسی کنید."
+    if ip.startswith("10.10.34."):
+        return (f"دامنهٔ {host} در ایران فیلتر است (DNS آن را به نشانی {ip} می‌فرستد). "
+                "از «اتصال مستقیم» استفاده کنید یا فیلترشکن را روشن کنید.")
+    refused = "10061" in str(err) or "refused" in str(err).lower() or isinstance(getattr(err, "reason", None), ConnectionRefusedError)
+    if refused and proxies and not tried_direct:
+        return (f"پروکسی سیستم ({', '.join(sorted(set(proxies.values())))}) پاسخ نمی‌دهد؛ احتمالاً فیلترشکن خاموش است ولی تنظیم پروکسی ویندوز باقی مانده. "
+                "در پنل «پروکسی» را روی «بدون پروکسی» بگذارید یا فیلترشکن را روشن کنید.")
+    if refused:
+        return f"سرور {host} ({ip}) اتصال را رد کرد؛ احتمالاً این سرویس از شبکهٔ شما در دسترس نیست. «اتصال مستقیم» را امتحان کنید."
+    return f"خطای شبکه در اتصال به {host}: {err}"
+
+
 def _http(method, url, body=None, headers=None, timeout=30):
     data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -39,14 +77,20 @@ def _http(method, url, body=None, headers=None, timeout=30):
         req.add_header(k, v)
     if data is not None:
         req.add_header("content-type", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, dict(r.headers), r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:300]
-        raise SourceError(f"HTTP {e.code}: {detail}", status=e.code, retry_after=e.headers.get("retry-after")) from e
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise SourceError(f"خطای شبکه: {e}") from e
+    tries = [NET["proxy"]]
+    if NET["proxy"] == "auto" and _system_proxies():
+        tries.append("none")  # اگر پروکسی سیستم خاموش بود، یک بار بدون پروکسی
+    last = None
+    for proxy in tries:
+        try:
+            with _opener(proxy).open(req, timeout=timeout) as r:
+                return r.status, dict(r.headers), r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:300]
+            raise SourceError(f"HTTP {e.code}: {detail}", status=e.code, retry_after=e.headers.get("retry-after")) from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last = e
+    raise SourceError(diagnose(url, last, tried_direct="none" in tries)) from last
 
 
 def _find_lists_of_dicts(obj, depth=0):

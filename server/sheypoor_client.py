@@ -1,4 +1,5 @@
-"""منبع دوم آگهی: شیپور، از طریق سرور MCP عمومی sheypoor-mcp (github.com/FarhamAghdasi/sheypoor-mcp، MIT).
+"""منبع دوم آگهی: شیپور، از طریق سرور MCP عمومی sheypoor-mcp (github.com/FarhamAghdasi/sheypoor-mcp، MIT)
+یا اتصال مستقیم به API عمومی شیپور؛ حالت پیش‌فرض «خودکار» اول MCP و در صورت نرسیدن، مستقیم را امتحان می‌کند.
 
 ابزارهای استفاده‌شده (فقط‌خواندنی، بدون ورود به حساب):
   list_provinces، list_cities(province)، search_categories(query)، get_category_tree(parentId)،
@@ -12,9 +13,13 @@ from __future__ import annotations
 import re
 
 from catalog import find_city, norm, parse_money_text
-from divar_client import McpSource, SourceError
+import json
+import urllib.parse
 
-DEFAULT_SHEYPOOR_MCP = "https://sheypoor-mcp.farhamaghdasi.workers.dev/mcp"
+from divar_client import McpSource, SourceError, _http
+
+DEFAULT_SHEYPOOR_MCP = "https://sheypoor-mcp.farhamaghdasi.workers.dev/"  # نشانی رسمی در README پروژه
+SHEYPOOR_API = "https://www.sheypoor.com/api/v10.0.0"
 PROVINCE_NAMES = {"gilan": "گیلان", "mazandaran": "مازندران", "golestan": "گلستان"}
 # دسته‌های ملک شیپور که می‌خوانیم؛ نام دسته برای تشخیص نوع ملک و معامله به کار می‌رود
 ESTATE_RX = r"آپارتمان|خانه|ویلا|زمین|باغ|مغازه|تجاری|اداری|دفتر|سوئیت|کلنگی|اجاره|رهن|فروش"
@@ -45,6 +50,11 @@ def _money(prices, category_text=""):
     for p in prices:
         disp = norm(p.get("display") or p.get("title") or "")
         amt = p.get("amount")
+        if isinstance(amt, str):
+            amt = parse_money_text(norm(amt) + " تومان").get("price")
+            disp = f"{norm(p.get('label') or '')} {disp}"
+        elif p.get("label"):
+            disp = f"{norm(p.get('label'))} {disp}"
         if not isinstance(amt, (int, float)) or amt <= 0:
             amt = parse_money_text(disp).get("price") or parse_money_text(disp).get("deposit")
         if not amt:
@@ -84,9 +94,10 @@ class SheypoorSource(McpSource):
         try:
             super().connect()
         except SourceError as e:  # بعضی استقرارها MCP را روی ریشه و بعضی روی /mcp دارند
-            if e.status != 404:
+            if e.status not in (404, 405):
                 raise
-            self.url = self.url[:-4] if self.url.rstrip("/").endswith("/mcp") else self.url.rstrip("/") + "/mcp"
+            base = self.url.rstrip("/")
+            self.url = base[:-4] + "/" if base.endswith("/mcp") else base + "/mcp"
             self.session = None
             super().connect()
 
@@ -159,6 +170,8 @@ class SheypoorSource(McpSource):
             args["cityId"] = int(ref["id"])
         if str(cat_id).isdigit():
             args["categoryId"] = int(cat_id)
+        if cursor and self.name == "sheypoor-direct":
+            args["f"] = cursor
         payload = self.call("search_listings", args)
         rows = []
         for it in _list(payload, "listings", "items"):
@@ -173,7 +186,7 @@ class SheypoorSource(McpSource):
             })
         total, per = payload.get("total") or 0, payload.get("items_per_page") or 24
         has_next = bool(rows) and (page * per < total if total else len(rows) >= per) and page < 50
-        return {"rows": rows, "has_next": has_next, "cursor": None}
+        return {"rows": rows, "has_next": has_next, "cursor": payload.get("next")}
 
     def detail(self, token: str):
         d = self.call("get_listing", {"id": int(token) if str(token).isdigit() else token})
@@ -200,3 +213,166 @@ class SheypoorSource(McpSource):
     def probe(self):
         self.connect()
         return {"tools": self.tools, "categories": len(self.categories())}
+
+
+# ------------------------------------------------------------------ مستقیم
+def _unwrap(obj, depth=0):
+    """data تو در تو را تا رسیدن به فهرست باز می‌کند."""
+    while isinstance(obj, dict) and "data" in obj and depth < 5:
+        obj, depth = obj["data"], depth + 1
+    return obj
+
+
+class SheypoorDirectSource(SheypoorSource):
+    """اتصال مستقیم به نقاط پایانی عمومی وب‌اپ شیپور (همان‌هایی که sheypoor-mcp استفاده می‌کند)؛
+    از داخل ایران بدون فیلترشکن کار می‌کند و به سرور واسط نیاز ندارد."""
+    name = "sheypoor-direct"
+
+    def __init__(self, api: str = SHEYPOOR_API, store=None, timeout: int = 30):
+        McpSource.__init__(self, api, timeout)
+        self.api = (api or SHEYPOOR_API).rstrip("/")
+        self.store = store
+
+    def _get(self, path, params=None):
+        url = self.api + path + ("?" + urllib.parse.urlencode(params, doseq=True) if params else "")
+        _, _, text = _http("GET", url, headers={"accept": "application/json, text/plain, */*", "referer": "https://www.sheypoor.com/",
+                                               "origin": "https://www.sheypoor.com"}, timeout=self.timeout)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            raise SourceError("پاسخ نامفهوم از شیپور") from e
+
+    def connect(self):
+        return None
+
+    def call(self, tool, args):  # نگاشت ابزارهای MCP به نقاط پایانی مستقیم
+        if tool == "list_provinces":
+            return [{"id": p.get("provinceID"), "name": p.get("name"), "slug": p.get("slug"), "cities": p.get("cities")} for p in self._locations()]
+        if tool == "list_cities":
+            prov = next((p for p in self._locations() if p.get("slug") == args["province"] or norm(args["province"]) in norm(p.get("name"))), {})
+            return {"cities": [{"id": c.get("cityID"), "name": c.get("name"), "slug": c.get("slug")} for c in prov.get("cities") or []]}
+        if tool == "search_categories":
+            out = []
+
+            def walk(n, path):
+                name = norm(n.get("name") or n.get("title") or (n.get("attributes") or {}).get("name") or (n.get("attributes") or {}).get("title"))
+                if args["query"] in name:
+                    out.append({"id": n.get("id"), "name": name, "slug": n.get("slug") or (n.get("attributes") or {}).get("slug")})
+                for k in self._kids(n):
+                    walk(k, path + [name])
+            for n in self._categories():
+                walk(n, [])
+            return out
+        if tool == "get_category_tree":
+            def find(nodes):
+                for n in nodes:
+                    if str(n.get("id")) == str(args.get("parentId")):
+                        return n
+                    hit = find(self._kids(n))
+                    if hit:
+                        return hit
+            node = find(self._categories())
+
+            def norm_node(n):
+                return {"id": n.get("id"), "name": norm(n.get("name") or n.get("title") or (n.get("attributes") or {}).get("name") or (n.get("attributes") or {}).get("title")),
+                        "children": [norm_node(k) for k in self._kids(n)]}
+            return {"tree": [norm_node(node)] if node else []}
+        if tool == "search_listings":
+            params = {"p": args.get("page", 1), "o": {"newest": "n", "cheapest": "pa", "expensive": "pd"}.get(args.get("sort"), "n")}
+            if args.get("categoryId") is not None:
+                params["c"] = args["categoryId"]
+            if args.get("cityId") is not None:
+                params["ct"] = args["cityId"]
+            if args.get("f"):
+                params["f"] = args["f"]
+            res = self._get(f"/search/{args.get('city') or 'iran'}", params)
+            items = []
+            for g in res.get("data") or []:
+                group = g.get("items") if g.get("type") in ("listingGroup", "vip") and isinstance(g.get("items"), list) else [g]
+                for it in group:
+                    at = it.get("attributes") or {}
+                    if not it.get("id") or not at.get("title"):
+                        continue
+                    items.append({"id": str(it["id"]), "title": at.get("title"), "url": at.get("url"), "price": at.get("price") or [],
+                                  "location": at.get("location"), "phone": at.get("telephone")})
+            meta = res.get("meta") or {}
+            return {"listings": items, "total": meta.get("total") or 0, "items_per_page": 24, "next": meta.get("f")}
+        if tool == "get_listing":
+            res = self._get(f"/listings/{args['id']}")
+            d = res.get("data") if isinstance(res.get("data"), dict) else res
+            at = {**(d.get("attributes") or {}), "id": d.get("id")}
+            imgs = []
+            for im in at.get("images") or []:
+                u = im if isinstance(im, str) else ((im.get("source") or {}).get("desktop") or im.get("url")) if isinstance(im, dict) else None
+                if u:
+                    imgs.append(u)
+            return {"id": at.get("id"), "title": at.get("title"), "url": at.get("url"), "description": at.get("description"),
+                    "price": at.get("price") or [], "location": at.get("location"), "phone": at.get("phone") or at.get("telephone"),
+                    "shop_profile": bool(at.get("isShopProfile")), "breadcrumbs": at.get("breadcrumbs") or [],
+                    "attributes": [a for a in at.get("attributes") or [] if isinstance(a, dict)], "images": imgs}
+        raise SourceError(f"ابزار ناشناخته: {tool}")
+
+    @staticmethod
+    def _kids(n):
+        k = n.get("children") or ((n.get("relationships") or {}).get("children") or {}).get("data") or []
+        return [x for x in k if isinstance(x, dict)]
+
+    def _locations(self):
+        if not getattr(self, "_loc", None):
+            d = self._get("/general/locations").get("data") or {}
+            self._loc = d.get("list") if isinstance(d, dict) else d or []
+        return self._loc
+
+    def _categories(self):
+        if not getattr(self, "_cats", None):
+            d = _unwrap(self._get("/categories/compact"))
+            self._cats = [x for x in d if isinstance(x, dict)] if isinstance(d, list) else []
+        return self._cats
+
+    def probe(self):
+        return {"categories": len(self.categories()), "provinces": len(self._locations())}
+
+
+class SheypoorAutoSource:
+    """روش خودکار: اول سرور واسط MCP (همان مسیری که MCP دیوار از آن کار می‌کند)، و اگر شبکه به آن نرسید،
+    اتصال مستقیم به sheypoor.com. شناسهٔ شهرها و دسته‌ها در هر دو روش یکی است (هر دو از API خود شیپورند)."""
+    name = "sheypoor-auto"
+
+    def __init__(self, mcp_url=None, api=None, store=None):
+        self.mcp = SheypoorSource(mcp_url, store=store)
+        self.direct = SheypoorDirectSource(api, store=store)
+        self.active = None
+        self.errors = {}
+
+    def _run(self, fn):
+        order = [self.active] if self.active else [self.mcp, self.direct]
+        if self.active:
+            order.append(self.direct if self.active is self.mcp else self.mcp)
+        last = None
+        for src in order:
+            try:
+                out = fn(src)
+                self.active = src
+                return out
+            except SourceError as e:
+                if e.status is not None and e.status not in (404, 405, 502, 503, 530):
+                    raise  # خطای واقعی آگهی (مثلاً ۴۲۹)، نه مشکل رسیدن به سرور
+                self.errors[src.name] = str(e)
+                last = e
+        raise SourceError(" | ".join(f"{'واسط MCP' if k == 'sheypoor' else 'مستقیم'}: {v}" for k, v in self.errors.items())) from last
+
+    def categories(self):
+        return self._run(lambda s: s.categories())
+
+    def city_ref(self, city):
+        return self._run(lambda s: s.city_ref(city))
+
+    def search(self, city, category, page, cursor=None):
+        return self._run(lambda s: s.search(city, category, page, cursor if s is self.direct else None))
+
+    def detail(self, token):
+        return self._run(lambda s: s.detail(token))
+
+    def probe(self):
+        info = self._run(lambda s: s.probe())
+        return {**(info or {}), "روش": "سرور واسط MCP" if self.active is self.mcp else "اتصال مستقیم"}
