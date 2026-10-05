@@ -1,2 +1,6 @@
 .arena/
 __pycache__/
+data/
+*.db
+*.db-wal
+*.db-shm

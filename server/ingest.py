@@ -1,0 +1,334 @@
+"""موتور دریافت تدریجی آگهی‌ها از دیوار با سقف درخواست ساعتی.
+
+راهبرد: درخواست‌ها با فاصله یکنواخت (۳۶۰۰ ÷ سقف ساعتی ثانیه) ارسال می‌شوند. در هر نوبت یکی از
+این کارها با اولویت انجام می‌شود:
+  ۱. تازه‌سازی صفحه اول هر شهر/دسته (برای آگهی‌های جدید و تغییر قیمت)
+  ۲. دریافت جزئیات آگهی‌هایی که فقط خلاصه‌شان را داریم
+  ۳. رفتن به صفحه بعدیِ فهرست هر شهر/دسته (پوشش تدریجی همه آگهی‌ها)
+  ۴. بازبینی آگهی‌های قدیمی برای تشخیص حذف‌شده‌ها
+وضعیت هر فهرست (صفحه و نشانگر) در پایگاه داده می‌ماند تا با خاموش و روشن شدن رایانه ادامه یابد.
+"""
+from __future__ import annotations
+
+import json
+import re
+import threading
+import time
+import traceback
+
+import catalog
+from divar_client import SourceError, backoff_seconds, make_source
+
+DEFAULT_INGEST = {
+    "enabled": False,
+    "mode": "mcp",            # mcp | direct
+    "mcp_url": "",
+    "hourly_limit": 60,
+    "cities": [c["key"] for c in catalog.CITIES],
+    "categories": [c["slug"] for c in catalog.CATEGORIES if c["default"]],
+    "refresh_hours": 6,
+    "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
+    "recheck_days": 4,
+}
+
+
+class Ingestor:
+    def __init__(self, store):
+        self.store = store
+        self.stop = threading.Event()
+        self.wake = threading.Event()
+        self.thread = None
+        self.source = None
+        self.source_key = None
+        self.pause_until = 0
+        self.fail_streak = 0
+        self.detail_credit = 0
+        self.state = {"running": False, "last": None, "last_at": None, "next_at": None, "error": None, "discover": None}
+        self.discover_thread = None
+
+    # ---------------------------------------------------------- config
+    def cfg(self) -> dict:
+        c = {**DEFAULT_INGEST, **(self.store.get_setting("ingest") or {})}
+        c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 60), 1200))
+        return c
+
+    def city(self, key) -> dict:
+        c = dict(catalog.CITY_BY_KEY[key])
+        ids = self.store.get_setting("city_ids") or {}
+        if ids.get(key):
+            c["divar_id"] = int(ids[key])
+        return c
+
+    def get_source(self, cfg):
+        key = (cfg["mode"], cfg.get("mcp_url"))
+        if self.source is None or key != self.source_key:
+            self.source = make_source(cfg["mode"], cfg.get("mcp_url"))
+            self.source_key = key
+        return self.source
+
+    # ---------------------------------------------------------- lifecycle
+    def start(self):
+        if self.thread and self.thread.is_alive():
+            return
+        self.thread = threading.Thread(target=self.loop, name="ingest", daemon=True)
+        self.thread.start()
+
+    def poke(self):
+        self.wake.set()
+
+    def loop(self):
+        while not self.stop.is_set():
+            cfg = self.cfg()
+            self.state["running"] = bool(cfg["enabled"])
+            if not cfg["enabled"]:
+                self.state["next_at"] = None
+                self.wake.wait(5)
+                self.wake.clear()
+                continue
+            interval = 3600 / cfg["hourly_limit"]
+            last = self.store.q("SELECT MAX(at) t FROM requests_log WHERE kind != 'discover'", one=True)["t"] or 0
+            due = max(last + interval, self.pause_until)
+            # سقف سخت: بیش از حد مجاز در ۶۰ دقیقه گذشته ارسال نشود
+            if self.store.requests_in_last(3600) >= cfg["hourly_limit"]:
+                oldest = self.store.q("SELECT at FROM requests_log WHERE at > ? ORDER BY at LIMIT 1",
+                                      (int(time.time()) - 3600,), one=True)
+                due = max(due, (oldest["at"] if oldest else time.time()) + 3600)
+            self.state["next_at"] = int(due)
+            wait = due - time.time()
+            if wait > 0:
+                self.wake.wait(min(wait, 15))
+                self.wake.clear()
+                continue
+            try:
+                self.step(cfg)
+                self.fail_streak = 0
+                self.state["error"] = None
+            except SourceError as e:
+                self.fail_streak += 1
+                self.pause_until = time.time() + backoff_seconds(e, self.fail_streak - 1)
+                self.state["error"] = f"{e} — تلاش دوباره پس از {int(self.pause_until - time.time())} ثانیه"
+            except Exception as e:  # خطای پیش‌بینی‌نشده نباید موتور را متوقف کند
+                self.fail_streak += 1
+                self.pause_until = time.time() + 120
+                self.state["error"] = f"خطای داخلی: {e}"
+                traceback.print_exc()
+
+    # ---------------------------------------------------------- scheduling
+    def ensure_feeds(self, cfg):
+        for ck in cfg["cities"]:
+            if ck not in catalog.CITY_BY_KEY:
+                continue
+            for cat in cfg["categories"]:
+                self.store.x("INSERT OR IGNORE INTO feeds(city_key, category) VALUES(?,?)", (ck, cat))
+
+    def active_feeds(self, cfg):
+        rows = self.store.q("SELECT * FROM feeds")
+        return [dict(r) for r in rows if r["city_key"] in cfg["cities"] and r["category"] in cfg["categories"]]
+
+    def step(self, cfg):
+        self.ensure_feeds(cfg)
+        feeds = self.active_feeds(cfg)
+        if cfg["mode"] == "direct":
+            feeds = [f for f in feeds if self.city(f["city_key"]).get("divar_id")]
+        now = time.time()
+        stale = [f for f in feeds if now - (f["last_page1"] or 0) > cfg["refresh_hours"] * 3600]
+        pending = self.store.q("""SELECT id, token FROM listings WHERE source='divar' AND detail_at IS NULL
+                                  AND status='active' ORDER BY first_seen DESC LIMIT 1""", one=True)
+        if stale:
+            f = min(stale, key=lambda f: f["last_page1"] or 0)
+            return self.fetch_page(cfg, f, first=True)
+        if pending and self.detail_credit > 0:
+            self.detail_credit -= 1
+            return self.fetch_detail(cfg, pending["id"], pending["token"])
+        deep = [f for f in feeds if f["has_next"]]
+        if deep:
+            f = min(deep, key=lambda f: (f["pages_done"], f["items"]))
+            return self.fetch_page(cfg, f, first=False)
+        if pending:
+            return self.fetch_detail(cfg, pending["id"], pending["token"])
+        old = self.store.q("""SELECT id, token FROM listings WHERE source='divar' AND status='active'
+                              AND COALESCE(checked_at, detail_at, 0) < ? ORDER BY COALESCE(checked_at, detail_at, 0) LIMIT 1""",
+                           (int(now - cfg["recheck_days"] * 86400),), one=True)
+        if old:
+            return self.fetch_detail(cfg, old["id"], old["token"], recheck=True)
+        self.state["last"] = "همه فهرست‌ها کامل است؛ منتظر نوبت تازه‌سازی"
+        self.pause_until = now + 300
+
+    # ---------------------------------------------------------- tasks
+    def fetch_page(self, cfg, feed, first: bool):
+        city = self.city(feed["city_key"])
+        page = 1 if first else (feed["page"] or 0) + 1
+        cursor = None if first else (json.loads(feed["cursor"]) if feed["cursor"] else None)
+        src = self.get_source(cfg)
+        label = f"فهرست {city['name']} / {catalog.CATEGORY_BY_SLUG.get(feed['category'], {}).get('name', feed['category'])} صفحه {page}"
+        try:
+            res = src.search(city, feed["category"], page, cursor)
+        except SourceError as e:
+            self.store.log_request("search", False, f"{label}: {e}")
+            self.store.x("UPDATE feeds SET last_error=? WHERE city_key=? AND category=?", (str(e)[:200], feed["city_key"], feed["category"]))
+            if e.status in (400, 404) and not first:  # نشانگر منقضی شده: از ابتدا
+                self.store.x("UPDATE feeds SET page=0, cursor=NULL WHERE city_key=? AND category=?", (feed["city_key"], feed["category"]))
+                return
+            if first:  # تا ۳۰ دقیقه دیگر سراغ فهرست‌های دیگر برو
+                retry = int(time.time() - cfg["refresh_hours"] * 3600 + 1800)
+                self.store.x("UPDATE feeds SET last_page1=? WHERE city_key=? AND category=?", (retry, feed["city_key"], feed["category"]))
+            raise
+        counts = {"new": 0, "updated": 0, "same": 0}
+        for row in res["rows"]:
+            counts[self.store.upsert(self.from_summary(row, city, feed["category"]))] += 1
+        self.store.log_request("search", True, f"{label}: {len(res['rows'])} آگهی ({counts['new']} جدید، {counts['updated']} تغییر قیمت)")
+        fields = {"last_error": None, "items": (feed["items"] or 0) + counts["new"]}
+        if first:
+            fields.update(last_page1=int(time.time()))
+            if not feed["pages_done"]:
+                fields.update(page=1, cursor=json.dumps(res["cursor"]) if res["cursor"] else None,
+                              has_next=int(res["has_next"]), pages_done=1)
+        else:
+            fields.update(page=page, cursor=json.dumps(res["cursor"]) if res["cursor"] else None,
+                          has_next=int(res["has_next"] and bool(res["rows"])), pages_done=(feed["pages_done"] or 0) + 1)
+        sets = ",".join(f"{k}=?" for k in fields)
+        self.store.x(f"UPDATE feeds SET {sets} WHERE city_key=? AND category=?", (*fields.values(), feed["city_key"], feed["category"]))
+        self.detail_credit += cfg["detail_ratio"]
+        self.state.update(last=label, last_at=int(time.time()))
+
+    def fetch_detail(self, cfg, lid, token, recheck=False):
+        src = self.get_source(cfg)
+        try:
+            d = src.detail(token)
+        except SourceError as e:
+            if e.status in (404, 410):
+                self.store.mark(lid, status="removed", checked_at=int(time.time()))
+                self.store.log_request("detail", True, f"{token}: آگهی در دیوار حذف شده است")
+                return
+            self.store.log_request("detail", False, f"{token}: {e}")
+            if e.status and 400 <= e.status < 500 and e.status != 429:  # آگهی مشکل‌دار: رد شو
+                self.store.mark(lid, detail_at=int(time.time()), checked_at=int(time.time()))
+                return
+            raise
+        current = self.store.get(lid) or {}
+        city = catalog.find_city(d.get("city_name")) or catalog.CITY_BY_KEY.get(current.get("city_key"))
+        item = self.from_detail(d, current, city)
+        self.store.upsert(item)
+        self.store.log_request("detail", True, f"{'بازبینی' if recheck else 'جزئیات'}: {(item.get('title') or token)[:50]}")
+        self.state.update(last=f"جزئیات «{(item.get('title') or token)[:40]}»", last_at=int(time.time()))
+
+    # ---------------------------------------------------------- mapping
+    @staticmethod
+    def car_from_title(item, title):
+        t = catalog.norm(title)
+        m = re.search(r"\b(13[5-9]\d|14[0-2]\d)\b", t)
+        if m:
+            item["year"] = int(m.group(1))
+        item["brand"] = re.sub(r"\s*(مدل|،).*$", "", t).strip()[:60] or None
+
+    def from_summary(self, row, city, category) -> dict:
+        cat = catalog.CATEGORY_BY_SLUG.get(category, {"vertical": "estate"})
+        mapped = catalog.find_city(row.get("city_name")) or city
+        lat, lng = catalog.jitter(row["token"], mapped["lat"], mapped["lng"])
+        item = {
+            "id": "dv-" + row["token"], "source": "divar", "token": row["token"], "url": row.get("url"),
+            "vertical": cat["vertical"], "category": category, "title": row.get("title"),
+            "city_key": mapped["key"], "city_name": mapped["name"], "province": mapped["province"],
+            "district": row.get("district"), "price": row.get("price"), "deposit": row.get("deposit"),
+            "rent": row.get("rent"), "negotiable": int(bool(row.get("negotiable"))),
+            "image": row.get("image"), "lat": lat, "lng": lng, "time_text": row.get("time_text"),
+        }
+        if cat["vertical"] == "estate":
+            item["kind"], item["deal"] = catalog.classify_estate(category, row.get("title") or "")
+            if item["deposit"] is not None or item["rent"] is not None:
+                item["deal"] = "rent" if item["deal"] == "sale" else item["deal"]
+            item["amenities"] = catalog.detect_amenities(row.get("title"))
+            t = catalog.norm(row.get("title"))
+            m = re.search(r"(\d{2,5})\s*(?:متر|متری)", t)
+            if m:
+                item["area"] = int(m.group(1))
+            m = re.search(r"(\d|یک|دو|سه|چهار|پنج)\s*خواب", t)
+            if m:
+                item["rooms"] = {"یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5}.get(m.group(1)) or int(m.group(1))
+        else:
+            item["kind"], item["deal"] = ("motorcycle" if category == "motorcycles" else "car"), "sale"
+            self.car_from_title(item, row.get("title") or "")
+        return item
+
+    def from_detail(self, d, current, city) -> dict:
+        city = city or catalog.CITIES[0]
+        item = {"id": current.get("id") or "dv-" + d["token"], "source": "divar", "token": d["token"],
+                "url": d.get("url"), "title": d.get("title") or current.get("title"),
+                "description": d.get("description"), "attributes": d.get("attributes") or {},
+                "images": d.get("images") or [], "district": d.get("district") or current.get("district"),
+                "seller_type": d.get("seller_type"), "detail_at": int(time.time()), "checked_at": int(time.time()),
+                "city_key": city["key"], "city_name": city["name"], "province": city["province"],
+                "vertical": current.get("vertical") or "estate", "category": current.get("category")}
+        if item["images"]:
+            item["image"] = item["images"][0]
+        for f in ("price", "deposit", "rent"):
+            if d.get(f):
+                item[f] = d[f]
+        catalog.enrich_from_attributes(item, item["attributes"])
+        if item["vertical"] == "estate":
+            kind, deal = catalog.classify_estate(d.get("category_text") or "", item["title"] or "")
+            item["kind"] = kind
+            item["deal"] = deal if (d.get("category_text") or "").strip() else current.get("deal", deal)
+            if item.get("deposit") is not None or item.get("rent") is not None:
+                if item["deal"] == "sale":
+                    item["deal"] = "rent"
+            attrs_text = " ".join(f"{k}: {v}" for k, v in item["attributes"].items())
+            item["amenities"] = catalog.detect_amenities(item["title"], attrs_text, d.get("description"))
+        else:
+            if not item.get("brand"):
+                self.car_from_title(item, item["title"] or "")
+        if d.get("latlng"):
+            item["lat"], item["lng"] = d["latlng"]
+            item["latlng_exact"] = 1
+        return item
+
+    # ---------------------------------------------------------- admin actions
+    def test_connection(self) -> dict:
+        cfg = self.cfg()
+        src = make_source(cfg["mode"], cfg.get("mcp_url"))
+        started = time.time()
+        try:
+            info = src.probe()
+            city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")
+            if cfg["mode"] == "direct" and not city.get("divar_id"):
+                city = self.city("rasht")
+            res = src.search(city, cfg["categories"][0] if cfg["categories"] else "real-estate", 1)
+            self.store.log_request("test", True, f"آزمون اتصال: {len(res['rows'])} آگهی از {city['name']}")
+            sample = res["rows"][:3]
+            for s in sample:
+                s.pop("raw", None)
+            return {"ok": True, "ms": int((time.time() - started) * 1000), "info": info, "count": len(res["rows"]), "sample": sample}
+        except Exception as e:
+            self.store.log_request("test", False, f"آزمون اتصال: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def discover_ids(self, start=1, end=1300, delay=2.5):
+        """یافتن شناسه عددی شهرهای شمال در دیوار (فقط برای حالت اتصال مستقیم)."""
+        if self.discover_thread and self.discover_thread.is_alive():
+            return
+
+        def run():
+            src = make_source("direct")
+            ids = self.store.get_setting("city_ids") or {}
+            targets = {c["key"]: c for c in catalog.CITIES if not c["divar_id"] and not ids.get(c["key"])}
+            for cid in range(start, end + 1):
+                if self.stop.is_set() or not targets:
+                    break
+                self.state["discover"] = f"بررسی شناسه {cid} — {len(targets)} شهر باقی‌مانده"
+                try:
+                    name = src.probe_city(cid)
+                except SourceError as e:
+                    self.store.log_request("discover", False, f"شناسه {cid}: {e}")
+                    time.sleep(backoff_seconds(e, 0) if e.status == 429 else delay)
+                    continue
+                self.store.log_request("discover", True, f"شناسه {cid}: {name}")
+                hit = catalog.find_city(name) if name else None
+                if hit and hit["key"] in targets and catalog.squash(hit["name"]) == catalog.squash(name):
+                    ids[hit["key"]] = cid
+                    self.store.set_setting("city_ids", ids)
+                    targets.pop(hit["key"])
+                time.sleep(delay)
+            self.state["discover"] = f"پایان کشف شناسه‌ها؛ {len(targets)} شهر یافت نشد" if targets else "همه شناسه‌ها یافت شد"
+
+        self.discover_thread = threading.Thread(target=run, name="discover", daemon=True)
+        self.discover_thread.start()

@@ -1,6 +1,6 @@
-/* داده‌های پایه سامانه «آرا» — شهرهای شمال ایران و آگهی‌های نمونه
-   توجه: مختصات شهرها تقریبی و صرفاً برای نمایش روی نقشه است.
-   همه آگهی‌ها و قیمت‌ها «نمایشی» هستند و باید با داده واقعی (API) جایگزین شوند. */
+/* مرجع ثابت آرا + آگهی‌های نمونه برای پیش‌نمایش
+   هشدار: همه آگهی‌ها و قیمت‌های این فایل ساختگی‌اند و فقط وقتی نمایش داده می‌شوند که
+   هنوز آگهی واقعی از دیوار دریافت نشده باشد (یا سایت بدون سرور باز شده باشد). */
 
 const PROVINCES = [
   { id: "gilan", name: "گیلان", center: [37.28, 49.58] },
@@ -9,58 +9,62 @@ const PROVINCES = [
 ];
 
 const CITIES = [
-  // گیلان
-  { id: "rasht", name: "رشت", province: "gilan", lat: 37.2808, lng: 49.5832, tags: ["شهری", "مرکز استان"] },
-  { id: "anzali", name: "بندر انزلی", province: "gilan", lat: 37.4727, lng: 49.4622, tags: ["ساحلی", "تالاب"] },
-  { id: "lahijan", name: "لاهیجان", province: "gilan", lat: 37.2071, lng: 50.0039, tags: ["کوهپایه", "چای"] },
-  { id: "langarud", name: "لنگرود", province: "gilan", lat: 37.197, lng: 50.1539, tags: ["ساحلی"] },
-  { id: "astara", name: "آستارا", province: "gilan", lat: 38.4296, lng: 48.8721, tags: ["مرزی", "ساحلی"] },
-  { id: "talesh", name: "تالش", province: "gilan", lat: 37.8016, lng: 48.9047, tags: ["جنگلی", "ییلاقی"] },
-  { id: "rudsar", name: "رودسر", province: "gilan", lat: 37.1371, lng: 50.2876, tags: ["ساحلی"] },
-  { id: "chaboksar", name: "چابکسر", province: "gilan", lat: 36.9733, lng: 50.5725, tags: ["ساحلی", "جنگلی"] },
-  { id: "kiashahr", name: "کیاشهر", province: "gilan", lat: 37.4211, lng: 49.9396, tags: ["ساحلی"] },
-  { id: "astaneh", name: "آستانه اشرفیه", province: "gilan", lat: 37.2597, lng: 49.9441, tags: ["شهری"] },
-  { id: "fuman", name: "فومن", province: "gilan", lat: 37.224, lng: 49.3125, tags: ["جنگلی"] },
-  { id: "masal", name: "ماسال", province: "gilan", lat: 37.3621, lng: 49.1312, tags: ["ییلاقی", "جنگلی"] },
-  { id: "someh", name: "صومعه‌سرا", province: "gilan", lat: 37.3117, lng: 49.3219, tags: ["روستایی"] },
-  { id: "rudbar", name: "رودبار", province: "gilan", lat: 36.8237, lng: 49.4237, tags: ["کوهستانی", "زیتون"] },
-  // مازندران
-  { id: "sari", name: "ساری", province: "mazandaran", lat: 36.5633, lng: 53.0601, tags: ["شهری", "مرکز استان"] },
-  { id: "babol", name: "بابل", province: "mazandaran", lat: 36.5513, lng: 52.679, tags: ["شهری"] },
-  { id: "amol", name: "آمل", province: "mazandaran", lat: 36.4696, lng: 52.3507, tags: ["شهری"] },
-  { id: "qaemshahr", name: "قائم‌شهر", province: "mazandaran", lat: 36.4631, lng: 52.8601, tags: ["شهری"] },
-  { id: "babolsar", name: "بابلسر", province: "mazandaran", lat: 36.7025, lng: 52.6576, tags: ["ساحلی", "دانشگاهی"] },
-  { id: "fereydunkenar", name: "فریدونکنار", province: "mazandaran", lat: 36.6836, lng: 52.5225, tags: ["ساحلی"] },
-  { id: "mahmudabad", name: "محمودآباد", province: "mazandaran", lat: 36.632, lng: 52.263, tags: ["ساحلی", "شهرکی"] },
-  { id: "nur", name: "نور", province: "mazandaran", lat: 36.573, lng: 52.0139, tags: ["ساحلی", "جنگلی"] },
-  { id: "nowshahr", name: "نوشهر", province: "mazandaran", lat: 36.649, lng: 51.496, tags: ["ساحلی", "بندری"] },
-  { id: "chalus", name: "چالوس", province: "mazandaran", lat: 36.6459, lng: 51.421, tags: ["ساحلی", "جنگلی"] },
-  { id: "kelardasht", name: "کلاردشت", province: "mazandaran", lat: 36.4986, lng: 51.1441, tags: ["ییلاقی", "کوهستانی"] },
-  { id: "abbasabad", name: "عباس‌آباد", province: "mazandaran", lat: 36.7213, lng: 51.115, tags: ["ساحلی", "شهرکی"] },
-  { id: "tonekabon", name: "تنکابن", province: "mazandaran", lat: 36.8163, lng: 50.874, tags: ["ساحلی", "جنگلی"] },
-  { id: "ramsar", name: "رامسر", province: "mazandaran", lat: 36.9031, lng: 50.6583, tags: ["ساحلی", "جنگلی", "لوکس"] },
-  { id: "neka", name: "نکا", province: "mazandaran", lat: 36.6508, lng: 53.299, tags: ["شهری"] },
-  { id: "behshahr", name: "بهشهر", province: "mazandaran", lat: 36.6923, lng: 53.5526, tags: ["جنگلی"] },
-  // گلستان
-  { id: "gorgan", name: "گرگان", province: "golestan", lat: 36.8427, lng: 54.4353, tags: ["شهری", "مرکز استان"] },
-  { id: "gonbad", name: "گنبد کاووس", province: "golestan", lat: 37.25, lng: 55.1672, tags: ["شهری"] },
-  { id: "torkaman", name: "بندر ترکمن", province: "golestan", lat: 36.9015, lng: 54.0708, tags: ["ساحلی"] },
-  { id: "bandargaz", name: "بندر گز", province: "golestan", lat: 36.7732, lng: 53.9474, tags: ["ساحلی"] },
-  { id: "kordkuy", name: "کردکوی", province: "golestan", lat: 36.7943, lng: 54.1101, tags: ["جنگلی"] },
-  { id: "aliabad", name: "علی‌آباد کتول", province: "golestan", lat: 36.9083, lng: 54.869, tags: ["کوهپایه"] },
-  { id: "azadshahr", name: "آزادشهر", province: "golestan", lat: 37.0866, lng: 55.1738, tags: ["جنگلی"] },
-  { id: "minudasht", name: "مینودشت", province: "golestan", lat: 37.2289, lng: 55.3747, tags: ["جنگلی"] },
-  { id: "kalaleh", name: "کلاله", province: "golestan", lat: 37.3807, lng: 55.4916, tags: ["روستایی"] },
+  ["rasht", "رشت", "gilan", 37.2808, 49.5832, ["شهری", "مرکز استان"]],
+  ["anzali", "بندر انزلی", "gilan", 37.4727, 49.4622, ["ساحلی", "تالاب"]],
+  ["lahijan", "لاهیجان", "gilan", 37.2071, 50.0039, ["کوهپایه", "چای"]],
+  ["langarud", "لنگرود", "gilan", 37.197, 50.1539, ["ساحلی"]],
+  ["astara", "آستارا", "gilan", 38.4296, 48.8721, ["مرزی", "ساحلی"]],
+  ["talesh", "تالش", "gilan", 37.8016, 48.9047, ["جنگلی", "ییلاقی"]],
+  ["rudsar", "رودسر", "gilan", 37.1371, 50.2876, ["ساحلی"]],
+  ["chaboksar", "چابکسر", "gilan", 36.9733, 50.5725, ["ساحلی", "جنگلی"]],
+  ["kiashahr", "کیاشهر", "gilan", 37.4211, 49.9396, ["ساحلی"]],
+  ["astaneh", "آستانه اشرفیه", "gilan", 37.2597, 49.9441, ["شهری"]],
+  ["fuman", "فومن", "gilan", 37.224, 49.3125, ["جنگلی"]],
+  ["masal", "ماسال", "gilan", 37.3621, 49.1312, ["ییلاقی", "جنگلی"]],
+  ["someh", "صومعه‌سرا", "gilan", 37.3117, 49.3219, ["روستایی"]],
+  ["rudbar", "رودبار", "gilan", 36.8237, 49.4237, ["کوهستانی", "زیتون"]],
+  ["sari", "ساری", "mazandaran", 36.5633, 53.0601, ["شهری", "مرکز استان"]],
+  ["babol", "بابل", "mazandaran", 36.5513, 52.679, ["شهری"]],
+  ["amol", "آمل", "mazandaran", 36.4696, 52.3507, ["شهری"]],
+  ["qaemshahr", "قائم‌شهر", "mazandaran", 36.4631, 52.8601, ["شهری"]],
+  ["babolsar", "بابلسر", "mazandaran", 36.7025, 52.6576, ["ساحلی", "دانشگاهی"]],
+  ["fereydunkenar", "فریدونکنار", "mazandaran", 36.6836, 52.5225, ["ساحلی"]],
+  ["mahmudabad", "محمودآباد", "mazandaran", 36.632, 52.263, ["ساحلی", "شهرکی"]],
+  ["nur", "نور", "mazandaran", 36.573, 52.0139, ["ساحلی", "جنگلی"]],
+  ["nowshahr", "نوشهر", "mazandaran", 36.649, 51.496, ["ساحلی", "بندری"]],
+  ["chalus", "چالوس", "mazandaran", 36.6459, 51.421, ["ساحلی", "جنگلی"]],
+  ["kelardasht", "کلاردشت", "mazandaran", 36.4986, 51.1441, ["ییلاقی", "کوهستانی"]],
+  ["abbasabad", "عباس‌آباد", "mazandaran", 36.7213, 51.115, ["ساحلی", "شهرکی"]],
+  ["tonekabon", "تنکابن", "mazandaran", 36.8163, 50.874, ["ساحلی", "جنگلی"]],
+  ["ramsar", "رامسر", "mazandaran", 36.9031, 50.6583, ["ساحلی", "جنگلی", "لوکس"]],
+  ["neka", "نکا", "mazandaran", 36.6508, 53.299, ["شهری"]],
+  ["behshahr", "بهشهر", "mazandaran", 36.6923, 53.5526, ["جنگلی"]],
+  ["gorgan", "گرگان", "golestan", 36.8427, 54.4353, ["شهری", "مرکز استان"]],
+  ["gonbad", "گنبد کاووس", "golestan", 37.25, 55.1672, ["شهری"]],
+  ["torkaman", "بندر ترکمن", "golestan", 36.9015, 54.0708, ["ساحلی"]],
+  ["bandargaz", "بندر گز", "golestan", 36.7732, 53.9474, ["ساحلی"]],
+  ["kordkuy", "کردکوی", "golestan", 36.7943, 54.1101, ["جنگلی"]],
+  ["aliabad", "علی‌آباد کتول", "golestan", 36.9083, 54.869, ["کوهپایه"]],
+  ["azadshahr", "آزادشهر", "golestan", 37.0866, 55.1738, ["جنگلی"]],
+  ["minudasht", "مینودشت", "golestan", 37.2289, 55.3747, ["جنگلی"]],
+  ["kalaleh", "کلاله", "golestan", 37.3807, 55.4916, ["روستایی"]],
+].map(([id, name, province, lat, lng, tags]) => ({ id, name, province, lat, lng, tags }));
+
+const VERTICALS = [
+  { id: "estate", name: "املاک" },
+  { id: "car", name: "خودرو" },
 ];
 
 const PROPERTY_TYPES = [
-  { id: "villa", name: "ویلا", icon: "🏡" },
-  { id: "apartment", name: "آپارتمان", icon: "🏢" },
-  { id: "land", name: "زمین", icon: "🌾" },
-  { id: "garden", name: "باغ", icon: "🌳" },
-  { id: "suite", name: "سوئیت", icon: "🛏️" },
-  { id: "shop", name: "تجاری", icon: "🏪" },
+  { id: "apartment", name: "آپارتمان" },
+  { id: "villa", name: "ویلا" },
+  { id: "land", name: "زمین" },
+  { id: "garden", name: "باغ" },
+  { id: "suite", name: "سوئیت" },
+  { id: "shop", name: "مغازه" },
+  { id: "office", name: "اداری" },
 ];
+const CAR_TYPES = [{ id: "car", name: "سواری و وانت" }, { id: "motorcycle", name: "موتورسیکلت" }];
 
 const DEAL_TYPES = [
   { id: "sale", name: "خرید" },
@@ -70,20 +74,31 @@ const DEAL_TYPES = [
 
 const AMENITIES = [
   { id: "seaview", name: "دید دریا" },
-  { id: "beach", name: "ساحل اختصاصی" },
   { id: "forest", name: "جنگلی" },
   { id: "pool", name: "استخر" },
   { id: "jacuzzi", name: "جکوزی" },
   { id: "parking", name: "پارکینگ" },
   { id: "elevator", name: "آسانسور" },
-  { id: "gated", name: "شهرکی/نگهبانی" },
+  { id: "warehouse", name: "انباری" },
+  { id: "balcony", name: "بالکن" },
+  { id: "gated", name: "شهرکی" },
   { id: "deed", name: "سند تک‌برگ" },
   { id: "furnished", name: "مبله" },
-  { id: "barbecue", name: "آلاچیق و باربیکیو" },
+  { id: "barbecue", name: "آلاچیق" },
   { id: "mountain", name: "دید کوهستان" },
 ];
 
-/* ------- تولید آگهی‌های نمونه با بذر ثابت (تکرارپذیر) ------- */
+const CAR_BRANDS = ["پژو ۲۰۶", "پژو ۴۰۵", "پژو پارس", "دنا پلاس", "سمند", "تارا", "رانا", "پراید", "تیبا", "کوییک", "ساینا", "شاهین", "ری‌را", "هایما", "تیگو", "جک", "کیا", "هیوندای", "تویوتا", "ام‌وی‌ام", "ال۹۰", "نیسان وانت"];
+
+const DEAL_BANDS = {
+  great: { name: "معامله عالی", short: "عالی" },
+  good: { name: "معامله خوب", short: "خوب" },
+  fair: { name: "قیمت منصفانه", short: "منصفانه" },
+  high: { name: "بالاتر از بازار", short: "گران" },
+  over: { name: "خیلی گران", short: "خیلی گران" },
+};
+
+/* ------- آگهی‌های نمونه (بذر ثابت؛ قیمت‌ها نسبی و ساختگی) ------- */
 function mulberry32(a) {
   return function () {
     a |= 0; a = (a + 0x6d2b79f5) | 0;
@@ -93,82 +108,88 @@ function mulberry32(a) {
   };
 }
 
-const LISTINGS = (() => {
+const SAMPLE_LISTINGS = (() => {
   const rnd = mulberry32(1405);
-  const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
   const between = (a, b) => a + rnd() * (b - a);
+  const now = Math.floor(Date.now() / 1000);
+  const hoods = ["بلوار ساحلی", "جاده جنگل", "مرکز شهر", "شهرک دریاکنار", "کمربندی", "دامنه کوه", "جاده ییلاقی", "محله قدیم"];
   const titles = {
-    villa: ["ویلای دوبلکس", "ویلای مدرن", "ویلای شهرکی", "ویلای جنگلی", "ویلای ساحلی", "ویلای نوساز"],
+    villa: ["ویلای دوبلکس", "ویلای مدرن", "ویلای شهرکی", "ویلای جنگلی", "ویلای ساحلی"],
     apartment: ["آپارتمان نوساز", "آپارتمان فول‌امکانات", "آپارتمان دید ابدی", "آپارتمان برج‌باغ"],
-    land: ["زمین مسکونی", "زمین با پروانه ساخت", "قطعه زمین ساحلی", "زمین کشاورزی"],
-    garden: ["باغ مرکبات", "باغ چای", "باغ ویلا", "باغ کیوی"],
-    suite: ["سوئیت ساحلی", "سوئیت دنج", "سوئیت مبله"],
-    shop: ["مغازه بر اصلی", "دفتر تجاری", "واحد تجاری پاساژ"],
+    land: ["زمین مسکونی", "زمین با پروانه ساخت", "قطعه زمین نزدیک دریا"],
+    garden: ["باغ مرکبات", "باغ چای", "باغ کیوی"],
+    suite: ["سوئیت ساحلی", "سوئیت مبله"],
+    shop: ["مغازه بر اصلی", "واحد تجاری پاساژ"],
+    office: ["دفتر اداری", "واحد اداری نوساز"],
   };
-  const hoods = ["بلوار ساحلی", "جاده جنگل", "مرکز شهر", "شهرک ساحلی", "کمربندی", "خیابان امام", "دامنه کوه", "نزدیک دریا", "جاده ییلاقی"];
   const out = [];
+  let n = 0;
   CITIES.forEach((city) => {
-    // هر شهر دست‌کم یک ویلای فروشی، یک آپارتمان فروشی، یک اجاره‌ای و یک اقامتگاه روزانه دارد
-    const fixed = [["villa", "sale"], ["apartment", "sale"], [pick(["apartment", "villa"]), "rent"], [pick(["villa", "suite", "apartment"]), "daily"]];
-    const n = fixed.length + 2 + Math.floor(rnd() * 4);
-    for (let i = 0; i < n; i++) {
-      const type = fixed[i] ? fixed[i][0] : pick(["villa", "villa", "villa", "apartment", "apartment", "land", "garden", "suite", "shop"]);
-      const deal = fixed[i] ? fixed[i][1] : type === "land" || type === "garden" ? "sale" : type === "shop" ? pick(["sale", "rent"]) : pick(["sale", "sale", "rent", "daily"]);
-      const coastal = city.tags.includes("ساحلی");
-      const forest = city.tags.some((t) => ["جنگلی", "ییلاقی", "کوهستانی"].includes(t));
-      const area = Math.round(
-        type === "land" ? between(200, 2000) : type === "garden" ? between(1000, 8000)
-        : type === "villa" ? between(120, 450) : type === "suite" ? between(35, 70) : between(65, 220)
-      );
-      const rooms = type === "land" || type === "garden" || type === "shop" ? 0
-        : type === "suite" ? 1 : Math.max(1, Math.round(area / 70));
+    const coastal = city.tags.includes("ساحلی");
+    const green = city.tags.some((t) => ["جنگلی", "ییلاقی", "کوهستانی"].includes(t));
+    const lux = city.tags.includes("لوکس") ? 1.6 : coastal ? 1.25 : 1;
+    const plan = [["villa", "sale"], ["apartment", "sale"], ["apartment", "rent"], ["villa", "daily"], [pick(["land", "garden", "suite", "shop", "office", "villa"]), null], [pick(["villa", "apartment", "land"]), null]];
+    plan.forEach(([kind, deal0]) => {
+      const deal = deal0 || (["land", "garden"].includes(kind) ? "sale" : pick(["sale", "rent"]));
+      const area = Math.round(kind === "land" ? between(220, 1500) : kind === "garden" ? between(1200, 6000) : kind === "villa" ? between(130, 420) : kind === "suite" ? between(35, 70) : between(65, 200));
+      const rooms = ["land", "garden", "shop", "office"].includes(kind) ? null : kind === "suite" ? 1 : Math.max(1, Math.round(area / 75));
       const am = new Set();
-      const built = type !== "land" && type !== "garden";
-      if (coastal && (built || rnd() > 0.6) && rnd() > 0.35) am.add("seaview");
-      if (coastal && type === "villa" && rnd() > 0.7) am.add("beach");
-      if (forest && rnd() > 0.3) am.add("forest");
-      if (forest && rnd() > 0.5) am.add("mountain");
-      if (type === "villa" && rnd() > 0.5) am.add("pool");
-      if (type === "villa" && rnd() > 0.7) am.add("jacuzzi");
-      if (type === "villa" && rnd() > 0.4) am.add("barbecue");
-      if (type !== "land" && type !== "garden" && rnd() > 0.3) am.add("parking");
-      if (type === "apartment" && rnd() > 0.35) am.add("elevator");
-      if ((type === "villa" || type === "apartment") && rnd() > 0.55) am.add("gated");
+      if (coastal && rnd() > 0.4 && !["land", "garden"].includes(kind)) am.add("seaview");
+      if (green && rnd() > 0.35) am.add("forest");
+      if (green && rnd() > 0.6) am.add("mountain");
+      if (kind === "villa" && rnd() > 0.45) am.add("pool");
+      if (kind === "villa" && rnd() > 0.75) am.add("jacuzzi");
+      if (kind === "villa" && rnd() > 0.5) am.add("barbecue");
+      if (!["land", "garden"].includes(kind) && rnd() > 0.3) am.add("parking");
+      if (kind === "apartment" && rnd() > 0.35) am.add("elevator");
+      if (kind === "apartment" && rnd() > 0.5) am.add("warehouse");
       if (rnd() > 0.45) am.add("deed");
-      if ((deal === "daily" || type === "suite") && rnd() > 0.2) am.add("furnished");
-
-      // قیمت نمایشی بر حسب تومان (ضریب نسبی، نه داده بازار)
-      const lux = city.tags.includes("لوکس") ? 1.6 : coastal ? 1.25 : 1;
-      const perM = { villa: 45e6, apartment: 38e6, land: 9e6, garden: 3.5e6, suite: 40e6, shop: 90e6 }[type] * lux * between(0.7, 1.4);
-      let price = 0, deposit = 0, rent = 0, nightly = 0;
-      if (deal === "sale") price = Math.round((area * perM) / 1e7) * 1e7;
-      if (deal === "rent") {
-        deposit = Math.round((area * perM * 0.12) / 1e7) * 1e7;
-        rent = Math.round((area * perM * 0.0015) / 1e5) * 1e5;
-      }
-      if (deal === "daily") nightly = Math.round(between(1.2e6, 9e6) * (type === "villa" ? 1.6 : 1) / 1e5) * 1e5;
-
+      if (deal === "daily") am.add("furnished");
+      const perM = { villa: 45e6, apartment: 38e6, land: 9e6, garden: 3.5e6, suite: 40e6, shop: 90e6, office: 55e6 }[kind] * lux * between(0.72, 1.35);
+      const it = {
+        id: "smp-" + (++n), source: "sample", vertical: "estate", kind, deal,
+        title: `${pick(titles[kind])} ${fmtArea(area)} متری در ${city.name}`,
+        city_key: city.id, city_name: city.name, province: city.province, district: pick(hoods),
+        area, rooms, year: ["land", "garden"].includes(kind) ? null : 1385 + Math.floor(rnd() * 19),
+        amenities: [...am], image: null, images: [],
+        lat: city.lat + between(-0.03, 0.03), lng: city.lng + between(-0.04, 0.04),
+        first_seen: now - Math.floor(rnd() * 20 * 86400), price_drop: rnd() > 0.86 ? +between(0.03, 0.12).toFixed(3) : 0,
+        featured: rnd() > 0.93 ? 1 : 0, scene: am.has("seaview") ? "sea" : am.has("forest") ? "forest" : ["land", "garden"].includes(kind) ? "field" : am.has("mountain") ? "mountain" : "city",
+      };
+      if (deal === "sale") it.price = Math.round((area * perM) / 1e7) * 1e7;
+      if (deal === "rent") { it.deposit = Math.round((area * perM * 0.1) / 1e7) * 1e7; it.rent = Math.round((area * perM * 0.0014) / 1e5) * 1e5; }
+      if (deal === "daily") it.price = Math.round(between(1.5e6, 8e6) * (kind === "villa" ? 1.5 : 1) / 1e5) * 1e5;
+      out.push(it);
+    });
+    // خودرو
+    const carCount = 2 + Math.floor(rnd() * 3);
+    for (let i = 0; i < carCount; i++) {
+      const brand = pick(CAR_BRANDS);
+      const year = 1390 + Math.floor(rnd() * 14);
+      const base = { "پراید": 330, "تیبا": 400, "ساینا": 420, "کوییک": 480, "پژو ۲۰۶": 600, "پژو ۴۰۵": 560, "پژو پارس": 680, "سمند": 560, "رانا": 590, "دنا پلاس": 820, "تارا": 950, "شاهین": 800, "ری‌را": 1200, "هایما": 1700, "تیگو": 1800, "جک": 1300, "کیا": 1900, "هیوندای": 2100, "تویوتا": 2600, "ام‌وی‌ام": 900, "ال۹۰": 700, "نیسان وانت": 750 }[brand] * 1e6;
+      const age = 1404 - year;
       out.push({
-        id: `${city.id}-${i + 1}`,
-        title: `${pick(titles[type])} در ${city.name}`,
-        city: city.id,
-        type,
-        deal,
-        area,
-        rooms,
-        year: 1385 + Math.floor(rnd() * 20),
-        price, deposit, rent, nightly,
-        amenities: [...am],
-        hood: pick(hoods),
-        lat: city.lat + between(-0.03, 0.03),
-        lng: city.lng + between(-0.04, 0.04),
-        daysAgo: Math.floor(rnd() * 30),
-        verified: rnd() > 0.45,
-        agency: rnd() > 0.5 ? pick(["مشاور املاک ساحل", "املاک سبز شمال", "مشاور املاک خزر", "املاک پرنیان"]) : "مالک",
-        scene: type === "land" || type === "garden" ? "field" : am.has("seaview") ? "sea" : am.has("forest") ? "forest" : am.has("mountain") ? "mountain" : "city",
-        sample: true,
+        id: "smp-" + (++n), source: "sample", vertical: "car", kind: "car", deal: "sale",
+        title: `${brand} مدل ${fmtYear(year)}`, brand, year,
+        city_key: city.id, city_name: city.name, province: city.province, district: pick(hoods),
+        mileage: Math.round(age * between(9000, 22000) / 1000) * 1000,
+        gearbox: ["تیگو", "هایما", "کیا", "هیوندای", "تویوتا", "ری‌را"].includes(brand) || rnd() > 0.85 ? "اتوماتیک" : "دنده‌ای",
+        fuel: rnd() > 0.8 ? "دوگانه‌سوز" : "بنزینی",
+        color: pick(["سفید", "مشکی", "نقره‌ای", "نوک‌مدادی", "خاکستری"]),
+        body: pick(["بدون رنگ", "بدون رنگ", "یک لکه رنگ", "گلگیر تعویض", "دو لکه رنگ"]),
+        price: Math.round(base * Math.pow(0.94, age) * between(0.85, 1.18) / 1e6) * 1e6,
+        amenities: [], image: null, images: [], lat: city.lat + between(-0.03, 0.03), lng: city.lng + between(-0.04, 0.04),
+        first_seen: now - Math.floor(rnd() * 20 * 86400), price_drop: rnd() > 0.85 ? +between(0.02, 0.08).toFixed(3) : 0,
+        featured: 0, scene: "road",
       });
     }
   });
+  out.forEach((l) => {
+    l.pp = l.deal === "rent" ? (l.deposit || 0) + (l.rent || 0) / 0.03 : l.price;
+    l.ppm = l.vertical === "estate" && l.deal === "sale" && l.area ? l.price / l.area : null;
+  });
   return out;
+  function fmtArea(a) { return a.toLocaleString("fa-IR"); }
+  function fmtYear(y) { return y.toLocaleString("fa-IR", { useGrouping: false }); }
 })();
