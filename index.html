@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>آرا | دلال هوشمند املاک شمال</title>
+  <meta name="description" content="جست‌وجوی هوشمند ویلا، آپارتمان، زمین و باغ در شهرهای گیلان، مازندران و گلستان با دستیار هوش مصنوعی، نقشه و ابزار ارزش‌گذاری." />
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="preload" href="assets/vendor/vazirmatn/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <a class="skip" href="#explore">پرش به نتایج</a>
+
+  <!-- ===== سربرگ ===== -->
+  <header class="topbar" id="top">
+    <div class="wrap topbar__in">
+      <a class="brand" href="#top" aria-label="آرا">
+        <svg viewBox="0 0 40 40" class="brand__mark" aria-hidden="true">
+          <defs><linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0e7490"/></linearGradient></defs>
+          <rect width="40" height="40" rx="12" fill="url(#bg1)"/>
+          <path d="M8 27c4-3 8-3 12 0s8 3 12 0" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M11 22l9-9 9 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span><b>آرا</b><small>دلال هوشمند شمال</small></span>
+      </a>
+      <nav class="nav" aria-label="ناوبری اصلی">
+        <a href="#explore" data-deal-link="sale">خرید</a>
+        <a href="#explore" data-deal-link="rent">رهن و اجاره</a>
+        <a href="#explore" data-deal-link="daily">اجاره روزانه</a>
+        <a href="#cities">راهنمای شهرها</a>
+        <a href="#tools">ابزارها</a>
+      </nav>
+      <div class="topbar__act">
+        <button class="icon-btn" id="favBtn" aria-label="علاقه‌مندی‌ها" title="علاقه‌مندی‌ها">
+          <svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.5-9.2C1.2 8.6 3.4 5 7 5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.6 0 5.8 3.6 4.5 6.8C19.5 16.4 12 21 12 21z"/></svg>
+          <span class="badge" id="favCount">0</span>
+        </button>
+        <button class="icon-btn" id="themeBtn" aria-label="تغییر پوسته" title="حالت روشن/تیره">
+          <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+        <button class="btn btn--primary" id="postBtn">+ ثبت رایگان آگهی</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== قهرمان + جست‌وجوی هوشمند ===== -->
+  <section class="hero">
+    <div class="hero__art" aria-hidden="true">
+      <svg viewBox="0 0 1440 520" preserveAspectRatio="xMidYMax slice">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient>
+          <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sea1)"/><stop offset="1" stop-color="var(--sea2)"/></linearGradient>
+        </defs>
+        <rect width="1440" height="520" fill="url(#sky)"/>
+        <circle cx="1160" cy="130" r="58" fill="var(--sun)" opacity=".9"/>
+        <path d="M0 300 L160 190 L300 260 L470 150 L640 250 L820 170 L980 245 L1150 160 L1300 230 L1440 180 V520 H0Z" fill="var(--mtn1)"/>
+        <path d="M0 340 Q120 280 240 320 T480 315 T720 330 T960 305 T1200 330 T1440 310 V520 H0Z" fill="var(--forest1)"/>
+        <g fill="var(--forest2)">
+          <path d="M80 360 l18-60 18 60z M130 365 l22-75 22 75z M1240 360 l18-62 18 62z M1290 368 l24-80 24 80z M1340 362 l18-58 18 58z"/>
+        </g>
+        <path d="M0 395 Q360 375 720 392 T1440 388 V520 H0Z" fill="url(#sea)"/>
+        <path class="wave" d="M0 420 Q60 410 120 420 T240 420 T360 420 T480 420 T600 420 T720 420 T840 420 T960 420 T1080 420 T1200 420 T1320 420 T1440 420" stroke="var(--foam)" stroke-width="2" fill="none" opacity=".5"/>
+        <path class="wave w2" d="M0 455 Q60 445 120 455 T240 455 T360 455 T480 455 T600 455 T720 455 T840 455 T960 455 T1080 455 T1200 455 T1320 455 T1440 455" stroke="var(--foam)" stroke-width="2" fill="none" opacity=".35"/>
+      </svg>
+    </div>
+    <div class="wrap hero__in">
+      <p class="eyebrow">گیلان · مازندران · گلستان</p>
+      <h1>خانه‌ای میان <em>جنگل</em> و <em>دریا</em><br/>را فقط با یک جمله پیدا کن</h1>
+      <p class="lead">هرچه می‌خواهی به زبان خودت بنویس؛ دستیار آرا شهر، نوع ملک، بودجه و امکانات را می‌فهمد و بهترین گزینه‌ها را روی نقشه نشان می‌دهد.</p>
+
+      <form class="smart" id="smartForm" autocomplete="off">
+        <div class="smart__tabs" role="tablist">
+          <button type="button" role="tab" class="is-on" data-deal="">همه</button>
+          <button type="button" role="tab" data-deal="sale">خرید</button>
+          <button type="button" role="tab" data-deal="rent">رهن و اجاره</button>
+          <button type="button" role="tab" data-deal="daily">اجاره روزانه</button>
+        </div>
+        <div class="smart__row">
+          <span class="smart__ai" aria-hidden="true">✦</span>
+          <input id="smartInput" type="text" placeholder="مثلاً: ویلای استخردار در رامسر با دید دریا زیر ۲۰ میلیارد" aria-label="جست‌وجوی هوشمند" />
+          <button class="btn btn--primary btn--lg" type="submit">جست‌وجو</button>
+        </div>
+        <div class="smart__parsed" id="smartParsed" aria-live="polite"></div>
+      </form>
+      <div class="chips" id="heroChips">
+        <button class="chip" data-q="ویلای ساحلی در نوشهر">ویلای ساحلی نوشهر</button>
+        <button class="chip" data-q="آپارتمان ۲ خوابه در رشت اجاره">آپارتمان اجاره‌ای رشت</button>
+        <button class="chip" data-q="ویلای جنگلی کلاردشت با استخر">ویلای جنگلی کلاردشت</button>
+        <button class="chip" data-q="زمین با سند در لاهیجان">زمین سنددار لاهیجان</button>
+        <button class="chip" data-q="اجاره روزانه ویلا در رامسر">اجاره روزانه رامسر</button>
+      </div>
+      <ul class="stats" id="stats"></ul>
+    </div>
+  </section>
+
+  <!-- ===== کاوش ===== -->
+  <main id="explore" class="explore wrap">
+    <aside class="filters" id="filters" aria-label="فیلترها">
+      <div class="filters__head">
+        <h2>فیلترها</h2>
+        <button class="link" id="resetBtn" type="button">پاک کردن</button>
+      </div>
+
+      <label class="fld"><span>استان</span>
+        <select id="fProvince"><option value="">همه استان‌ها</option></select>
+      </label>
+      <label class="fld"><span>شهر</span>
+        <select id="fCity"><option value="">همه شهرها</option></select>
+      </label>
+      <div class="fld"><span>نوع معامله</span>
+        <div class="seg" id="fDeal"></div>
+      </div>
+      <div class="fld"><span>نوع ملک</span>
+        <div class="tiles" id="fType"></div>
+      </div>
+      <div class="fld"><span>بودجه (تومان)</span>
+        <div class="range2">
+          <input id="fMin" inputmode="numeric" placeholder="از" />
+          <input id="fMax" inputmode="numeric" placeholder="تا" />
+        </div>
+        <small class="hint" id="budgetHint"></small>
+      </div>
+      <div class="fld"><span>متراژ (متر مربع)</span>
+        <div class="range2">
+          <input id="fAreaMin" inputmode="numeric" placeholder="از" />
+          <input id="fAreaMax" inputmode="numeric" placeholder="تا" />
+        </div>
+      </div>
+      <div class="fld"><span>تعداد خواب</span>
+        <div class="seg seg--sm" id="fRooms"></div>
+      </div>
+      <div class="fld"><span>امکانات</span>
+        <div class="checks" id="fAmen"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="fVerified" /><i></i><span>فقط آگهی‌های تأییدشده</span></label>
+      <button class="btn btn--ghost btn--block" id="saveSearch" type="button">🔔 ذخیره این جست‌وجو</button>
+    </aside>
+
+    <section class="results">
+      <div class="results__bar">
+        <div>
+          <h2 id="resTitle">همه آگهی‌ها</h2>
+          <p class="muted" id="resCount"></p>
+        </div>
+        <div class="results__ctl">
+          <button class="btn btn--ghost only-m" id="openFilters" type="button">⚙︎ فیلترها</button>
+          <select id="sort" aria-label="مرتب‌سازی">
+            <option value="new">جدیدترین</option>
+            <option value="cheap">ارزان‌ترین</option>
+            <option value="exp">گران‌ترین</option>
+            <option value="ppm">ارزان‌ترین هر متر</option>
+            <option value="area">بزرگ‌ترین</option>
+            <option value="match">بیشترین تطابق</option>
+          </select>
+          <div class="seg seg--icons" id="viewSeg" role="group" aria-label="نما">
+            <button data-view="split" class="is-on" title="فهرست و نقشه">▦</button>
+            <button data-view="grid" title="فهرست">☰</button>
+            <button data-view="map" title="نقشه">⌖</button>
+          </div>
+        </div>
+      </div>
+      <div class="active-tags" id="activeTags"></div>
+      <div class="results__body view-split" id="resBody">
+        <div class="grid" id="grid"></div>
+        <div class="map-wrap"><div id="map" role="region" aria-label="نقشه آگهی‌ها"></div></div>
+      </div>
+      <div class="empty" id="empty" hidden>
+        <div class="empty__art">🔍</div>
+        <h3>آگهی‌ای با این مشخصات پیدا نشد</h3>
+        <p>چند فیلتر را بردارید یا از دستیار آرا بخواهید پیشنهاد مشابه بدهد.</p>
+        <button class="btn btn--primary" id="emptyReset">نمایش همه</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== راهنمای شهرها ===== -->
+  <section class="section" id="cities">
+    <div class="wrap">
+      <header class="section__head">
+        <p class="eyebrow">راهنمای محلی</p>
+        <h2>از آستارا تا کلاله؛ شهر مناسب خودت را بشناس</h2>
+        <p class="muted">روی هر شهر کلیک کن تا آگهی‌هایش فیلتر شود. شاخص‌ها از آگهی‌های همین سامانه محاسبه می‌شوند.</p>
+      </header>
+      <div class="prov-tabs" id="provTabs"></div>
+      <div class="city-grid" id="cityGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== ابزارها ===== -->
+  <section class="section section--alt" id="tools">
+    <div class="wrap tools">
+      <article class="tool">
+        <header><span class="tool__ic">📐</span><div><h3>تخمین ارزش ملک</h3><p class="muted">بر پایه میانه قیمت هر متر آگهی‌های مشابه در سامانه</p></div></header>
+        <div class="tool__grid">
+          <label class="fld"><span>شهر</span><select id="vCity"></select></label>
+          <label class="fld"><span>نوع ملک</span><select id="vType"></select></label>
+          <label class="fld"><span>متراژ</span><input id="vArea" inputmode="numeric" value="150" /></label>
+        </div>
+        <div class="tool__out" id="vOut"></div>
+      </article>
+      <article class="tool">
+        <header><span class="tool__ic">🏦</span><div><h3>محاسبه اقساط وام</h3><p class="muted">قسط ماهانه با روش استهلاک یکنواخت</p></div></header>
+        <div class="tool__grid">
+          <label class="fld"><span>مبلغ وام (تومان)</span><input id="lAmt" inputmode="numeric" value="1,000,000,000" /></label>
+          <label class="fld"><span>نرخ سود سالانه (٪)</span><input id="lRate" inputmode="decimal" value="23" /></label>
+          <label class="fld"><span>مدت (سال)</span><input id="lYears" type="range" min="1" max="20" value="5" /><b id="lYearsOut"></b></label>
+        </div>
+        <div class="tool__out" id="lOut"></div>
+      </article>
+      <article class="tool">
+        <header><span class="tool__ic">🔁</span><div><h3>تبدیل رهن و اجاره</h3><p class="muted">با نرخ تبدیل قابل تنظیم (عرف رایج: ۳٪ ماهانه)</p></div></header>
+        <div class="tool__grid">
+          <label class="fld"><span>ودیعه (تومان)</span><input id="cDep" inputmode="numeric" value="500,000,000" /></label>
+          <label class="fld"><span>اجاره ماهانه (تومان)</span><input id="cRent" inputmode="numeric" value="10,000,000" /></label>
+          <label class="fld"><span>نرخ تبدیل ماهانه (٪)</span><input id="cRate" inputmode="decimal" value="3" /></label>
+        </div>
+        <div class="tool__out" id="cOut"></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== چرا آرا ===== -->
+  <section class="section">
+    <div class="wrap why">
+      <div class="why__item"><span>✦</span><h3>جست‌وجو با زبان طبیعی</h3><p>به جای ده‌ها فیلتر، فقط بنویس چه می‌خواهی.</p></div>
+      <div class="why__item"><span>🗺️</span><h3>نقشه زنده</h3><p>همه آگهی‌ها روی نقشه، هم‌گام با فیلترها.</p></div>
+      <div class="why__item"><span>⚖️</span><h3>مقایسه کنار هم</h3><p>تا سه ملک را از نظر قیمت، متراژ و امکانات مقایسه کن.</p></div>
+      <div class="why__item"><span>🛡️</span><h3>آگهی تأییدشده</h3><p>نشان تأیید برای آگهی‌های بازبینی‌شده و دارای سند.</p></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="wrap footer__in">
+      <div>
+        <b class="footer__brand">آرا</b>
+        <p class="muted">دلال هوشمند املاک شمال ایران. نسخه نمایشی: همه آگهی‌ها و قیمت‌ها نمونه هستند.</p>
+      </div>
+      <div><h4>استان‌ها</h4><ul id="footProv"></ul></div>
+      <div><h4>دسترسی سریع</h4><ul><li><a href="#explore">جست‌وجو</a></li><li><a href="#cities">راهنمای شهرها</a></li><li><a href="#tools">ابزارها</a></li><li><a href="#" id="footPost">ثبت آگهی</a></li></ul></div>
+    </div>
+    <p class="wrap copy">© ۱۴۰۵ آرا</p>
+  </footer>
+
+  <!-- ===== نوار مقایسه ===== -->
+  <div class="compare-bar" id="compareBar" hidden>
+    <div class="wrap compare-bar__in">
+      <div id="compareItems" class="compare-bar__items"></div>
+      <div><button class="btn btn--primary" id="compareGo">مقایسه</button> <button class="link" id="compareClear">پاک کردن</button></div>
+    </div>
+  </div>
+
+  <!-- ===== دستیار هوشمند ===== -->
+  <button class="ai-fab" id="aiFab" aria-label="دستیار هوشمند آرا"><span>✦</span><b>دستیار آرا</b></button>
+  <section class="ai" id="ai" hidden aria-label="دستیار هوشمند">
+    <header class="ai__head">
+      <div><b>دستیار هوشمند آرا</b><small>درخواستت را بنویس؛ فیلترها را خودم تنظیم می‌کنم</small></div>
+      <button class="icon-btn" id="aiClose" aria-label="بستن">✕</button>
+    </header>
+    <div class="ai__log" id="aiLog"></div>
+    <div class="ai__sugs" id="aiSugs"></div>
+    <form class="ai__form" id="aiForm"><input id="aiInput" placeholder="مثلاً: یه سوئیت ارزون تو بابلسر برای آخر هفته" /><button class="btn btn--primary">ارسال</button></form>
+  </section>
+
+  <!-- ===== پنجره‌ها ===== -->
+  <dialog id="dlg" class="dlg"><div id="dlgBody"></div></dialog>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/nlp.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
