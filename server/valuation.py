@@ -16,7 +16,7 @@ import statistics
 import time
 
 from catalog import norm
-from features import LABELS, kind_group
+from features import LABELS, SIGNAL_TEXT, kind_group
 
 K_SHRINK = 8           # نمونه معادل برای انقباض میانه محله به میانه شهر
 MAD_Z = 3.5            # آستانه پرت مقاوم
@@ -25,7 +25,9 @@ MIN_MODEL = 60         # کمترین نمونه برای مدل هدونیک
 RIDGE = 2.0
 LN10 = math.log(10)
 
-DEFAULT_WEIGHTS = {"discount": 60, "confidence": 15, "quality": 15, "momentum": 10}
+# آستانه‌ها (قابل تنظیم در پنل): فرصت، فرصت طلایی، مشکوک، و ضریب پراکندگی محله
+DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.25, "disp_k": 1.0}
+SUS_FLAGS = {"outlier_low", "too_cheap", "cheap_flagged", "scam_text", "ppm_as_total", "zero_typo_low"}
 
 FEATURE_SETS = {
     "apartment": ["age", "age2", "floor", "ground", "top", "log_area", "rooms_density", "elevator", "parking", "warehouse",
@@ -39,7 +41,10 @@ FLAG_TEXT = {
     "exchange": "معاوضه", "partial": "فروش دانگی", "shared": "اتاق یا هم‌خانه", "duplicate": "آگهی تکراری",
     "outlier_high": "قیمت به‌طور غیرعادی بالا", "outlier_low": "قیمت به‌طور غیرعادی پایین",
     "zero_typo": "احتمال اشتباه در تعداد صفرهای قیمت", "ppm_as_total": "احتمالاً قیمت هر متر به جای قیمت کل درج شده",
-    "no_area": "متراژ نامشخص",
+    "no_area": "متراژ نامشخص", "zero_typo_low": "احتمال جاافتادن صفر در قیمت",
+    "too_cheap": "بیش از حد ارزان‌تر از قیمت محله؛ باورپذیر نیست",
+    "cheap_flagged": "خیلی ارزان، همراه با نشانهٔ مشکوک در متن آگهی",
+    "scam_text": "ارزان، همراه با متن مشکوک",
 }
 
 
@@ -155,9 +160,9 @@ def _mad(vals, med):
     return statistics.median([abs(v - med) for v in vals]) if vals else 0
 
 
-def recompute(store, weights: dict | None = None) -> dict:
+def recompute(store, thresholds: dict | None = None) -> dict:
     t0 = time.time()
-    w = {**DEFAULT_WEIGHTS, **(weights or {})}
+    th = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
     rows = [store.row_to_dict(r) for r in store.q("SELECT * FROM listings WHERE status='active' AND vertical='estate'")]
     now = time.time()
     disp: dict = {}
@@ -232,7 +237,7 @@ def recompute(store, weights: dict | None = None) -> dict:
                     z = 0.6745 * (r - med) / mad
                     if abs(z) > MAD_Z:
                         if min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35:
-                            l["_flags"].append("zero_typo")
+                            l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
                         else:
                             l["_flags"].append("outlier_high" if z > 0 else "outlier_low")
 
@@ -270,6 +275,25 @@ def recompute(store, weights: dict | None = None) -> dict:
                                    key=lambda t: -abs(t[1]))[:6]
             l["_model"] = {"n": model["n"], "r2": round(model["r2"], 2)} if model else None
 
+        # پراکندگی عادی قیمت در هر محله: MAD باقی‌مانده‌ها پس از تعدیل، با انقباض به سمت شهر
+        res_cell, res_city = {}, {}
+        for l in items:
+            if l.get("_fair_v") and l["_v"] is not None:
+                l["_r"] = l["_v"] - math.log(l["_fair_v"])
+                if usable(l):
+                    res_cell.setdefault((l["city_key"], l["_district"] or ""), []).append(l["_r"])
+                    res_city.setdefault(l["city_key"], []).append(l["_r"])
+        sig_city = {ck: max(0.06, 1.4826 * _mad(v, _median(v))) for ck, v in res_city.items() if len(v) >= 5}
+        sig_prov = max(0.06, 1.4826 * _mad(sum(res_city.values(), []), _median(sum(res_city.values(), [])))) if res_city else 0.2
+        for l in items:
+            if l.get("_r") is None:
+                continue
+            sc = sig_city.get(l["city_key"], sig_prov)
+            rv = res_cell.get((l["city_key"], l["_district"] or ""), [])
+            n = len(rv)
+            sd = max(0.04, 1.4826 * _mad(rv, _median(rv))) if n >= 3 else sc
+            l["_sigma"] = (sd * n + sc * K_SHRINK) / (n + K_SHRINK) if n >= 3 else sc
+            l["_dmed"] = None
         # جدول بازار هر محله
         cells = {}
         for l in items:
@@ -281,43 +305,83 @@ def recompute(store, weights: dict | None = None) -> dict:
             dname = max(disp[dist].items(), key=lambda t: t[1])[0] if dist else ""
             market.append((ck, dname, kg, deal, n, statistics.median(vals), vals[int(n * 0.25)], vals[min(n - 1, int(n * 0.75))]))
 
-    # امتیاز و ذخیره
-    updates = []
+    # برچسب، قاعده‌های مشکوک و امتیاز
+    dist_raw = {}
+    for l in rows:
+        if usable(l) and l.get("_base") is not None:
+            dist_raw.setdefault((l["city_key"], l["_district"] or "", l["_kg"], l["deal"]), []).append(math.exp(l["_v"]))
     for l in rows:
         flags = l["_flags"]
-        excluded = 1 if flags else 0
         fair = l.get("_fair")
         ask = l.get("price") if l["deal"] == "daily" else l.get("pp")
-        discount = (fair - ask) / fair if fair and ask and not excluded else None
+        l["_disc"] = (fair - ask) / fair if fair and ask else None
+        d = l["_disc"]
+        sig = (l.get("feat") or {}).get("sus") or []
+        if not flags and d is not None and l.get("_cn", 0) >= MIN_CITY and l["id"] not in overrides:
+            if d >= th["sus"]:
+                flags.append("too_cheap")
+            elif d >= th["sus_flagged"] and set(sig) & {"fake_photos", "multi_price"}:
+                flags.append("cheap_flagged")
+            elif d >= th["opp"] and "scam" in sig:
+                flags.append("scam_text")
+        if flags:
+            l["_label"] = "sus" if set(flags) & SUS_FLAGS else "excluded"
+        elif d is None or l.get("_cn", 0) < MIN_CITY:
+            l["_label"] = "pending"
+        else:
+            outside = -(l.get("_r") or 0) >= th["disp_k"] * (l.get("_sigma") or 0.15)
+            l["_label"] = ("gold" if d >= th["gold"] and outside else "good" if d >= th["opp"] and outside
+                           else "high" if d <= -th["opp"] else "fair")
+            l["_wide"] = d >= th["opp"] and not outside
+    opp_cells = {}
+    for l in rows:
+        if l["_label"] in ("gold", "good"):
+            opp_cells.setdefault((l["city_key"], l["_district"] or "", l["_kg"], l["deal"]), []).append(l)
+    for ls in opp_cells.values():
+        ls.sort(key=lambda l: -l["_disc"])
+        for i, l in enumerate(ls):
+            l["_rank"], l["_rank_n"] = i + 1, len(ls)
+
+    updates = []
+    for l in rows:
+        flags, label, d = l["_flags"], l["_label"], l["_disc"]
+        excluded = 1 if flags else 0
+        fair = l.get("_fair")
         cn, dn = l.get("_cn", 0), l.get("_dn", 0)
         feat = l.get("feat") or {}
         filled = sum(1 for k in FEATURE_SETS[l["_kg"]] if design_row(feat, l["_kg"]).get(k) is not None) / len(FEATURE_SETS[l["_kg"]])
-        if discount is None or cn < MIN_CITY:
-            conf, score = None, None
-        else:
-            conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if cn >= 15 else "low"
-            s_disc = max(0.0, min(100.0, 50 + discount * 250))
-            s_conf = {"high": 100, "medium": 65, "low": 30}[conf]
-            s_qual = min(100, (min(feat.get("photos", 0), 6) / 6) * 40 + (30 if feat.get("desc_len", 0) > 120 else 10 if feat.get("desc_len", 0) > 30 else 0) + filled * 30)
-            days = (now - (l.get("first_seen") or now)) / 86400
-            s_mom = min(100, (60 if (l.get("price_drop") or 0) > 0 else 0) + (40 if days < 3 else 20 if days < 10 else 0))
-            tw = sum(w.values()) or 1
-            score = round((s_disc * w["discount"] + s_conf * w["confidence"] + s_qual * w["quality"] + s_mom * w["momentum"]) / tw, 1)
-            if discount > 0.4:  # تخفیف بیش از حد باورپذیر: احتیاط
-                score = min(score, 60)
+        conf, score = None, None
+        if label in ("gold", "good", "fair", "high"):
+            conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 5 or cn >= 15 else "low"
+            if label in ("gold", "good"):
+                p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]
+                depth = max(0.0, min(1.0, (d - th["opp"]) / max(0.01, th["sus"] - th["opp"])))
+                score = round(65 + 35 * (0.5 * p_rank + 0.5 * depth), 1)
+            else:
+                score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
+        raw = dist_raw.get((l["city_key"], l["_district"] or "", l["_kg"], l["deal"])) or []
         explain = {"base_ppm": round(math.exp(l["_base"])) if l.get("_base") is not None else None,
                    "district_n": dn, "city_n": cn, "effects": l.get("_contrib", []), "model": l.get("_model"),
-                   "flags": [FLAG_TEXT.get(f, f) for f in flags], "filled": round(filled, 2)}
+                   "flags": [FLAG_TEXT.get(f, f) for f in flags], "filled": round(filled, 2), "label": label,
+                   "district_median": round(statistics.median(raw)) if len(raw) >= 3 else None, "district_raw_n": len(raw),
+                   "adj": round(l["_fair_v"] / math.exp(l["_base"]) - 1, 3) if l.get("_fair_v") and l.get("_base") is not None else None,
+                   "sigma": round(l["_sigma"], 3) if l.get("_sigma") else None, "wide": bool(l.get("_wide")),
+                   "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
+                   "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
+                   "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT],
+                   "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
         updates.append((round(l["_fair_v"]) if l.get("_fair_v") else None, round(fair) if fair else None,
-                        round(discount, 4) if discount is not None else None, score, conf,
-                        json.dumps(explain, ensure_ascii=False), excluded, json.dumps(flags), l["id"]))
+                        round(d, 4) if d is not None else None, score, conf,
+                        json.dumps(explain, ensure_ascii=False), excluded, json.dumps(flags), label, l["id"]))
     with store.lock:
         store.db.executemany("""UPDATE listings SET fair_ppm=?, fair_price=?, discount=?, score=?, confidence=?, explain=?,
-                                excluded=?, flags=? WHERE id=?""", updates)
+                                excluded=?, flags=?, label=? WHERE id=?""", updates)
         store.db.execute("DELETE FROM market")
         store.db.executemany("INSERT INTO market VALUES(?,?,?,?,?,?,?,?)", market)
         store.db.commit()
     info = {"at": int(time.time()), "listings": len(rows), "excluded": sum(1 for u in updates if u[6]),
-            "ranked": sum(1 for u in updates if u[3] is not None), "models": models_info, "seconds": round(time.time() - t0, 2)}
+            "ranked": sum(1 for u in updates if u[3] is not None),
+            "labels": {k: sum(1 for u in updates if u[8] == k) for k in ("gold", "good", "fair", "high", "pending", "sus", "excluded")},
+            "thresholds": th, "models": models_info, "seconds": round(time.time() - t0, 2)}
     store.set_setting("valuation_info", info)
     return info

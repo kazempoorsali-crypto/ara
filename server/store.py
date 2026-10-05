@@ -58,10 +58,10 @@ COLUMNS = ["id", "source", "token", "url", "vertical", "category", "kind", "deal
            "area", "rooms", "year", "mileage", "floor", "brand", "gearbox", "fuel", "color", "body",
            "amenities", "attributes", "images", "image", "lat", "lng", "latlng_exact", "seller_type", "time_text",
            "first_seen", "last_seen", "detail_at", "checked_at", "status", "featured", "hidden", "price_drop",
-           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain"]
+           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label"]
 JSON_COLS = {"amenities", "attributes", "images", "feat", "flags", "explain"}
 NEW_COLS = {"feat": "TEXT", "flags": "TEXT", "excluded": "INTEGER DEFAULT 0", "fair_ppm": "REAL", "fair_price": "REAL",
-            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT"}
+            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT"}
 
 
 def primary_price(d: dict) -> float | None:
@@ -185,20 +185,24 @@ class Store:
     # ---------------------------------------------------------- verdict
     @staticmethod
     def verdict(d: dict) -> dict | None:
-        """رتبه قیمت بر پایه قیمت منصفانه موتور ارزش‌گذاری (delta منفی = زیر قیمت منصفانه)."""
+        """حکم قیمت: برچسب (طلایی، زیر قیمت، منصفانه، بالاتر، مشکوک)، فاصله تا قیمت محله و اطمینان."""
         disc = d.get("discount")
-        if disc is None or d.get("excluded"):
+        label = d.get("label")
+        if disc is None or (d.get("excluded") and label != "sus"):
             return None
-        delta = -disc
-        band = "great" if delta <= -0.15 else "good" if delta <= -0.05 else "fair" if delta < 0.05 else "high" if delta < 0.15 else "over"
         ex = d.get("explain") or {}
-        return {"band": band, "delta": round(delta, 3), "fair": d.get("fair_price"), "fair_ppm": d.get("fair_ppm"),
-                "n": ex.get("district_n") or ex.get("city_n") or 0, "confidence": d.get("confidence"), "score": d.get("score")}
+        return {"label": label, "delta": round(-disc, 3), "fair": d.get("fair_price"), "fair_ppm": d.get("fair_ppm"),
+                "n": ex.get("district_n") or 0, "city_n": ex.get("city_n") or 0, "confidence": d.get("confidence"),
+                "score": d.get("score"), "wide": ex.get("wide"), "rank": ex.get("rank"), "rank_n": ex.get("rank_n")}
 
     # ---------------------------------------------------------- search
     def search(self, f: dict) -> dict:
         where, args = ["status='active'", "hidden=0", "vertical='estate'"], []
-        if not f.get("include_excluded"):
+        if f.get("include_excluded"):
+            pass
+        elif f.get("sus"):
+            where.append("(COALESCE(excluded,0)=0 OR label='sus')")
+        else:
             where.append("COALESCE(excluded,0)=0")
 
         def add(cond, *a):
@@ -218,13 +222,30 @@ class Store:
                              ("yearMin", "year", ">="), ("yearMax", "year", "<="), ("minScore", "score", ">=")):
             if f.get(key):
                 add(f"{col} {op} ?", float(f[key]))
-        if f.get("rooms"):
-            r = int(f["rooms"])
-            add("rooms >= ?" if r >= 4 else "rooms = ?", r)
+        if f.get("rooms") not in (None, ""):
+            rs = sorted({int(x) for x in str(f["rooms"]).split(",") if x.strip().isdigit()})
+            conds = [("rooms >= ?" if r >= 4 else "rooms = ?") for r in rs]
+            if conds:
+                add("(" + " OR ".join(conds) + ")", *rs)
+        if f.get("ageMax"):
+            from features import jalali_year_now
+            add("year >= ?", jalali_year_now() - int(f["ageMax"]))
+        if f.get("depMax"):
+            add("deposit <= ?", float(f["depMax"]))
+        if f.get("rentMax"):
+            add("rent <= ?", float(f["rentMax"]))
+        if f.get("opp"):
+            where.append("label IN ('gold','good')")
+        if f.get("label"):
+            ls = [x for x in f["label"].split(",") if x in ("gold", "good", "fair", "high", "sus", "pending")]
+            if ls:
+                add(f"label IN ({','.join('?' * len(ls))})", *ls)
         for a in [a for a in (f.get("amenities") or "").split(",") if a]:
             add("amenities LIKE ?", f'%"{a}"%')
         if f.get("district"):
-            add("district = ?", f["district"])
+            ds = [x.strip() for x in f["district"].split(",") if x.strip()][:12]
+            add(f"REPLACE(REPLACE(district,' ',''),char(8204),'') IN ({','.join('?' * len(ds))})",
+                *[x.replace(" ", "").replace("\u200c", "") for x in ds])
         if f.get("ranked"):
             where.append("score IS NOT NULL")
         if f.get("q"):
@@ -238,16 +259,16 @@ class Store:
             ids = f["ids"].split(",")[:100]
             add(f"id IN ({','.join('?' * len(ids))})", *ids)
         w = " AND ".join(where)
-        order = {"new": "featured DESC, first_seen DESC", "score": "score IS NULL, score DESC", "deal": "discount IS NULL, discount DESC",
+        order = {"new": "featured DESC, first_seen DESC", "score": "score IS NULL, score DESC, discount DESC", "deal": "discount IS NULL, discount DESC",
                  "cheap": "pp IS NULL, pp ASC", "exp": "pp DESC", "ppm": "ppm IS NULL, ppm ASC", "area": "area DESC",
-                 "drop": "price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC")
+                 "drop": "price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
         total = self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]
         limit = max(1, min(int(f.get("limit") or 24), 60))
         offset = max(0, int(f.get("offset") or 0))
         items = [self.row_to_dict(r) for r in self.q(f"SELECT * FROM listings WHERE {w} ORDER BY {order} LIMIT ? OFFSET ?", (*args, limit, offset))]
         for d in items:
             d["verdict"] = self.verdict(d)
-        points = [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
+        points = [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score,label FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
         for d in items:
             d.pop("description", None)
             d["images"] = d["images"][:1]
@@ -259,7 +280,8 @@ class Store:
         base = "status='active' AND hidden=0 AND vertical='estate'"
         r = self.q(f"""SELECT COUNT(*) total, SUM(COALESCE(excluded,0)=0) estate, SUM(first_seen > ?) today,
                 SUM(price_drop > 0) drops, SUM(detail_at IS NOT NULL) detailed, SUM(score IS NOT NULL) ranked,
-                SUM(excluded=1) excluded, SUM(discount >= 0.1 AND score IS NOT NULL) deals
+                SUM(excluded=1) excluded, SUM(label IN ('gold','good')) deals, SUM(label='gold') gold,
+                SUM(label='sus') sus, MAX(last_seen) updated
               FROM listings WHERE {base}""", (day,), one=True)
         cities = {row["city_key"]: {"n": row["n"], "estate": row["n"], "ranked": row["rk"]} for row in
                   self.q(f"SELECT city_key, COUNT(*) n, SUM(score IS NOT NULL) rk FROM listings WHERE {base} AND COALESCE(excluded,0)=0 GROUP BY city_key")}

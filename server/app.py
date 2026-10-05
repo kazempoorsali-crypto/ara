@@ -28,11 +28,14 @@ sys.path.insert(0, str(HERE))
 import catalog  # noqa: E402
 from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
+from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
-from valuation import DEFAULT_WEIGHTS  # noqa: E402
+from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
 DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "قیمت منصفانه ملک در شمال", "about": "", "email": ""}
 DEFAULT_DISPLAY = {"show_samples": True}
+# اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
+DEFAULT_OWNER = {"support_url": "", "support_label": "", "legal_name": "", "refund_text": "", "enamad_url": ""}
 PUBLIC_DIRS = ("assets",)
 PUBLIC_FILES = ("index.html", "admin.html", "favicon.svg")
 SESSIONS: dict[str, float] = {}
@@ -46,6 +49,7 @@ def hash_pw(pw: str, salt: str) -> str:
 
 class App:
     def __init__(self, data_dir: Path):
+        self.data_dir = data_dir
         self.store = Store(data_dir / "ara.db")
         self.ingest = Ingestor(self.store)
         self.billing = Billing(self.store)
@@ -58,6 +62,11 @@ class App:
             "display": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
             "plans": b.plans(), "payable": b.payable(), "test_payments": b.cfg()["test_mode"],
             "free_preview": int(b.cfg().get("free_preview") or 0),
+            "free_results": int(b.cfg().get("free_results") or 0),
+            "gateway": "card" if b.cfg()["gateway"] == "card" and not b.cfg()["test_mode"] else "online",
+            "owner": {k: v for k, v in {**DEFAULT_OWNER, **(s.get_setting("owner") or {})}.items() if v},
+            "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
+            "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source='divar'", one=True) or {"t": None})["t"],
             "sms_live": bool(b.sms_cfg()["api_key"] and b.sms_cfg()["template"]),
             "admin_ready": bool(s.get_setting("admin")),
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
@@ -89,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def body(self) -> dict:
         n = int(self.headers.get("content-length") or 0)
-        if n > 2_000_000:
+        if n > 8_000_000:
             raise ValueError("درخواست بیش از حد بزرگ است")
         raw = self.rfile.read(n) if n else b""
         if "application/x-www-form-urlencoded" in (self.headers.get("content-type") or ""):
@@ -171,12 +180,16 @@ class Handler(BaseHTTPRequestHandler):
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
         if not active:
-            for k in LOCKED_FIELDS:
+            for k in LOCKED_FIELDS + ("fair_price", "fair_ppm"):
                 d.pop(k, None)
+            if isinstance(d.get("verdict"), dict):
+                d["verdict"].pop("fair", None)
+                d["verdict"].pop("fair_ppm", None)
             ex = d.get("explain") or {}
             if full:
-                d["explain"] = {"district_n": ex.get("district_n"), "city_n": ex.get("city_n"), "filled": ex.get("filled"),
-                                "effects_count": len(ex.get("effects") or [])}
+                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "rank", "rank_n",
+                        "ctx", "caution", "sus", "flags")
+                d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
         else:
             d.pop("token", None)
         return d
@@ -189,6 +202,26 @@ class Handler(BaseHTTPRequestHandler):
         return {r["id"] for r in self.app.store.q(
             "SELECT id FROM listings WHERE score IS NOT NULL AND COALESCE(excluded,0)=0 AND status='active' AND hidden=0 ORDER BY score DESC LIMIT ?", (n,))}
 
+    def similar(self, d):
+        """مشابه‌ها: همان محله و نوع و معامله، هم‌خواب، نزدیک‌ترین متراژ؛ هر کدام با قیمت محلهٔ خودش."""
+        s = self.app.store
+        base = {"city": d["city_key"], "deal": d["deal"], "kinds": d.get("kind") or "", "limit": 60, "sort": "score"}
+        pool = []
+        if d.get("district"):
+            pool = s.search({**base, "district": d["district"], **({"rooms": d["rooms"]} if d.get("rooms") is not None else {})})["items"]
+            if len(pool) < 4:
+                pool = s.search({**base, "district": d["district"]})["items"]
+        if len(pool) < 4:
+            pool = s.search(base)["items"]
+        pool = [x for x in pool if x["id"] != d["id"]]
+        pool.sort(key=lambda x: abs((x.get("area") or 0) - (d.get("area") or 0)))
+        out = pool[:6]
+        for x in out:
+            x.pop("explain", None)
+            x.pop("feat", None)
+            x.pop("attributes", None)
+        return out
+
     def api_get(self, path, qs):
         a = self.app
         if path == "/api/config":
@@ -196,17 +229,39 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/me":
             return self.send_json({"user": self.user()})
         if path == "/api/listings":
-            r = a.store.search(qs)
             u = self.user()
+            sub = bool(u and u["active"])
+            qs = dict(qs)
+            if qs.get("sus") and not sub:
+                qs.pop("sus")
+            r = a.store.search(qs)
+            free = int(a.billing.cfg().get("free_results") or 0)
+            offset = int(qs.get("offset") or 0)
+            if not sub and not qs.get("ids") and free:
+                keep = max(0, free - offset)
+                r["locked_more"] = max(0, r["total"] - free)
+                r["items"] = r["items"][:keep]
+                r["free_results"] = free
+            r["sub"] = sub
             for d in r["items"]:
                 self.gate(d, u)
+                ex = d.get("explain") or {}
+                d["signals"] = {"ctx": len(ex.get("ctx") or []), "caution": len(ex.get("caution") or []),
+                                "fake": "عکس‌ها مال این ملک نیست" in (ex.get("sus") or [])}
+                if d.get("label") == "sus":
+                    d["sus_reason"] = "، ".join(ex.get("flags") or [])
                 d.pop("attributes", None)
                 d.pop("feat", None)
+                d.pop("explain", None)
             return self.send_json(r)
         if path == "/api/stats":
             return self.send_json(a.store.stats())
         if path == "/api/market":
-            return self.send_json({"rows": a.store.market_rows(qs.get("city"))})
+            out = {"rows": a.store.market_rows(qs.get("city"))}
+            if qs.get("city") in catalog.CITY_BY_KEY:
+                out["report"] = market_report(a.store, qs["city"], qs.get("deal") if qs.get("deal") in ("sale", "rent") else "sale",
+                                              qs.get("kind") if qs.get("kind") in ("apartment", "villa", "land", "commercial") else "apartment")
+            return self.send_json(out)
         m = re.fullmatch(r"/api/listing/([\w-]+)", path)
         if m:
             d = a.store.get(m.group(1))
@@ -214,9 +269,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "یافت نشد"}, 404)
             d["verdict"] = a.store.verdict(d)
             d["history"] = a.store.history(d["id"])
-            sim = a.store.search({"city": d["city_key"], "deal": d["deal"], "kinds": d.get("kind") or "", "limit": 7, "sort": "score"})["items"]
             u = self.user()
-            d["similar"] = [self.gate(x, u) for x in sim if x["id"] != d["id"]][:6]
+            d["similar"] = [self.gate(x, u) for x in self.similar(d)]
             if d.get("excluded"):
                 d["excluded_reasons"] = (d.get("explain") or {}).get("flags", [])
             return self.send_json(self.gate(d, u, full=True))
@@ -240,6 +294,21 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return self.send_json({"error": "ابتدا وارد شوید"}, 401)
             return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback"))
+        if path == "/api/pay/receipt":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            img = None
+            if data.get("image"):
+                import base64
+                raw = str(data["image"])
+                m = re.match(r"^data:(image/(?:jpeg|png|webp)|application/pdf);base64,", raw)
+                if not m:
+                    raise ValueError("فقط تصویر JPG، PNG، WebP یا PDF")
+                img = base64.b64decode(raw[m.end():], validate=False)
+                if len(img) > 5_000_000:
+                    raise ValueError("حجم فایل زیاد است: حداکثر ۵ مگابایت")
+            return self.send_json(a.billing.card_receipt(u["phone"], data.get("payment_id"), data.get("tracking"), img, a.data_dir / "receipts"))
         if path == "/api/admin/setup":
             if a.store.get_setting("admin"):
                 return self.send_json({"error": "رمز قبلاً تعیین شده است"}, 403)
@@ -293,7 +362,8 @@ class Handler(BaseHTTPRequestHandler):
                 "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source='divar' AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
-                "scoring": {"weights": {**DEFAULT_WEIGHTS, **((s.get_setting("scoring") or {}).get("weights") or {})}},
+                "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
+                "owner": {**DEFAULT_OWNER, **(s.get_setting("owner") or {})},
                 "valuation_full": s.get_setting("valuation_info"),
                 "users": {"total": s.q("SELECT COUNT(*) n FROM users", one=True)["n"],
                           "active": s.q("SELECT COUNT(*) n FROM users WHERE sub_until>?", (now,), one=True)["n"]},
@@ -316,6 +386,20 @@ class Handler(BaseHTTPRequestHandler):
                 "users": [dict(r) for r in s.q("SELECT * FROM users ORDER BY created DESC LIMIT 300")],
                 "payments": [dict(r) for r in s.q("SELECT * FROM payments ORDER BY created DESC LIMIT 300")],
             })
+        m = re.fullmatch(r"/api/admin/receipt/(\d+)", path)
+        if m:
+            f = a.data_dir / "receipts" / f"{int(m.group(1))}.img"
+            if not f.is_file():
+                return self.send_json({"error": "رسید تصویری ندارد"}, 404)
+            data = f.read_bytes()
+            ctype = "application/pdf" if data[:4] == b"%PDF" else "image/png" if data[:4] == b"\x89PNG" else "image/webp" if data[8:12] == b"WEBP" else "image/jpeg"
+            self.send_response(200)
+            self.send_header("content-type", ctype)
+            self.send_header("content-length", str(len(data)))
+            self.send_header("cache-control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return None
         return self.send_json({"error": "مسیر نامعتبر"}, 404)
 
     def admin_post(self, path, data):
@@ -331,10 +415,19 @@ class Handler(BaseHTTPRequestHandler):
                 if new.get("api_key") in ("•••", None):
                     new.pop("api_key", None)
                 s.set_setting("sms", {**cur, **new})
-            if isinstance(data.get("weights"), dict):
-                w = {k: max(0, min(100, float(v))) for k, v in data["weights"].items() if k in DEFAULT_WEIGHTS}
-                s.set_setting("scoring", {"weights": {**DEFAULT_WEIGHTS, **w}})
+            if isinstance(data.get("thresholds"), dict):
+                t = {k: max(0.0, min(3.0, float(v))) for k, v in data["thresholds"].items() if k in DEFAULT_THRESHOLDS}
+                t = {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {}), **t}
+                if not t["opp"] < t["gold"] <= t["sus"]:
+                    raise ValueError("آستانه‌ها باید به ترتیب «فرصت < طلایی ≤ مشکوک» باشند")
+                s.set_setting("thresholds", t)
                 threading.Thread(target=a.ingest.run_valuation, daemon=True).start()
+            if isinstance(data.get("owner"), dict):
+                o = {k: str(v).strip()[:500] for k, v in data["owner"].items() if k in DEFAULT_OWNER}
+                for k in ("support_url", "enamad_url"):
+                    if o.get(k) and not re.match(r"^(https://|tel:|mailto:)", o[k]):
+                        raise ValueError("پیوند باید با https:// یا tel: یا mailto: شروع شود")
+                s.set_setting("owner", {**DEFAULT_OWNER, **(s.get_setting("owner") or {}), **o})
             if data.get("new_password"):
                 if len(data["new_password"]) < 6:
                     raise ValueError("رمز دست‌کم ۶ نویسه باشد")
@@ -371,6 +464,9 @@ class Handler(BaseHTTPRequestHandler):
                 (ov.add if data["override"] else ov.discard)(data["id"])
                 s.set_setting("overrides", sorted(ov))
                 threading.Thread(target=a.ingest.run_valuation, daemon=True).start()
+            return self.send_json({"ok": True})
+        if path == "/api/admin/review":
+            a.billing.review(data.get("id"), bool(data.get("approve")))
             return self.send_json({"ok": True})
         if path == "/api/admin/grant":
             phone = data.get("phone")

@@ -85,8 +85,7 @@ class Ingestor:
             return None
         try:
             self.dirty = 0
-            weights = (self.store.get_setting("scoring") or {}).get("weights")
-            return valuation.recompute(self.store, weights)
+            return valuation.recompute(self.store, self.store.get_setting("thresholds"))
         except Exception:
             traceback.print_exc()
             return None

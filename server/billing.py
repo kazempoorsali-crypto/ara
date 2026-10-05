@@ -18,6 +18,9 @@ DEFAULT_BILLING = {
     "weekly_price": 0, "monthly_price": 0, "weekly_days": 7, "monthly_days": 30,
     "gateway": "", "merchant_id": "", "sandbox": False, "test_mode": False,
     "free_preview": 3,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود
+    "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
+    # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
+    "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
 }
 DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "template": "", "dev_mode": True}
 
@@ -83,7 +86,8 @@ class Billing:
 
     def payable(self):
         c = self.cfg()
-        return bool(self.plans()) and (c["test_mode"] or (c["gateway"] in ("zarinpal", "idpay") and c["merchant_id"]))
+        return bool(self.plans()) and (c["test_mode"] or (c["gateway"] in ("zarinpal", "idpay") and c["merchant_id"])
+                                       or (c["gateway"] == "card" and len(c["card_number"].replace("-", "").replace(" ", "")) == 16))
 
     # ---------------------------------------------------------- OTP
     def send_otp(self, phone_raw: str) -> dict:
@@ -172,6 +176,8 @@ class Billing:
             self.activate(phone, plan_id, pid, "TEST")
             self.store.x("UPDATE payments SET note='حالت آزمایشی؛ پولی دریافت نشد' WHERE id=?", (pid,))
             return {"ok": True, "activated": True, "test": True}
+        if c["gateway"] == "card":
+            return self._card_start(pid, plan)
         rial = plan["price"] * 10
         cb = f"{callback_url}?pid={pid}"
         if c["gateway"] == "zarinpal":
@@ -195,6 +201,57 @@ class Billing:
             self.store.x("UPDATE payments SET authority=? WHERE id=?", (r.get("id"), pid))
             return {"ok": True, "redirect": r["link"]}
         raise ValueError("درگاه پرداخت هنوز تنظیم نشده است")
+
+    # ---------------------------------------------------------- card to card
+    def _card_start(self, pid, plan):
+        c = self.cfg()
+        if len(c["card_number"].replace("-", "").replace(" ", "")) != 16:
+            raise ValueError("شماره کارت هنوز در پنل وارد نشده است")
+        busy = {r["amount"] for r in self.store.q(
+            "SELECT amount FROM payments WHERE gateway='card' AND status IN ('pending','review') AND created>?", (int(time.time()) - 3 * 86400,))}
+        for _ in range(50):
+            amount = plan["price"] + 100 + secrets.randbelow(900)
+            if amount not in busy:
+                break
+        self.store.x("UPDATE payments SET amount=?, note='در انتظار رسید کارت‌به‌کارت' WHERE id=?", (amount, pid))
+        return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"]},
+                "payment_id": pid, "amount": amount, "plan": plan["name"]}
+
+    def card_receipt(self, phone, pid, tracking, image: bytes | None, receipts_dir) -> dict:
+        pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=? AND gateway='card'", (int(pid or 0), phone), one=True)
+        if not pay:
+            raise ValueError("پرداخت پیدا نشد")
+        if pay["status"] not in ("pending",):
+            raise ValueError("رسید این پرداخت قبلاً ثبت شده است")
+        tracking = "".join(ch for ch in str(tracking or "").translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")) if ch.isalnum())[:40]
+        if len(tracking) < 4 and not image:
+            raise ValueError("کد پیگیری یا تصویر رسید را وارد کنید")
+        if image:
+            receipts_dir.mkdir(parents=True, exist_ok=True)
+            (receipts_dir / f"{pay['id']}.img").write_bytes(image)
+        auto = self.cfg()["card_auto_activate"]
+        self.store.x("UPDATE payments SET status='review', ref_id=?, note=? WHERE id=?",
+                     (tracking, ("فعال‌شده پیش از بررسی" if auto else "در انتظار بررسی") + ("؛ رسید تصویری دارد" if image else ""), pay["id"]))
+        if auto:
+            self.activate(phone, pay["plan"])
+        return {"ok": True, "activated": bool(auto)}
+
+    def review(self, pid, approve: bool):
+        """تأیید یا رد واریز کارت‌به‌کارت؛ رد کردن، روزهای اشتراک فعال‌شده را پس می‌گیرد."""
+        pay = self.store.q("SELECT * FROM payments WHERE id=?", (int(pid),), one=True)
+        if not pay or pay["status"] != "review":
+            raise ValueError("این پرداخت در انتظار بررسی نیست")
+        now = int(time.time())
+        if approve:
+            if "فعال‌شده" not in (pay["note"] or ""):
+                self.activate(pay["phone"], pay["plan"])
+            self.store.x("UPDATE payments SET status='paid', paid_at=? WHERE id=?", (now, pay["id"]))
+            return
+        if "فعال‌شده" in (pay["note"] or ""):
+            plan = next((p for p in self.plans() if p["id"] == pay["plan"]), None)
+            days = plan["days"] if plan else 7
+            self.store.x("UPDATE users SET sub_until=MAX(0, sub_until-?) WHERE phone=?", (days * 86400, pay["phone"]))
+        self.store.x("UPDATE payments SET status='rejected' WHERE id=?", (pay["id"],))
 
     def callback(self, params: dict) -> bool:
         pid = int(params.get("pid") or params.get("order_id") or 0)
