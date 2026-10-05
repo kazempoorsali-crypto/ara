@@ -78,6 +78,12 @@ def run(mode):
         one = L["items"][0]
         check("url" not in one and one["locked"], f"[{mode}] پیوند دیوار برای مهمان قفل است")
         check(call("/api/auth/otp", {"phone": "123"}).get("status") == 400, f"[{mode}] شماره نامعتبر رد شد")
+        rq = urllib.request.Request(B + "/api/auth/otp", data=json.dumps({"phone": "09350000000"}).encode(), method="POST",
+                                    headers={"content-type": "application/json", "x-forwarded-for": "5.6.7.8"})
+        try:
+            with urllib.request.urlopen(rq) as rr: pub = json.loads(rr.read())
+        except urllib.error.HTTPError as e: pub = json.loads(e.read())
+        check("dev_code" not in pub, f"[{mode}] کد آزمایشی ورود از اینترنت نمایش داده نمی‌شود")
         o = call("/api/auth/otp", {"phone": "۰۹۱۲۱۲۳۴۵۶۷"})
         check(o.get("dev_code"), f"[{mode}] کد ورود (حالت آزمایشی پیامک)")
         check(call("/api/auth/verify", {"phone": "09121234567", "code": "00000"}).get("status") == 400, f"[{mode}] کد نادرست رد شد")

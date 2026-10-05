@@ -96,7 +96,7 @@ class Billing:
                                        or (c["gateway"] == "card" and len(c["card_number"].replace("-", "").replace(" ", "")) == 16))
 
     # ---------------------------------------------------------- OTP
-    def send_otp(self, phone_raw: str) -> dict:
+    def send_otp(self, phone_raw: str, local: bool = True) -> dict:
         phone = norm_phone(phone_raw)
         if not phone:
             raise ValueError("شماره موبایل معتبر نیست")
@@ -117,7 +117,7 @@ class Billing:
             if not ok:
                 raise ValueError("ارسال پیامک ناموفق بود؛ چند دقیقه دیگر امتحان کنید")
             return {"ok": True, "phone": phone}
-        if s["dev_mode"]:
+        if s["dev_mode"] and local:  # کد روی صفحه فقط روی همین رایانه، هرگز از اینترنت
             return {"ok": True, "phone": phone, "dev_code": code}
         raise ValueError("ورود موقتاً در دسترس نیست")
 
@@ -169,11 +169,13 @@ class Billing:
         if pay_id:
             self.store.x("UPDATE payments SET status='paid', paid_at=?, ref_id=? WHERE id=?", (now, ref, pay_id))
 
-    def start(self, phone, plan_id, callback_url) -> dict:
+    def start(self, phone, plan_id, callback_url, local: bool = True) -> dict:
         plan = next((p for p in self.plans() if p["id"] == plan_id), None)
         if not plan:
             raise ValueError("این طرح اشتراک فعال نیست")
-        c = self.cfg()
+        c = {**self.cfg()}
+        if c["test_mode"] and not local:  # پرداخت آزمایشی فقط روی همین رایانه
+            c["test_mode"] = False
         now = int(time.time())
         cur = self.store.x("INSERT INTO payments(phone, plan, amount, gateway, created) VALUES(?,?,?,?,?)",
                            (phone, plan_id, plan["price"], "test" if c["test_mode"] else c["gateway"], now))

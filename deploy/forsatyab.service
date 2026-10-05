@@ -1,0 +1,22 @@
+[Unit]
+Description=Forsatyab (فرصت‌یاب) web server and listing engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=forsatyab
+Group=forsatyab
+WorkingDirectory=/opt/forsatyab
+ExecStart=/usr/bin/python3 server/app.py --host 127.0.0.1 --port 8000 --no-browser --data /var/lib/forsatyab
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+# محدودیت‌های امنیتی
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/forsatyab
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

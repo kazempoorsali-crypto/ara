@@ -121,6 +121,15 @@ class Handler(BaseHTTPRequestHandler):
     def user(self):
         return self.app.billing.user_by_token(self.headers.get("x-user-token"))
 
+    def client_ip(self) -> str:
+        """نشانی واقعی کاربر؛ پشت وب‌سرور (Caddy/Nginx) از سرآیند X-Forwarded-For."""
+        fwd = (self.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        return fwd or self.client_address[0]
+
+    def is_local(self) -> bool:
+        """درخواست از خود همین رایانه است، نه از اینترنت (پشت وب‌سرور همیشه X-Forwarded-For دارد)."""
+        return not self.headers.get("x-forwarded-for") and self.client_address[0] in ("127.0.0.1", "::1")
+
     def base_url(self):
         host = self.headers.get("host") or "127.0.0.1:8000"
         proto = self.headers.get("x-forwarded-proto") or "http"
@@ -343,7 +352,7 @@ class Handler(BaseHTTPRequestHandler):
     def api_post(self, path, data):
         a = self.app
         if path == "/api/auth/otp":
-            return self.send_json(a.billing.send_otp(data.get("phone")))
+            return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local()))
         if path == "/api/auth/verify":
             return self.send_json(a.billing.verify_otp(data.get("phone"), data.get("code")))
         if path == "/api/auth/logout":
@@ -353,7 +362,7 @@ class Handler(BaseHTTPRequestHandler):
             u = self.user()
             if not u:
                 return self.send_json({"error": "ابتدا وارد شوید"}, 401)
-            return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback"))
+            return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback", local=self.is_local()))
         if path == "/api/pay/receipt":
             u = self.user()
             if not u:
@@ -379,7 +388,7 @@ class Handler(BaseHTTPRequestHandler):
             a.store.set_setting("admin", {"salt": salt, "hash": hash_pw(pw, salt)})
             return self.login_ok()
         if path == "/api/admin/login":
-            ip = self.client_address[0]
+            ip = self.client_ip()
             fails = [t for t in LOGIN_FAILS.get(ip, []) if t > time.time() - 600]
             if len(fails) >= 8:
                 return self.send_json({"error": "تلاش زیاد؛ ده دقیقه دیگر امتحان کنید"}, 429)

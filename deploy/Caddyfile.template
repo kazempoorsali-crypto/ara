@@ -1,0 +1,14 @@
+# Caddy گواهی HTTPS را خودکار از Let's Encrypt می‌گیرد و تمدید می‌کند.
+__DOMAIN__, www.__DOMAIN__ {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+	}
+	request_body {
+		max_size 8MB
+	}
+	reverse_proxy 127.0.0.1:8000
+}

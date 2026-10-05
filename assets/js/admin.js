@@ -85,7 +85,8 @@
     const missing = [];
     if (!S.plans.length) missing.push("تعرفه اشتراک");
     if (!S.billing.merchant_id && !S.billing.card_number && !S.billing.test_mode) missing.push("درگاه پرداخت یا شمارهٔ کارت");
-    if (!S.sms_live) missing.push("سامانه پیامک (فعلاً کد ورود روی صفحه نمایش داده می‌شود)");
+    if (!S.sms_live) missing.push("سامانه پیامک (تا تنظیم نشود، ورود از اینترنت ممکن نیست؛ کد آزمایشی فقط روی همین رایانه نمایش داده می‌شود)");
+    if (S.billing.test_mode) missing.push("خاموش کردن «حالت آزمایشی پرداخت» (از اینترنت کار نمی‌کند، ولی پیش از انتشار خاموشش کنید)");
     main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی</p>
       ${missing.length ? `<div class="note" style="margin-bottom:18px">برای شروع: ${missing.join("، ")} را در بخش «اشتراک، درگاه و پیامک» تنظیم کنید.</div>` : ""}
       <div class="kpis">
