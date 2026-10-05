@@ -206,5 +206,84 @@ const UI = (() => {
     return map;
   }
 
-  return { LABELS, CONF, labelPill, gapText, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  /* ---------- کادر انتخاب جست‌وجوپذیر با تفکیک گروه (استان ← شهر) ---------- */
+  const fold = (t) => String(t || "").replace(/[آأإٱ]/g, "ا").replace(/[ىيئ]/g, "ی").replace(/ك/g, "ک").replace(/[ةۀ]/g, "ه").replace(/ؤ/g, "و")
+    .replace(/[\u200c\u200f\u064b-\u065f\u0640\s]/g, "").replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).toLowerCase();
+  function combo(host, o) {
+    // o: { items:[{id,label,group,hint}], groups:[{id,name}], value, placeholder, allLabel, groupPick, onChange({id, group}) }
+    const groups = o.groups || [];
+    const gname = (g) => (groups.find((x) => x.id === g) || {}).name || "";
+    let gsel = "", hi = 0, rows = [];
+    const cur = () => o.items.find((x) => x.id === o.value);
+    host.innerHTML = `<div class="cb"><input class="input cb__in" role="combobox" aria-expanded="false" autocomplete="off" placeholder="${esc(o.placeholder || "جست‌وجو یا انتخاب")}"><span class="cb__arrow" aria-hidden="true">▾</span>
+      <div class="cb__panel" hidden>${groups.length ? `<div class="cb__groups"><button type="button" class="chip is-on" data-g="">همه</button>${groups.map((g) => `<button type="button" class="chip" data-g="${esc(g.id)}">${esc(g.name)}</button>`).join("")}</div>` : ""}<ul class="cb__list" role="listbox"></ul></div></div>`;
+    const root = host.firstElementChild, inp = root.querySelector(".cb__in"), panel = root.querySelector(".cb__panel"), list = root.querySelector(".cb__list");
+    const label = () => { const c = cur(); return c ? c.label + (o.showGroup && c.group ? "، " + gname(c.group) : "") : o.value === "" && o.allLabel ? "" : ""; };
+    inp.value = label();
+    if (!cur() && o.groupValue) inp.value = (o.groupLabel || "") + gname(o.groupValue);
+    function draw() {
+      const q = fold(inp.value === label() ? "" : inp.value);
+      let items = o.items.filter((x) => !gsel || x.group === gsel);
+      rows = [];
+      if (q) {
+        items = items.map((x) => { const f = fold(x.label); const r = f.startsWith(q) ? 0 : x.label.split(/[\s\u200c]+/).some((w) => fold(w).startsWith(q)) ? 1 : f.includes(q) ? 2 : 9; return [r, x]; })
+          .filter(([r]) => r < 9).sort((a, b) => a[0] - b[0] || a[1].label.localeCompare(b[1].label, "fa")).map(([, x]) => x);
+        rows = items.map((x) => ({ type: "item", x }));
+      } else {
+        if (o.allLabel && !gsel) rows.push({ type: "item", x: { id: "", label: o.allLabel } });
+        const order = groups.length ? (gsel ? [gsel] : groups.map((g) => g.id)) : [null];
+        order.forEach((g) => {
+          const its = items.filter((x) => g === null || x.group === g);
+          if (!its.length) return;
+          if (g !== null && !gsel) rows.push({ type: "head", g });
+          if (g !== null && o.groupPick) rows.push({ type: "group", g });
+          its.forEach((x) => rows.push({ type: "item", x }));
+        });
+      }
+      const pick = rows.filter((r) => r.type !== "head");
+      hi = Math.min(hi, Math.max(0, pick.length - 1));
+      let k = -1;
+      list.innerHTML = rows.length ? rows.map((r) => {
+        if (r.type === "head") return `<li class="cb__head">${esc(gname(r.g))}</li>`;
+        k++;
+        const on = k === hi ? " is-hi" : "";
+        if (r.type === "group") return `<li class="cb__opt cb__opt--group${on}" data-k="${k}" role="option">کل استان ${esc(gname(r.g))}</li>`;
+        return `<li class="cb__opt${on}${r.x.id === o.value ? " is-sel" : ""}" data-k="${k}" role="option">${esc(r.x.label)}${q && r.x.group ? `<small>${esc(gname(r.x.group))}</small>` : r.x.hint ? `<small>${esc(r.x.hint)}</small>` : ""}</li>`;
+      }).join("") : `<li class="cb__empty">موردی پیدا نشد</li>`;
+      list._pick = pick;
+      list.querySelector(".is-hi")?.scrollIntoView({ block: "nearest" });
+    }
+    const open = () => { panel.hidden = false; inp.setAttribute("aria-expanded", "true"); hi = 0; draw(); };
+    const close = () => { panel.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.value = label() || (o.groupValue && !cur() ? (o.groupLabel || "") + gname(o.groupValue) : ""); };
+    const choose = (r) => {
+      if (!r) return;
+      if (r.type === "group") { o.value = null; o.groupValue = r.g; close(); o.onChange && o.onChange({ id: "", group: r.g }); return; }
+      o.value = r.x.id; o.groupValue = r.x.group || ""; close(); o.onChange && o.onChange({ id: r.x.id, group: r.x.group || "" });
+    };
+    inp.addEventListener("focus", () => { inp.select(); open(); });
+    inp.addEventListener("input", () => { hi = 0; if (panel.hidden) open(); else draw(); });
+    inp.addEventListener("keydown", (e) => {
+      const n = (list._pick || []).length;
+      if (e.key === "ArrowDown") { e.preventDefault(); if (panel.hidden) open(); hi = Math.min(n - 1, hi + 1); draw(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); hi = Math.max(0, hi - 1); draw(); }
+      else if (e.key === "Enter") { e.preventDefault(); choose((list._pick || [])[hi]); inp.blur(); }
+      else if (e.key === "Escape") { close(); inp.blur(); }
+    });
+    list.addEventListener("mousedown", (e) => { const li = e.target.closest("[data-k]"); if (li) { e.preventDefault(); choose(list._pick[+li.dataset.k]); inp.blur(); } });
+    root.querySelector(".cb__groups")?.addEventListener("mousedown", (e) => {
+      const b = e.target.closest("[data-g]"); if (!b) return;
+      e.preventDefault(); gsel = b.dataset.g; hi = 0;
+      root.querySelectorAll("[data-g]").forEach((x) => x.classList.toggle("is-on", x === b));
+      if (inp.value === label()) inp.value = "";
+      draw(); inp.focus();
+    });
+    inp.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== inp) close(); }, 120));
+    root.querySelector(".cb__arrow").addEventListener("mousedown", (e) => { e.preventDefault(); inp.focus(); });
+    return { set(v) { o.value = v; inp.value = label(); }, setItems(items, v) { o.items = items; if (v !== undefined) o.value = v; inp.value = label(); if (!panel.hidden) draw(); }, focus: () => inp.focus(), get value() { return o.value; } };
+  }
+  /* کادر شهر با تفکیک استان؛ برای گسترش به کل ایران فقط فهرست استان‌ها و شهرها بزرگ‌تر می‌شود */
+  const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
+  const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
+
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
 })();
