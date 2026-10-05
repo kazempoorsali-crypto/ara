@@ -327,8 +327,9 @@ class Store:
             args.append(city)
         return [dict(r) for r in self.q(sql + " ORDER BY city_key, kind, deal, n DESC", args)]
 
-    def requests_in_last(self, seconds: int) -> int:
-        return self.q("SELECT COUNT(*) n FROM requests_log WHERE at > ?", (int(time.time()) - seconds,), one=True)["n"]
+    def requests_in_last(self, seconds: int, ads_only: bool = False) -> int:
+        extra = " AND kind NOT IN ('discover','test','sms')" if ads_only else ""
+        return self.q(f"SELECT COUNT(*) n FROM requests_log WHERE at > ?{extra}", (int(time.time()) - seconds,), one=True)["n"]
 
     def log_request(self, kind, ok, note=""):
         self.x("INSERT INTO requests_log VALUES(?,?,?,?)", (int(time.time()), kind, int(ok), note[:300]))

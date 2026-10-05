@@ -15,6 +15,7 @@ import json
 import os
 import re
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -28,10 +29,16 @@ PAGINATION_TYPE = "type.googleapis.com/post_list.PaginationData"
 
 
 class SourceError(Exception):
-    def __init__(self, msg, status=None, retry_after=None):
+    def __init__(self, msg, status=None, retry_after=None, quota=False):
         super().__init__(msg)
         self.status = status
         self.retry_after = retry_after
+        self.quota = quota  # سهمیهٔ روزانهٔ سرور واسط (پلن رایگان کلادفلر) تمام شده است
+
+
+def seconds_to_utc_midnight() -> int:
+    t = time.gmtime()
+    return max(60, 86400 - (t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec) + 60)
 
 
 # تنظیم شبکه (از پنل): auto = پروکسی سیستم ویندوز/مک اگر تنظیم شده باشد؛ none = بدون پروکسی؛ یا نشانی پروکسی
@@ -86,8 +93,15 @@ def _http(method, url, body=None, headers=None, timeout=30):
             with _opener(proxy).open(req, timeout=timeout) as r:
                 return r.status, dict(r.headers), r.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", "replace")[:300]
-            raise SourceError(f"HTTP {e.code}: {detail}", status=e.code, retry_after=e.headers.get("retry-after")) from e
+            detail = e.read().decode("utf-8", "replace")[:600]
+            if e.code == 429 and ("1027" in detail or "free tier" in detail.lower()):
+                host = urllib.parse.urlsplit(url).hostname
+                wait = seconds_to_utc_midnight()
+                raise SourceError(f"سهمیهٔ روزانهٔ رایگانِ سرور {host} تمام شده است (خطای ۱۰۲۷ کلادفلر؛ این سهمیه بین همهٔ کاربرانِ آن سرور مشترک است). "
+                                  f"حدود {wait // 3600} ساعت و {wait % 3600 // 60} دقیقهٔ دیگر، نیمه‌شب UTC، دوباره باز می‌شود. "
+                                  "در حالت «خودکار» تا آن زمان اتصال مستقیم استفاده می‌شود.",
+                                  status=429, retry_after=wait, quota=True) from e
+            raise SourceError(f"HTTP {e.code}: {detail[:300]}", status=e.code, retry_after=e.headers.get("retry-after")) from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             last = e
     raise SourceError(diagnose(url, last, tried_direct="none" in tries)) from last
@@ -402,10 +416,58 @@ class DirectSource:
         return {"sample_city": self.probe_city(12)}
 
 
-def make_source(mode: str, mcp_url: str | None = None, api: str | None = None):
+class AutoSource:
+    """دیوار، روش خودکار: اول سرور MCP؛ اگر سهمیهٔ روزانه‌اش تمام شد یا شبکه به آن نرسید،
+    تا باز شدن دوباره (سهمیه: نیمه‌شب UTC؛ شبکه: ۳۰ دقیقه) اتصال مستقیم. توکن آگهی در هر دو روش یکی است."""
+    name = "auto"
+
+    def __init__(self, mcp: "McpSource", direct: "DirectSource", on_block=None):
+        self.mcp, self.direct, self.on_block = mcp, direct, on_block
+        self.blocked_until = 0
+        self.reason = ""
+
+    def using_direct(self) -> bool:
+        return time.time() < self.blocked_until
+
+    def _block(self, e: SourceError):
+        self.blocked_until = time.time() + (e.retry_after if e.quota and e.retry_after else 1800)
+        self.reason = str(e)
+        if self.on_block:
+            self.on_block()
+
+    def _run(self, fn):
+        if not self.using_direct():
+            try:
+                return fn(self.mcp)
+            except SourceError as e:
+                if not (e.quota or e.status is None or e.status in (502, 503, 520, 521, 522, 523, 524, 530)):
+                    raise
+                self._block(e)
+        try:
+            return fn(self.direct)
+        except SourceError as e:
+            if self.reason:
+                raise SourceError(f"MCP: {self.reason} | مستقیم: {e}", status=e.status, retry_after=e.retry_after) from e
+            raise
+
+    def search(self, city, category, page, cursor=None):
+        return self._run(lambda s: s.search(city, category, page, cursor if s is self.direct else None))
+
+    def detail(self, token):
+        return self._run(lambda s: s.detail(token))
+
+    def probe(self):
+        info = self._run(lambda s: s.probe())
+        return {**(info or {}), "روش": "اتصال مستقیم" if self.using_direct() else "سرور MCP"}
+
+
+def make_source(mode: str, mcp_url: str | None = None, api: str | None = None, on_block=None):
+    direct = DirectSource(api or os.environ.get("ARA_DIVAR_API") or DIVAR_API)
     if mode == "direct":
-        return DirectSource(api or os.environ.get("ARA_DIVAR_API") or DIVAR_API)
-    return McpSource(mcp_url or DEFAULT_MCP_URL)
+        return direct
+    if mode == "mcp_only":
+        return McpSource(mcp_url or DEFAULT_MCP_URL)
+    return AutoSource(McpSource(mcp_url or DEFAULT_MCP_URL), direct, on_block)  # «mcp» (پیش‌فرض) = خودکار
 
 
 def backoff_seconds(err: SourceError, attempt: int) -> float:

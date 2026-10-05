@@ -119,6 +119,16 @@ def run(mode):
             dsp = ucall("/api/listing/" + spid) if spid else {}
             check(spid and dsp.get("phone"), f"[{mode}] مشترک با تنظیم «همه» شمارهٔ آگهی شیپور را می‌بیند")
             call("/api/admin/settings", {"display": {"contact_mode": "none"}}, tok)
+            if mode == "mcp":  # سهمیهٔ روزانهٔ سرور MCP دیوار تمام شده
+                call("/api/admin/ingest", {"mode": "mcp_only", "mcp_url": "http://127.0.0.1:8799/mcp-quota"}, tok)
+                q1 = call("/api/admin/test", {}, tok)
+                check(not q1["ok"] and "سهمیه" in q1["error"], f"[{mode}] پیام سهمیهٔ تمام‌شده: {q1.get('error', '')[:60]}…")
+                call("/api/admin/ingest", {"mode": "mcp", "mcp_url": "http://127.0.0.1:8799/mcp-quota"}, tok)
+                q2 = call("/api/admin/test", {}, tok)
+                check(q2.get("ok") and q2["info"].get("روش") == "اتصال مستقیم", f"[{mode}] دیوار خودکار: سهمیهٔ MCP تمام شد، اتصال مستقیم ({q2.get('info', {}).get('روش') or q2.get('error')})")
+                call("/api/admin/ingest", {"sheypoor_mode": "auto", "sheypoor_url": "http://127.0.0.1:8799/sheypoor/mcp-quota"}, tok)
+                q3 = call("/api/admin/test", {"source": "sheypoor"}, tok)
+                check(q3.get("ok") and q3["info"].get("روش") == "اتصال مستقیم", f"[{mode}] شیپور خودکار: سهمیهٔ MCP تمام شد، اتصال مستقیم")
             if mode == "direct":  # خودکار: سرور MCP در دسترس نیست ← اتصال مستقیم
                 call("/api/admin/ingest", {"sheypoor_mode": "auto", "sheypoor_url": "http://127.0.0.1:9/"}, tok)
                 t3 = call("/api/admin/test", {"source": "sheypoor"}, tok)

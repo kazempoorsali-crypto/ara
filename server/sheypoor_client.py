@@ -355,7 +355,7 @@ class SheypoorAutoSource:
                 self.active = src
                 return out
             except SourceError as e:
-                if e.status is not None and e.status not in (404, 405, 502, 503, 530):
+                if e.status is not None and e.status not in (404, 405, 502, 503, 530) and not e.quota:
                     raise  # خطای واقعی آگهی (مثلاً ۴۲۹)، نه مشکل رسیدن به سرور
                 self.errors[src.name] = str(e)
                 last = e

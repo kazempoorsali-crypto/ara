@@ -368,7 +368,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({
                 **a.public_config(),
                 "ingest": cfg, "status": a.ingest.state,
-                "hour": s.requests_in_last(3600), "day": s.requests_in_last(86400),
+                "hour": s.requests_in_last(3600, ads_only=True), "day": s.requests_in_last(86400, ads_only=True),
                 "feeds": feeds,
                 "log": [dict(r) for r in s.q("SELECT * FROM requests_log ORDER BY at DESC LIMIT 60")],
                 "stats": s.stats(),

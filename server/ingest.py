@@ -26,7 +26,7 @@ from sheypoor_client import SheypoorAutoSource, SheypoorDirectSource, SheypoorSo
 
 DEFAULT_INGEST = {
     "enabled": False,
-    "mode": "mcp",            # mcp = سرور واسط divar-mcp | direct = مستقیم به api.divar.ir
+    "mode": "mcp",            # mcp = خودکار (اول سرور MCP، اگر سهمیه تمام شد یا نرسید مستقیم) | mcp_only | direct
     "mcp_url": "",
     "hourly_limit": 60,
     "cities": [c["key"] for c in catalog.CITIES],
@@ -94,10 +94,16 @@ class Ingestor:
     def source_for(self, cfg, name):
         return self.get_sheypoor(cfg) if name == "sheypoor" else self.get_source(cfg)
 
+    def _mcp_blocked(self):
+        """سرور MCP دیوار در دسترس نیست: برای اتصال مستقیم، شناسهٔ شهرهای باقی‌مانده را در پس‌زمینه پیدا کن."""
+        ids = self.store.get_setting("city_ids") or {}
+        if any(not c["divar_id"] and not ids.get(c["key"]) for c in catalog.CITIES if c["key"] in self.cfg()["cities"]):
+            self.discover_ids()
+
     def get_source(self, cfg):
         key = (cfg["mode"], cfg.get("mcp_url"))
         if self.source is None or key != self.source_key:
-            self.source = make_source(cfg["mode"], cfg.get("mcp_url"))
+            self.source = make_source(cfg["mode"], cfg.get("mcp_url"), on_block=self._mcp_blocked)
             self.source_key = key
         return self.source
 
@@ -146,8 +152,8 @@ class Ingestor:
             last = self.store.q("SELECT MAX(at) t FROM requests_log WHERE kind != 'discover'", one=True)["t"] or 0
             due = max(last + interval, self.pause_until)
             # سقف سخت: بیش از حد مجاز در ۶۰ دقیقه گذشته ارسال نشود
-            if self.store.requests_in_last(3600) >= cfg["hourly_limit"]:
-                oldest = self.store.q("SELECT at FROM requests_log WHERE at > ? ORDER BY at LIMIT 1",
+            if self.store.requests_in_last(3600, ads_only=True) >= cfg["hourly_limit"]:
+                oldest = self.store.q("SELECT at FROM requests_log WHERE at > ? AND kind NOT IN ('discover','test','sms') ORDER BY at LIMIT 1",
                                       (int(time.time()) - 3600,), one=True)
                 due = max(due, (oldest["at"] if oldest else time.time()) + 3600)
             self.state["next_at"] = int(due)
@@ -199,7 +205,8 @@ class Ingestor:
             return
         self.ensure_feeds(cfg)
         feeds = self.active_feeds(cfg)
-        if cfg["mode"] == "direct":
+        src = self.get_source(cfg)
+        if cfg["mode"] == "direct" or (hasattr(src, "using_direct") and src.using_direct()):
             feeds = [f for f in feeds if f["category"].startswith("sheypoor:") or self.city(f["city_key"]).get("divar_id")]
         now = time.time()
         stale = [f for f in feeds if now - (f["last_page1"] or 0) > cfg["refresh_hours"] * 3600]
@@ -377,12 +384,22 @@ class Ingestor:
             except Exception as e:
                 self.store.log_request("test", False, f"آزمون شیپور: {e}")
                 return {"ok": False, "error": str(e)}
-        src = make_source(cfg["mode"], cfg.get("mcp_url"))
+        src = make_source(cfg["mode"], cfg.get("mcp_url"), on_block=self._mcp_blocked)
         try:
-            info = src.probe()
             city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")
             if cfg["mode"] == "direct" and not city.get("divar_id"):
                 city = self.city("rasht")
+            if hasattr(src, "using_direct"):
+                try:  # اول MCP را بیازما تا اگر سهمیه تمام شده، روش مستقیم با شهری که شناسه دارد آزموده شود
+                    src.mcp.probe()
+                except SourceError as e:
+                    if e.quota or e.status is None or e.status in (502, 503, 530):
+                        src._block(e)
+                        if not city.get("divar_id"):
+                            city = self.city("rasht")
+                    else:
+                        raise
+            info = src.probe()
             res = src.search(city, cfg["categories"][0] if cfg["categories"] else "real-estate", 1)
             self.store.log_request("test", True, f"آزمون اتصال: {len(res['rows'])} آگهی از {city['name']}")
             sample = res["rows"][:3]

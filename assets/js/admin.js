@@ -121,8 +121,9 @@
       <div class="panel"><h2>منبع و سرعت</h2>
         <div class="grid2">
           <label class="field"><span>روش اتصال</span><select class="select" name="mode">
-            <option value="mcp" ${cfg.mode === "mcp" ? "selected" : ""}>سرور MCP دیوار (پیشنهادی)</option>
-            <option value="direct" ${cfg.mode === "direct" ? "selected" : ""}>اتصال مستقیم به API دیوار</option></select>
+            <option value="mcp" ${cfg.mode === "mcp" || cfg.mode === "auto" ? "selected" : ""}>خودکار: سرور MCP دیوار، و اگر سهمیه‌اش تمام شد یا نرسید اتصال مستقیم (پیشنهادی)</option>
+            <option value="mcp_only" ${cfg.mode === "mcp_only" ? "selected" : ""}>فقط سرور MCP دیوار</option>
+            <option value="direct" ${cfg.mode === "direct" ? "selected" : ""}>فقط اتصال مستقیم به API دیوار</option></select>
             <span class="hint">MCP: سرور عمومی divar-mcp (بدون کلید؛ سقف خود سرور ۲۰ درخواست در دقیقه). مستقیم: همان نقاط پایانی وب دیوار؛ به شناسه عددی شهر نیاز دارد.</span></label>
           <label class="field"><span>نشانی سرور MCP</span><input class="input input--ltr" name="mcp_url" value="${esc(cfg.mcp_url)}" placeholder="https://divar-mcp.mmdju2.workers.dev/mcp"><span class="hint">خالی بماند تا نشانی پیش‌فرض استفاده شود.</span></label>
           <label class="field"><span>پروکسی</span><select class="select" name="proxy_sel">
@@ -151,7 +152,7 @@
       <div class="panel"><h2>شهرها <span><button type="button" class="btn btn--ghost btn--sm" id="allC">همه</button><button type="button" class="btn btn--ghost btn--sm" id="noneC">هیچ‌کدام</button></span></h2>
         ${Object.entries(cat.provinces).map(([pid, p]) => `<p style="font-weight:800;margin:10px 0 8px">${p.name}</p><div class="checks">${cat.cities.filter((c) => c.province === pid).map((c) => `<label><input type="checkbox" name="city" value="${c.key}" ${cfg.cities.includes(c.key) ? "checked" : ""}><span>${c.name}${cfg.mode === "direct" && !S.city_ids[c.key] ? " ⚠" : ""}</span></label>`).join("")}</div>`).join("")}
         <p class="hint">با ${fa(cfg.cities.length)} شهر × ${fa(cfg.categories.length)} دسته = ${fa(cfg.cities.length * cfg.categories.length)} فهرست. شهرهای پرآگهی (رشت، ساری، گرگان) چند روز طول می‌کشند تا کامل شوند.</p></div>
-      ${cfg.mode === "direct" ? `<div class="panel"><h2>شناسه عددی شهرها در دیوار <button type="button" class="btn btn--line btn--sm" id="discover">کشف خودکار شناسه‌ها</button></h2>
+      ${cfg.mode !== "mcp_only" ? `<div class="panel"><h2>شناسه عددی شهرها در دیوار <button type="button" class="btn btn--line btn--sm" id="discover">کشف خودکار شناسه‌ها</button></h2>
         <p class="hint" style="margin-bottom:12px">فقط برای حالت اتصال مستقیم. شناسه رشت (۱۲)، گرگان (۲۱) و ساری (۲۲) معلوم است. کشف خودکار شناسه‌ها هر ۲٫۵ ثانیه یک شناسه را بررسی می‌کند (حدود یک ساعت). ${S.status.discover ? "<b>" + esc(S.status.discover) + "</b>" : ""}</p>
         <div class="grid3">${cat.cities.map((c) => `<label class="field"><span>${c.name}</span><input class="input" name="cid_${c.key}" inputmode="numeric" value="${S.city_ids[c.key] || ""}" ${c.divar_id ? "readonly" : ""}></label>`).join("")}</div></div>` : ""}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px"><button class="btn btn--hot btn--lg">ذخیره تنظیمات</button><button type="button" class="btn btn--line btn--lg" id="test">آزمون اتصال</button></div>

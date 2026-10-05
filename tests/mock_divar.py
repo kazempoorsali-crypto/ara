@@ -131,6 +131,10 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("content-length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
+        if self.path in ("/mcp-quota", "/sheypoor/mcp-quota"):  # سهمیهٔ تمام‌شدهٔ پلن رایگان کلادفلر
+            return self.reply({"type": "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/",
+                               "title": "Error 1027: This website has been temporarily rate limited", "status": 429,
+                               "detail": "The site owner has exceeded their Workers free tier daily request limit. The limit resets at midnight UTC."}, 429)
         if self.path == "/sheypoor/mcp":
             m = body.get("method")
             if "id" not in body:
