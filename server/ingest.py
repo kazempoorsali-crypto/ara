@@ -17,6 +17,8 @@ import time
 import traceback
 
 import catalog
+import features
+import valuation
 from divar_client import SourceError, backoff_seconds, make_source
 
 DEFAULT_INGEST = {
@@ -45,11 +47,14 @@ class Ingestor:
         self.detail_credit = 0
         self.state = {"running": False, "last": None, "last_at": None, "next_at": None, "error": None, "discover": None}
         self.discover_thread = None
+        self.dirty = 0
+        self.valuing = threading.Lock()
 
     # ---------------------------------------------------------- config
     def cfg(self) -> dict:
         c = {**DEFAULT_INGEST, **(self.store.get_setting("ingest") or {})}
         c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 60), 1200))
+        c["categories"] = [x for x in c["categories"] if x in catalog.CATEGORY_BY_SLUG] or ["real-estate"]
         return c
 
     def city(self, key) -> dict:
@@ -72,6 +77,29 @@ class Ingestor:
             return
         self.thread = threading.Thread(target=self.loop, name="ingest", daemon=True)
         self.thread.start()
+        threading.Thread(target=self.value_loop, name="valuation", daemon=True).start()
+
+    def run_valuation(self):
+        """بازمحاسبه قیمت منصفانه، پاک‌سازی و امتیاز همه آگهی‌ها."""
+        if not self.valuing.acquire(blocking=False):
+            return None
+        try:
+            self.dirty = 0
+            weights = (self.store.get_setting("scoring") or {}).get("weights")
+            return valuation.recompute(self.store, weights)
+        except Exception:
+            traceback.print_exc()
+            return None
+        finally:
+            self.valuing.release()
+
+    def value_loop(self):
+        last = 0
+        while not self.stop.is_set():
+            if self.dirty >= 25 or (self.dirty and time.time() - last > 600) or not last:
+                self.run_valuation()
+                last = time.time()
+            self.stop.wait(20)
 
     def poke(self):
         self.wake.set()
@@ -176,6 +204,7 @@ class Ingestor:
         counts = {"new": 0, "updated": 0, "same": 0}
         for row in res["rows"]:
             counts[self.store.upsert(self.from_summary(row, city, feed["category"]))] += 1
+        self.dirty += counts["new"] + counts["updated"]
         self.store.log_request("search", True, f"{label}: {len(res['rows'])} آگهی ({counts['new']} جدید، {counts['updated']} تغییر قیمت)")
         fields = {"last_error": None, "items": (feed["items"] or 0) + counts["new"]}
         if first:
@@ -209,18 +238,11 @@ class Ingestor:
         city = catalog.find_city(d.get("city_name")) or catalog.CITY_BY_KEY.get(current.get("city_key"))
         item = self.from_detail(d, current, city)
         self.store.upsert(item)
+        self.dirty += 1
         self.store.log_request("detail", True, f"{'بازبینی' if recheck else 'جزئیات'}: {(item.get('title') or token)[:50]}")
         self.state.update(last=f"جزئیات «{(item.get('title') or token)[:40]}»", last_at=int(time.time()))
 
     # ---------------------------------------------------------- mapping
-    @staticmethod
-    def car_from_title(item, title):
-        t = catalog.norm(title)
-        m = re.search(r"\b(13[5-9]\d|14[0-2]\d)\b", t)
-        if m:
-            item["year"] = int(m.group(1))
-        item["brand"] = re.sub(r"\s*(مدل|،).*$", "", t).strip()[:60] or None
-
     def from_summary(self, row, city, category) -> dict:
         cat = catalog.CATEGORY_BY_SLUG.get(category, {"vertical": "estate"})
         mapped = catalog.find_city(row.get("city_name")) or city
@@ -245,9 +267,7 @@ class Ingestor:
             m = re.search(r"(\d|یک|دو|سه|چهار|پنج)\s*خواب", t)
             if m:
                 item["rooms"] = {"یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5}.get(m.group(1)) or int(m.group(1))
-        else:
-            item["kind"], item["deal"] = ("motorcycle" if category == "motorcycles" else "car"), "sale"
-            self.car_from_title(item, row.get("title") or "")
+        item["feat"] = features.extract(item)
         return item
 
     def from_detail(self, d, current, city) -> dict:
@@ -274,12 +294,11 @@ class Ingestor:
                     item["deal"] = "rent"
             attrs_text = " ".join(f"{k}: {v}" for k, v in item["attributes"].items())
             item["amenities"] = catalog.detect_amenities(item["title"], attrs_text, d.get("description"))
-        else:
-            if not item.get("brand"):
-                self.car_from_title(item, item["title"] or "")
         if d.get("latlng"):
             item["lat"], item["lng"] = d["latlng"]
             item["latlng_exact"] = 1
+        item["seller_type"] = d.get("seller_type")
+        item["feat"] = features.extract({**current, **item})
         return item
 
     # ---------------------------------------------------------- admin actions

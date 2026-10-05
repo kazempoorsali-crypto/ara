@@ -1,10 +1,11 @@
-/* آرا — مسیریابی و صفحات */
+/* فرصت‌یاب — مسیریابی و صفحات */
 const App = (() => {
   "use strict";
-  const { $, $$, esc, fa, faY, num, store, money, toast, icon } = UI;
+  const { $, $$, esc, fa, faY, num, store, money, toast, icon, pct } = UI;
   const state = { favs: new Set(store.get("favs", [])), compare: [], map: null, layer: null, markers: {} };
   const view = () => $("#view");
   let cfg = null;
+  const CONF = { high: "اطمینان زیاد", medium: "اطمینان متوسط", low: "اطمینان کم" };
 
   /* ---------- راه‌اندازی ---------- */
   async function boot() {
@@ -17,34 +18,26 @@ const App = (() => {
       bar.hidden = false;
       bar.innerHTML = info.server
         ? "<b>هنوز آگهی واقعی دریافت نشده است.</b> فعلاً آگهی‌های نمونه نمایش داده می‌شود؛ دریافت از دیوار را در <a href='admin.html' style='text-decoration:underline'>پنل مدیریت</a> روشن کنید."
-        : "<b>پیش‌نمایش طراحی:</b> همه آگهی‌ها و قیمت‌ها نمونه و ساختگی‌اند. نسخه کامل با آگهی‌های واقعی دیوار روی رایانه شما اجرا می‌شود.";
+        : "<b>پیش‌نمایش طراحی:</b> آگهی‌ها، قیمت‌ها و امتیازها نمونه و ساختگی‌اند. نسخه کامل با آگهی‌های واقعی دیوار روی سرور اجرا می‌شود.";
     }
     updateFavCount();
+    updateAccount();
     window.addEventListener("hashchange", route);
     window.addEventListener("scroll", () => $("#top").classList.toggle("is-scrolled", scrollY > 8), { passive: true });
     bindGlobal();
     route();
   }
-
   function applySite() {
     const s = cfg.site;
     $$("[data-site]").forEach((el) => { if (s[el.dataset.site]) el.textContent = s[el.dataset.site]; });
     document.title = `${s.name} | ${s.tagline}`;
     if (s.about) $("#footAbout").textContent = s.about;
-    const items = [];
-    if (s.phone) items.push(`<li><a href="tel:${esc(tel(s.phone))}"><bdi dir="ltr">${esc(s.phone)}</bdi></a></li>`);
-    if (s.whatsapp) items.push(`<li><a href="${waLink()}" target="_blank" rel="noopener">واتس‌اپ</a></li>`);
-    if (s.telegram) items.push(`<li><a href="https://t.me/${esc(s.telegram.replace(/^@/, ""))}" target="_blank" rel="noopener">تلگرام</a></li>`);
-    if (s.instagram) items.push(`<li><a href="https://instagram.com/${esc(s.instagram.replace(/^@/, ""))}" target="_blank" rel="noopener">اینستاگرام</a></li>`);
-    if (s.address) items.push(`<li>${esc(s.address)}</li>`);
-    if (s.hours) items.push(`<li class="muted">${esc(s.hours)}</li>`);
-    $("#footContact").innerHTML = items.join("");
   }
-  const tel = (p) => NLP.toEn(p || "").replace(/[^\d+]/g, "");
-  function waLink(text = "") {
-    const p = tel(cfg.site.whatsapp || cfg.site.phone).replace(/^0/, "98").replace(/^\+/, "");
-    return `https://wa.me/${p}${text ? "?text=" + encodeURIComponent(text) : ""}`;
+  function updateAccount() {
+    const me = DataLayer.me;
+    $("#accountLabel").textContent = me ? (me.active ? `اشتراک فعال · ${fa(me.days_left)} روز` : "حساب من") : "ورود و اشتراک";
   }
+  const active = () => !!(DataLayer.me && DataLayer.me.active);
 
   /* ---------- مسیریابی ---------- */
   function parseHash() {
@@ -59,57 +52,57 @@ const App = (() => {
     $$("[data-nav]").forEach((a) => a.classList.remove("is-on"));
     document.body.classList.remove("has-mcta");
     if (page === "s") {
-      const key = params.vertical === "car" ? "car" : "estate-" + (params.deal || "sale");
+      const key = params.ranked ? "top" : "estate-" + (params.deal || "sale");
       $(`[data-nav="${key}"]`)?.classList.add("is-on");
       if (lastPath === "s") { searchPage.update(params); return; }
       searchPage.render(params);
     } else if (page === "ad" && arg) adPage(decodeURIComponent(arg));
     else if (page === "saved") savedPage();
-    else if (page === "market") { $('[data-nav="market"]').classList.add("is-on"); marketPage(); }
-    else if (page === "pay") payPage();
+    else if (page === "market") { $('[data-nav="market"]').classList.add("is-on"); marketPage(params); }
+    else if (page === "method") { $('[data-nav="method"]').classList.add("is-on"); methodPage(); }
+    else if (page === "account") accountPage(params);
     else homePage();
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
   }
   const go = (hash) => { location.hash = hash; };
   const toQuery = (f) => new URLSearchParams(Object.entries(f).filter(([, v]) => v !== "" && v != null && v !== 0 && v !== false)).toString();
+  const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : 0; };
 
   /* ---------- صفحه اصلی ---------- */
   let boardTimer = null;
   async function homePage() {
     clearInterval(boardTimer);
     const st = DataLayer.stats;
-    let vertical = "estate", deal = "";
+    let deal = "";
     view().innerHTML = `
     <section class="hero">
       <div class="wrap hero__grid">
         <div>
           <span class="kicker">گیلان · مازندران · گلستان</span>
-          <h1>خانه‌ای میان <span class="soft">جنگل</span> و <span class="accent">دریا</span>،<br>خودرویی برای جاده‌اش.</h1>
-          <p class="hero__lead">آگهی‌های ${fa(CITIES.length)} شهر شمال یک‌جا؛ هرچه می‌خواهی به فارسی بنویس. قیمت هر آگهی را با میانه بازار همان شهر می‌سنجیم و برای بازدید و معامله کنارت هستیم.</p>
+          <h1>ملکی که <span class="accent">زیر قیمت</span> است،<br>پیش از بقیه پیدا کن.</h1>
+          <p class="hero__lead">هر روز آگهی‌های ملک ${fa(CITIES.length)} شهر شمال را از دیوار جمع می‌کنیم، آگهی‌های مشکوک و تکراری را کنار می‌گذاریم و قیمت هرکدام را با قیمت منصفانه همان محله، با درنظرگرفتن سن بنا، طبقه، متراژ و امکانات، می‌سنجیم.</p>
           <form class="search-card" id="heroForm" autocomplete="off">
             <div class="search-card__tabs">
-              <button type="button" class="vtab is-on" data-v="estate">${icon("home")}املاک</button>
-              <button type="button" class="vtab" data-v="car">${icon("car")}خودرو</button>
-              <div class="search-card__deals" id="heroDeals">
+              <div class="search-card__deals" id="heroDeals" style="margin-inline-start:0">
                 <button type="button" class="is-on" data-d="">همه</button><button type="button" data-d="sale">خرید</button><button type="button" data-d="rent">رهن و اجاره</button><button type="button" data-d="daily">روزانه</button>
               </div>
             </div>
             <div class="search-row">
               <span class="search-row__ai">${icon("spark")}</span>
-              <input id="heroQ" placeholder="مثلاً: ویلای استخردار رامسر با دید دریا زیر ۲۰ میلیارد" aria-label="جست‌وجو" />
-              <button class="btn btn--hot btn--lg">جست‌وجو</button>
+              <input id="heroQ" placeholder="مثلاً: آپارتمان ۲ خوابه گلسار رشت زیر ۸ میلیارد" aria-label="جست‌وجو" />
+              <button class="btn btn--hot btn--lg">یافتن فرصت‌ها</button>
             </div>
             <div class="parsed" id="heroParsed" aria-live="polite"></div>
           </form>
-          <div class="hero__quick" id="heroQuick"></div>
+          <div class="hero__quick" id="heroQuick">${["آپارتمان زیر قیمت رشت", "ویلای ساحلی نوشهر", "آپارتمان رهن ساری", "زمین سنددار لاهیجان", "ویلا کلاردشت"].map((q) => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
         </div>
-        <aside class="board" aria-label="تابلوی زنده بازار">
-          <div class="board__head"><b>تابلوی بازار شمال</b><span class="live">${DataLayer.samples ? "داده نمونه" : "به‌روز"}</span></div>
+        <aside class="board" aria-label="برترین فرصت‌ها">
+          <div class="board__head"><b>برترین فرصت‌های امروز</b><span class="live">${DataLayer.samples ? "داده نمونه" : "به‌روز"}</span></div>
           <div class="board__kpis">
-            <div class="kpi"><b>${fa(st.total || 0)}</b><span>آگهی فعال</span></div>
-            <div class="kpi"><b>${fa(st.today || 0)}</b><span>جدید در ۲۴ ساعت</span></div>
-            <div class="kpi"><b>${fa(st.drops || 0)}</b><span>کاهش قیمت</span></div>
+            <div class="kpi"><b>${fa(st.total || 0)}</b><span>آگهی بررسی‌شده</span></div>
+            <div class="kpi"><b>${fa(st.deals || 0)}</b><span>دست‌کم ۱۰٪ زیر قیمت</span></div>
+            <div class="kpi"><b>${fa(st.excluded || 0)}</b><span>کنار گذاشته شد</span></div>
           </div>
           <ul class="board__list" id="boardList"></ul>
         </aside>
@@ -118,32 +111,30 @@ const App = (() => {
     </section>
     <section class="wrap">
       <div class="strip">
-        <div><b>${fa(st.estate || 0)}</b><span>آگهی ملک</span></div>
-        <div><b>${fa(st.car || 0)}</b><span>آگهی خودرو</span></div>
-        <div><b>${fa(CITIES.length)}</b><span>شهر در ۳ استان</span></div>
-        <div><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی</span></div>
+        <div><b>${fa(st.ranked || 0)}</b><span>آگهی دارای امتیاز</span></div>
+        <div><b>${fa(st.today || 0)}</b><span>آگهی تازه در ۲۴ ساعت</span></div>
+        <div><b>${fa(st.drops || 0)}</b><span>کاهش قیمت ثبت‌شده</span></div>
+        <div><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی از ${fa(CITIES.length)}</span></div>
       </div>
     </section>
     <section class="section">
       <div class="wrap">
         <div class="sec-head">
-          <div><span class="kicker">رادار معامله</span><h2>فرصت‌هایی که ارزش دیدن دارند</h2><p>هر آگهی با میانه قیمت آگهی‌های مشابه همان شهر مقایسه می‌شود؛ «معامله عالی» یعنی دست‌کم ۱۵٪ زیر میانه.</p></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <div class="seg" id="feedV"><button class="is-on" data-v="estate">املاک</button><button data-v="car">خودرو</button></div>
-            <div class="seg" id="feedS"><button class="is-on" data-s="deal">زیر قیمت</button><button data-s="new">تازه‌ترین</button><button data-s="drop">کاهش قیمت</button></div>
-          </div>
+          <div><span class="kicker">رادار فرصت</span><h2>بیشترین امتیاز، همین حالا</h2><p>امتیاز ۰ تا ۱۰۰ از فاصله قیمت تا قیمت منصفانه، میزان اطمینان برآورد، کامل بودن آگهی و تحولات قیمت ساخته می‌شود.</p></div>
+          <div class="seg" id="feedS"><button class="is-on" data-s="score">امتیاز</button><button data-s="deal">بیشترین تخفیف</button><button data-s="new">تازه‌ترین</button><button data-s="drop">کاهش قیمت</button></div>
         </div>
         <div class="cards" id="feed"></div>
-        <div style="text-align:center;margin-top:28px"><a class="btn btn--line" id="feedMore" href="#/s?vertical=estate&sort=deal">دیدن همه ${icon("arrow")}</a></div>
+        <div style="text-align:center;margin-top:28px"><a class="btn btn--line" id="feedMore" href="#/s?sort=score&ranked=1">همه فرصت‌ها ${icon("arrow")}</a></div>
       </div>
     </section>
+    ${methodTeaser()}
     <section class="section section--sunk">
       <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>از آستارا تا کلاله</h2><p>تعداد آگهی و میانه قیمت هر متر، محاسبه‌شده از آگهی‌های همین سامانه.</p></div><a class="btn btn--line" href="#/market">گزارش بازار شهرها</a></div>
+        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>از آستارا تا کلاله</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
         <div class="prov">${provinceColumns(st)}</div>
       </div>
     </section>
-    ${brokerSection()}
+    ${plansSection()}
     <section class="section" id="tools">
       <div class="wrap">
         <div class="sec-head"><div><span class="kicker">ابزارها</span><h2>پیش از تصمیم، حساب کن</h2></div></div>
@@ -151,59 +142,46 @@ const App = (() => {
       </div>
     </section>`;
 
-    const quick = { estate: ["ویلای ساحلی نوشهر", "آپارتمان ۲ خوابه رشت رهن", "ویلای جنگلی کلاردشت استخردار", "زمین سنددار لاهیجان", "اجاره روزانه رامسر"], car: ["پژو ۲۰۶ مدل ۹۸ به بالا", "دنا پلاس ساری", "ماشین اتوماتیک تا ۲ میلیارد", "خودروی زیر قیمت گرگان"] };
-    const drawQuick = () => { $("#heroQuick").innerHTML = quick[vertical].map((q) => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join(""); };
-    drawQuick();
-    $$(".vtab").forEach((b) => b.addEventListener("click", () => {
-      vertical = b.dataset.v;
-      $$(".vtab").forEach((x) => x.classList.toggle("is-on", x === b));
-      $("#heroDeals").style.visibility = vertical === "car" ? "hidden" : "visible";
-      $("#heroQ").placeholder = vertical === "car" ? "مثلاً: دنا پلاس مدل ۱۴۰۰ به بالا کارکرد زیر ۵۰ هزار در ساری" : "مثلاً: ویلای استخردار رامسر با دید دریا زیر ۲۰ میلیارد";
-      drawQuick();
-    }));
     $("#heroDeals").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; deal = b.dataset.d; $$("#heroDeals button").forEach((x) => x.classList.toggle("is-on", x === b)); });
     $("#heroQ").addEventListener("input", (e) => {
       const v = e.target.value.trim();
-      const { tags } = v.length > 2 ? NLP.parseQuery(v, { vertical }) : { tags: [] };
-      $("#heroParsed").innerHTML = tags.length ? `<span>برداشت دستیار:</span>${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join("")}` : "";
+      const { tags } = v.length > 2 ? NLP.parseQuery(v) : { tags: [] };
+      $("#heroParsed").innerHTML = tags.length ? `<span>برداشت:</span>${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join("")}` : "";
     });
     $("#heroForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const v = $("#heroQ").value.trim();
-      const base = { vertical, ...(deal && vertical === "estate" ? { deal } : {}) };
-      const f = v ? NLP.parseQuery(v, base).filters : base;
-      go("#/s?" + toQuery(f));
+      const f = v ? NLP.parseQuery(v, deal ? { deal } : {}).filters : (deal ? { deal } : {});
+      go("#/s?" + toQuery({ sort: "score", ...f }));
     });
     $("#heroQuick").addEventListener("click", (e) => { const c = e.target.closest("[data-q]"); if (c) { $("#heroQ").value = c.dataset.q; $("#heroForm").requestSubmit(); } });
 
-    // تابلوی زنده
-    const latest = (await DataLayer.search({ sort: "new", limit: 18 })).items;
+    const top = (await DataLayer.search({ sort: "score", ranked: 1, limit: 15 })).items;
     let off = 0;
     const drawBoard = () => {
       if (!$("#boardList")) return;
-      const rows = latest.slice(off, off + 5);
-      if (rows.length < 5) rows.push(...latest.slice(0, Math.min(latest.length, 5 - rows.length)));
-      $("#boardList").innerHTML = rows.map((l, i) => `<li><a class="board__row" style="animation-delay:${i * 60}ms" href="#/ad/${encodeURIComponent(l.id)}"><b>${UI.tt(l.title)}</b><span class="board__price">${esc(UI.pinLabel(l))}</span><span>${esc(l.city_name || UI.cityOf(l.city_key)?.name || "")}${l.district ? "، " + esc(l.district) : ""}</span><span style="text-align:left">${l.verdict ? DEAL_BANDS[l.verdict.band].name : ""}</span></a></li>`).join("");
-      off = (off + 5) % Math.max(5, latest.length);
+      const rows = top.slice(off, off + 5);
+      if (rows.length < 5) rows.push(...top.slice(0, Math.min(top.length, 5 - rows.length)));
+      $("#boardList").innerHTML = rows.length ? rows.map((l, i) => `<li><a class="board__row" style="animation-delay:${i * 60}ms" href="#/ad/${encodeURIComponent(l.id)}"><b>${UI.tt(l.title)}</b><span class="board__price">${l.score != null ? fa(Math.round(l.score)) + " امتیاز" : ""}</span><span>${esc(l.city_name || UI.cityOf(l.city_key)?.name || "")}${l.district ? "، " + esc(l.district) : ""} · ${esc(UI.pinLabel(l))}</span><span style="text-align:left">${l.verdict && l.verdict.delta < 0 ? pct(l.verdict.delta) + " زیر قیمت" : ""}</span></a></li>`).join("")
+        : `<li class="board__row"><span>با جمع شدن آگهی کافی، فرصت‌ها اینجا نمایش داده می‌شوند.</span></li>`;
+      off = (off + 5) % Math.max(5, top.length);
     };
     drawBoard();
-    if (latest.length > 5) boardTimer = setInterval(() => { if (!$("#boardList")) clearInterval(boardTimer); else if (!document.hidden) drawBoard(); }, 6000);
+    if (top.length > 5) boardTimer = setInterval(() => { if (!$("#boardList")) clearInterval(boardTimer); else if (!document.hidden) drawBoard(); }, 6000);
 
-    // رادار معامله
-    let fv = "estate", fs = "deal";
+    let fs = "score";
     const drawFeed = async () => {
       $("#feed").innerHTML = Array.from({ length: 4 }, () => '<div class="skeleton"></div>').join("");
-      const f = { vertical: fv, sort: fs, ...(fs === "drop" ? { drop: 1 } : {}), ...(fv === "estate" && fs === "deal" ? { deal: "sale" } : {}) };
+      const f = { sort: fs, ...(fs === "drop" ? { drop: 1 } : {}), ...(fs === "score" || fs === "deal" ? { ranked: 1 } : {}) };
       const r = await DataLayer.search({ ...f, limit: 8 });
       if (!$("#feed")) return;
       $("#feed").innerHTML = r.items.length ? r.items.map((l) => UI.card(l)).join("") : `<div class="empty" style="grid-column:1/-1"><h3>فعلاً موردی نیست</h3><p>با دریافت آگهی‌های بیشتر این بخش پر می‌شود.</p></div>`;
       $("#feedMore").href = "#/s?" + toQuery(f);
     };
-    $("#feedV").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fv = b.dataset.v; $$("#feedV button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
     bindTools();
-    $$("[data-lead]").forEach((b) => b.addEventListener("click", () => leadDialog(b.dataset.lead)));
+    bindPlans();
   }
 
   function heroArt() {
@@ -223,44 +201,118 @@ const App = (() => {
       const cs = CITIES.filter((c) => c.province === p.id).map((c) => ({ c, s: (st.cities || {})[c.id] || { n: 0 } })).sort((a, b) => b.s.n - a.s.n);
       const total = cs.reduce((a, x) => a + x.s.n, 0);
       return `<div class="prov__col"><h3>${p.name}<small>${fa(total)} آگهی</small></h3>${cs.slice(0, 8).map(({ c, s }) => {
-        const ppm = s.ppm && (s.ppm.villa || s.ppm.apartment);
-        return `<a class="city-row" href="#/s?city=${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? ` · میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
+        const ppm = s.ppm && (s.ppm.apartment || s.ppm.villa);
+        return `<a class="city-row" href="#/market?city=${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? ` · میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
       }).join("")}${cs.length > 8 ? `<a class="btn btn--ghost btn--sm" href="#/market" style="margin-top:8px">${fa(cs.length - 8)} شهر دیگر</a>` : ""}</div>`;
     }).join("");
   }
 
-  function brokerSection() {
-    const s = cfg.site;
+  function methodTeaser() {
     return `<section class="section section--ink">
       <div class="wrap broker">
         <div>
-          <span class="kicker">معامله با مشاور</span>
-          <h2>آگهی را پیدا کن؛ بازدید، استعلام و قرارداد با ما.</h2>
-          <p>${esc(s.about || "آگهی‌های شمال را گردآوری می‌کنیم و قیمت هرکدام را با بازار می‌سنجیم. برای هر آگهی که پسندیدی، بازدید را هماهنگ و مدارک را پیش از قرارداد بررسی می‌کنیم.")}</p>
-          <div class="broker__cta">
-            ${s.phone ? `<a class="btn btn--hot btn--lg" href="tel:${esc(tel(s.phone))}">${icon("phone")} <bdi dir="ltr">${esc(s.phone)}</bdi></a>` : ""}
-            ${s.whatsapp || s.phone ? `<a class="btn btn--line btn--lg" href="${waLink("سلام، برای مشاوره پیام می‌دهم.")}" target="_blank" rel="noopener">${icon("chat")} واتس‌اپ</a>` : ""}
-            <button class="btn ${s.phone ? "btn--line" : "btn--hot"} btn--lg" data-lead="advice">درخواست تماس مشاور</button>
-          </div>
+          <span class="kicker">روش کار</span>
+          <h2>قیمت منصفانه را از داده می‌سازیم، نه از حدس.</h2>
+          <p>هیچ انسانی آگهی‌ها را دستی امتیاز نمی‌دهد. همه مراحل خودکار و با قاعده‌های ثابت انجام می‌شود و برای هر آگهی دلیل امتیازش را نشان می‌دهیم.</p>
+          <div class="broker__cta"><a class="btn btn--hot btn--lg" href="#/method">جزئیات روش ارزش‌گذاری</a><a class="btn btn--line btn--lg" href="#/account">خرید اشتراک</a></div>
         </div>
         <ol class="steps">
-          <li><div><b>جست‌وجو و مقایسه</b><span>به فارسی بنویس چه می‌خواهی؛ رتبه قیمت هر آگهی کنارش است.</span></div></li>
-          <li><div><b>درخواست بازدید</b><span>از صفحه هر آگهی وقت بگیر؛ هماهنگی با فروشنده با ماست.</span></div></li>
-          <li><div><b>استعلام و کارشناسی</b><span>سند، کد رهگیری و وضعیت حقوقی ملک، یا خلافی و کارشناسی خودرو پیش از پرداخت.</span></div></li>
-          <li><div><b>قرارداد و تحویل</b><span>تنظیم قرارداد و همراهی تا پایان کار.</span></div></li>
+          <li><div><b>گردآوری پیوسته</b><span>آگهی‌های ملک ${fa(CITIES.length)} شهر به‌تدریج و شبانه‌روزی از دیوار دریافت و تغییر قیمت‌ها ثبت می‌شود.</span></div></li>
+          <li><div><b>پاک‌سازی</b><span>قیمت نمادین، اشتباه صفر، پیش‌فروش، مشارکت، فروش دانگی، آگهی تکراری و قیمت‌های پرت آماری کنار گذاشته می‌شوند.</span></div></li>
+          <li><div><b>قیمت منصفانه چندمعیاره</b><span>میانه قیمت هر متر محله، تعدیل‌شده با سن بنا، طبقه، متراژ، آسانسور، پارکینگ، انباری، سند، دید دریا و ده‌ها ویژگی دیگر.</span></div></li>
+          <li><div><b>امتیاز و رتبه</b><span>فاصله تا قیمت منصفانه، اطمینان برآورد، کیفیت آگهی و تحولات قیمت، در یک امتیاز ۰ تا ۱۰۰.</span></div></li>
         </ol>
       </div>
     </section>`;
   }
 
+  function plansSection() {
+    const plans = cfg.plans || [];
+    const free = cfg.free_preview || 0;
+    return `<section class="section" id="plans">
+      <div class="wrap">
+        <div class="sec-head"><div><span class="kicker">اشتراک</span><h2>دسترسی کامل به فرصت‌ها</h2><p>همه می‌توانند امتیاز و رتبه آگهی‌ها را ببینند. با اشتراک، جزئیات کامل ارزش‌گذاری و پیوند مستقیم آگهی در دیوار باز می‌شود.</p></div></div>
+        <div class="plans">
+          <div class="plan"><h3>رایگان</h3><b class="plan__price">۰</b><ul class="check-list">
+            <li>فهرست آگهی‌ها با امتیاز و رتبه</li><li>درصد زیر یا بالای قیمت منصفانه</li><li>بازار محله‌ها و ابزارهای محاسبه</li>${free ? `<li>${fa(free)} فرصت برتر با جزئیات کامل</li>` : ""}
+          </ul></div>
+          ${plans.length ? plans.map((p, i) => `<div class="plan ${i === plans.length - 1 ? "plan--hot" : ""}"><h3>${esc(p.name)}</h3><b class="plan__price">${fa(p.price)} <small>تومان / ${fa(p.days)} روز</small></b><ul class="check-list">
+            <li>پیوند مستقیم هر آگهی در دیوار</li><li>قیمت منصفانه دقیق و اثر هر ویژگی</li><li>همه فرصت‌ها بدون محدودیت</li><li>فعال‌سازی خودکار پس از پرداخت</li>
+          </ul><button class="btn ${i === plans.length - 1 ? "btn--hot" : "btn--ink"} btn--block" data-buy="${p.id}">خرید اشتراک ${esc(p.name)}</button></div>`).join("")
+          : `<div class="plan plan--hot"><h3>اشتراک</h3><b class="plan__price">به‌زودی</b><p class="muted">تعرفه اشتراک هنوز تعیین نشده است.</p></div>`}
+        </div>
+      </div>
+    </section>`;
+  }
+  function bindPlans() { $$("[data-buy]").forEach((b) => b.addEventListener("click", () => buy(b.dataset.buy))); }
+  async function buy(plan) {
+    if (!DataLayer.me) { loginDialog(() => buy(plan)); return; }
+    if (!cfg.payable) { toast("پرداخت آنلاین هنوز فعال نشده است"); return; }
+    try {
+      const r = await DataLayer.startPayment(plan);
+      if (r.redirect) { location.href = r.redirect; return; }
+      if (r.activated) { await DataLayer.refreshMe(); updateAccount(); toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); }
+    } catch (err) { toast(err.message); }
+  }
+
+  /* ---------- ورود با کد پیامکی ---------- */
+  function loginDialog(after) {
+    openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی برایتان پیامک می‌شود. ثبت‌نام همزمان انجام می‌شود.</p>
+      <form class="form-grid" id="otpForm">
+        <label class="field"><span>شماره موبایل</span><input class="input input--ltr" id="otpPhone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required autocomplete="tel"></label>
+        <div id="otpStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="otpCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="otpNote" style="margin-top:6px"></p></div>
+        <button class="btn btn--hot btn--lg" type="submit" id="otpBtn">دریافت کد</button>
+      </form>`);
+    let sent = false;
+    $("#otpForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("#otpBtn"); btn.disabled = true;
+      try {
+        if (!sent) {
+          const r = await DataLayer.requestOtp($("#otpPhone").value);
+          sent = true;
+          $("#otpStep2").hidden = false; $("#otpPhone").readOnly = true;
+          $("#otpNote").innerHTML = r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>` : "کد تا ۳ دقیقه معتبر است.";
+          btn.textContent = "ورود"; $("#otpCode").focus();
+        } else {
+          await DataLayer.verifyOtp($("#otpPhone").value, $("#otpCode").value);
+          $("#dlg").close(); updateAccount(); toast("وارد شدید");
+          if (after) after(); else route();
+        }
+      } catch (err) { toast(err.message); }
+      btn.disabled = false;
+    });
+  }
+
+  /* ---------- حساب کاربری ---------- */
+  async function accountPage(params) {
+    if (DataLayer.server) await DataLayer.refreshMe().catch(() => {});
+    updateAccount();
+    const me = DataLayer.me;
+    view().innerHTML = `<section class="section--tight"><div class="wrap">
+      ${params.paid ? `<div class="note-ok">پرداخت موفق بود و اشتراک شما فعال شد.</div>` : params.failed ? `<div class="note-bad">پرداخت تکمیل نشد. اگر مبلغی کسر شده باشد، طبق قوانین درگاه ظرف ۷۲ ساعت بازمی‌گردد.</div>` : ""}
+      <div class="sec-head"><div><span class="kicker">حساب من</span><h2>${me ? "اشتراک و حساب کاربری" : "ورود و اشتراک"}</h2></div></div>
+      ${me ? `<div class="account">
+          <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
+          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `فعال · ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
+          ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
+          <button class="btn btn--line" id="logoutBtn">خروج</button>
+        </div>` : `<div class="empty"><h3>با شماره موبایل وارد شوید</h3><p>ثبت‌نام و ورود با یک کد پیامکی انجام می‌شود.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button></div>`}
+    </div></section>${plansSection()}`;
+    $("#loginBtn")?.addEventListener("click", () => loginDialog());
+    $("#logoutBtn")?.addEventListener("click", async () => { await DataLayer.logout(); updateAccount(); route(); });
+    bindPlans();
+  }
+
   /* ---------- ابزارها ---------- */
   function toolsHTML() {
-    const cityOpts = PROVINCES.map((p) => `<optgroup label="${p.name}">${CITIES.filter((c) => c.province === p.id).map((c) => `<option value="${c.id}" ${c.id === "ramsar" ? "selected" : ""}>${c.name}</option>`).join("")}</optgroup>`).join("");
+    const cityOpts = PROVINCES.map((p) => `<optgroup label="${p.name}">${CITIES.filter((c) => c.province === p.id).map((c) => `<option value="${c.id}" ${c.id === "rasht" ? "selected" : ""}>${c.name}</option>`).join("")}</optgroup>`).join("");
     return `
-      <div class="tool"><h3>تخمین ارزش ملک</h3><p>میانه قیمت هر متر آگهی‌های فروش مشابه</p>
+      <div class="tool"><h3>تخمین ارزش ملک</h3><p>میانه قیمت منصفانه هر متر آگهی‌های فروش مشابه</p>
         <div class="row2"><label class="field"><span>شهر</span><select class="select" id="vCity">${cityOpts}</select></label>
-        <label class="field"><span>نوع</span><select class="select" id="vKind">${PROPERTY_TYPES.map((t) => `<option value="${t.id}" ${t.id === "villa" ? "selected" : ""}>${t.name}</option>`).join("")}</select></label></div>
-        <label class="field"><span>متراژ (متر مربع)</span><input class="input" id="vArea" inputmode="numeric" value="200"></label>
+        <label class="field"><span>نوع</span><select class="select" id="vKind">${PROPERTY_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join("")}</select></label></div>
+        <label class="field"><span>متراژ (متر مربع)</span><input class="input" id="vArea" inputmode="numeric" value="120"></label>
         <div class="tool__out" id="vOut"></div></div>
       <div class="tool"><h3>اقساط وام</h3><p>روش استهلاک یکنواخت (قسط ثابت ماهانه)</p>
         <label class="field"><span>مبلغ وام (تومان)</span><input class="input input--ltr" id="lAmt" inputmode="numeric" value="1,000,000,000"></label>
@@ -273,21 +325,20 @@ const App = (() => {
         <label class="field"><span>نرخ تبدیل ماهانه ٪</span><input class="input" id="cRate" inputmode="decimal" value="3"></label>
         <div class="tool__out" id="cOut"></div></div>`;
   }
-  const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : 0; };
   function bindTools() {
     const val = async () => {
       const city = $("#vCity").value, kind = $("#vKind").value, area = num($("#vArea").value);
-      let r = await DataLayer.search({ vertical: "estate", deal: "sale", city, kinds: kind, limit: 60 });
-      let pool = r.items.map((l) => l.ppm).filter(Boolean), basis = `${fa(pool.length)} آگهی در ${UI.cityOf(city).name}`;
+      let r = await DataLayer.search({ deal: "sale", city, kinds: kind, limit: 60, ranked: 1 });
+      let pool = r.items.map((l) => l.fair_ppm).filter(Boolean), basis = `${fa(pool.length)} آگهی در ${UI.cityOf(city).name}`;
       if (pool.length < 3) {
         const prov = UI.cityOf(city).province;
-        r = await DataLayer.search({ vertical: "estate", deal: "sale", province: prov, kinds: kind, limit: 60 });
-        pool = r.items.map((l) => l.ppm).filter(Boolean);
+        r = await DataLayer.search({ deal: "sale", province: prov, kinds: kind, limit: 60, ranked: 1 });
+        pool = r.items.map((l) => l.fair_ppm).filter(Boolean);
         basis = `داده شهر کافی نبود؛ ${fa(pool.length)} آگهی در استان ${UI.provOf(prov).name}`;
       }
       const m = median(pool);
       if (!$("#vOut")) return;
-      $("#vOut").innerHTML = m && area ? `<b>${money(m * area * 0.9)} تا ${money(m * area * 1.1)}</b><span>میانه هر متر ${money(m)} · مبنا: ${basis}${DataLayer.samples ? " (داده نمونه)" : ""}</span>` : `<span>برای این ترکیب هنوز آگهی فروش کافی نیست.</span>`;
+      $("#vOut").innerHTML = m && area && pool.length >= 3 ? `<b>${money(m * area * 0.9)} تا ${money(m * area * 1.1)}</b><span>میانه هر متر ${money(m)} · مبنا: ${basis}${DataLayer.samples ? " (داده نمونه)" : ""}</span>` : `<span>برای این ترکیب هنوز آگهی فروش کافی نیست.</span>`;
     };
     const loan = () => {
       const P = num($("#lAmt").value), r = num($("#lRate").value) / 1200, n = num($("#lYears").value) * 12;
@@ -311,7 +362,7 @@ const App = (() => {
   const searchPage = (() => {
     let F = {}, page = 0, viewMode = store.get("view", "split"), lastPoints = [], reqId = 0;
     const PER = 24;
-    const isCar = () => F.vertical === "car";
+    let districts = [];
 
     function render(params) {
       view().innerHTML = `
@@ -345,7 +396,7 @@ const App = (() => {
         e.preventDefault();
         const v = $("#sqInput").value.trim();
         if (!v) return;
-        set(NLP.parseQuery(v, { vertical: F.vertical }).filters, true);
+        set({ sort: F.sort, ...NLP.parseQuery(v).filters }, true);
         $("#sqInput").value = "";
       });
       $("#sort").addEventListener("change", (e) => set({ sort: e.target.value }));
@@ -360,15 +411,11 @@ const App = (() => {
         const b = e.target.closest("[data-rm]"); if (!b) return;
         const [k, v] = b.dataset.rm.split(":");
         if (v) set({ [k]: F[k].split(",").filter((x) => x !== v).join(",") });
-        else set(k === "province" ? { province: "", city: "" } : { [k]: "" });
+        else set(k === "province" ? { province: "", city: "", district: "" } : k === "city" ? { city: "", district: "" } : { [k]: "" });
       });
       update(params);
     }
-    function set(patch, replace = false) {
-      F = replace ? { ...patch } : { ...F, ...patch };
-      if (F.vertical === "car") { ["kinds", "amenities", "rooms", "areaMin", "areaMax"].forEach((k) => { if (k !== "kinds" || F.kinds !== "motorcycle") delete F[k]; }); if (F.deal !== "sale") delete F.deal; }
-      go("#/s?" + toQuery(F));
-    }
+    function set(patch, replace = false) { F = replace ? { ...patch } : { ...F, ...patch }; go("#/s?" + toQuery(F)); }
     function applyView() {
       $("#split").className = "split is-" + viewMode;
       $$("#viewSeg button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === viewMode));
@@ -376,44 +423,41 @@ const App = (() => {
     }
     function titleOf() {
       const c = UI.cityOf(F.city), p = UI.provOf(F.province);
-      const where = c ? `در ${c.name}` : p ? `در استان ${p.name}` : "در شمال";
-      if (isCar()) return `${F.brand || (F.kinds === "motorcycle" ? "موتورسیکلت" : "خودرو")} ${where}`;
+      const where = F.district ? `در ${F.district}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : "در شمال";
       const kinds = (F.kinds || "").split(",").filter(Boolean).map(UI.kindName).join(" و ") || "ملک";
-      return `${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
+      return `${F.ranked ? "فرصت‌های " : ""}${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
+    }
+
+    async function loadDistricts() {
+      districts = [];
+      if (!F.city) return;
+      const r = await DataLayer.market(F.city);
+      const agg = {};
+      r.rows.forEach((x) => { if (x.district) agg[x.district] = (agg[x.district] || 0) + x.n; });
+      districts = Object.entries(agg).sort((a, b) => b[1] - a[1]).map(([d, n]) => ({ d, n }));
     }
 
     function dropdowns() {
-      const cityLabel = UI.cityOf(F.city)?.name || (F.province ? "استان " + UI.provOf(F.province).name : "همه شهرها");
+      const cityLabel = F.district || UI.cityOf(F.city)?.name || (F.province ? "استان " + UI.provOf(F.province).name : "همه شهرها");
       const priceSet = F.min || F.max;
       const priceLabel = priceSet ? [F.min && "از " + money(+F.min), F.max && "تا " + money(+F.max)].filter(Boolean).join(" ") : "قیمت";
       const kinds = (F.kinds || "").split(",").filter(Boolean);
       const am = (F.amenities || "").split(",").filter(Boolean);
       const dd = (id, label, on, body) => `<div class="dd" data-dd="${id}"><button type="button" class="${on ? "is-set" : ""}">${esc(label)}</button><div class="dd__panel">${body}<div class="dd__foot"><button type="button" class="btn btn--ghost btn--sm" data-clear="${id}">پاک کردن</button><button type="button" class="btn btn--ink btn--sm" data-apply="${id}">اعمال</button></div></div></div>`;
-      let html = `<div class="seg" id="vSeg"><button class="${!isCar() ? "is-on" : ""}" data-v="estate">املاک</button><button class="${isCar() ? "is-on" : ""}" data-v="car">خودرو</button></div>`;
-      html += dd("city", cityLabel, F.city || F.province, `<div class="dd__label">استان</div><div class="dd__grid">${PROVINCES.map((p) => `<button type="button" class="chip ${F.province === p.id && !F.city ? "is-on" : ""}" data-prov="${p.id}">${p.name}</button>`).join("")}</div>
-        <div class="dd__label">شهر</div><select class="select" id="ddCity"><option value="">همه شهرها</option>${PROVINCES.map((p) => `<optgroup label="${p.name}">${CITIES.filter((c) => c.province === p.id).map((c) => `<option value="${c.id}" ${F.city === c.id ? "selected" : ""}>${c.name}</option>`).join("")}</optgroup>`).join("")}</select>`);
-      if (!isCar()) {
-        html += dd("deal", F.deal ? UI.dealName(F.deal) : "نوع معامله", F.deal, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>`);
-        html += dd("kinds", kinds.length ? kinds.map(UI.kindName).join("، ") : "نوع ملک", kinds.length, `<div class="dd__grid">${PROPERTY_TYPES.map((t) => `<button type="button" class="chip ${kinds.includes(t.id) ? "is-on" : ""}" data-toggle="kinds" data-val="${t.id}">${t.name}</button>`).join("")}</div>`);
-      } else {
-        html += dd("car", [F.brand, F.yearMin && "از " + faY(F.yearMin), F.gearbox].filter(Boolean).join("، ") || "برند و مدل", F.brand || F.yearMin || F.yearMax || F.gearbox || F.mileageMax,
-          `<div class="dd__label">برند</div><input class="input" id="ddBrand" list="brandList" value="${esc(F.brand || "")}" placeholder="مثلاً پژو ۲۰۶"><datalist id="brandList">${CAR_BRANDS.map((b) => `<option value="${b}">`).join("")}</datalist>
-          <div class="dd__label">سال تولید</div><div class="range"><input class="input" id="ddYMin" inputmode="numeric" placeholder="از ۱۳۹۰" value="${F.yearMin ? faY(F.yearMin) : ""}"><input class="input" id="ddYMax" inputmode="numeric" placeholder="تا ۱۴۰۴" value="${F.yearMax ? faY(F.yearMax) : ""}"></div>
-          <div class="dd__label">حداکثر کارکرد (کیلومتر)</div><input class="input input--ltr" id="ddKm" inputmode="numeric" value="${F.mileageMax ? (+F.mileageMax).toLocaleString("en-US") : ""}">
-          <div class="dd__label">گیربکس</div><div class="dd__grid">${["", "دنده‌ای", "اتوماتیک"].map((g) => `<button type="button" class="chip ${(F.gearbox || "") === g ? "is-on" : ""}" data-pick="gearbox" data-val="${g}">${g || "همه"}</button>`).join("")}</div>`);
-      }
+      let html = dd("city", cityLabel, F.city || F.province, `<div class="dd__label">استان</div><div class="dd__grid">${PROVINCES.map((p) => `<button type="button" class="chip ${F.province === p.id && !F.city ? "is-on" : ""}" data-prov="${p.id}">${p.name}</button>`).join("")}</div>
+        <div class="dd__label">شهر</div><select class="select" id="ddCity"><option value="">همه شهرها</option>${PROVINCES.map((p) => `<optgroup label="${p.name}">${CITIES.filter((c) => c.province === p.id).map((c) => `<option value="${c.id}" ${F.city === c.id ? "selected" : ""}>${c.name}</option>`).join("")}</optgroup>`).join("")}</select>
+        ${F.city && districts.length ? `<div class="dd__label">محله</div><select class="select" id="ddDist"><option value="">همه محله‌ها</option>${districts.map((x) => `<option value="${esc(x.d)}" ${F.district === x.d ? "selected" : ""}>${esc(x.d)} (${fa(x.n)})</option>`).join("")}</select>` : ""}`);
+      html += dd("deal", F.deal ? UI.dealName(F.deal) : "نوع معامله", F.deal, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>`);
+      html += dd("kinds", kinds.length ? kinds.map(UI.kindName).join("، ") : "نوع ملک", kinds.length, `<div class="dd__grid">${PROPERTY_TYPES.map((t) => `<button type="button" class="chip ${kinds.includes(t.id) ? "is-on" : ""}" data-toggle="kinds" data-val="${t.id}">${t.name}</button>`).join("")}</div>`);
       html += dd("price", priceLabel, priceSet, `<div class="dd__label">${F.deal === "rent" ? "ودیعه معادل (ودیعه + اجاره ÷ ۳٪)" : F.deal === "daily" ? "اجاره هر شب" : "قیمت کل"} به تومان</div><div class="range"><input class="input" id="ddMin" placeholder="از" value="${F.min ? money(+F.min) : ""}"><input class="input" id="ddMax" placeholder="تا" value="${F.max ? money(+F.max) : ""}"></div><p class="small muted" style="margin-top:8px">عدد یا عبارت بنویسید: «۲ میلیارد»، «۸۰۰ میلیون».</p>`);
-      if (!isCar()) {
-        const moreOn = am.length || F.rooms || F.areaMin || F.areaMax;
-        html += dd("more", "متراژ و امکانات", moreOn,
-          `<div class="dd__label">متراژ (متر مربع)</div><div class="range"><input class="input" id="ddAMin" inputmode="numeric" placeholder="از" value="${F.areaMin || ""}"><input class="input" id="ddAMax" inputmode="numeric" placeholder="تا" value="${F.areaMax || ""}"></div>
-          <div class="dd__label">اتاق خواب</div><div class="dd__grid">${[0, 1, 2, 3, 4].map((r) => `<button type="button" class="chip ${(+F.rooms || 0) === r ? "is-on" : ""}" data-pick="rooms" data-val="${r || ""}">${r ? fa(r) + (r === 4 ? "+" : "") : "همه"}</button>`).join("")}</div>
-          <div class="dd__label">امکانات</div><div class="dd__grid">${AMENITIES.map((a) => `<button type="button" class="chip ${am.includes(a.id) ? "is-on" : ""}" data-toggle="amenities" data-val="${a.id}">${a.name}</button>`).join("")}</div>`);
-      }
-      html += `<button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button>`;
+      const moreOn = am.length || F.rooms || F.areaMin || F.areaMax;
+      html += dd("more", "متراژ و امکانات", moreOn,
+        `<div class="dd__label">متراژ (متر مربع)</div><div class="range"><input class="input" id="ddAMin" inputmode="numeric" placeholder="از" value="${F.areaMin || ""}"><input class="input" id="ddAMax" inputmode="numeric" placeholder="تا" value="${F.areaMax || ""}"></div>
+        <div class="dd__label">اتاق خواب</div><div class="dd__grid">${[0, 1, 2, 3, 4].map((r) => `<button type="button" class="chip ${(+F.rooms || 0) === r ? "is-on" : ""}" data-pick="rooms" data-val="${r || ""}">${r ? fa(r) + (r === 4 ? "+" : "") : "همه"}</button>`).join("")}</div>
+        <div class="dd__label">امکانات</div><div class="dd__grid">${AMENITIES.map((a) => `<button type="button" class="chip ${am.includes(a.id) ? "is-on" : ""}" data-toggle="amenities" data-val="${a.id}">${a.name}</button>`).join("")}</div>`);
+      html += `<button type="button" class="chip ${F.ranked ? "is-on" : ""}" id="rankChip">فقط دارای امتیاز</button><button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button>`;
       $("#dds").innerHTML = html;
-
-      $("#vSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && b.dataset.v !== F.vertical) set({ vertical: b.dataset.v, city: F.city, province: F.province }, true); });
+      $("#rankChip").addEventListener("click", () => set({ ranked: F.ranked ? "" : 1 }));
       $("#dropChip").addEventListener("click", () => set({ drop: F.drop ? "" : 1 }));
       $$(".dd").forEach((d) => {
         d.firstElementChild.addEventListener("click", (e) => { e.stopPropagation(); const open = d.classList.contains("is-open"); $$(".dd.is-open").forEach((x) => x.classList.remove("is-open")); d.classList.toggle("is-open", !open); });
@@ -422,7 +466,7 @@ const App = (() => {
         panel.addEventListener("click", (e) => {
           e.stopPropagation();
           const t = e.target.closest("button"); if (!t) return;
-          if (t.dataset.prov) { set({ province: t.dataset.prov, city: "" }); return; }
+          if (t.dataset.prov) { set({ province: t.dataset.prov, city: "", district: "" }); return; }
           if (t.dataset.pick) {
             $$(`[data-pick="${t.dataset.pick}"]`, panel).forEach((x) => x.classList.toggle("is-on", x === t));
             pending[t.dataset.pick] = t.dataset.val;
@@ -431,24 +475,26 @@ const App = (() => {
           }
           if (t.dataset.toggle) { t.classList.toggle("is-on"); return; }
           if (t.dataset.clear) {
-            set({ city: { city: "", province: "" }, deal: { deal: "" }, kinds: { kinds: "" }, price: { min: "", max: "" }, more: { areaMin: "", areaMax: "", rooms: "", amenities: "" }, car: { brand: "", yearMin: "", yearMax: "", mileageMax: "", gearbox: "" } }[t.dataset.clear]);
+            set({ city: { city: "", province: "", district: "" }, deal: { deal: "" }, kinds: { kinds: "" }, price: { min: "", max: "" }, more: { areaMin: "", areaMax: "", rooms: "", amenities: "" } }[t.dataset.clear]);
             return;
           }
           if (t.dataset.apply) {
             const id = t.dataset.apply, p = { ...pending };
             const toggles = (k) => $$(`[data-toggle="${k}"].is-on`, panel).map((x) => x.dataset.val).join(",");
-            if (id === "city") { const c = UI.cityOf($("#ddCity").value); Object.assign(p, c ? { city: c.id, province: c.province } : { city: "" }); }
+            if (id === "city") {
+              const c = UI.cityOf($("#ddCity").value);
+              Object.assign(p, c ? { city: c.id, province: c.province } : { city: "" });
+              p.district = c && c.id === F.city && $("#ddDist") ? $("#ddDist").value : "";
+            }
             if (id === "kinds") p.kinds = toggles("kinds");
             if (id === "price") { p.min = moneyIn($("#ddMin").value); p.max = moneyIn($("#ddMax").value); }
             if (id === "more") { p.areaMin = num($("#ddAMin").value) || ""; p.areaMax = num($("#ddAMax").value) || ""; p.amenities = toggles("amenities"); }
-            if (id === "car") { p.brand = $("#ddBrand").value.trim(); p.yearMin = yearIn($("#ddYMin").value); p.yearMax = yearIn($("#ddYMax").value); p.mileageMax = num($("#ddKm").value) || ""; }
             set(p);
           }
         });
-        panel.addEventListener("change", (e) => { if (e.target.id === "ddCity") panel.querySelector("[data-apply]").click(); });
+        panel.addEventListener("change", (e) => { if (e.target.id === "ddCity" || e.target.id === "ddDist") panel.querySelector("[data-apply]").click(); });
       });
     }
-    const yearIn = (v) => { let y = num(v); if (y && y < 100) y += 1300; return y || ""; };
     function moneyIn(v) {
       const t = NLP.normalize(v || "");
       if (!t) return "";
@@ -456,36 +502,31 @@ const App = (() => {
       if (isNaN(n)) return "";
       return /میلیارد/.test(t) ? n * 1e9 : /میلیون/.test(t) ? n * 1e6 : n;
     }
-
     function activeTags() {
       const t = [];
       if (F.city) t.push(["city", UI.cityOf(F.city)?.name]); else if (F.province) t.push(["province", "استان " + UI.provOf(F.province)?.name]);
-      if (F.deal && !isCar()) t.push(["deal", UI.dealName(F.deal)]);
+      if (F.district) t.push(["district", F.district]);
+      if (F.deal) t.push(["deal", UI.dealName(F.deal)]);
       (F.kinds || "").split(",").filter(Boolean).forEach((k) => t.push(["kinds:" + k, UI.kindName(k)]));
-      if (F.brand) t.push(["brand", F.brand]);
-      if (F.yearMin) t.push(["yearMin", "از مدل " + faY(F.yearMin)]);
-      if (F.yearMax) t.push(["yearMax", "تا مدل " + faY(F.yearMax)]);
-      if (F.mileageMax) t.push(["mileageMax", "کارکرد تا " + fa(F.mileageMax)]);
-      if (F.gearbox) t.push(["gearbox", F.gearbox]);
       if (F.min) t.push(["min", "از " + money(+F.min)]);
       if (F.max) t.push(["max", "تا " + money(+F.max)]);
       if (F.areaMin) t.push(["areaMin", "از " + fa(F.areaMin) + " متر"]);
       if (F.areaMax) t.push(["areaMax", "تا " + fa(F.areaMax) + " متر"]);
       if (F.rooms) t.push(["rooms", fa(F.rooms) + " خواب"]);
       (F.amenities || "").split(",").filter(Boolean).forEach((a) => t.push(["amenities:" + a, AMENITIES.find((x) => x.id === a)?.name || a]));
-      if (F.q) t.push(["q", "«" + F.q + "»"]);
+      if (F.ranked) t.push(["ranked", "دارای امتیاز"]);
       if (F.drop) t.push(["drop", "کاهش قیمت"]);
       $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} <i>✕</i></button>`).join("");
     }
 
     async function update(params) {
+      const cityChanged = params.city !== F.city;
       F = { ...params };
       page = +F.page || 0; delete F.page;
-      if (!F.vertical) F.vertical = "estate";
+      if (cityChanged) await loadDistricts();
       dropdowns(); activeTags(); applyView();
-      const sorts = isCar() ? [["new", "جدیدترین"], ["deal", "بهترین معامله"], ["cheap", "ارزان‌ترین"], ["exp", "گران‌ترین"], ["drop", "بیشترین کاهش"]]
-        : [["new", "جدیدترین"], ["deal", "بهترین معامله"], ["cheap", "ارزان‌ترین"], ["exp", "گران‌ترین"], ["ppm", "ارزان‌ترین هر متر"], ["area", "بزرگ‌ترین"], ["drop", "بیشترین کاهش"]];
-      $("#sort").innerHTML = sorts.map(([v, n]) => `<option value="${v}" ${(F.sort || "new") === v ? "selected" : ""}>${n}</option>`).join("");
+      const sorts = [["score", "بیشترین امتیاز"], ["deal", "بیشترین تخفیف"], ["new", "جدیدترین"], ["cheap", "ارزان‌ترین"], ["exp", "گران‌ترین"], ["ppm", "ارزان‌ترین هر متر"], ["area", "بزرگ‌ترین"], ["drop", "بیشترین کاهش"]];
+      $("#sort").innerHTML = sorts.map(([v, n]) => `<option value="${v}" ${(F.sort || "score") === v ? "selected" : ""}>${n}</option>`).join("");
       $("#grid").innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton"></div>').join("");
       const id = ++reqId;
       const r = await DataLayer.search({ ...F, limit: PER, offset: page * PER });
@@ -493,20 +534,17 @@ const App = (() => {
       $("#sTitle").innerHTML = `${esc(titleOf())}<small>${fa(r.total)} آگهی</small>`;
       document.title = `${titleOf()} | ${cfg.site.name}`;
       $("#grid").innerHTML = r.items.length ? r.items.map((l) => UI.card(l)).join("")
-        : `<div class="empty" style="grid-column:1/-1">${icon("search")}<h3>آگهی‌ای با این مشخصات نیست</h3><p>چند فیلتر را بردارید یا از دستیار بخواهید گزینه نزدیک پیدا کند.</p><a class="btn btn--ink" href="#/s?vertical=${F.vertical}">نمایش همه</a></div>`;
+        : `<div class="empty" style="grid-column:1/-1">${icon("search")}<h3>آگهی‌ای با این مشخصات نیست</h3><p>چند فیلتر را بردارید یا از دستیار بخواهید گزینه نزدیک پیدا کند.</p><a class="btn btn--ink" href="#/s?sort=score">نمایش همه</a></div>`;
       if (!r.items.length) relaxHints(id);
       const pages = Math.ceil(r.total / PER);
       $("#pager").innerHTML = pages > 1 ? `${page > 0 ? `<a class="btn btn--line" href="#/s?${toQuery({ ...F, page: page - 1 })}">قبلی</a>` : ""}<span class="btn btn--ghost">صفحه ${fa(page + 1)} از ${fa(pages)}</span>${page < pages - 1 ? `<a class="btn btn--line" href="#/s?${toQuery({ ...F, page: page + 1 })}">بعدی</a>` : ""}` : "";
       lastPoints = r.points;
       drawMap(r.points, true);
     }
-
-    // پیشنهاد حذف یک قید با نمایش تعداد نتیجه هرکدام (به سبک Zillow)
     async function relaxHints(id) {
-      const keys = ["amenities", "rooms", "areaMin", "areaMax", "kinds", "max", "min", "yearMin", "yearMax", "mileageMax", "gearbox", "brand", "deal", "drop", "city"].filter((k) => F[k]);
-      const names = { amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", yearMin: "هر سال تولید", yearMax: "هر سال تولید", mileageMax: "هر کارکرد", gearbox: "هر گیربکس", brand: "همه برندها", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", city: "کل استان" };
+      const names = { amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
       const opts = [];
-      for (const k of keys) {
+      for (const k of Object.keys(names).filter((k) => F[k])) {
         const f = { ...F }; delete f[k];
         const r = await DataLayer.search({ ...f, limit: 1 });
         if (r.total) opts.push([k, r.total]);
@@ -516,14 +554,18 @@ const App = (() => {
       box.querySelector("p").insertAdjacentHTML("afterend", `<div class="relax">${opts.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, n]) => `<button class="chip" data-relax="${k}">${names[k]} <b>${fa(n)}</b></button>`).join("")}</div>`);
       $$("[data-relax]", box).forEach((b) => b.addEventListener("click", () => set({ [b.dataset.relax]: "" })));
     }
-
     function drawMap(points, fit) {
       const map = state.map; if (!map) return;
       state.layer.clearLayers(); state.markers = {};
       const z = map.getZoom(), single = F.city && points.every((p) => p.city_key === F.city);
       const level = single || z >= 10 ? "pin" : z < 8 && !F.province ? "province" : "city";
+      const dense = level === "pin" && points.length > 40;
       const pin = (p) => {
-        const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin--${p.vertical === "car" ? "car" : p.deal}">${esc(UI.pinLabel(p))}</span>`, iconSize: null }) }).addTo(state.layer);
+        const label = p.score != null ? `${fa(Math.round(p.score))} · ${UI.pinLabel(p)}` : UI.pinLabel(p);
+        const html = dense
+          ? `<span class="pin-dot pin-dot--${p.score == null ? "na" : p.score >= 75 ? "hi" : p.score >= 55 ? "mid" : "lo"}" title="${esc(label)}">${p.score != null ? fa(Math.round(p.score)) : "–"}</span>`
+          : `<span class="pin pin--${p.deal}">${esc(label)}</span>`;
+        const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "pin-wrap", html, iconSize: null }) }).addTo(state.layer);
         m.on("click", () => go("#/ad/" + encodeURIComponent(p.id)));
         state.markers[p.id] = m;
       };
@@ -546,83 +588,100 @@ const App = (() => {
   })();
 
   /* ---------- صفحه آگهی ---------- */
+  function valuationCard(l) {
+    const v = l.verdict, ex = l.explain || {};
+    const locked = l.locked;
+    if (l.excluded) {
+      return `<div class="vcard vcard--warn"><h3>این آگهی در رتبه‌بندی نیامده است</h3><ul class="check-list">${(l.excluded_reasons || []).map((r) => `<li>${esc(r)}</li>`).join("") || "<li>اطلاعات قیمت برای مقایسه کافی نیست</li>"}</ul><p class="small muted">این آگهی در محاسبه میانگین‌ها هم شرکت داده نشده است.</p></div>`;
+    }
+    if (!v) {
+      return `<div class="vcard"><h3>هنوز داده کافی برای ارزش‌گذاری نیست</h3><p class="muted small">برای مقایسه قابل اتکا دست‌کم ۵ آگهی مشابه در همین شهر لازم است. با دریافت آگهی‌های بیشتر، امتیاز این آگهی خودکار محاسبه می‌شود.</p></div>`;
+    }
+    const markPos = Math.max(2, Math.min(98, ((v.delta + 0.25) / 0.5) * 100));
+    const ask = l.deal === "daily" ? l.price : l.pp;
+    return `<div class="vcard">
+      <div class="vcard__top">
+        ${l.score != null ? `<span class="score score--${l.score >= 75 ? "hi" : l.score >= 55 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
+        <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${CONF[l.confidence] || ""} · مبنا: ${ex.district_n ? `${fa(ex.district_n)} آگهی در همین محله و ` : ""}${fa(ex.city_n || v.n)} آگهی در شهر</p></div>
+      </div>
+      <div class="vcard__nums">
+        <div><span>قیمت آگهی${l.deal === "rent" ? " (ودیعه معادل)" : ""}</span><b>${money(ask) || "—"}</b></div>
+        <div><span>قیمت منصفانه برآوردی</span><b class="${locked ? "blur" : ""}">${locked ? "۰٫۰ میلیارد" : money(l.fair_price)}</b></div>
+      </div>
+      <div class="gauge"><div class="gauge__bar"><span></span><span></span><span></span><span></span><span></span><i class="gauge__mark" style="right:${markPos}%"></i></div>
+      <div class="gauge__labels"><span>خیلی ارزان</span><span>ارزان</span><span>منصفانه</span><span>گران</span><span>خیلی گران</span></div></div>
+      <div class="vcard__fx">
+        <b>اثر ویژگی‌ها بر قیمت منصفانه این ملک</b>
+        ${locked ? `<p class="small muted">${ex.effects_count ? `${fa(ex.effects_count)} ویژگی در برآورد این آگهی اثر داشته است.` : ""} جزئیات با اشتراک نمایش داده می‌شود.</p>`
+          : (ex.effects || []).length ? `<ul class="fx">${ex.effects.map(([name, e]) => `<li><span>${esc(name)}</span><b class="${e >= 0 ? "up" : "down"}">${e >= 0 ? "+" : "−"}${pct(e)}</b></li>`).join("")}</ul>${ex.model ? `<p class="small muted">مدل قیمت با ${fa(ex.model.n)} آگهی ساخته شده است (ضریب تعیین ${fa(ex.model.r2)}).</p>` : ""}`
+          : `<p class="small muted">${ex.sample ? "در پیش‌نمایش، فقط میانه استان مبناست." : "داده هنوز برای مدل چندمعیاره کافی نیست؛ مبنا میانه محله و شهر است."}</p>`}
+      </div>
+    </div>`;
+  }
+
   async function adPage(id) {
     view().innerHTML = `<div class="wrap ad"><div class="skeleton" style="height:440px"></div></div>`;
     const l = await DataLayer.get(id);
-    if (!l) { view().innerHTML = `<div class="wrap ad"><div class="empty"><h3>این آگهی پیدا نشد</h3><p>ممکن است در منبع حذف شده باشد.</p><a class="btn btn--ink" href="#/">بازگشت به خانه</a></div></div>`; return; }
-    const c = UI.cityOf(l.city_key), s = cfg.site;
+    if (!l) { view().innerHTML = `<div class="wrap ad"><div class="empty"><h3>این آگهی پیدا نشد</h3><p>ممکن است در دیوار حذف شده باشد.</p><a class="btn btn--ink" href="#/">بازگشت به خانه</a></div></div>`; return; }
+    const c = UI.cityOf(l.city_key);
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
     const gal = Array.from({ length: 5 }, (_, i) => `<button data-img="${i}" aria-label="تصویر ${fa(i + 1)}">${UI.media(l, imgs.length ? Math.min(i, imgs.length - 1) : i)}${i === 4 && imgs.length > 5 ? `<span class="more">+${fa(imgs.length - 5)} عکس</span>` : ""}</button>`).join("");
-    const facts = l.vertical === "car"
-      ? [["سال تولید", l.year && faY(l.year)], ["کارکرد", l.mileage != null && fa(l.mileage) + " کیلومتر"], ["گیربکس", l.gearbox], ["سوخت", l.fuel], ["رنگ", l.color], ["وضعیت بدنه", l.body]]
-      : [["نوع", UI.kindName(l.kind)], ["متراژ", l.area && fa(l.area) + " متر"], ["اتاق", l.rooms != null && fa(l.rooms)], ["سال ساخت", l.year && faY(l.year)], ["طبقه", l.floor != null && fa(l.floor)], ["قیمت هر متر", l.ppm && money(l.ppm)]];
-    const v = l.verdict;
-    const markPos = v ? Math.max(2, Math.min(98, ((v.delta + 0.25) / 0.5) * 100)) : 50;
-    const checklist = l.vertical === "car"
-      ? ["استعلام خلافی و پلاک", "بیمه‌نامه و سال‌های تخفیف", "کارشناسی بدنه، شاسی و موتور", "تطبیق شماره موتور و شاسی با سند", "استعلام توقیف و رهن"]
-      : ["دیدن اصل سند و تطبیق مشخصات با ملک", "استعلام وضعیت حقوقی و توقیف", "پایان‌کار و پروانه ساخت (ملک نوساز)", "بدهی عوارض، آب، برق و گاز", l.deal === "rent" ? "دریافت کد رهگیری اجاره‌نامه" : "تنظیم قرارداد با کد رهگیری"];
+    const ft = l.feat || {};
+    const facts = [["نوع", UI.kindName(l.kind)], ["متراژ", l.area && fa(l.area) + " متر"], ["اتاق", l.rooms != null && fa(l.rooms)],
+      ["سال ساخت", l.year && faY(l.year)], ["طبقه", ft.floor != null ? fa(ft.floor) + (ft.floors_total ? " از " + fa(ft.floors_total) : "") : l.floor != null && fa(l.floor)],
+      ["قیمت هر متر", l.ppm && money(l.ppm)]];
     const has = (a) => (l.amenities || []).includes(a);
-    const amen = l.vertical === "estate" ? AMENITIES.map((a) => `<li class="${has(a.id) ? "" : "is-off"}">${icon(has(a.id) ? "check" : "x")}${a.name}</li>`).join("") : "";
+    const amen = AMENITIES.map((a) => `<li class="${has(a.id) ? "" : "is-off"}">${icon(has(a.id) ? "check" : "x")}${a.name}</li>`).join("");
     const attrs = Object.entries(l.attributes || {}).filter(([, val]) => val && String(val).length < 80);
-    const share = location.href;
+    const divarBtn = l.locked
+      ? `<button class="btn btn--hot btn--block btn--lg" id="divarBtn">${icon("arrow")} مشاهده آگهی در دیوار</button><p class="agent__note">پیوند مستقیم آگهی در دیوار و جزئیات کامل ارزش‌گذاری برای مشترکان فعال است.</p>`
+      : l.url ? `<a class="btn btn--hot btn--block btn--lg" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">${icon("arrow")} مشاهده آگهی در دیوار</a><p class="agent__note">اطلاعات تماس و جزئیات بیشتر در صفحه دیوار است.</p>` : "";
     view().innerHTML = `
     <article class="wrap ad">
-      <nav class="crumbs"><a href="#/">خانه</a><span><a href="#/s?vertical=${l.vertical}">${l.vertical === "car" ? "خودرو" : "املاک"}</a></span>${c ? `<span><a href="#/s?vertical=${l.vertical}&city=${c.id}">${c.name}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
+      <nav class="crumbs"><a href="#/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
       <div class="gallery" id="gal">${gal}</div>
       <div class="ad__grid">
         <div>
           <header class="ad__head">
-            <div class="ad__badges">${UI.typePill(l)}${UI.dealPill(v)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
+            <div class="ad__badges">${UI.typePill(l)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
             <h1>${UI.tt(l.title)}</h1>
             <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? " · ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
           <div class="facts">${facts.filter(([, x]) => x).map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>
-          ${v ? `<div class="verdict-box"><h3>${UI.dealPill(v)} ${v.delta < 0 ? fa(Math.round(-v.delta * 100)) + "٪ زیر" : fa(Math.round(v.delta * 100)) + "٪ بالای"} میانه بازار</h3>
-            <p>میانه ${l.vertical === "car" ? "قیمت" : "قیمت هر متر"} ${fa(v.n)} آگهی مشابه ${l.vertical === "car" ? "(همین برند و سال)" : "در " + (c ? c.name : "این شهر")}: <b>${money(v.median)} تومان</b>${DataLayer.samples ? " (داده نمونه)" : ""}</p>
-            <div class="gauge"><div class="gauge__bar"><span></span><span></span><span></span><span></span><span></span><i class="gauge__mark" style="right:${markPos}%"></i></div>
-            <div class="gauge__labels"><span>عالی</span><span>خوب</span><span>منصفانه</span><span>گران</span><span>خیلی گران</span></div></div></div>` : ""}
+          <div class="mobile-only">${valuationCard(l)}</div>
           ${l.history && l.history.length > 1 ? `<section class="block"><h2>تاریخچه قیمت</h2>${UI.spark(l.history)}</section>` : ""}
-          ${l.description ? `<section class="block"><h2>توضیحات آگهی‌دهنده</h2><p>${esc(l.description)}</p></section>` : ""}
-          ${amen ? `<section class="block"><h2>امکانات</h2><ul class="amen-list">${amen}</ul><p class="small muted" style="margin-top:10px">امکانات از متن آگهی استخراج شده است؛ در بازدید تأیید کنید.</p></section>` : ""}
-          ${attrs.length ? `<section class="block"><h2>مشخصات</h2><div class="attrs">${attrs.map(([k, x]) => `<div><span>${esc(k)}</span><b>${esc(x)}</b></div>`).join("")}</div></section>` : ""}
-          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap"><div class="minimap" id="mini"></div></div><p class="small muted" style="margin-top:8px">${l.latlng_exact ? "موقعیت اعلام‌شده در آگهی." : "نقطه تقریبی در محدوده شهر؛ نشانی دقیق هنگام هماهنگی بازدید."}</p></section>
-          <section class="block"><h2>پیش از معامله</h2><ul class="check">${checklist.map((x) => `<li>${x}</li>`).join("")}</ul></section>
-          ${l.url ? `<div class="source"><span>منبع آگهی: دیوار</span><a href="${esc(l.url)}" target="_blank" rel="noopener nofollow">مشاهده آگهی اصلی ←</a></div>` : ""}
-          ${l.similar && l.similar.length ? `<section class="block"><h2>آگهی‌های مشابه</h2><div class="cards">${l.similar.slice(0, 3).map((x) => UI.card(x, { compare: false })).join("")}</div></section>` : ""}
+          ${l.description ? `<section class="block"><h2>توضیحات آگهی</h2><p>${esc(l.description)}</p></section>` : ""}
+          <section class="block"><h2>امکانات</h2><ul class="amen-list">${amen}</ul><p class="small muted" style="margin-top:10px">امکانات از متن آگهی استخراج شده است؛ در بازدید تأیید کنید.</p></section>
+          ${attrs.length ? `<section class="block"><h2>مشخصات</h2><div class="attrs">${attrs.map(([k, x]) => `<div><span>${esc(k)}</span><b>${UI.tt(x)}</b></div>`).join("")}</div></section>` : ""}
+          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap"><div class="minimap" id="mini"></div></div><p class="small muted" style="margin-top:8px">${l.latlng_exact ? "موقعیت اعلام‌شده در آگهی." : "نقطه تقریبی در محدوده شهر."}</p></section>
+          <section class="block"><h2>پیش از معامله</h2><ul class="check">${["دیدن اصل سند و تطبیق مشخصات با ملک", "استعلام وضعیت حقوقی، رهن و توقیف", "پایان‌کار و پروانه ساخت (ملک نوساز)", "بدهی عوارض، آب، برق و گاز", l.deal === "rent" ? "دریافت کد رهگیری اجاره‌نامه" : "تنظیم قرارداد با کد رهگیری"].map((x) => `<li>${x}</li>`).join("")}</ul></section>
+          ${l.similar && l.similar.length ? `<section class="block"><h2>فرصت‌های مشابه</h2><div class="cards">${l.similar.slice(0, 3).map((x) => UI.card(x, { compare: false })).join("")}</div></section>` : ""}
         </div>
         <aside class="agent" id="agent">
-          <div class="agent__who"><span class="agent__ava">${esc((s.owner_name || s.name || "آ").trim()[0])}</span><div><b>${esc(s.owner_name || "مشاور " + s.name)}</b><span>${esc(s.hours || "")}</span></div></div>
-          ${s.phone ? `<a class="btn btn--hot btn--block btn--lg" href="tel:${esc(tel(s.phone))}">${icon("phone")} <bdi dir="ltr">${esc(s.phone)}</bdi></a>` : ""}
+          <div class="desktop-only">${valuationCard(l)}</div>
+          ${divarBtn}
           <div class="agent__row">
-            ${s.whatsapp || s.phone ? `<a class="btn btn--line" href="${waLink("درباره این آگهی: " + l.title + "\n" + share)}" target="_blank" rel="noopener">${icon("chat")} واتس‌اپ</a>` : ""}
-            ${s.telegram ? `<a class="btn btn--line" href="https://t.me/${esc(s.telegram.replace(/^@/, ""))}" target="_blank" rel="noopener">${icon("tg")} تلگرام</a>` : ""}
             <button class="btn btn--line" id="adFav">${icon("heart")}<span>${state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"}</span></button>
-            <button class="btn btn--line" id="adShare">${icon("share")} اشتراک</button>
+            <button class="btn btn--line" id="adShare">${icon("share")} اشتراک‌گذاری</button>
           </div>
-          <form id="visitForm">
-            <h3>درخواست بازدید یا مشاوره</h3>
-            <input class="input" name="name" placeholder="نام شما" maxlength="80" required>
-            <input class="input input--ltr" name="phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="tel" required>
-            <select class="select" name="when"><option>هر چه زودتر</option><option>امروز عصر</option><option>فردا</option><option>آخر هفته</option></select>
-            <button class="btn btn--ink btn--block" type="submit">ثبت درخواست</button>
-            <p class="agent__note">شماره شما فقط برای هماهنگی همین آگهی استفاده می‌شود.${l.source === "divar" ? " آگهی‌دهنده اصلی شخص دیگری است؛ هماهنگی با فروشنده از طریق ما انجام می‌شود." : ""}</p>
-          </form>
+          <p class="agent__note">قیمت منصفانه برآوردی آماری از قیمت‌های پیشنهادی آگهی‌های مشابه است، نه کارشناسی رسمی.</p>
         </aside>
       </div>
     </article>
-    <div class="mobile-cta">${s.phone ? `<a class="btn btn--hot" href="tel:${esc(tel(s.phone))}">${icon("phone")} تماس</a>` : ""}<a class="btn btn--ink" href="#agent" id="mctaVisit">درخواست بازدید</a></div>`;
+    <div class="mobile-cta">${l.locked ? `<button class="btn btn--hot" id="divarBtnM">مشاهده در دیوار</button>` : l.url ? `<a class="btn btn--hot" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">مشاهده در دیوار</a>` : ""}</div>`;
     document.body.classList.add("has-mcta");
-    document.title = `${l.title} | ${s.name}`;
+    document.title = `${l.title} | ${cfg.site.name}`;
     const mini = UI.makeMap($("#mini"), { center: [l.lat, l.lng], zoom: 13, wheel: false });
     if (mini) L.circle([l.lat, l.lng], { radius: l.latlng_exact ? 120 : 900, color: "#df5a2c", weight: 2, fillOpacity: 0.12 }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adShare").addEventListener("click", async () => {
-      try { if (navigator.share) await navigator.share({ title: l.title, url: share }); else { await navigator.clipboard.writeText(share); toast("پیوند آگهی کپی شد"); } } catch { /* لغو کاربر */ }
+      try { if (navigator.share) await navigator.share({ title: l.title, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("پیوند کپی شد"); } } catch { /* لغو */ }
     });
-    $("#mctaVisit").addEventListener("click", (e) => { e.preventDefault(); $("#agent").scrollIntoView({ behavior: "smooth" }); setTimeout(() => $("#visitForm input")?.focus(), 400); });
-    $("#visitForm").addEventListener("submit", (e) => submitLead(e, { listing_id: l.id, kind: "visit", message: `بازدید: ${l.title} — زمان: ${e.target.when.value}` }));
+    const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
+    $("#divarBtn")?.addEventListener("click", paywall);
+    $("#divarBtnM")?.addEventListener("click", paywall);
   }
 
   function lightbox(l, i) {
@@ -643,36 +702,6 @@ const App = (() => {
     document.body.appendChild(el);
   }
 
-  /* ---------- درخواست مشتری ---------- */
-  async function submitLead(e, extra) {
-    e.preventDefault();
-    const f = e.target;
-    const phone = NLP.toEn(f.phone.value).replace(/\s/g, "");
-    if (!/^(\+98|0)?9\d{9}$/.test(phone)) { toast("شماره موبایل را درست وارد کنید"); f.phone.focus(); return; }
-    const btn = f.querySelector("[type=submit]");
-    btn.disabled = true;
-    const r = await DataLayer.lead({ name: f.name.value, phone, ...extra, message: (extra.message || "") + (f.desc && f.desc.value ? "\n" + f.desc.value : "") }).catch(() => ({ ok: false }));
-    btn.disabled = false;
-    if (r.ok) f.innerHTML = `<div class="empty" style="padding:24px">${icon("check")}<h3>درخواست شما ثبت شد</h3><p>${r.preview ? "در پیش‌نمایش ذخیره نمی‌شود؛ در نسخه اجراشده، در پنل مدیریت دیده می‌شود." : "به‌زودی با شما تماس می‌گیریم."}</p></div>`;
-    else toast(r.error || "ثبت نشد؛ دوباره تلاش کنید");
-  }
-  function leadDialog(kind = "consign") {
-    const consign = kind === "consign";
-    openDialog(`<div class="dlg__head"><h2>${consign ? "سپردن ملک یا خودرو" : "درخواست تماس مشاور"}</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:16px">${consign ? "مشخصات را بنویسید؛ کارشناس ما برای قیمت‌گذاری بر پایه بازار و انتشار آگهی تماس می‌گیرد." : "شماره‌تان را بگذارید تا مشاور با شما تماس بگیرد."}</p>
-      <form class="form-grid" id="leadForm">
-        ${consign ? `<div class="seg" id="lfType"><button type="button" class="is-on" data-t="ملک">ملک</button><button type="button" data-t="خودرو">خودرو</button></div>
-        <label class="field"><span>شهر</span><select class="select" name="city">${CITIES.map((c) => `<option>${c.name}</option>`).join("")}</select></label>` : ""}
-        <div class="row2"><label class="field"><span>نام</span><input class="input" name="name" required maxlength="80"></label>
-        <label class="field"><span>موبایل</span><input class="input input--ltr" name="phone" required inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹"></label></div>
-        <label class="field"><span>${consign ? "توضیح کوتاه (متراژ، مدل، قیمت مدنظر)" : "موضوع"}</span><textarea class="textarea" name="desc" maxlength="1000"></textarea></label>
-        <button class="btn btn--hot btn--lg" type="submit">ثبت درخواست</button>
-      </form>`);
-    let type = "ملک";
-    $("#lfType")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; type = b.dataset.t; $$("#lfType button").forEach((x) => x.classList.toggle("is-on", x === b)); });
-    $("#leadForm").addEventListener("submit", (e) => submitLead(e, { kind, message: consign ? `سپردن ${type} در ${e.target.city.value}` : "درخواست مشاوره" }));
-  }
-
   /* ---------- ذخیره‌شده‌ها ---------- */
   async function savedPage() {
     const ids = [...state.favs];
@@ -683,44 +712,58 @@ const App = (() => {
       <div class="block"><h2>جست‌وجوهای ذخیره‌شده</h2>${searches.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${searches.map((s, i) => `<span style="display:inline-flex;gap:4px"><a class="chip" href="#/s?${esc(s.q)}">${esc(s.title)}</a><button class="chip" data-del="${i}" aria-label="حذف">✕</button></span>`).join("")}</div>` : '<p class="muted">هنوز جست‌وجویی ذخیره نکرده‌اید.</p>'}</div>
     </div></section>`;
     $$("[data-del]").forEach((b) => b.addEventListener("click", () => { searches.splice(+b.dataset.del, 1); store.set("searches", searches); savedPage(); }));
-    if (!ids.length) { $("#favGrid").innerHTML = `<div class="empty" style="grid-column:1/-1">${icon("heart")}<h3>هنوز آگهی‌ای ذخیره نشده</h3><p>روی قلب هر کارت بزنید تا اینجا بماند.</p><a class="btn btn--ink" href="#/s?vertical=estate">دیدن آگهی‌ها</a></div>`; return; }
+    if (!ids.length) { $("#favGrid").innerHTML = `<div class="empty" style="grid-column:1/-1">${icon("heart")}<h3>هنوز آگهی‌ای ذخیره نشده</h3><p>روی قلب هر کارت بزنید تا اینجا بماند.</p><a class="btn btn--ink" href="#/s?sort=score">دیدن فرصت‌ها</a></div>`; return; }
     const r = await DataLayer.search({ ids: ids.join(","), limit: 60 });
     $("#favGrid").innerHTML = r.items.map((l) => UI.card(l)).join("") || '<p class="muted">آگهی‌های ذخیره‌شده دیگر در دسترس نیستند.</p>';
   }
 
-  /* ---------- بازار شهرها ---------- */
-  function marketPage() {
-    const st = DataLayer.stats;
+  /* ---------- بازار محله‌ها ---------- */
+  async function marketPage(params) {
+    const city = params.city || "rasht";
+    const KG = { apartment: "آپارتمان", villa: "ویلا", land: "زمین و باغ", commercial: "تجاری و اداری" };
     view().innerHTML = `<section class="section--tight"><div class="wrap">
-      <div class="sec-head"><div><span class="kicker">گزارش بازار</span><h2>بازار ${fa(CITIES.length)} شهر شمال</h2><p>شاخص‌ها از آگهی‌های فعال همین سامانه محاسبه و با هر دور دریافت به‌روز می‌شوند${DataLayer.samples ? "؛ اکنون داده نمونه است" : ""}. میانه فقط وقتی نمایش داده می‌شود که دست‌کم ۵ آگهی مشابه وجود داشته باشد.</p></div></div>
-      ${PROVINCES.map((p) => `<div class="block"><h2>${p.name}</h2><div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>شهر</th><th>ویژگی</th><th>آگهی ملک</th><th>آگهی خودرو</th><th>میانه متری ویلا</th><th>میانه متری آپارتمان</th><th></th></tr></thead><tbody>
-        ${CITIES.filter((c) => c.province === p.id).map((c) => { const s = (st.cities || {})[c.id] || {}; return `<tr><th><b style="color:var(--ink)">${c.name}</b></th><td class="muted">${c.tags.join("، ")}</td><td>${fa(s.estate || 0)}</td><td>${fa(s.car || 0)}</td><td>${s.ppm?.villa ? money(s.ppm.villa) : "—"}</td><td>${s.ppm?.apartment ? money(s.ppm.apartment) : "—"}</td><td><a class="btn btn--ghost btn--sm" href="#/s?city=${c.id}">آگهی‌ها</a></td></tr>`; }).join("")}
-      </tbody></table></div></div>`).join("")}
+      <div class="sec-head"><div><span class="kicker">بازار محله‌ها</span><h2>قیمت هر متر، محله به محله</h2><p>میانه و بازه معمول (چارک اول تا سوم) قیمت هر متر آگهی‌های پاک‌سازی‌شده${DataLayer.samples ? "؛ اکنون داده نمونه است" : ""}. محله‌هایی که کمتر از ۵ آگهی دارند کم‌اطمینان‌اند.</p></div>
+      <label class="field" style="min-width:220px"><span>شهر</span><select class="select" id="mCity">${PROVINCES.map((p) => `<optgroup label="${p.name}">${CITIES.filter((c) => c.province === p.id).map((c) => `<option value="${c.id}" ${c.id === city ? "selected" : ""}>${c.name}</option>`).join("")}</optgroup>`).join("")}</select></label></div>
+      <div id="mBody"><div class="skeleton" style="height:240px"></div></div>
     </div></section>`;
+    $("#mCity").addEventListener("change", (e) => go("#/market?city=" + e.target.value));
+    const { rows } = await DataLayer.market(city);
+    const groups = {};
+    rows.filter((r) => r.deal === "sale" || r.deal === "rent").forEach((r) => (groups[r.kind + "|" + r.deal] = groups[r.kind + "|" + r.deal] || []).push(r));
+    const keys = Object.keys(groups).sort((a, b) => groups[b].reduce((s, r) => s + r.n, 0) - groups[a].reduce((s, r) => s + r.n, 0));
+    $("#mBody").innerHTML = keys.length ? keys.map((k) => {
+      const [kind, deal] = k.split("|");
+      const rs = groups[k].sort((a, b) => b.n - a.n);
+      const max = Math.max(...rs.map((r) => r.p75));
+      return `<div class="block"><h2>${KG[kind] || kind} · ${UI.dealName(deal)}</h2><div class="tbl-wrap"><table class="cmp-tbl mkt"><thead><tr><th>محله</th><th>آگهی</th><th>میانه ${deal === "rent" ? "ودیعه معادل" : "قیمت"} هر متر</th><th>بازه معمول</th><th></th></tr></thead><tbody>
+        ${rs.map((r) => `<tr class="${r.n < 5 ? "low-n" : ""}"><th><b style="color:var(--ink)">${esc(r.district || "بدون محله")}</b></th><td>${fa(r.n)}</td><td><b>${money(r.median)}</b></td><td><span class="rangebar"><i style="right:${(r.p25 / max) * 100}%;width:${Math.max(2, ((r.p75 - r.p25) / max) * 100)}%"></i><em style="right:${(r.median / max) * 100}%"></em></span><small class="muted">${money(r.p25)} تا ${money(r.p75)}</small></td><td>${r.district ? `<a class="btn btn--ghost btn--sm" href="#/s?city=${city}&district=${encodeURIComponent(r.district)}&deal=${deal}&sort=score">فرصت‌ها</a>` : ""}</td></tr>`).join("")}
+      </tbody></table></div></div>`;
+    }).join("") : `<div class="empty"><h3>هنوز داده کافی برای این شهر نیست</h3><p>با ادامه دریافت آگهی‌ها، جدول محله‌ها ساخته می‌شود.</p></div>`;
   }
 
-  /* ---------- خدمات و پرداخت ---------- */
-  function payPage() {
-    const p = cfg.payment, s = cfg.site;
-    const card = NLP.toEn(p.card || "").replace(/\D/g, "");
-    const fmtCard = card.replace(/(\d{4})(?=\d)/g, "$1 ");
-    view().innerHTML = `<section class="section--tight"><div class="wrap">
-      <div class="sec-head"><div><span class="kicker">خدمات و پرداخت</span><h2>تعرفه خدمات و اطلاعات حساب</h2><p>${esc(p.note || "پیش از واریز با مشاور هماهنگ کنید و تصویر رسید را بفرستید.")}</p></div></div>
-      <div class="pay">
-        <div class="svc">${(p.services || []).length ? p.services.map((x) => `<div><b>${esc(x.title)}</b><b style="color:var(--forest)">${esc(x.price || "")}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ""}</div>`).join("") : `<div><b>تعرفه خدمات</b><span class="muted">هنوز در پنل مدیریت ثبت نشده است</span></div>`}
-          ${s.phone ? `<a class="btn btn--hot btn--lg" href="tel:${esc(tel(s.phone))}" style="margin-top:8px">${icon("phone")} هماهنگی: <bdi dir="ltr">${esc(s.phone)}</bdi></a>` : ""}</div>
-        <div>
-          ${card || p.sheba ? `<div class="bankcard"><div style="display:flex;justify-content:space-between"><b>${esc(p.bank || "")}</b><b>${esc(s.name)}</b></div><div class="bankcard__no">${esc(fmtCard || "—")}</div><div>${esc(p.holder || "")}</div></div>
-          ${card ? `<div class="copy-row"><div><span>شماره کارت</span><code>${esc(fmtCard)}</code></div><button class="btn btn--line btn--sm" data-copy="${esc(card)}">${icon("copy")} کپی</button></div>` : ""}
-          ${p.sheba ? `<div class="copy-row"><div><span>شماره شبا</span><code>${esc(p.sheba)}</code></div><button class="btn btn--line btn--sm" data-copy="${esc(p.sheba)}">${icon("copy")} کپی</button></div>` : ""}`
-          : `<div class="empty"><h3>اطلاعات حساب هنوز ثبت نشده</h3><p>شماره کارت و شبا را از پنل مدیریت، بخش «تنظیمات»، وارد کنید.</p><a class="btn btn--ink" href="admin.html">ورود به پنل</a></div>`}
-        </div>
-      </div>
-    </div></section>`;
-    $$("[data-copy]").forEach((b) => b.addEventListener("click", async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast("کپی شد"); } catch { toast(b.dataset.copy); } }));
+  /* ---------- روش ارزش‌گذاری ---------- */
+  function methodPage() {
+    view().innerHTML = `<article class="section--tight"><div class="wrap method">
+      <span class="kicker">روش ارزش‌گذاری</span>
+      <h1>فرصت‌یاب چطور قیمت منصفانه و امتیاز را حساب می‌کند</h1>
+      <p class="lead">همه مراحل خودکار است و هر روز با آگهی‌های تازه از نو انجام می‌شود. هدف، مقایسه منصفانه هر آگهی با آگهی‌های واقعاً مشابه است.</p>
+      <h2>۱. گردآوری</h2>
+      <p>آگهی‌های ملک ۳۹ شهر گیلان، مازندران و گلستان از دیوار، به‌تدریج و با رعایت سقف درخواست، دریافت می‌شوند. صفحه کامل هر آگهی برای استخراج مشخصات خوانده می‌شود و هر تغییر قیمت در تاریخچه ثبت می‌شود.</p>
+      <h2>۲. پاک‌سازی</h2>
+      <p>این آگهی‌ها در محاسبه میانگین و رتبه‌بندی شرکت داده نمی‌شوند: قیمت نمادین یا توافقی؛ اشتباه در تعداد صفرهای قیمت (حدود ۱۰ یا ۱۰۰ برابر عرف محله)؛ درج قیمت هر متر به جای قیمت کل؛ پیش‌فروش، مشارکت در ساخت، معاوضه و فروش دانگی که بازار جداگانه‌ای دارند؛ آگهی تکراری یک ملک از چند آگهی‌دهنده؛ و قیمت‌های پرت آماری. پرت‌ها با فاصله لگاریتم قیمت هر متر از میانه محله، به مقیاس «انحراف مطلق میانه» (MAD) سنجیده می‌شوند و مرز آن ۳٫۵ است.</p>
+      <h2>۳. خط پایه مکانی</h2>
+      <p>برای هر نوع ملک و هر نوع معامله، میانه قیمت هر متر در هر محله محاسبه می‌شود. وقتی آگهی‌های یک محله کم است، این میانه به‌تدریج به سمت میانه شهر و سپس استان کشیده می‌شود تا از سه یا چهار آگهی نتیجه قطعی گرفته نشود.</p>
+      <h2>۴. تعدیل چندمعیاره</h2>
+      <p>وقتی آگهی کافی جمع شود (دست‌کم ۶۰ آگهی در شهر یا استان)، یک مدل رگرسیون ریج اثر هر ویژگی را بر قیمت هر متر، جدا از اثر محله، برآورد می‌کند. ویژگی‌ها برای آپارتمان: سن بنا، طبقه، همکف یا طبقه آخر بودن، متراژ، تعداد اتاق نسبت به متراژ، آسانسور، پارکینگ، انباری، بالکن، نوع سند، بازسازی، لابی و سرایدار، امکانات مجتمع، جهت شمالی، دید دریا، تعداد واحد در طبقه و نوع آگهی‌دهنده. برای ویلا متراژ زمین، فاصله و دید دریا، استخر، شهرکی بودن، دوبلکس و دید جنگل هم وارد می‌شوند و برای زمین کاربری، عرض بر و داخل بافت بودن. اثر هر ویژگی از داده همان منطقه به دست می‌آید، نه از عدد ثابت.</p>
+      <h2>۵. امتیاز ۰ تا ۱۰۰</h2>
+      <p>امتیاز ترکیب وزنی چهار جزء است: فاصله قیمت آگهی تا قیمت منصفانه (وزن اصلی)، اطمینان برآورد (تعداد آگهی مشابه محله و کامل بودن مشخصات)، کیفیت آگهی (عکس، توضیحات، مشخصات) و تحولات قیمت (کاهش قیمت و تازگی). تخفیف‌های بیش از ۴۰٪ با احتیاط امتیاز می‌گیرند، چون اغلب نشانه خطا یا شرایط خاص‌اند.</p>
+      <h2>محدودیت‌ها</h2>
+      <p>قیمت‌های دیوار قیمت پیشنهادی فروشنده‌اند، نه قیمت معامله‌شده؛ بنابراین «زیر قیمت منصفانه» یعنی ارزان‌تر از آگهی‌های مشابه، نه لزوماً زیر ارزش کارشناسی. در شهرهای کوچک و محله‌های کم‌آگهی اطمینان پایین‌تر است و این در کنار هر برآورد نمایش داده می‌شود. ویژگی‌ها از متن آگهی استخراج می‌شوند و ممکن است ناقص باشند.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px"><a class="btn btn--hot btn--lg" href="#/s?sort=score&ranked=1">دیدن فرصت‌های برتر</a><a class="btn btn--line btn--lg" href="#/market">بازار محله‌ها</a></div>
+    </div></article>`;
   }
 
-  /* ---------- علاقه‌مندی و مقایسه ---------- */
+  /* ---------- علاقه‌مندی ---------- */
   function toggleFav(id) {
     state.favs.has(id) ? state.favs.delete(id) : state.favs.add(id);
     store.set("favs", [...state.favs]);
@@ -740,19 +783,21 @@ const App = (() => {
     if (state.compare.length < 2) { toast("دست‌کم دو آگهی انتخاب کنید"); return; }
     const r = await DataLayer.search({ ids: state.compare.join(","), limit: 3 });
     const ls = state.compare.map((id) => r.items.find((x) => x.id === id)).filter(Boolean);
-    const car = ls.every((l) => l.vertical === "car");
     const best = (fn, low = true) => { const v = ls.map(fn).filter((x) => x > 0); return v.length ? (low ? Math.min(...v) : Math.max(...v)) : null; };
     const row = (label, fn, b = null, fmt = (x) => x ?? "—") => `<tr><th>${label}</th>${ls.map((l) => { const x = fn(l); return `<td class="${b !== null && x === b ? "is-best" : ""}">${fmt(x, l)}</td>`; }).join("")}</tr>`;
     openDialog(`<div class="dlg__head"><h2>مقایسه</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       <div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th></th>${ls.map((l) => `<th><div class="cmp-img">${UI.media(l)}</div><a href="#/ad/${encodeURIComponent(l.id)}" data-close>${UI.tt(l.title)}</a></th>`).join("")}</tr></thead><tbody>
-      ${row("شهر", (l) => l.city_name || UI.cityOf(l.city_key)?.name)}
-      ${row(car ? "قیمت" : "قیمت / ودیعه معادل", (l) => l.pp, best((l) => l.pp), (x) => (x ? money(x) + " تومان" : "توافقی"))}
-      ${row("رتبه قیمت", (l) => l.verdict, null, (x) => (x ? UI.dealPill(x) : "—"))}
-      ${car ? row("سال", (l) => l.year, best((l) => l.year, false), (x) => (x ? faY(x) : "—")) + row("کارکرد", (l) => l.mileage, best((l) => l.mileage), (x) => (x != null ? fa(x) : "—")) + row("گیربکس", (l) => l.gearbox) + row("بدنه", (l) => l.body)
-        : row("متراژ", (l) => l.area, best((l) => l.area, false), (x) => (x ? fa(x) + " متر" : "—")) + row("قیمت هر متر", (l) => l.ppm, best((l) => l.ppm), (x) => (x ? money(x) : "—")) + row("خواب", (l) => l.rooms, null, (x) => (x != null ? fa(x) : "—")) + AMENITIES.map((a) => row(a.name, (l) => (l.amenities || []).includes(a.id), null, (x) => (x ? "✓" : "—"))).join("")}
+      ${row("امتیاز", (l) => l.score, best((l) => l.score, false), (x) => (x != null ? fa(Math.round(x)) : "—"))}
+      ${row("نسبت به قیمت منصفانه", (l) => l.verdict, null, (x) => (x ? UI.dealPill(x) : "—"))}
+      ${row("شهر و محله", (l) => [l.city_name || UI.cityOf(l.city_key)?.name, l.district].filter(Boolean).join("، "))}
+      ${row("قیمت / ودیعه معادل", (l) => l.pp, best((l) => l.pp), (x) => (x ? money(x) + " تومان" : "توافقی"))}
+      ${row("متراژ", (l) => l.area, best((l) => l.area, false), (x) => (x ? fa(x) + " متر" : "—"))}
+      ${row("قیمت هر متر", (l) => l.ppm, best((l) => l.ppm), (x) => (x ? money(x) : "—"))}
+      ${row("خواب", (l) => l.rooms, null, (x) => (x != null ? fa(x) : "—"))}
+      ${row("سال ساخت", (l) => l.year, best((l) => l.year, false), (x) => (x ? faY(x) : "—"))}
+      ${AMENITIES.map((a) => row(a.name, (l) => (l.amenities || []).includes(a.id), null, (x) => (x ? "✓" : "—"))).join("")}
       </tbody></table></div><p class="small muted" style="margin-top:12px">خانه‌های سبز بهترین مقدار هر ردیف‌اند.</p>`, true);
   }
-
   function openDialog(html, wide = false) {
     const d = $("#dlg");
     $("#dlgBody").innerHTML = html;
@@ -768,44 +813,44 @@ const App = (() => {
     function open() {
       $("#ai").hidden = false; $("#aiFab").classList.add("is-hidden");
       if (!log().children.length) {
-        say(`سلام! من دستیار ${esc(cfg.site.name)} هستم. بنویس دنبال چه هستی؛ مثلاً «ویلای جنگلی تو نور با استخر تا ۱۵ میلیارد» یا «پژو ۲۰۶ مدل ۹۸ به بالا در رشت». قیمت هر متر را هم حساب می‌کنم.`);
-        sugs(["ویلای ساحلی محمودآباد", "آپارتمان ۲ خوابه رشت رهن", "دنا پلاس ساری", "قیمت هر متر ویلا در رامسر"]);
+        say("سلام! بنویس دنبال چه ملکی هستی؛ مثلاً «آپارتمان ۲ خوابه گلسار رشت زیر ۸ میلیارد» یا «ویلای ساحلی نوشهر». فرصت‌ها را به ترتیب امتیاز برایت پیدا می‌کنم و قیمت هر متر محله‌ها را هم می‌گویم.");
+        sugs(["ویلای ساحلی محمودآباد", "آپارتمان رهن ساری", "قیمت هر متر آپارتمان در رشت", "امتیاز چطور حساب می‌شود؟"]);
       }
       setTimeout(() => $("#aiInput").focus(), 50);
     }
-    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${esc(UI.pinLabel(l))}${l.verdict ? " · " + DEAL_BANDS[l.verdict.band].name : ""}</small></span></a>`).join("")}</div>`;
+    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز · " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? " · " + pct(l.verdict.delta) + " زیر قیمت" : ""}</small></span></a>`).join("")}</div>`;
     async function respond(v) {
       const it = NLP.intent(v);
-      if (it === "greet") { say("درود! کدام شهر و چه نوع ملک یا خودرویی؟ بودجه را هم بگو."); return; }
-      if (it === "post") { say("فرم سپردن ملک یا خودرو را باز می‌کنم؛ کارشناس ما برای قیمت‌گذاری تماس می‌گیرد."); setTimeout(() => leadDialog("consign"), 600); return; }
-      if (it === "contact") { const s = cfg.site; say(s.phone ? `برای مشاوره با <a href="tel:${esc(tel(s.phone))}"><b><bdi dir="ltr">${esc(s.phone)}</bdi></b></a> تماس بگیر${s.whatsapp ? ` یا در <a href="${waLink()}" target="_blank" rel="noopener">واتس‌اپ</a> پیام بده` : ""}.` : "فرم درخواست تماس را باز می‌کنم."); if (!s.phone) setTimeout(() => leadDialog("advice"), 600); return; }
+      if (it === "greet") { say("درود! کدام شهر و چه نوع ملکی؟ بودجه را هم بگو."); return; }
+      if (it === "method") { say(`امتیاز از فاصله قیمت آگهی تا قیمت منصفانه محله (با درنظرگرفتن سن بنا، طبقه، متراژ، آسانسور، پارکینگ، سند و ویژگی‌های دیگر)، اطمینان برآورد، کیفیت آگهی و تحولات قیمت ساخته می‌شود. <a href="#/method">توضیح کامل روش</a>`); return; }
+      if (it === "plans") { const p = cfg.plans || []; say(p.length ? `اشتراک‌ها: ${p.map((x) => `${esc(x.name)} ${fa(x.price)} تومان`).join("، ")}. با اشتراک، پیوند مستقیم دیوار و جزئیات کامل ارزش‌گذاری باز می‌شود. <a href="#/account">خرید اشتراک</a>` : "تعرفه اشتراک به‌زودی اعلام می‌شود."); return; }
       if (it === "loan") {
         const m = NLP.parseQuery(v).filters.max || 1e9, yr = +(NLP.normalize(v).match(/(\d+)\s*سال/) || [])[1] || 5;
         const r = 0.23 / 12, n = yr * 12, pay = (m * r) / (1 - Math.pow(1 + r, -n));
-        say(`قسط وام ${money(m)} تومان با سود ۲۳٪ در ${fa(yr)} سال: حدود <b>${fa(Math.round(pay))} تومان</b> در ماه (استهلاک یکنواخت). نرخ را در بخش ابزارها تغییر بده.`);
+        say(`قسط وام ${money(m)} تومان با سود ۲۳٪ در ${fa(yr)} سال: حدود <b>${fa(Math.round(pay))} تومان</b> در ماه. نرخ را در بخش ابزارها تغییر بده.`);
         return;
       }
       const { filters, tags } = NLP.parseQuery(v);
       if (it === "value") {
         if (!filters.city) { say("برای کدام شهر؟ مثلاً «قیمت هر متر آپارتمان در بابلسر»."); return; }
-        const kind = (filters.kinds || "villa").split(",")[0];
-        const r = await DataLayer.search({ vertical: "estate", deal: "sale", city: filters.city, kinds: kind, limit: 60 });
-        const p = r.items.map((l) => l.ppm).filter(Boolean);
-        say(p.length >= 3 ? `میانه قیمت هر متر ${UI.kindName(kind)} در ${UI.cityOf(filters.city).name}، از ${fa(p.length)} آگهی فروش: <b>${money(median(p))} تومان</b>${DataLayer.samples ? " (داده نمونه است)" : ""}.` : `آگهی فروش کافی برای ${UI.kindName(kind)} در ${UI.cityOf(filters.city).name} نداریم (${fa(p.length)} مورد).`);
+        const kind = (filters.kinds || "apartment").split(",")[0];
+        const r = await DataLayer.search({ deal: "sale", city: filters.city, kinds: kind, limit: 60, ranked: 1 });
+        const p = r.items.map((l) => l.fair_ppm).filter(Boolean);
+        say(p.length >= 3 ? `میانه قیمت منصفانه هر متر ${UI.kindName(kind)} در ${UI.cityOf(filters.city).name}، از ${fa(p.length)} آگهی: <b>${money(median(p))} تومان</b>${DataLayer.samples ? " (داده نمونه است)" : ""}. <a href="#/market?city=${filters.city}">جدول محله‌ها</a>` : `آگهی فروش کافی برای ${UI.kindName(kind)} در ${UI.cityOf(filters.city).name} نداریم (${fa(p.length)} مورد).`);
         return;
       }
-      if (!tags.length) { say("متوجه نشدم. نام شهر، نوع ملک یا خودرو و بودجه را بنویس."); return; }
-      const f = { ...filters }, dropped = [];
-      let r = await DataLayer.search({ ...f, limit: 3, sort: f.sort || "deal" });
-      for (const [k, name] of [["amenities", "امکانات"], ["rooms", "تعداد خواب"], ["areaMin", "متراژ"], ["areaMax", "متراژ"], ["mileageMax", "کارکرد"], ["yearMin", "سال"], ["yearMax", "سال"], ["max", "سقف بودجه"], ["city", "شهر"]]) {
+      if (!tags.length) { say("متوجه نشدم. نام شهر، نوع ملک و بودجه را بنویس."); return; }
+      const f = { ...filters, sort: filters.sort || "score" }, dropped = [];
+      let r = await DataLayer.search({ ...f, limit: 3 });
+      for (const [k, name] of [["amenities", "امکانات"], ["rooms", "تعداد خواب"], ["areaMin", "متراژ"], ["areaMax", "متراژ"], ["max", "سقف بودجه"], ["city", "شهر"]]) {
         if (r.total || !f[k]) continue;
         delete f[k]; dropped.push(name);
-        r = await DataLayer.search({ ...f, limit: 3, sort: f.sort || "deal" });
+        r = await DataLayer.search({ ...f, limit: 3 });
       }
       go("#/s?" + toQuery(f));
-      say(`${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join(" ")}<br>${dropped.length ? `مورد کاملاً منطبق نبود؛ «${[...new Set(dropped)].join("، ")}» را کنار گذاشتم و ` : ""}${r.total ? `<b>${fa(r.total)}</b> آگهی پیدا کردم. بهترین‌ها از نظر قیمت:` : "چیزی پیدا نشد."}`);
+      say(`${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join(" ")}<br>${dropped.length ? `مورد کاملاً منطبق نبود؛ «${[...new Set(dropped)].join("، ")}» را کنار گذاشتم و ` : ""}${r.total ? `<b>${fa(r.total)}</b> آگهی پیدا کردم. بهترین‌ها از نظر امتیاز:` : "چیزی پیدا نشد."}`);
       if (r.items.length) say(mini(r.items));
-      sugs(["فقط کاهش قیمت‌خورده‌ها", "ارزان‌ترین‌ها", "تماس با مشاور"]);
+      sugs(["فقط کاهش قیمت‌خورده‌ها", "بیشترین تخفیف", "امتیاز چطور حساب می‌شود؟"]);
     }
     function bind() {
       $("#aiFab").addEventListener("click", open);
@@ -813,9 +858,9 @@ const App = (() => {
       $("#aiSugs").addEventListener("click", (e) => {
         const b = e.target.closest("button"); if (!b) return;
         const t = b.textContent;
-        if (t === "فقط کاهش قیمت‌خورده‌ها" || t === "ارزان‌ترین‌ها") {
+        if (t === "فقط کاهش قیمت‌خورده‌ها" || t === "بیشترین تخفیف") {
           const { params } = parseHash();
-          go("#/s?" + toQuery({ ...params, ...(t === "ارزان‌ترین‌ها" ? { sort: "cheap" } : { drop: 1 }) }));
+          go("#/s?" + toQuery({ ...params, ...(t === "بیشترین تخفیف" ? { sort: "deal", ranked: 1 } : { drop: 1 }) }));
           say(esc(t), "me"); say("فهرست را به‌روز کردم.");
           return;
         }
@@ -839,7 +884,6 @@ const App = (() => {
       const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
       const t = cur === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme", t);
     });
-    $("#consignBtn").addEventListener("click", () => leadDialog("consign"));
     $("#dlg").addEventListener("click", (e) => { if (e.target.id === "dlg" || e.target.closest("[data-close]")) $("#dlg").close(); });
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });
     view().addEventListener("click", (e) => { const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); } });

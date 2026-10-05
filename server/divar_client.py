@@ -327,9 +327,19 @@ class DirectSource:
                     if it.get("title"):
                         out["attributes"][it["title"]] = it.get("value")
             elif w.get("widget_type") == "GROUP_FEATURE_ROW":
-                feats = [i.get("title") for i in d.get("items", []) or [] if i.get("available", True) and i.get("title")]
-                if feats:
-                    out["attributes"]["امکانات"] = "، ".join(feats)
+                for i in d.get("items", []) or []:
+                    t = (i.get("title") or "").strip()
+                    if t:  # «پارکینگ» یا «پارکینگ ندارد»
+                        base = t.replace("ندارد", "").strip()
+                        out["attributes"][base] = "ندارد" if (not i.get("available", True) or "ندارد" in t) else "دارد"
+                # جدول «همه ویژگی‌ها» (سند، جهت، گرمایش، ...) در اکشن مودال
+                for sec in (((d.get("action") or {}).get("payload") or {}).get("modal_page") or {}).get("widget_list", []) or []:
+                    sd = sec.get("data") or {}
+                    if sd.get("title") and sd.get("value") is not None:
+                        out["attributes"][sd["title"]] = sd["value"]
+                    for i in sd.get("items", []) or []:
+                        if i.get("title"):
+                            out["attributes"][i["title"].replace("ندارد", "").strip()] = "ندارد" if (not i.get("available", True) or "ندارد" in i["title"]) else i.get("value", "دارد")
             elif d.get("title") and d.get("value") is not None:
                 out["attributes"][d["title"]] = d.get("value")
         out["latlng"] = _find_latlng(sections.get("MAP") or p.get("sections"))

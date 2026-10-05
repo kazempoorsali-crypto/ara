@@ -28,7 +28,7 @@ const UI = (() => {
   }
   const cityOf = (k) => CITIES.find((c) => c.id === k);
   const provOf = (k) => PROVINCES.find((p) => p.id === k);
-  const kindName = (k) => (PROPERTY_TYPES.find((t) => t.id === k) || CAR_TYPES.find((t) => t.id === k) || { name: "" }).name;
+  const kindName = (k) => (PROPERTY_TYPES.find((t) => t.id === k) || { name: "" }).name;
   const dealName = (d) => (DEAL_TYPES.find((x) => x.id === d) || { name: "" }).name;
 
   function toast(msg) {
@@ -100,7 +100,7 @@ const UI = (() => {
   /* ---------- قیمت ---------- */
   function priceHTML(l, big = false) {
     const m = (v) => money(v);
-    if (l.vertical === "estate" && l.deal === "rent") {
+    if (l.deal === "rent") {
       if (!l.deposit && !l.rent) return `<b>توافقی</b>`;
       return `<b>${m(l.deposit) || "بدون ودیعه"}</b><small>ودیعه</small>${l.rent ? `<span class="sep">|</span><b>${m(l.rent)}</b><small>ماهانه</small>` : ""}`;
     }
@@ -108,17 +108,17 @@ const UI = (() => {
     return `<b>${m(l.price)}</b><small>${l.deal === "daily" ? "تومان / شب" : "تومان"}</small>`;
   }
   function pinLabel(p) {
-    if (p.vertical === "estate" && p.deal === "rent") return p.deposit ? "ودیعه " + money(p.deposit) : p.rent ? money(p.rent) + "/ماه" : "توافقی";
+    if (p.deal === "rent") return p.deposit ? "ودیعه " + money(p.deposit) : p.rent ? money(p.rent) + "/ماه" : "توافقی";
     if (!p.price) return "توافقی";
     return money(p.price) + (p.deal === "daily" ? "/شب" : "");
   }
-  const dealPill = (v) => (v ? `<span class="deal deal--${v.band}" title="بر پایه میانه ${fa(v.n)} آگهی مشابه">${DEAL_BANDS[v.band].name}</span>` : "");
+  const pct = (d) => fa(Math.abs(Math.round(d * 100))) + "٪";
+  const dealPill = (v) => (v ? `<span class="deal deal--${v.band}" title="مقایسه با قیمت منصفانه برآوردشده">${v.delta < -0.005 ? pct(v.delta) + " زیر قیمت" : v.delta > 0.005 ? pct(v.delta) + " بالای قیمت" : "هم‌قیمت بازار"}</span>` : "");
+  const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 75 ? "hi" : l.score >= 55 ? "mid" : "lo"}" title="امتیاز فرصت از ۱۰۰"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
   function typePill(l) {
-    if (l.vertical === "car") return `<span class="pill pill--car">${l.kind === "motorcycle" ? "موتور" : "خودرو"}</span>`;
     return `<span class="pill pill--${l.deal}">${dealName(l.deal)}</span>`;
   }
   function specs(l) {
-    if (l.vertical === "car") return [l.year && "مدل " + faY(l.year), l.mileage != null && (l.mileage ? fa(Math.round(l.mileage / 1000)) + " هزار کیلومتر" : "صفر کیلومتر"), l.gearbox].filter(Boolean);
     return [kindName(l.kind), l.area && fa(l.area) + " متر", l.rooms != null && (l.rooms ? fa(l.rooms) + " خواب" : "بدون اتاق"), l.year && "ساخت " + faY(l.year)].filter(Boolean);
   }
 
@@ -128,6 +128,7 @@ const UI = (() => {
     const loc = [c ? c.name : l.city_name, l.district].filter(Boolean).join("، ");
     return `<article class="card" data-id="${esc(l.id)}">
       <div class="card__media">${media(l)}
+        ${scoreBadge(l)}
         <div class="card__badges">${typePill(l)}${dealPill(l.verdict)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>
       </div>
@@ -168,5 +169,5 @@ const UI = (() => {
     return map;
   }
 
-  return { $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  return { pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
 })();

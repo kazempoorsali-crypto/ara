@@ -17,12 +17,7 @@ def fake_ads(city, category, page, n=24):
     out = []
     for i in range(n):
         tok = f"T{abs(hash((city, category, page, i))) % 10**8:08d}"
-        if category == "light":
-            year = rnd.choice([1395, 1398, 1400, 1402])
-            title = f"{rnd.choice(['پژو ۲۰۶ تیپ ۲', 'دنا پلاس', 'پراید ۱۳۱'])} مدل {year}"
-            price = rnd.randint(300, 1200) * 1_000_000
-            out.append({"token": tok, "title": title, "price_toman": price, "district": "گلسار"})
-        elif i % 3 == 0:
+        if i % 3 == 0:
             out.append({"token": tok, "title": f"اجاره آپارتمان {rnd.randint(60, 140)} متری", "price_toman": rnd.randint(5, 20) * 1_000_000,
                         "deposit_toman": rnd.randint(100, 900) * 1_000_000, "district": "منظریه"})
         else:

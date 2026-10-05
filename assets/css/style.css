@@ -505,8 +505,8 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
   .wrap { width: calc(100% - 32px); }
   .top__in { height: 64px; gap: 10px; }
   .brand__txt small { display: none; }
-  #consignBtn span { display: none; }
-  #consignBtn { padding: 0 14px; }
+  #accountBtn span { display: none; }
+  #accountBtn { padding: 0 14px; }
   .hero { padding-top: 26px; }
   .hero h1 { font-size: 35px; }
   .search-card__deals { margin-inline-start: 0; width: 100%; overflow-x: auto; }
@@ -539,3 +539,63 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 
 .relax { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
 .relax .chip b { color: var(--narenj-2); font-weight: 800; }
+
+/* ---------- امتیاز فرصت ---------- */
+.score { position: absolute; bottom: 10px; inset-inline-start: 10px; z-index: 1; width: 54px; height: 54px; border-radius: 50%; display: grid; place-content: center; text-align: center; color: #fff; box-shadow: 0 6px 16px rgba(0,0,0,.25); border: 2px solid rgba(255,255,255,.85); line-height: 1; }
+.score b { font-size: 19px; font-weight: 900; }
+.score i { font-style: normal; font-size: 9.5px; opacity: .85; margin-top: 2px; }
+.score--hi { background: var(--great); } .score--mid { background: #b07a1e; } .score--lo { background: #6f7770; }
+
+/* ---------- کارت ارزش‌گذاری ---------- */
+.vcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; display: grid; gap: 14px; }
+.vcard h3 { font-size: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vcard--warn { border-color: var(--high); background: color-mix(in srgb, var(--high) 7%, var(--surface)); }
+.vcard__top { display: flex; gap: 14px; align-items: center; }
+.score--big { position: static; width: 72px; height: 72px; flex: none; }
+.score--big b { font-size: 26px; }
+.vcard__nums { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-radius: var(--r); overflow: hidden; }
+.vcard__nums div { background: var(--sunk); padding: 10px 12px; }
+.vcard__nums span { display: block; font-size: 11.5px; color: var(--muted); }
+.vcard__nums b { font-size: 17px; font-weight: 900; }
+.blur { filter: blur(6px); user-select: none; }
+.vcard__fx > b { font-size: 13.5px; display: block; margin-bottom: 8px; }
+.fx { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fx li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.fx .up { color: var(--great); } .fx .down { color: var(--over); }
+.mobile-only { display: none; margin-top: 18px; }
+@media (max-width: 1180px) { .mobile-only { display: block; } .desktop-only { display: none; } }
+
+/* ---------- اشتراک و حساب ---------- */
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.plan { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.plan--hot { border: 2px solid var(--narenj); box-shadow: var(--shadow-2); }
+.plan h3 { font-size: 18px; }
+.plan__price { font-size: 30px; font-weight: 900; line-height: 1.2; }
+.plan__price small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.plan .btn { margin-top: auto; }
+.check-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.check-list li { display: flex; gap: 8px; }
+.check-list li::before { content: "✓"; color: var(--great); font-weight: 900; }
+.account { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 22px; }
+.account div { display: grid; gap: 2px; }
+.account b { font-size: 17px; }
+.ok-text { color: var(--great); }
+.note-ok, .note-bad { padding: 14px 18px; border-radius: var(--r); margin-bottom: 18px; font-weight: 700; }
+.note-ok { background: color-mix(in srgb, var(--great) 12%, var(--surface)); color: var(--great); }
+.note-bad { background: color-mix(in srgb, var(--over) 10%, var(--surface)); color: var(--over); }
+
+/* ---------- روش و بازار ---------- */
+.method { max-width: 760px; }
+.method h1 { font-size: clamp(26px, 3.4vw, 40px); font-weight: 900; margin: 10px 0 14px; text-wrap: balance; }
+.method .lead { font-size: 17px; color: var(--ink-2); }
+.method h2 { font-size: 20px; margin: 30px 0 8px; }
+.method p { color: var(--ink-2); line-height: 2; }
+.rangebar { position: relative; display: block; height: 8px; background: var(--sunk); border-radius: 4px; margin-bottom: 4px; min-width: 140px; }
+.rangebar i { position: absolute; top: 0; height: 100%; background: color-mix(in srgb, var(--forest) 35%, transparent); border-radius: 4px; }
+.rangebar em { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--forest); border-radius: 2px; }
+.mkt tr.low-n td, .mkt tr.low-n th { opacity: .6; }
+
+.agent:has(.vcard) { background: none; border: 0; padding: 0; box-shadow: none; }
+.pin-dot { display: grid; place-items: center; width: 30px; height: 30px; transform: translate(-50%, -50%); border-radius: 50%; color: #fff; font: 800 11.5px Vazirmatn, sans-serif; border: 2px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.3); cursor: pointer; }
+.pin-dot--hi { background: var(--great); } .pin-dot--mid { background: #b07a1e; } .pin-dot--lo, .pin-dot--na { background: #6f7770; }
+.is-hot .pin-dot { transform: translate(-50%, -50%) scale(1.3); }

@@ -1,4 +1,4 @@
-"""سرور محلی آرا: صفحات سایت، API آگهی‌ها، پنل مدیریت و موتور دریافت تدریجی از دیوار.
+"""سرور فرصت‌یاب: صفحات سایت، API آگهی‌ها و ارزش‌گذاری، عضویت و اشتراک، پنل مدیریت و دریافت تدریجی از دیوار.
 
 اجرا:  python server/app.py            (پیش‌فرض http://127.0.0.1:8000)
        python server/app.py --port 9000 --host 0.0.0.0 --no-browser
@@ -7,9 +7,7 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
-import io
 import json
 import mimetypes
 import os
@@ -28,20 +26,18 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 
 import catalog  # noqa: E402
+from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
 from store import Store  # noqa: E402
+from valuation import DEFAULT_WEIGHTS  # noqa: E402
 
-DEFAULT_SITE = {
-    "name": "آرا", "tagline": "دلال هوشمند املاک و خودروی شمال",
-    "owner_name": "", "phone": "", "whatsapp": "", "telegram": "", "instagram": "", "email": "",
-    "address": "", "hours": "همه روزه ۹ تا ۲۱", "about": "",
-}
-DEFAULT_PAYMENT = {"card": "", "sheba": "", "holder": "", "bank": "", "note": "", "services": []}
+DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "قیمت منصفانه ملک در شمال", "about": "", "email": ""}
 DEFAULT_DISPLAY = {"show_samples": True}
 PUBLIC_DIRS = ("assets",)
 PUBLIC_FILES = ("index.html", "admin.html", "favicon.svg")
 SESSIONS: dict[str, float] = {}
 LOGIN_FAILS: dict[str, list] = {}
+LOCKED_FIELDS = ("url", "token")
 
 
 def hash_pw(pw: str, salt: str) -> str:
@@ -52,23 +48,27 @@ class App:
     def __init__(self, data_dir: Path):
         self.store = Store(data_dir / "ara.db")
         self.ingest = Ingestor(self.store)
+        self.billing = Billing(self.store)
 
     def public_config(self):
-        s = self.store
+        s, b = self.store, self.billing
         return {
             "mode": "server",
             "site": {**DEFAULT_SITE, **(s.get_setting("site") or {})},
-            "payment": {**DEFAULT_PAYMENT, **(s.get_setting("payment") or {})},
             "display": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
+            "plans": b.plans(), "payable": b.payable(), "test_payments": b.cfg()["test_mode"],
+            "free_preview": int(b.cfg().get("free_preview") or 0),
+            "sms_live": bool(b.sms_cfg()["api_key"] and b.sms_cfg()["template"]),
             "admin_ready": bool(s.get_setting("admin")),
+            "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
         }
 
 
 class Handler(BaseHTTPRequestHandler):
     app: App = None
-    server_version = "Ara/1.0"
+    server_version = "Forsatyab/1.0"
 
-    def log_message(self, fmt, *args):  # خروجی کنسول را خلوت نگه می‌داریم
+    def log_message(self, fmt, *args):
         if os.environ.get("ARA_DEBUG"):
             super().log_message(fmt, *args)
 
@@ -82,11 +82,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def redirect(self, location):
+        self.send_response(302)
+        self.send_header("location", location)
+        self.end_headers()
+
     def body(self) -> dict:
         n = int(self.headers.get("content-length") or 0)
         if n > 2_000_000:
             raise ValueError("درخواست بیش از حد بزرگ است")
-        raw = self.rfile.read(n) if n else b"{}"
+        raw = self.rfile.read(n) if n else b""
+        if "application/x-www-form-urlencoded" in (self.headers.get("content-type") or ""):
+            return {k: v[-1] for k, v in urllib.parse.parse_qs(raw.decode()).items()}
         try:
             return json.loads(raw or b"{}")
         except json.JSONDecodeError:
@@ -100,23 +107,34 @@ class Handler(BaseHTTPRequestHandler):
             return True
         return False
 
+    def user(self):
+        return self.app.billing.user_by_token(self.headers.get("x-user-token"))
+
+    def base_url(self):
+        host = self.headers.get("host") or "127.0.0.1:8000"
+        proto = self.headers.get("x-forwarded-proto") or "http"
+        return f"{proto}://{host}"
+
     # ---------------------------------------------------------- routing
     def do_GET(self):
         url = urllib.parse.urlsplit(self.path)
-        path = url.path
         qs = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
         try:
-            if path.startswith("/api/"):
-                return self.api_get(path, qs)
-            return self.static(path)
+            if url.path == "/pay/callback":
+                return self.pay_callback(qs)
+            if url.path.startswith("/api/"):
+                return self.api_get(url.path, qs)
+            return self.static(url.path)
         except Exception as e:  # noqa: BLE001
             return self.send_json({"error": str(e)}, 500)
 
     def do_POST(self):
-        path = urllib.parse.urlsplit(self.path).path
+        url = urllib.parse.urlsplit(self.path)
         try:
             data = self.body()
-            return self.api_post(path, data)
+            if url.path == "/pay/callback":
+                return self.pay_callback({**{k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}, **data})
+            return self.api_post(url.path, data)
         except ValueError as e:
             return self.send_json({"error": str(e)}, 400)
         except Exception as e:  # noqa: BLE001
@@ -143,15 +161,52 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def pay_callback(self, params):
+        ok = self.app.billing.callback(params)
+        return self.redirect("/#/account?" + ("paid=1" if ok else "failed=1"))
+
     # ---------------------------------------------------------- public api
+    def gate(self, d: dict, user, full=False):
+        """پیوند دیوار و جزئیات کامل ارزش‌گذاری فقط برای مشترکان فعال."""
+        active = bool(user and user["active"]) or d.get("id") in self.free_ids()
+        d["locked"] = not active
+        if not active:
+            for k in LOCKED_FIELDS:
+                d.pop(k, None)
+            ex = d.get("explain") or {}
+            if full:
+                d["explain"] = {"district_n": ex.get("district_n"), "city_n": ex.get("city_n"), "filled": ex.get("filled"),
+                                "effects_count": len(ex.get("effects") or [])}
+        else:
+            d.pop("token", None)
+        return d
+
+    def free_ids(self):
+        """چند فرصت برتر که بدون اشتراک هم با جزئیات کامل نمایش داده می‌شوند."""
+        n = int(self.app.billing.cfg().get("free_preview") or 0)
+        if not n:
+            return set()
+        return {r["id"] for r in self.app.store.q(
+            "SELECT id FROM listings WHERE score IS NOT NULL AND COALESCE(excluded,0)=0 AND status='active' AND hidden=0 ORDER BY score DESC LIMIT ?", (n,))}
+
     def api_get(self, path, qs):
         a = self.app
         if path == "/api/config":
             return self.send_json(a.public_config())
+        if path == "/api/me":
+            return self.send_json({"user": self.user()})
         if path == "/api/listings":
-            return self.send_json(a.store.search(qs))
+            r = a.store.search(qs)
+            u = self.user()
+            for d in r["items"]:
+                self.gate(d, u)
+                d.pop("attributes", None)
+                d.pop("feat", None)
+            return self.send_json(r)
         if path == "/api/stats":
             return self.send_json(a.store.stats())
+        if path == "/api/market":
+            return self.send_json({"rows": a.store.market_rows(qs.get("city"))})
         m = re.fullmatch(r"/api/listing/([\w-]+)", path)
         if m:
             d = a.store.get(m.group(1))
@@ -159,10 +214,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "یافت نشد"}, 404)
             d["verdict"] = a.store.verdict(d)
             d["history"] = a.store.history(d["id"])
-            sim = a.store.search({"vertical": d["vertical"], "city": d["city_key"], "deal": d["deal"],
-                                  "kinds": d.get("kind") or "", "limit": 7, "sort": "new"})["items"]
-            d["similar"] = [x for x in sim if x["id"] != d["id"]][:6]
-            return self.send_json(d)
+            sim = a.store.search({"city": d["city_key"], "deal": d["deal"], "kinds": d.get("kind") or "", "limit": 7, "sort": "score"})["items"]
+            u = self.user()
+            d["similar"] = [self.gate(x, u) for x in sim if x["id"] != d["id"]][:6]
+            if d.get("excluded"):
+                d["excluded_reasons"] = (d.get("explain") or {}).get("flags", [])
+            return self.send_json(self.gate(d, u, full=True))
         if path.startswith("/api/admin/"):
             if not self.is_admin():
                 return self.send_json({"error": "ورود لازم است"}, 401)
@@ -171,15 +228,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_post(self, path, data):
         a = self.app
-        if path == "/api/leads":
-            phone = catalog.norm(data.get("phone") or "").replace(" ", "")
-            if not re.fullmatch(r"(\+98|0)?9\d{9}", phone):
-                raise ValueError("شماره موبایل معتبر نیست")
-            name = (data.get("name") or "").strip()[:80]
-            a.store.x("INSERT INTO leads(at,name,phone,message,listing_id,kind) VALUES(?,?,?,?,?,?)",
-                      (int(time.time()), name, phone, (data.get("message") or "")[:1000],
-                       (data.get("listing_id") or "")[:60], (data.get("kind") or "contact")[:30]))
+        if path == "/api/auth/otp":
+            return self.send_json(a.billing.send_otp(data.get("phone")))
+        if path == "/api/auth/verify":
+            return self.send_json(a.billing.verify_otp(data.get("phone"), data.get("code")))
+        if path == "/api/auth/logout":
+            a.billing.logout(self.headers.get("x-user-token"))
             return self.send_json({"ok": True})
+        if path == "/api/pay/start":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback"))
         if path == "/api/admin/setup":
             if a.store.get_setting("admin"):
                 return self.send_json({"error": "رمز قبلاً تعیین شده است"}, 403)
@@ -221,49 +281,60 @@ class Handler(BaseHTTPRequestHandler):
             feeds = [dict(r) for r in s.q("SELECT * FROM feeds ORDER BY city_key, category")]
             for f in feeds:
                 f.pop("cursor", None)
+            now = int(time.time())
             return self.send_json({
                 **a.public_config(),
                 "ingest": cfg, "status": a.ingest.state,
                 "hour": s.requests_in_last(3600), "day": s.requests_in_last(86400),
                 "feeds": feeds,
                 "log": [dict(r) for r in s.q("SELECT * FROM requests_log ORDER BY at DESC LIMIT 60")],
-                "leads": [dict(r) for r in s.q("SELECT * FROM leads ORDER BY at DESC LIMIT 200")],
                 "stats": s.stats(),
                 "city_ids": {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})},
                 "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source='divar' AND detail_at IS NULL AND status='active'", one=True)["n"],
+                "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
+                "scoring": {"weights": {**DEFAULT_WEIGHTS, **((s.get_setting("scoring") or {}).get("weights") or {})}},
+                "valuation_full": s.get_setting("valuation_info"),
+                "users": {"total": s.q("SELECT COUNT(*) n FROM users", one=True)["n"],
+                          "active": s.q("SELECT COUNT(*) n FROM users WHERE sub_until>?", (now,), one=True)["n"]},
+                "revenue": s.q("SELECT COALESCE(SUM(amount),0) t, COUNT(*) n FROM payments WHERE status='paid' AND gateway!='test'", one=True)["t"],
             })
         if path == "/api/admin/listings":
-            qs = {**qs, "limit": qs.get("limit") or 50}
-            where = "1=1"
-            args = []
+            where, args = "1=1", []
             if qs.get("q"):
                 where = "(title LIKE ? OR id LIKE ?)"
                 args = [f"%{qs['q']}%", f"%{qs['q']}%"]
-            rows = [s.row_to_dict(r) for r in s.q(f"SELECT id,title,city_name,deal,kind,pp,status,hidden,featured,source,first_seen,url FROM listings WHERE {where} ORDER BY first_seen DESC LIMIT 100", args)]
+            if qs.get("excluded"):
+                where += " AND excluded=1"
+            rows = [s.row_to_dict(r) for r in s.q(f"SELECT id,title,city_name,district,deal,kind,pp,area,status,hidden,featured,excluded,flags,explain,score,discount,fair_price,first_seen,url FROM listings WHERE {where} ORDER BY first_seen DESC LIMIT 200", args)]
+            ov = set(s.get_setting("overrides") or [])
+            for r in rows:
+                r["override"] = r["id"] in ov
             return self.send_json({"items": rows})
-        if path == "/api/admin/leads.csv":
-            buf = io.StringIO()
-            w = csv.writer(buf)
-            w.writerow(["زمان", "نام", "تلفن", "پیام", "آگهی", "نوع", "وضعیت"])
-            for r in s.q("SELECT * FROM leads ORDER BY at DESC"):
-                w.writerow([time.strftime("%Y-%m-%d %H:%M", time.localtime(r["at"])), r["name"], r["phone"], r["message"], r["listing_id"], r["kind"], r["status"]])
-            body = ("﻿" + buf.getvalue()).encode()
-            self.send_response(200)
-            self.send_header("content-type", "text/csv; charset=utf-8")
-            self.send_header("content-disposition", "attachment; filename=leads.csv")
-            self.end_headers()
-            self.wfile.write(body)
-            return
+        if path == "/api/admin/users":
+            return self.send_json({
+                "users": [dict(r) for r in s.q("SELECT * FROM users ORDER BY created DESC LIMIT 300")],
+                "payments": [dict(r) for r in s.q("SELECT * FROM payments ORDER BY created DESC LIMIT 300")],
+            })
         return self.send_json({"error": "مسیر نامعتبر"}, 404)
 
     def admin_post(self, path, data):
         a, s = self.app, self.app.store
         if path == "/api/admin/settings":
-            for key, default in (("site", DEFAULT_SITE), ("payment", DEFAULT_PAYMENT), ("display", DEFAULT_DISPLAY)):
+            for key, default in (("site", DEFAULT_SITE), ("display", DEFAULT_DISPLAY), ("billing", DEFAULT_BILLING)):
                 if isinstance(data.get(key), dict):
                     clean = {k: v for k, v in data[key].items() if k in default}
                     s.set_setting(key, {**default, **(s.get_setting(key) or {}), **clean})
+            if isinstance(data.get("sms"), dict):
+                cur = {**DEFAULT_SMS, **(s.get_setting("sms") or {})}
+                new = {k: v for k, v in data["sms"].items() if k in DEFAULT_SMS}
+                if new.get("api_key") in ("•••", None):
+                    new.pop("api_key", None)
+                s.set_setting("sms", {**cur, **new})
+            if isinstance(data.get("weights"), dict):
+                w = {k: max(0, min(100, float(v))) for k, v in data["weights"].items() if k in DEFAULT_WEIGHTS}
+                s.set_setting("scoring", {"weights": {**DEFAULT_WEIGHTS, **w}})
+                threading.Thread(target=a.ingest.run_valuation, daemon=True).start()
             if data.get("new_password"):
                 if len(data["new_password"]) < 6:
                     raise ValueError("رمز دست‌کم ۶ نویسه باشد")
@@ -283,6 +354,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
             return self.send_json(a.ingest.test_connection())
+        if path == "/api/admin/revalue":
+            return self.send_json(a.ingest.run_valuation() or {"busy": True})
         if path == "/api/admin/discover":
             a.ingest.discover_ids(int(data.get("start") or 1), int(data.get("end") or 1300))
             return self.send_json({"ok": True})
@@ -293,36 +366,23 @@ class Handler(BaseHTTPRequestHandler):
             fields = {k: int(bool(data[k])) for k in ("hidden", "featured") if k in data}
             if fields:
                 s.mark(data["id"], **fields)
+            if "override" in data:
+                ov = set(s.get_setting("overrides") or [])
+                (ov.add if data["override"] else ov.discard)(data["id"])
+                s.set_setting("overrides", sorted(ov))
+                threading.Thread(target=a.ingest.run_valuation, daemon=True).start()
             return self.send_json({"ok": True})
-        if path == "/api/admin/lead":
-            s.x("UPDATE leads SET status=? WHERE id=?", (str(data.get("status") or "new")[:20], int(data["id"])))
+        if path == "/api/admin/grant":
+            phone = data.get("phone")
+            if not a.billing.user(phone):
+                raise ValueError("کاربری با این شماره نیست")
+            a.billing.activate(phone, data.get("plan") or "weekly")
             return self.send_json({"ok": True})
-        if path == "/api/admin/own-listing":
-            city = catalog.CITY_BY_KEY.get(data.get("city_key")) or catalog.CITIES[0]
-            lid = data.get("id") or "own-" + secrets.token_hex(4)
-            lat, lng = catalog.jitter(lid, city["lat"], city["lng"], 0.015)
-            item = {"id": lid, "source": "owner", "vertical": data.get("vertical") or "estate",
-                    "kind": data.get("kind") or "apartment", "deal": data.get("deal") or "sale",
-                    "title": (data.get("title") or "")[:120], "description": (data.get("description") or "")[:4000],
-                    "city_key": city["key"], "city_name": city["name"], "province": city["province"],
-                    "district": data.get("district"), "lat": lat, "lng": lng, "featured": 1,
-                    "images": [u for u in (data.get("images") or []) if isinstance(u, str)][:12],
-                    "amenities": [x for x in (data.get("amenities") or []) if x in catalog.AMENITY_RULES]}
-            for f in ("price", "deposit", "rent", "area", "rooms", "year", "mileage"):
-                if data.get(f) not in (None, ""):
-                    item[f] = catalog.number(data[f])
-            if item["images"]:
-                item["image"] = item["images"][0]
-            for f in ("brand", "gearbox", "fuel", "color", "body"):
-                if data.get(f):
-                    item[f] = str(data[f])[:60]
-            s.upsert(item)
-            return self.send_json({"ok": True, "id": lid})
         return self.send_json({"error": "مسیر نامعتبر"}, 404)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="سرور محلی آرا")
+    ap = argparse.ArgumentParser(description="سرور فرصت‌یاب")
     ap.add_argument("--host", default=os.environ.get("ARA_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int, default=int(os.environ.get("ARA_PORT", "8000")))
     ap.add_argument("--data", default=os.environ.get("ARA_DATA", str(ROOT / "data")))
@@ -334,7 +394,7 @@ def main():
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)
-    print(f"  آرا روشن شد:        {url}")
+    print(f"  فرصت‌یاب روشن شد:    {url}")
     print(f"  پنل مدیریت:          {url}/admin.html")
     print("  برای خاموش کردن، این پنجره را ببندید یا Ctrl+C بزنید.")
     print("=" * 56, flush=True)

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>آرا | دلال هوشمند املاک و خودروی شمال</title>
-  <meta name="description" content="ویلا، آپارتمان، زمین و خودرو در ۳۹ شهر گیلان، مازندران و گلستان؛ جست‌وجو با زبان فارسی، رتبه‌بندی قیمت نسبت به بازار، نقشه و مشاوره مستقیم." />
+  <title>فرصت‌یاب | قیمت منصفانه ملک در شمال</title>
+  <meta name="description" content="آگهی‌های ملک ۳۹ شهر گیلان، مازندران و گلستان، پاک‌سازی‌شده و رتبه‌بندی‌شده بر پایه قیمت منصفانه هر محله؛ بهترین فرصت‌های خرید و اجاره را پیدا کنید." />
   <meta name="theme-color" content="#13201c" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/vendor/vazirmatn/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
@@ -23,14 +23,15 @@
           <path d="M14 25l10-10 10 10" stroke="#fffdf9" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="35" cy="13" r="3.4" fill="#df5a2c"/>
         </svg>
-        <span class="brand__txt"><b data-site="name">آرا</b><small data-site="tagline">دلال هوشمند املاک و خودروی شمال</small></span>
+        <span class="brand__txt"><b data-site="name">فرصت‌یاب</b><small data-site="tagline">قیمت منصفانه ملک در شمال</small></span>
       </a>
       <nav class="nav" aria-label="ناوبری اصلی">
-        <a href="#/s?vertical=estate&deal=sale" data-nav="estate-sale">خرید ملک</a>
-        <a href="#/s?vertical=estate&deal=rent" data-nav="estate-rent">رهن و اجاره</a>
-        <a href="#/s?vertical=estate&deal=daily" data-nav="estate-daily">اقامت روزانه</a>
-        <a href="#/s?vertical=car" data-nav="car">خودرو</a>
-        <a href="#/market" data-nav="market">بازار شهرها</a>
+        <a href="#/s?sort=score&ranked=1" data-nav="top">فرصت‌های برتر</a>
+        <a href="#/s?deal=sale" data-nav="estate-sale">خرید</a>
+        <a href="#/s?deal=rent" data-nav="estate-rent">رهن و اجاره</a>
+        <a href="#/s?deal=daily" data-nav="estate-daily">اقامت روزانه</a>
+        <a href="#/market" data-nav="market">بازار محله‌ها</a>
+        <a href="#/method" data-nav="method">روش ارزش‌گذاری</a>
       </nav>
       <div class="top__act">
         <a class="icon-btn" href="#/saved" aria-label="ذخیره‌شده‌ها" title="ذخیره‌شده‌ها">
@@ -40,9 +41,9 @@
         <button class="icon-btn" id="themeBtn" aria-label="حالت روشن یا تیره" title="حالت روشن/تیره">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 13.3A8.5 8.5 0 1110.7 3.5a6.6 6.6 0 009.8 9.8z"/></svg>
         </button>
-        <button class="btn btn--ink" id="consignBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>سپردن ملک یا خودرو</span>
-        </button>
+        <a class="btn btn--ink" id="accountBtn" href="#/account">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span>
+        </a>
       </div>
     </div>
   </header>
@@ -53,31 +54,29 @@
     <div class="wrap">
       <div class="foot__grid">
         <div>
-          <b style="font-size:22px;font-weight:900" data-site="name">آرا</b>
-          <p class="muted" style="margin-top:8px;max-width:420px" id="footAbout">دلال هوشمند املاک و خودروی شمال ایران. آگهی‌ها از منابع عمومی گردآوری و با میانه بازار مقایسه می‌شوند؛ مشاوره و بازدید با ما.</p>
-          <ul style="margin-top:14px" id="footContact"></ul>
+          <b style="font-size:22px;font-weight:900" data-site="name">فرصت‌یاب</b>
+          <p class="muted" style="margin-top:8px;max-width:440px" id="footAbout">آگهی‌های ملک شمال ایران را از دیوار گردآوری، پاک‌سازی و با قیمت منصفانه هر محله مقایسه می‌کنیم تا بهترین فرصت‌ها را زودتر ببینید. همه کارها خودکار انجام می‌شود.</p>
         </div>
-        <div><h4>املاک</h4><ul>
-          <li><a href="#/s?vertical=estate&deal=sale&kinds=villa">ویلا</a></li>
-          <li><a href="#/s?vertical=estate&deal=sale&kinds=apartment">آپارتمان</a></li>
-          <li><a href="#/s?vertical=estate&kinds=land,garden">زمین و باغ</a></li>
-          <li><a href="#/s?vertical=estate&deal=daily">اقامت روزانه</a></li>
+        <div><h4>جست‌وجو</h4><ul>
+          <li><a href="#/s?sort=score&ranked=1">فرصت‌های برتر</a></li>
+          <li><a href="#/s?deal=sale&kinds=apartment">آپارتمان</a></li>
+          <li><a href="#/s?deal=sale&kinds=villa">ویلا</a></li>
+          <li><a href="#/s?kinds=land,garden">زمین و باغ</a></li>
         </ul></div>
-        <div><h4>خودرو</h4><ul>
-          <li><a href="#/s?vertical=car&sort=deal">زیر قیمت بازار</a></li>
-          <li><a href="#/s?vertical=car&gearbox=اتوماتیک">اتوماتیک</a></li>
-          <li><a href="#/s?vertical=car&drop=1">کاهش قیمت‌خورده</a></li>
+        <div><h4>بازار</h4><ul>
+          <li><a href="#/market">بازار محله‌ها</a></li>
+          <li><a href="#/s?drop=1&sort=drop">کاهش قیمت‌ها</a></li>
+          <li><a href="#/method">روش ارزش‌گذاری</a></li>
         </ul></div>
-        <div><h4>آرا</h4><ul>
-          <li><a href="#/market">بازار شهرها</a></li>
+        <div><h4>حساب</h4><ul>
+          <li><a href="#/account">ورود و اشتراک</a></li>
+          <li><a href="#/saved">ذخیره‌شده‌ها</a></li>
           <li><a href="#/" data-scroll="tools">ابزارهای محاسبه</a></li>
-          <li><a href="#/pay">خدمات و پرداخت</a></li>
-          <li><a href="admin.html">ورود مدیر</a></li>
         </ul></div>
       </div>
       <div class="foot__legal">
-        <span>آگهی‌ها از دیوار گردآوری شده‌اند و پیوند آگهی اصلی در هر صفحه آمده است. پیش از هر پرداخت، ملک یا خودرو را حضوری بررسی کنید.</span>
-        <span>© <span data-site="name">آرا</span></span>
+        <span>منبع آگهی‌ها دیوار است. قیمت منصفانه برآوردی آماری از قیمت‌های پیشنهادی آگهی‌هاست، نه قیمت کارشناسی رسمی؛ پیش از هر معامله، ملک و مدارک را حضوری بررسی کنید.</span>
+        <span>© <span data-site="name">فرصت‌یاب</span></span>
       </div>
     </div>
   </footer>
@@ -89,16 +88,16 @@
   </div>
 
   <button class="ai-fab" id="aiFab" aria-label="دستیار هوشمند">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg><b>دستیار آرا</b>
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg><b>دستیار</b>
   </button>
   <section class="ai" id="ai" hidden aria-label="دستیار هوشمند">
     <header class="ai__head">
-      <div><b>دستیار آرا</b><small>بنویس چه می‌خواهی؛ جست‌وجو را برایت تنظیم می‌کنم</small></div>
+      <div><b>دستیار فرصت‌یاب</b><small>بنویس دنبال چه ملکی هستی؛ بهترین فرصت‌ها را پیدا می‌کنم</small></div>
       <button class="icon-btn" id="aiClose" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </header>
     <div class="ai__log" id="aiLog" aria-live="polite"></div>
     <div class="ai__sugs" id="aiSugs"></div>
-    <form class="ai__form" id="aiForm"><input id="aiInput" placeholder="مثلاً: دنا پلاس مدل ۱۴۰۰ به بالا در ساری" autocomplete="off" /><button class="btn btn--ink">ارسال</button></form>
+    <form class="ai__form" id="aiForm"><input id="aiInput" placeholder="مثلاً: آپارتمان زیر قیمت در گلسار رشت" autocomplete="off" /><button class="btn btn--ink">ارسال</button></form>
   </section>
 
   <dialog class="dlg" id="dlg"><div class="dlg__body" id="dlgBody"></div></dialog>

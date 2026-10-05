@@ -1,4 +1,4 @@
-"""مرجع شهرها، دسته‌ها و تبدیل آگهی خام دیوار به ساختار یکسان آرا.
+"""مرجع شهرها، دسته‌ها و تبدیل آگهی خام دیوار به ساختار یکسان فرصت‌یاب.
 
 مختصات شهرها تقریبی است. شناسه عددی دیوار فقط برای سه مرکز استان قطعی است؛
 بقیه از طریق «کشف شناسه» در پنل مدیریت یا وارد کردن دستی تکمیل می‌شوند.
@@ -64,17 +64,15 @@ CITIES = [
 ]
 CITY_BY_KEY = {c["key"]: c for c in CITIES}
 
-# دسته‌های قابل دریافت. «real-estate» و «light» در هر دو MCP بررسی‌شده‌اند و همه
+# دسته‌های قابل دریافت (فعلاً فقط املاک). «real-estate» در هر دو MCP بررسی‌شده است و همه
 # زیردسته‌ها را پوشش می‌دهند؛ نوع ملک و معامله از مسیر دسته هر آگهی استخراج می‌شود.
 CATEGORIES = [
     {"slug": "real-estate", "name": "همه املاک", "vertical": "estate", "verified": True, "default": True},
-    {"slug": "light", "name": "خودرو سواری و وانت", "vertical": "car", "verified": True, "default": True},
     {"slug": "apartment-sell", "name": "فروش آپارتمان", "vertical": "estate", "verified": True, "default": False},
     {"slug": "apartment-rent", "name": "اجاره آپارتمان", "vertical": "estate", "verified": True, "default": False},
     {"slug": "residential-rent", "name": "اجاره مسکونی", "vertical": "estate", "verified": True, "default": False},
     {"slug": "commercial-sell", "name": "فروش اداری و تجاری", "vertical": "estate", "verified": True, "default": False},
     {"slug": "commercial-rent", "name": "اجاره اداری و تجاری", "vertical": "estate", "verified": True, "default": False},
-    {"slug": "motorcycles", "name": "موتورسیکلت", "vertical": "car", "verified": True, "default": False},
 ]
 CATEGORY_BY_SLUG = {c["slug"]: c for c in CATEGORIES}
 
@@ -93,7 +91,7 @@ def squash(text: str | None) -> str:
 
 
 def find_city(name: str | None) -> dict | None:
-    """نام فارسی شهر (از دیوار) را به شهر آرا نگاشت می‌کند؛ طولانی‌ترین تطابق برنده است."""
+    """نام فارسی شهر (از دیوار) را به شهر فرصت‌یاب نگاشت می‌کند؛ طولانی‌ترین تطابق برنده است."""
     s = squash(name)
     if not s:
         return None

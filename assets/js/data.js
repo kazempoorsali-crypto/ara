@@ -1,4 +1,4 @@
-/* مرجع ثابت آرا + آگهی‌های نمونه برای پیش‌نمایش
+/* مرجع ثابت فرصت‌یاب + آگهی‌های نمونه برای پیش‌نمایش
    هشدار: همه آگهی‌ها و قیمت‌های این فایل ساختگی‌اند و فقط وقتی نمایش داده می‌شوند که
    هنوز آگهی واقعی از دیوار دریافت نشده باشد (یا سایت بدون سرور باز شده باشد). */
 
@@ -50,10 +50,6 @@ const CITIES = [
   ["kalaleh", "کلاله", "golestan", 37.3807, 55.4916, ["روستایی"]],
 ].map(([id, name, province, lat, lng, tags]) => ({ id, name, province, lat, lng, tags }));
 
-const VERTICALS = [
-  { id: "estate", name: "املاک" },
-  { id: "car", name: "خودرو" },
-];
 
 const PROPERTY_TYPES = [
   { id: "apartment", name: "آپارتمان" },
@@ -64,7 +60,6 @@ const PROPERTY_TYPES = [
   { id: "shop", name: "مغازه" },
   { id: "office", name: "اداری" },
 ];
-const CAR_TYPES = [{ id: "car", name: "سواری و وانت" }, { id: "motorcycle", name: "موتورسیکلت" }];
 
 const DEAL_TYPES = [
   { id: "sale", name: "خرید" },
@@ -87,8 +82,6 @@ const AMENITIES = [
   { id: "barbecue", name: "آلاچیق" },
   { id: "mountain", name: "دید کوهستان" },
 ];
-
-const CAR_BRANDS = ["پژو ۲۰۶", "پژو ۴۰۵", "پژو پارس", "دنا پلاس", "سمند", "تارا", "رانا", "پراید", "تیبا", "کوییک", "ساینا", "شاهین", "ری‌را", "هایما", "تیگو", "جک", "کیا", "هیوندای", "تویوتا", "ام‌وی‌ام", "ال۹۰", "نیسان وانت"];
 
 const DEAL_BANDS = {
   great: { name: "معامله عالی", short: "عالی" },
@@ -162,28 +155,6 @@ const SAMPLE_LISTINGS = (() => {
       if (deal === "daily") it.price = Math.round(between(1.5e6, 8e6) * (kind === "villa" ? 1.5 : 1) / 1e5) * 1e5;
       out.push(it);
     });
-    // خودرو
-    const carCount = 2 + Math.floor(rnd() * 3);
-    for (let i = 0; i < carCount; i++) {
-      const brand = pick(CAR_BRANDS);
-      const year = 1390 + Math.floor(rnd() * 14);
-      const base = { "پراید": 330, "تیبا": 400, "ساینا": 420, "کوییک": 480, "پژو ۲۰۶": 600, "پژو ۴۰۵": 560, "پژو پارس": 680, "سمند": 560, "رانا": 590, "دنا پلاس": 820, "تارا": 950, "شاهین": 800, "ری‌را": 1200, "هایما": 1700, "تیگو": 1800, "جک": 1300, "کیا": 1900, "هیوندای": 2100, "تویوتا": 2600, "ام‌وی‌ام": 900, "ال۹۰": 700, "نیسان وانت": 750 }[brand] * 1e6;
-      const age = 1404 - year;
-      out.push({
-        id: "smp-" + (++n), source: "sample", vertical: "car", kind: "car", deal: "sale",
-        title: `${brand} مدل ${fmtYear(year)}`, brand, year,
-        city_key: city.id, city_name: city.name, province: city.province, district: pick(hoods),
-        mileage: Math.round(age * between(9000, 22000) / 1000) * 1000,
-        gearbox: ["تیگو", "هایما", "کیا", "هیوندای", "تویوتا", "ری‌را"].includes(brand) || rnd() > 0.85 ? "اتوماتیک" : "دنده‌ای",
-        fuel: rnd() > 0.8 ? "دوگانه‌سوز" : "بنزینی",
-        color: pick(["سفید", "مشکی", "نقره‌ای", "نوک‌مدادی", "خاکستری"]),
-        body: pick(["بدون رنگ", "بدون رنگ", "یک لکه رنگ", "گلگیر تعویض", "دو لکه رنگ"]),
-        price: Math.round(base * Math.pow(0.94, age) * between(0.85, 1.18) / 1e6) * 1e6,
-        amenities: [], image: null, images: [], lat: city.lat + between(-0.03, 0.03), lng: city.lng + between(-0.04, 0.04),
-        first_seen: now - Math.floor(rnd() * 20 * 86400), price_drop: rnd() > 0.85 ? +between(0.02, 0.08).toFixed(3) : 0,
-        featured: 0, scene: "road",
-      });
-    }
   });
   out.forEach((l) => {
     l.pp = l.deal === "rent" ? (l.deposit || 0) + (l.rent || 0) / 0.03 : l.price;

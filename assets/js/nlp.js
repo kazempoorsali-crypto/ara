@@ -1,5 +1,5 @@
-/* موتور فهم جمله فارسی آرا (قاعده‌محور، در مرورگر)
-   ورودی: «ویلای استخردار رامسر زیر ۲۰ میلیارد» یا «پژو ۲۰۶ مدل ۹۸ به بالا کارکرد زیر ۱۰۰ هزار»
+/* موتور فهم جمله فارسی فرصت‌یاب (قاعده‌محور، در مرورگر)
+   ورودی: «ویلای استخردار رامسر زیر ۲۰ میلیارد» یا «آپارتمان ۲ خوابه گلسار رشت»
    خروجی: { filters, tags } با همان نام پارامترهای API جست‌وجو. */
 const NLP = (() => {
   const FA = "۰۱۲۳۴۵۶۷۸۹", AR = "٠١٢٣٤٥٦٧٨٩";
@@ -19,8 +19,6 @@ const NLP = (() => {
   const AMEN_WORDS = [["seaview", /دریا|ساحل/], ["forest", /جنگل/], ["pool", /استخر/], ["jacuzzi", /جکوزی/], ["parking", /پارکینگ/],
     ["elevator", /آسانسور|اسانسور/], ["warehouse", /انباری/], ["balcony", /بالکن|تراس/], ["gated", /شهرک|نگهبان/], ["deed", /سند/],
     ["furnished", /مبله|مبلمان/], ["barbecue", /باربیکیو|آلاچیق|الاچیق/], ["mountain", /کوه|ییلاق/]];
-  const CAR_WORDS = /ماشین|خودرو|اتومبیل|سواری|وانت|پژو|پراید|سمند|دنا|تارا|رانا|تیبا|کوییک|ساینا|شاهین|ری ?را|هایما|تیگو|چری|جک|کیا|هیوندای|تویوتا|نیسان|ام ?وی ?ام|ال ?90|موتور ?سیکلت|کارکرد|گیربکس|دنده/;
-
   function money(q) {
     const re = new RegExp(NUMW + "\\s*(میلیارد|میلیون)(?:\\s*و\\s*" + NUMW + "\\s*(میلیون))?", "g");
     const out = []; let m;
@@ -44,8 +42,6 @@ const NLP = (() => {
     const q = normalize(raw), sq = squash(raw), words = q.split(" ");
     const f = { ...base };
     const tags = [];
-    const estateWords = /ویلا|آپارتمان|زمین|باغ|سوئیت|اجاره|رهن|متری|خواب/;
-    f.vertical = CAR_WORDS.test(q) && !estateWords.test(q) ? "car" : base.vertical === "car" && !estateWords.test(q) ? "car" : "estate";
 
     let best = null, size = 0;
     CITIES.forEach((c) => [c.name, ...(CITY_ALIASES[c.id] || [])].forEach((n) => {
@@ -56,7 +52,7 @@ const NLP = (() => {
     if (best) { f.city = best.id; f.province = best.province; tags.push(best.name); }
     else { const p = PROVINCES.find((p) => q.includes(p.name)); if (p) { f.province = p.id; f.city = ""; tags.push("استان " + p.name); } }
 
-    if (f.vertical === "estate") {
+    {
       if (/روزانه|شبی|شبانه|آخر هفته|تعطیلات|نوروز|سفر|چند شب|اقامت/.test(q)) f.deal = "daily";
       else if (/اجاره|رهن|کرایه/.test(q)) f.deal = "rent";
       else if (/خرید|بخرم|فروش|فروشی|سرمایه گذاری/.test(q)) f.deal = "sale";
@@ -73,24 +69,6 @@ const NLP = (() => {
       }
       const rm = q.match(/(\d+|یک|یه|دو|سه|چهار|پنج)\s*(?:خواب|خوابه)/);
       if (rm) { f.rooms = Math.min(4, readNum(rm[1])); tags.push(faN(f.rooms) + (f.rooms >= 4 ? "+" : "") + " خواب"); }
-    } else {
-      f.deal = "sale";
-      const brand = [...CAR_BRANDS].sort((a, b) => b.length - a.length).find((b) => sq.includes(squash(b)));
-      const b0 = brand || CAR_BRANDS.map((b) => b.split(" ")[0]).find((b) => sq.includes(squash(b)));
-      if (b0) { f.brand = b0; tags.push(b0); }
-      if (/موتور ?سیکلت/.test(q)) { f.kinds = "motorcycle"; tags.push("موتورسیکلت"); }
-      const ym = q.match(/مدل\s*(\d{2,4})/);
-      if (ym) {
-        let y = +ym[1]; if (y < 100) y += 1300;
-        const after = q.slice(ym.index + ym[0].length, ym.index + ym[0].length + 12);
-        if (/به بالا|بالاتر|به بعد/.test(after)) { f.yearMin = y; tags.push("مدل " + faN(y) + " به بالا"); }
-        else if (/به پایین|پایین تر|قبل/.test(after)) { f.yearMax = y; tags.push("مدل تا " + faN(y)); }
-        else { f.yearMin = y; f.yearMax = y; tags.push("مدل " + faN(y)); }
-      }
-      const km = q.match(/کارکرد\s*(?:زیر|کمتر از|تا)?\s*(\d+)\s*(هزار)?/);
-      if (km) { f.mileageMax = +km[1] * (km[2] || +km[1] < 1000 ? 1000 : 1); tags.push("کارکرد تا " + (f.mileageMax / 1000).toLocaleString("fa-IR") + " هزار"); }
-      if (/اتومات/.test(q)) { f.gearbox = "اتوماتیک"; tags.push("اتوماتیک"); }
-      else if (/دنده ای|دستی/.test(q)) { f.gearbox = "دنده‌ای"; tags.push("دنده‌ای"); }
     }
 
     const btw = q.match(new RegExp("بین\\s*" + NUMW + "\\s*(?:میلیارد|میلیون)?\\s*(?:و|تا)\\s*" + NUMW + "\\s*(میلیارد|میلیون)"));
@@ -109,10 +87,10 @@ const NLP = (() => {
   function intent(raw) {
     const q = normalize(raw);
     if (/^(سلام|درود|hi|hello)/i.test(q)) return "greet";
+    if (/چطور|روش|محاسبه|امتیاز چیه|قیمت منصفانه چیه/.test(q)) return "method";
+    if (/اشتراک|عضویت|ثبت ?نام|پرداخت|هزینه/.test(q)) return "plans";
     if (/وام|قسط/.test(q)) return "loan";
     if (/قیمت هر متر|متری چند|میانگین قیمت|ارزش|چقدر می ارزه|قیمت روز/.test(q)) return "value";
-    if (/ثبت آگهی|بفروشم|بسپارم|آگهی بدم|اگهی بدم/.test(q)) return "post";
-    if (/تماس|شماره|مشاور|بازدید/.test(q)) return "contact";
     return "search";
   }
 
