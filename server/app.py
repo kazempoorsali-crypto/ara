@@ -67,7 +67,7 @@ class App:
             "gateway": "card" if b.cfg()["gateway"] == "card" and not b.cfg()["test_mode"] else "online",
             "owner": {k: v for k, v in {**DEFAULT_OWNER, **(s.get_setting("owner") or {})}.items() if v},
             "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
-            "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source='divar'", one=True) or {"t": None})["t"],
+            "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
             "sms_live": bool(b.sms_cfg()["api_key"] and b.sms_cfg()["template"]),
             "admin_ready": bool(s.get_setting("admin")),
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
@@ -372,9 +372,11 @@ class Handler(BaseHTTPRequestHandler):
                 "feeds": feeds,
                 "log": [dict(r) for r in s.q("SELECT * FROM requests_log ORDER BY at DESC LIMIT 60")],
                 "stats": s.stats(),
+                "sheypoor_cats": (s.get_setting("sheypoor_map") or {}).get("categories") or [],
+                "by_source": {r["source"]: r["n"] for r in s.q("SELECT source, COUNT(*) n FROM listings WHERE status='active' GROUP BY source")},
                 "city_ids": {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})},
                 "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
-                "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source='divar' AND detail_at IS NULL AND status='active'", one=True)["n"],
+                "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
                 "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
@@ -463,7 +465,7 @@ class Handler(BaseHTTPRequestHandler):
             a.ingest.poke()
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
-            return self.send_json(a.ingest.test_connection())
+            return self.send_json(a.ingest.test_connection(data.get("source") or "divar"))
         if path == "/api/admin/revalue":
             return self.send_json(a.ingest.run_valuation() or {"busy": True})
         if path == "/api/admin/discover":

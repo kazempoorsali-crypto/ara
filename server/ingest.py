@@ -20,6 +20,7 @@ import catalog
 import features
 import valuation
 from divar_client import SourceError, backoff_seconds, make_source
+from sheypoor_client import SheypoorSource
 
 DEFAULT_INGEST = {
     "enabled": False,
@@ -31,7 +32,10 @@ DEFAULT_INGEST = {
     "refresh_hours": 6,
     "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
     "recheck_days": 4,
+    "sheypoor": False,        # منبع دوم: شیپور از طریق MCP
+    "sheypoor_url": "",
 }
+SRC_PREFIX = {"divar": "dv-", "sheypoor": "sp-"}
 
 
 class Ingestor:
@@ -42,6 +46,8 @@ class Ingestor:
         self.thread = None
         self.source = None
         self.source_key = None
+        self.sp_source = None
+        self.sp_key = None
         self.pause_until = 0
         self.fail_streak = 0
         self.detail_credit = 0
@@ -63,6 +69,16 @@ class Ingestor:
         if ids.get(key):
             c["divar_id"] = int(ids[key])
         return c
+
+    def get_sheypoor(self, cfg):
+        key = cfg.get("sheypoor_url") or ""
+        if self.sp_source is None or key != self.sp_key:
+            self.sp_source = SheypoorSource(key or None, store=self.store)
+            self.sp_key = key
+        return self.sp_source
+
+    def source_for(self, cfg, name):
+        return self.get_sheypoor(cfg) if name == "sheypoor" else self.get_source(cfg)
 
     def get_source(self, cfg):
         key = (cfg["mode"], cfg.get("mcp_url"))
@@ -142,42 +158,58 @@ class Ingestor:
 
     # ---------------------------------------------------------- scheduling
     def ensure_feeds(self, cfg):
+        sp_cats = ((self.store.get_setting("sheypoor_map") or {}).get("categories") or []) if cfg.get("sheypoor") else []
         for ck in cfg["cities"]:
             if ck not in catalog.CITY_BY_KEY:
                 continue
             for cat in cfg["categories"]:
                 self.store.x("INSERT OR IGNORE INTO feeds(city_key, category) VALUES(?,?)", (ck, cat))
+            for c in sp_cats:
+                self.store.x("INSERT OR IGNORE INTO feeds(city_key, category) VALUES(?,?)", (ck, f"sheypoor:{c['id']}"))
 
     def active_feeds(self, cfg):
         rows = self.store.q("SELECT * FROM feeds")
-        return [dict(r) for r in rows if r["city_key"] in cfg["cities"] and r["category"] in cfg["categories"]]
+        return [dict(r) for r in rows if r["city_key"] in cfg["cities"]
+                and (r["category"] in cfg["categories"] or (cfg.get("sheypoor") and r["category"].startswith("sheypoor:")))]
 
     def step(self, cfg):
+        if cfg.get("sheypoor") and not (self.store.get_setting("sheypoor_map") or {}).get("categories"):
+            # یک‌بار: کشف دسته‌های ملک و شهرهای شمال در شیپور
+            src = self.get_sheypoor(cfg)
+            try:
+                cats = src.categories()
+                src.city_ref(catalog.CITY_BY_KEY[cfg["cities"][0]] if cfg["cities"] else catalog.CITIES[0])
+                self.store.log_request("discover", True, f"شیپور: {len(cats)} دستهٔ ملک کشف شد")
+            except SourceError as e:
+                self.store.log_request("discover", False, f"شیپور: {e}")
+            return
         self.ensure_feeds(cfg)
         feeds = self.active_feeds(cfg)
         if cfg["mode"] == "direct":
-            feeds = [f for f in feeds if self.city(f["city_key"]).get("divar_id")]
+            feeds = [f for f in feeds if f["category"].startswith("sheypoor:") or self.city(f["city_key"]).get("divar_id")]
         now = time.time()
         stale = [f for f in feeds if now - (f["last_page1"] or 0) > cfg["refresh_hours"] * 3600]
-        pending = self.store.q("""SELECT id, token FROM listings WHERE source='divar' AND detail_at IS NULL
-                                  AND status='active' ORDER BY first_seen DESC LIMIT 1""", one=True)
+        srcs = ("divar", "sheypoor") if cfg.get("sheypoor") else ("divar",)
+        marks = ",".join("?" * len(srcs))
+        pending = self.store.q(f"""SELECT id, token, source FROM listings WHERE source IN ({marks}) AND detail_at IS NULL
+                                  AND status='active' ORDER BY first_seen DESC LIMIT 1""", srcs, one=True)
         if stale:
             f = min(stale, key=lambda f: f["last_page1"] or 0)
             return self.fetch_page(cfg, f, first=True)
         if pending and self.detail_credit > 0:
             self.detail_credit -= 1
-            return self.fetch_detail(cfg, pending["id"], pending["token"])
+            return self.fetch_detail(cfg, pending["id"], pending["token"], source=pending["source"])
         deep = [f for f in feeds if f["has_next"]]
         if deep:
             f = min(deep, key=lambda f: (f["pages_done"], f["items"]))
             return self.fetch_page(cfg, f, first=False)
         if pending:
-            return self.fetch_detail(cfg, pending["id"], pending["token"])
-        old = self.store.q("""SELECT id, token FROM listings WHERE source='divar' AND status='active'
+            return self.fetch_detail(cfg, pending["id"], pending["token"], source=pending["source"])
+        old = self.store.q(f"""SELECT id, token, source FROM listings WHERE source IN ({marks}) AND status='active'
                               AND COALESCE(checked_at, detail_at, 0) < ? ORDER BY COALESCE(checked_at, detail_at, 0) LIMIT 1""",
-                           (int(now - cfg["recheck_days"] * 86400),), one=True)
+                           (*srcs, int(now - cfg["recheck_days"] * 86400)), one=True)
         if old:
-            return self.fetch_detail(cfg, old["id"], old["token"], recheck=True)
+            return self.fetch_detail(cfg, old["id"], old["token"], recheck=True, source=old["source"])
         self.state["last"] = "همه فهرست‌ها کامل است؛ منتظر نوبت تازه‌سازی"
         self.pause_until = now + 300
 
@@ -186,8 +218,14 @@ class Ingestor:
         city = self.city(feed["city_key"])
         page = 1 if first else (feed["page"] or 0) + 1
         cursor = None if first else (json.loads(feed["cursor"]) if feed["cursor"] else None)
-        src = self.get_source(cfg)
-        label = f"فهرست {city['name']} / {catalog.CATEGORY_BY_SLUG.get(feed['category'], {}).get('name', feed['category'])} صفحه {page}"
+        sp = feed["category"].startswith("sheypoor:")
+        src = self.get_sheypoor(cfg) if sp else self.get_source(cfg)
+        if sp:
+            cid = feed["category"].split(":", 1)[1]
+            cname = next((c["name"] for c in (self.store.get_setting("sheypoor_map") or {}).get("categories", []) if str(c["id"]) == cid), cid)
+            label = f"شیپور {city['name']} / {cname} صفحه {page}"
+        else:
+            label = f"دیوار {city['name']} / {catalog.CATEGORY_BY_SLUG.get(feed['category'], {}).get('name', feed['category'])} صفحه {page}"
         try:
             res = src.search(city, feed["category"], page, cursor)
         except SourceError as e:
@@ -202,7 +240,7 @@ class Ingestor:
             raise
         counts = {"new": 0, "updated": 0, "same": 0}
         for row in res["rows"]:
-            counts[self.store.upsert(self.from_summary(row, city, feed["category"]))] += 1
+            counts[self.store.upsert(self.from_summary(row, city, feed["category"], "sheypoor" if sp else "divar"))] += 1
         self.dirty += counts["new"] + counts["updated"]
         self.store.log_request("search", True, f"{label}: {len(res['rows'])} آگهی ({counts['new']} جدید، {counts['updated']} تغییر قیمت)")
         fields = {"last_error": None, "items": (feed["items"] or 0) + counts["new"]}
@@ -219,14 +257,14 @@ class Ingestor:
         self.detail_credit += cfg["detail_ratio"]
         self.state.update(last=label, last_at=int(time.time()))
 
-    def fetch_detail(self, cfg, lid, token, recheck=False):
-        src = self.get_source(cfg)
+    def fetch_detail(self, cfg, lid, token, recheck=False, source="divar"):
+        src = self.source_for(cfg, source)
         try:
             d = src.detail(token)
         except SourceError as e:
             if e.status in (404, 410):
                 self.store.mark(lid, status="removed", checked_at=int(time.time()))
-                self.store.log_request("detail", True, f"{token}: آگهی در دیوار حذف شده است")
+                self.store.log_request("detail", True, f"{token}: آگهی در منبع حذف شده است")
                 return
             self.store.log_request("detail", False, f"{token}: {e}")
             if e.status and 400 <= e.status < 500 and e.status != 429:  # آگهی مشکل‌دار: رد شو
@@ -242,20 +280,23 @@ class Ingestor:
         self.state.update(last=f"جزئیات «{(item.get('title') or token)[:40]}»", last_at=int(time.time()))
 
     # ---------------------------------------------------------- mapping
-    def from_summary(self, row, city, category) -> dict:
+    def from_summary(self, row, city, category, source="divar") -> dict:
         cat = catalog.CATEGORY_BY_SLUG.get(category, {"vertical": "estate"})
+        cat_text = row.get("category_text") or category
         mapped = catalog.find_city(row.get("city_name")) or city
         lat, lng = catalog.jitter(row["token"], mapped["lat"], mapped["lng"])
         item = {
-            "id": "dv-" + row["token"], "source": "divar", "token": row["token"], "url": row.get("url"),
+            "id": SRC_PREFIX[source] + row["token"], "source": source, "token": row["token"], "url": row.get("url"),
             "vertical": cat["vertical"], "category": category, "title": row.get("title"),
             "city_key": mapped["key"], "city_name": mapped["name"], "province": mapped["province"],
             "district": row.get("district"), "price": row.get("price"), "deposit": row.get("deposit"),
             "rent": row.get("rent"), "negotiable": int(bool(row.get("negotiable"))),
             "image": row.get("image"), "lat": lat, "lng": lng, "time_text": row.get("time_text"),
         }
+        if row.get("phone"):
+            item["phone"] = str(row["phone"])[:40]
         if cat["vertical"] == "estate":
-            item["kind"], item["deal"] = catalog.classify_estate(category, row.get("title") or "")
+            item["kind"], item["deal"] = catalog.classify_estate(cat_text, row.get("title") or "")
             if item["deposit"] is not None or item["rent"] is not None:
                 item["deal"] = "rent" if item["deal"] == "sale" else item["deal"]
             item["amenities"] = catalog.detect_amenities(row.get("title"))
@@ -271,7 +312,8 @@ class Ingestor:
 
     def from_detail(self, d, current, city) -> dict:
         city = city or catalog.CITIES[0]
-        item = {"id": current.get("id") or "dv-" + d["token"], "source": "divar", "token": d["token"],
+        source = current.get("source") or "divar"
+        item = {"id": current.get("id") or SRC_PREFIX.get(source, "dv-") + d["token"], "source": source, "token": d["token"],
                 "url": d.get("url"), "title": d.get("title") or current.get("title"),
                 "description": d.get("description"), "attributes": d.get("attributes") or {},
                 "images": d.get("images") or [], "district": d.get("district") or current.get("district"),
@@ -305,10 +347,23 @@ class Ingestor:
         return item
 
     # ---------------------------------------------------------- admin actions
-    def test_connection(self) -> dict:
+    def test_connection(self, source="divar") -> dict:
         cfg = self.cfg()
-        src = make_source(cfg["mode"], cfg.get("mcp_url"))
         started = time.time()
+        if source == "sheypoor":
+            src = SheypoorSource(cfg.get("sheypoor_url") or None, store=self.store)
+            try:
+                info = src.probe()
+                city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")
+                cats = src.categories()
+                res = src.search(city, f"sheypoor:{cats[0]['id']}", 1)
+                self.store.log_request("test", True, f"آزمون شیپور: {len(res['rows'])} آگهی از {city['name']}")
+                sample = [{k: v for k, v in r.items() if k != "raw"} for r in res["rows"][:3]]
+                return {"ok": True, "ms": int((time.time() - started) * 1000), "info": info, "count": len(res["rows"]), "sample": sample}
+            except Exception as e:
+                self.store.log_request("test", False, f"آزمون شیپور: {e}")
+                return {"ok": False, "error": str(e)}
+        src = make_source(cfg["mode"], cfg.get("mcp_url"))
         try:
             info = src.probe()
             city = self.city(cfg["cities"][0] if cfg["cities"] else "rasht")

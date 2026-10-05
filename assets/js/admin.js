@@ -111,7 +111,8 @@
   function ingest() {
     const cfg = S.ingest, cat = S.catalog;
     const totalFeeds = S.feeds.length;
-    main().innerHTML = `<h1>دریافت تدریجی از دیوار</h1><p class="muted">آگهی‌های شهرهای انتخابی با سقف درخواست ساعتی، به‌تدریج و پیوسته دریافت می‌شوند و با خاموش و روشن شدن رایانه از همان‌جا ادامه می‌یابند.</p>
+    main().innerHTML = `<h1>دریافت تدریجی آگهی‌ها (دیوار و شیپور)</h1>
+      <div class="kpis"><div><b>${fa((S.by_source || {}).divar || 0)}</b><span>آگهی فعال از دیوار</span></div><div><b>${fa((S.by_source || {}).sheypoor || 0)}</b><span>آگهی فعال از شیپور</span></div></div><p class="muted">آگهی‌های شهرهای انتخابی با سقف درخواست ساعتی، به‌تدریج و پیوسته دریافت می‌شوند و با خاموش و روشن شدن رایانه از همان‌جا ادامه می‌یابند.</p>
       ${statusLine()}<br>
       <form id="ingForm">
       <div class="panel"><h2>روشن / خاموش</h2>
@@ -129,7 +130,12 @@
           <label class="field"><span>تعداد جزئیات به ازای هر صفحه فهرست</span><input class="input" name="detail_ratio" type="number" min="0" max="30" value="${cfg.detail_ratio}"><span class="hint">بیشتر = عکس و مشخصات کامل‌تر؛ کمتر = پوشش سریع‌تر تعداد آگهی.</span></label>
           <label class="field"><span>بازبینی آگهی‌های قدیمی (روز)</span><input class="input" name="recheck_days" type="number" min="1" max="60" value="${cfg.recheck_days}"><span class="hint">برای تشخیص آگهی‌های حذف‌شده.</span></label>
         </div></div>
-      <div class="panel"><h2>دسته‌ها</h2><div class="checks">${cat.categories.map((c) => `<label><input type="checkbox" name="cat" value="${c.slug}" ${cfg.categories.includes(c.slug) ? "checked" : ""}><span>${c.name}</span></label>`).join("")}</div>
+      <div class="panel"><h2>منبع دوم: شیپور</h2>
+        <label class="switch"><input type="checkbox" name="sheypoor" ${cfg.sheypoor ? "checked" : ""}><i></i>دریافت آگهی‌های ملک شیپور در کنار دیوار</label>
+        <div class="grid2" style="margin-top:12px"><label class="field"><span>نشانی سرور MCP شیپور</span><input class="input input--ltr" name="sheypoor_url" value="${esc(cfg.sheypoor_url || "")}" placeholder="https://sheypoor-mcp.farhamaghdasi.workers.dev/mcp"><span class="hint">خالی بماند تا نشانی عمومی sheypoor-mcp استفاده شود.</span></label></div>
+        <p class="hint">سقف درخواست ساعتی بین دو منبع مشترک است. دسته‌های ملک و شهرهای شمال یک‌بار خودکار کشف می‌شوند. آگهی تکراری که در هر دو سایت آمده، با تطبیق شهر، متراژ و قیمت یک‌بار شمرده می‌شود. شیپور گاهی شمارهٔ آگهی‌دهنده را عمومی برمی‌گرداند؛ نمایش آن تابع تنظیم «اطلاعات تماس» در بخش تنظیمات سایت است.</p>
+        <button type="button" class="btn btn--line" id="testSp" style="margin-top:10px">آزمون اتصال شیپور</button></div>
+      <div class="panel"><h2>دسته‌های دیوار</h2><div class="checks">${cat.categories.map((c) => `<label><input type="checkbox" name="cat" value="${c.slug}" ${cfg.categories.includes(c.slug) ? "checked" : ""}><span>${c.name}</span></label>`).join("")}</div>
         <p class="hint">«همه املاک» کل بازار ملک را پوشش می‌دهد؛ زیردسته‌ها فقط برای تمرکز بیشتر هستند.</p></div>
       <div class="panel"><h2>شهرها <span><button type="button" class="btn btn--ghost btn--sm" id="allC">همه</button><button type="button" class="btn btn--ghost btn--sm" id="noneC">هیچ‌کدام</button></span></h2>
         ${Object.entries(cat.provinces).map(([pid, p]) => `<p style="font-weight:800;margin:10px 0 8px">${p.name}</p><div class="checks">${cat.cities.filter((c) => c.province === pid).map((c) => `<label><input type="checkbox" name="city" value="${c.key}" ${cfg.cities.includes(c.key) ? "checked" : ""}><span>${c.name}${cfg.mode === "direct" && !S.city_ids[c.key] ? " ⚠" : ""}</span></label>`).join("")}</div>`).join("")}
@@ -142,7 +148,7 @@
       <div class="panel" id="testOut" hidden></div>
       <div class="panel"><h2>پیشرفت هر فهرست <button class="btn btn--ghost btn--sm" id="resetFeeds">شروع دوباره همه فهرست‌ها</button></h2>
         <div class="tbl-scroll"><table class="tbl"><thead><tr><th>شهر</th><th>دسته</th><th>صفحه</th><th>آگهی جدید</th><th>وضعیت</th><th>آخرین تازه‌سازی</th></tr></thead><tbody>
-        ${S.feeds.map((f) => { const c = cat.cities.find((x) => x.key === f.city_key); return `<tr><td>${c ? c.name : f.city_key}</td><td>${(cat.categories.find((x) => x.slug === f.category) || {}).name || f.category}</td><td>${fa(f.pages_done)}</td><td>${fa(f.items)}</td><td>${f.last_error ? `<span class="bad">${esc(f.last_error.slice(0, 60))}</span>` : f.has_next ? (f.pages_done ? "در حال پیمایش" : "در صف") : '<span class="ok">کامل</span>'}</td><td>${when(f.last_page1)}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">پس از روشن کردن دریافت، ${fa(totalFeeds || cfg.cities.length * cfg.categories.length)} فهرست ساخته می‌شود.</td></tr>`}
+        ${S.feeds.map((f) => { const c = cat.cities.find((x) => x.key === f.city_key); return `<tr><td>${c ? c.name : f.city_key}</td><td>${f.category.startsWith("sheypoor:") ? "شیپور: " + esc(((S.sheypoor_cats || []).find((c) => "sheypoor:" + c.id === f.category) || {}).name || f.category.slice(9)) : "دیوار: " + ((cat.categories.find((x) => x.slug === f.category) || {}).name || f.category)}</td><td>${fa(f.pages_done)}</td><td>${fa(f.items)}</td><td>${f.last_error ? `<span class="bad">${esc(f.last_error.slice(0, 60))}</span>` : f.has_next ? (f.pages_done ? "در حال پیمایش" : "در صف") : '<span class="ok">کامل</span>'}</td><td>${when(f.last_page1)}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">پس از روشن کردن دریافت، ${fa(totalFeeds || cfg.cities.length * cfg.categories.length)} فهرست ساخته می‌شود.</td></tr>`}
         </tbody></table></div></div>`;
     const form = $("#ingForm");
     $("#allC").addEventListener("click", () => $$("[name=city]", form).forEach((i) => (i.checked = true)));
@@ -151,6 +157,7 @@
       e.preventDefault();
       const body = {
         enabled: form.enabled.checked, mode: form.mode.value, mcp_url: form.mcp_url.value.trim(),
+        sheypoor: form.sheypoor.checked, sheypoor_url: form.sheypoor_url.value.trim(),
         hourly_limit: +form.hourly_limit.value, refresh_hours: +form.refresh_hours.value, detail_ratio: +form.detail_ratio.value, recheck_days: +form.recheck_days.value,
         categories: $$("[name=cat]:checked", form).map((i) => i.value), cities: $$("[name=city]:checked", form).map((i) => i.value),
       };
@@ -161,16 +168,18 @@
       try { await api("admin/ingest", body); toast("ذخیره شد"); load(); } catch (err) { toast(err.message); }
     });
     form.mode.addEventListener("change", async () => { await api("admin/ingest", { mode: form.mode.value }); load(); });
-    $("#test").addEventListener("click", async (e) => {
-      const b = e.target; b.disabled = true; b.textContent = "در حال آزمون…";
+    const runTest = async (e, source) => {
+      const b = e.target, label = b.textContent; b.disabled = true; b.textContent = "در حال آزمون…";
       try {
-        const r = await api("admin/test", {});
+        const r = await api("admin/test", { source });
         const out = $("#testOut"); out.hidden = false;
         out.innerHTML = r.ok ? `<h2 class="ok">اتصال برقرار است (${fa(r.ms)} میلی‌ثانیه)</h2><p>${fa(r.count)} آگهی در صفحه اول دریافت شد. نمونه:</p><ul>${r.sample.map((s) => `<li>${esc(s.title)} — ${money(s.price || s.deposit)}</li>`).join("")}</ul><pre class="raw">${esc(JSON.stringify(r.info, null, 1))}</pre>`
           : `<h2 class="bad">اتصال برقرار نشد</h2><pre class="raw">${esc(r.error)}</pre><p class="hint">اگر از خارج ایران یا با فیلترشکن خاص وصل هستید، روش دیگر (MCP یا مستقیم) را امتحان کنید. متن خطا را برای پشتیبانی بفرستید.</p>`;
       } catch (err) { toast(err.message); }
-      b.disabled = false; b.textContent = "آزمون اتصال";
-    });
+      b.disabled = false; b.textContent = label;
+    };
+    $("#test").addEventListener("click", (e) => runTest(e, "divar"));
+    $("#testSp").addEventListener("click", (e) => runTest(e, "sheypoor"));
     $("#discover")?.addEventListener("click", async () => { await api("admin/discover", {}); toast("کشف شناسه‌ها آغاز شد"); setTimeout(load, 1500); });
     $("#resetFeeds").addEventListener("click", async () => { if (!confirm("پیمایش همه فهرست‌ها از صفحه اول شروع شود؟ آگهی‌های ذخیره‌شده حذف نمی‌شوند.")) return; await api("admin/reset-feeds", {}); load(); });
   }

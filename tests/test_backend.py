@@ -104,6 +104,22 @@ def run(mode):
         call("/api/admin/review", {"id": c["payment_id"], "approve": False}, tok)
         after = ucall("/api/me")["user"]["days_left"]
         check(after <= before - 29, f"[{mode}] رد رسید، روزهای اضافه را پس گرفت ({after} روز)")
+        if mode == "mcp":
+            # منبع دوم: شیپور
+            call("/api/admin/ingest", {"sheypoor": True, "sheypoor_url": "http://127.0.0.1:8799/sheypoor/mcp"}, tok)
+            t2 = call("/api/admin/test", {"source": "sheypoor"}, tok)
+            check(t2.get("ok") and t2["count"] > 0 and t2["sample"][0].get("district") == "گلسار", f"[{mode}] آزمون اتصال شیپور: {t2.get('count')} آگهی، محله {t2.get('sample', [{}])[0].get('district')}")
+            time.sleep(14)
+            bs = call("/api/admin/state", tok=tok)["by_source"]
+            check(bs.get("sheypoor", 0) > 0, f"[{mode}] آگهی‌های شیپور ذخیره شدند: {bs.get('sheypoor', 0)} (دیوار {bs.get('divar', 0)})")
+            sp = call("/api/listings?limit=60&sort=new")
+            check(all("phone" not in x for x in sp["items"]), f"[{mode}] شماره برای مهمان ارسال نمی‌شود")
+            call("/api/admin/settings", {"display": {"contact_mode": "all"}}, tok)
+            spid = next((x["id"] for x in ucall("/api/listings?limit=60&sort=new")["items"] if x["id"].startswith("sp-")), None)
+            dsp = ucall("/api/listing/" + spid) if spid else {}
+            check(spid and dsp.get("phone"), f"[{mode}] مشترک با تنظیم «همه» شمارهٔ آگهی شیپور را می‌بیند")
+            call("/api/admin/settings", {"display": {"contact_mode": "none"}}, tok)
+            check(spid and "phone" not in ucall("/api/listing/" + spid), f"[{mode}] با تنظیم «نمایش داده نشود» شماره پنهان است")
         print("   آخرین رویدادها:", [x["note"][:60] for x in st["log"][:4]])
     finally:
         srv.terminate()

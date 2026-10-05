@@ -34,6 +34,44 @@ def detail(token):
             "price_toman": rnd.randint(5, 30) * 1_000_000_000, "map": {"latitude": 37.29, "longitude": 49.6}}
 
 
+def sheypoor_tool(name, a):
+    """شبیه‌ساز ابزارهای sheypoor-mcp."""
+    if name == "list_provinces":
+        return [{"id": 1, "name": "گیلان", "slug": "gilan"}, {"id": 2, "name": "مازندران", "slug": "mazandaran"}, {"id": 3, "name": "گلستان", "slug": "golestan"}]
+    if name == "list_cities":
+        cities = {"gilan": [{"id": 101, "name": "رشت", "slug": "rasht"}], "mazandaran": [{"id": 201, "name": "ساری", "slug": "sari"}],
+                  "golestan": [{"id": 301, "name": "گرگان", "slug": "gorgan"}]}
+        return {"province": a["province"], "cities": cities.get(a["province"], [])}
+    if name == "search_categories":
+        return [{"id": 43603, "name": "املاک", "slug": "real-estate", "path": "املاک"}]
+    if name == "get_category_tree":
+        return {"tree": [{"id": 43603, "name": "املاک", "children": [
+            {"id": 44096, "name": "فروش آپارتمان", "children": []}, {"id": 44098, "name": "رهن و اجاره آپارتمان", "children": []}]}]}
+    if name == "search_listings":
+        rnd = random.Random(f"{a.get('cityId')}{a.get('categoryId')}{a['page']}")
+        rent = a.get("categoryId") == 44098
+        items = []
+        for i in range(12 if a["page"] < 3 else 0):
+            lid = 400000000 + (a.get("cityId") or 0) * 1000 + a["page"] * 50 + i + (500 if rent else 0)
+            area = rnd.randint(60, 150)
+            if rent:
+                price = {"amount": rnd.randint(100, 800) * 1_000_000, "currency": "تومان", "negotiable": False, "display": "رهن"}
+            else:
+                price = {"amount": area * rnd.randint(25, 45) * 1_000_000, "currency": "تومان", "negotiable": False, "display": ""}
+            items.append({"id": str(lid), "title": f"آپارتمان {area} متری", "url": f"https://www.sheypoor.com/v/{lid}",
+                          "price": price, "location": "رشت، گلسار" if a.get("cityId") == 101 else "ساری، کوی کارمندان",
+                          "categoryId": a.get("categoryId"), "imageCount": 2, "phone": "0911" + str(lid)[-7:]})
+        return {"total": 24, "page": a["page"], "items_per_page": 12, "count": len(items), "listings": items}
+    if name == "get_listing":
+        return {"id": str(a["id"]), "title": "آپارتمان ۹۰ متری نوساز", "url": f"https://www.sheypoor.com/v/{a['id']}",
+                "description": "سند تک‌برگ، آسانسور، پارکینگ. ساخت ۱۴۰۰.", "price": [{"amount": 3_100_000_000, "display": "۳٬۱۰۰٬۰۰۰٬۰۰۰ تومان"}],
+                "location": "رشت، گلسار", "phone": "09110000000", "shop_profile": False,
+                "breadcrumbs": [{"title": "املاک"}, {"title": "فروش آپارتمان"}],
+                "attributes": [{"key": "متراژ", "value": "۹۰"}, {"key": "تعداد اتاق", "value": "۲"}, {"key": "سال ساخت", "value": "۱۴۰۰"}],
+                "images": ["https://example.com/sp.jpg"]}
+    return {"error": "unknown tool"}
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -67,6 +105,20 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("content-length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
+        if self.path == "/sheypoor/mcp":
+            m = body.get("method")
+            if "id" not in body:
+                self.send_response(202)
+                self.end_headers()
+                return
+            if m == "initialize":
+                return self.reply({"jsonrpc": "2.0", "id": body["id"], "result": {"protocolVersion": "2025-03-26", "capabilities": {"tools": {}}}})
+            if m == "tools/list":
+                return self.reply({"jsonrpc": "2.0", "id": body["id"], "result": {"tools": [{"name": n} for n in (
+                    "list_provinces", "list_cities", "search_categories", "get_category_tree", "search_listings", "get_listing")]}})
+            p = body["params"]
+            data = sheypoor_tool(p["name"], p.get("arguments") or {})
+            return self.reply({"jsonrpc": "2.0", "id": body["id"], "result": {"content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False)}]}})
         if self.path == "/mcp":
             CALLS["mcp"] += 1
             m = body.get("method")
