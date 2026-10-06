@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CITY_IDS = {"12": "رشت", "21": "گرگان", "22": "ساری"}
 CALLS = {"mcp": 0, "direct": 0}
+SMS = {}
 
 
 def fake_ads(city, category, page, n=24):
@@ -86,6 +87,8 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def do_GET(self):
+        if self.path == "/payamak-last":
+            return self.reply(SMS)
         if self.path.startswith("/api/v10.0.0/"):
             return self.sheypoor_direct(self.path[len("/api/v10.0.0"):])
         if self.path.startswith("/v8/posts-v2/web/"):
@@ -130,7 +133,15 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("content-length") or 0)
-        body = json.loads(self.rfile.read(n) or b"{}")
+        raw = self.rfile.read(n) or b"{}"
+        if self.path == "/api/SendSMS/BaseServiceNumber":  # شبیه‌ساز پنل پیامک هاست‌ایران / ملی پیامک
+            from urllib.parse import parse_qs
+            f = {k: v[-1] for k, v in parse_qs(raw.decode()).items()}
+            if f.get("username") != "user" or f.get("password") != "pass" or not f.get("bodyId"):
+                return self.reply({"Value": "-1", "RetStatus": 0, "StrRetStatus": "InvalidUserPass"})
+            SMS.update(f)
+            return self.reply({"Value": "4512367890123456789", "RetStatus": 1, "StrRetStatus": "Ok"})
+        body = json.loads(raw)
         if self.path in ("/mcp-quota", "/sheypoor/mcp-quota"):  # سهمیهٔ تمام‌شدهٔ پلن رایگان کلادفلر
             return self.reply({"type": "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/",
                                "title": "Error 1027: This website has been temporarily rate limited", "status": 429,

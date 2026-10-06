@@ -304,13 +304,21 @@
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="sandbox" ${b.sandbox ? "checked" : ""}><i></i>محیط آزمایشی درگاه (Sandbox)</label><br><br>
       <label class="switch"><input type="checkbox" name="test_mode" ${b.test_mode ? "checked" : ""}><i></i>حالت آزمایشی پرداخت: اشتراک بدون پرداخت فعال شود</label>
       <p class="hint" style="color:var(--over)">حالت آزمایشی پرداخت فقط برای آزمون است؛ پیش از انتشار عمومی حتماً خاموشش کنید.</p></div>
-      <div class="panel"><h2>سامانه پیامک برای کد ورود (کاوه‌نگار)</h2><div class="grid2">
-        <label class="field"><span>کلید API</span><input class="input input--ltr" name="api_key" value="${esc(sm.api_key)}" placeholder="از پنل کاوه‌نگار"></label>
-        <label class="field"><span>نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}" placeholder="مثلاً forsatyab-otp"></label>
+      <div class="panel"><h2>سامانه پیامک برای کد ورود</h2><div class="grid2">
+        <label class="field"><span>سامانه</span><select class="select" name="provider">
+          <option value="payamak" ${sm.provider === "payamak" ? "selected" : ""}>پنل پیامک هاست‌ایران / ملی پیامک</option>
+          <option value="kavenegar" ${sm.provider !== "payamak" ? "selected" : ""}>کاوه‌نگار</option></select></label>
+        <label class="field" data-only="payamak"><span>نام کاربری پنل پیامک</span><input class="input input--ltr" name="username" value="${esc(sm.username || "")}"></label>
+        <label class="field"><span data-only="payamak">رمز پنل یا کلید API</span><span data-only="kavenegar">کلید API</span><input class="input input--ltr" name="api_key" value="${esc(sm.api_key)}"></label>
+        <label class="field"><span data-only="payamak">کد الگو (bodyId)</span><span data-only="kavenegar">نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}"></label>
       </div>
-      <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (آزمایشی)</label>
-      <p class="hint">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
+      <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (فقط روی همین رایانه، هرگز از اینترنت)</label>
+      <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت‌یاب: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
+      <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
+    const showSms = () => $$("#bf [data-only]").forEach((el) => { el.hidden = el.dataset.only !== $("#bf [name=provider]").value; });
+    $("#bf [name=provider]").addEventListener("change", showSms);
+    showSms();
     $("#bf").addEventListener("submit", async (e) => {
       e.preventDefault();
       const f = e.target;
@@ -318,7 +326,7 @@
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0,
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_auto_activate.checked, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
-        sms: { api_key: f.api_key.value.trim(), template: f.template.value.trim(), dev_mode: f.dev_mode.checked },
+        sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), dev_mode: f.dev_mode.checked },
       };
       try { await api("admin/settings", body); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
     });

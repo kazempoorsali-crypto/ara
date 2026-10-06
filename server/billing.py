@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import time
 import urllib.error
@@ -22,7 +23,10 @@ DEFAULT_BILLING = {
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
 }
-DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "template": "", "dev_mode": True}
+# provider: kavenegar (کلید API + نام قالب Verify) یا payamak (پنل پیامک هاست‌ایران / ملی پیامک:
+# نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
+DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True}
+PAYAMAK_URL = os.environ.get("ARA_PAYAMAK_URL") or "https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber"
 
 OTP_TTL = 180
 OTP_RESEND = 90
@@ -81,6 +85,33 @@ class Billing:
     def sms_cfg(self):
         return {**DEFAULT_SMS, **(self.store.get_setting("sms") or {})}
 
+    def sms_live(self) -> bool:
+        s = self.sms_cfg()
+        if s["provider"] == "payamak":
+            return bool(s["username"] and s["api_key"] and s["template"])
+        return bool(s["api_key"] and s["template"])
+
+    def _send_code(self, s, phone, code):
+        if s["provider"] == "payamak":
+            # بدنهٔ فرم: username، password، text (مقادیر متغیرهای الگو، با ; جدا)، to، bodyId (کد الگو)
+            req = urllib.request.Request(PAYAMAK_URL, data=urllib.parse.urlencode(
+                {"username": s["username"], "password": s["api_key"], "text": code, "to": phone, "bodyId": s["template"]}).encode(),
+                headers={"content-type": "application/x-www-form-urlencoded", "accept": "application/json"})
+            from divar_client import NET, _opener, _system_proxies
+            for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
+                try:
+                    with _opener(proxy).open(req, timeout=20) as resp:
+                        r = json.loads(resp.read().decode() or "{}")
+                    break
+                except Exception as e:  # noqa: BLE001
+                    r = {"error": str(e)}
+            ok = str(r.get("RetStatus")) == "1" and len(str(r.get("Value") or "")) > 3
+            return ok, r
+        url = (f"https://api.kavenegar.com/v1/{urllib.parse.quote(s['api_key'])}/verify/lookup.json?"
+               + urllib.parse.urlencode({"receptor": phone, "token": code, "template": s["template"]}))
+        r = _http_json("GET", url)
+        return (r.get("return") or {}).get("status") == 200, r
+
     def plans(self):
         c = self.cfg()
         out = []
@@ -108,12 +139,9 @@ class Billing:
         self.store.x("INSERT OR REPLACE INTO otps(phone, code_hash, expires, attempts, sent_at) VALUES(?,?,?,?,?)",
                      (phone, _hash(code, phone), now + OTP_TTL, 0, now))
         s = self.sms_cfg()
-        if s["api_key"] and s["template"]:
-            url = (f"https://api.kavenegar.com/v1/{urllib.parse.quote(s['api_key'])}/verify/lookup.json?"
-                   + urllib.parse.urlencode({"receptor": phone, "token": code, "template": s["template"]}))
-            r = _http_json("GET", url)
-            ok = (r.get("return") or {}).get("status") == 200
-            self.store.log_request("sms", ok, f"ارسال کد به {phone[:4]}***{phone[-3:]}" + ("" if ok else f": {r}"))
+        if self.sms_live():
+            ok, r = self._send_code(s, phone, code)
+            self.store.log_request("sms", ok, f"ارسال کد به {phone[:4]}***{phone[-3:]}" + ("" if ok else f": {str(r)[:200]}"))
             if not ok:
                 raise ValueError("ارسال پیامک ناموفق بود؛ چند دقیقه دیگر امتحان کنید")
             return {"ok": True, "phone": phone}

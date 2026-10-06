@@ -25,7 +25,8 @@ check(it == {"area": 120, "year": 1398, "rooms": 2}, "ویژگی‌ها")
 
 def run(mode):
     data = tempfile.mkdtemp()
-    env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0"}
+    env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0",
+           "ARA_PAYAMAK_URL": "http://127.0.0.1:8799/api/SendSMS/BaseServiceNumber"}
     srv = subprocess.Popen([sys.executable, "server/app.py", "--port", "8788", "--data", data, "--no-browser"], cwd=ROOT, env=env)
     time.sleep(1.5)
     B = "http://127.0.0.1:8788"
@@ -102,6 +103,17 @@ def run(mode):
         check(me["active"] and me["days_left"] >= 6, f"[{mode}] اشتراک فعال: {me['days_left']} روز")
         d = ucall("/api/listing/" + one["id"])
         check(d.get("url", "").startswith("https://divar.ir/v/") and not d["locked"], f"[{mode}] مشترک پیوند مستقیم دیوار را می‌بیند")
+        # پیامک هاست‌ایران (ملی پیامک): کد با الگو ارسال و با آن وارد می‌شود
+        call("/api/admin/settings", {"sms": {"provider": "payamak", "username": "user", "api_key": "pass", "template": "123456"}}, tok)
+        check(call("/api/config")["sms_live"], f"[{mode}] پیامک هاست‌ایران فعال")
+        r1 = call("/api/auth/otp", {"phone": "09127777777"})
+        last = json.loads(urllib.request.urlopen("http://127.0.0.1:8799/payamak-last").read())
+        check(r1.get("ok") and "dev_code" not in r1 and last.get("to") == "09127777777" and last.get("bodyId") == "123456", f"[{mode}] کد ورود با الگوی پنل پیامک ارسال شد")
+        v1 = call("/api/auth/verify", {"phone": "09127777777", "code": last.get("text", "")})
+        check(bool(v1.get("token")), f"[{mode}] ورود با کد پیامک‌شده")
+        call("/api/admin/settings", {"sms": {"provider": "payamak", "api_key": "wrong"}}, tok)
+        check(call("/api/auth/otp", {"phone": "09128888888"}).get("status") == 400, f"[{mode}] رمز نادرست پنل پیامک: خطای ارسال")
+        call("/api/admin/settings", {"sms": {"provider": "kavenegar", "api_key": "", "template": ""}}, tok)
         st2 = call("/api/admin/users", tok=tok)
         check(st2["payments"] and st2["payments"][0]["status"] == "paid", f"[{mode}] پرداخت در پنل ثبت شد")
         # کارت‌به‌کارت با مبلغ یکتا و رسید

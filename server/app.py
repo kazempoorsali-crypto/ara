@@ -69,7 +69,7 @@ class App:
             "owner": {k: v for k, v in {**DEFAULT_OWNER, **(s.get_setting("owner") or {})}.items() if v},
             "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
             "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
-            "sms_live": bool(b.sms_cfg()["api_key"] and b.sms_cfg()["template"]),
+            "sms_live": b.sms_live(),
             "admin_ready": bool(s.get_setting("admin")),
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
         }
