@@ -19,6 +19,27 @@ check(catalog.classify_estate("فروش خانه و ویلا", "") == ("villa", 
 check(catalog.classify_estate("اجارهٔ مسکونی آپارتمان", "")[1] == "rent", "دسته اجاره")
 check(catalog.classify_estate("اجاره کوتاه مدت ویلا", "")[1] == "daily", "اجاره روزانه")
 check(catalog.find_city("بابلسر")["key"] == "babolsar" and catalog.find_city("بابل")["key"] == "babol", "تطابق شهر")
+# آگهی حذف‌شده در شیپور: هر دو راه ۴۰۴ ← خطا با وضعیت ۴۰۴ (موتور آگهی را حذف‌شده علامت می‌زند و متوقف نمی‌شود)
+from divar_client import SourceError  # noqa
+from sheypoor_client import SheypoorAutoSource  # noqa
+class _Gone:
+    def __init__(self, name, err): self.name, self.err = name, err
+    def detail(self, token): raise self.err
+_auto = SheypoorAutoSource.__new__(SheypoorAutoSource)
+_auto.mcp = _Gone("sheypoor", SourceError("404 Not Found: https://www.sheypoor.com/api/v10.0.0/listings/1"))
+_auto.direct = _Gone("sheypoor-direct", SourceError("HTTP 404: آگهی مورد نظر یافت نشد", status=404))
+_auto.active, _auto.errors = None, {}
+try:
+    _auto.detail("1"); _st404 = None
+except SourceError as _e:
+    _st404 = _e.status
+check(_st404 == 404, "آگهی حذف‌شدهٔ شیپور: وضعیت ۴۰۴ حفظ شد")
+_auto.mcp = _Gone("sheypoor", SourceError("network down", status=503)); _auto.errors = {}
+try:
+    _auto.detail("1"); _st = "x"
+except SourceError as _e:
+    _st = _e.status
+check(_st is None, "سرور در دسترس نیست: خطای عمومی (نه حذف آگهی)")
 check(catalog.find_city("مشهد")["province"] == "khorasan_razavi" and catalog.find_city("نور")["key"] == "nur", "تطابق شهرهای استان‌های دیگر")
 # گسترش تدریجی: وقتی فهرست‌های شمال کامل شد، تهران فعال می‌شود
 os.environ["ARA_INGEST_DEFAULT"] = "0"
@@ -35,6 +56,18 @@ check("tehran" not in _ig.expansion()["active"], "پیش از کامل شدن ش
 _st.x("UPDATE feeds SET pages_done=40, has_next=1")
 _ig._exp_checked = 0
 _ig.maybe_expand(_ig.cfg())
+class _Broken:
+    def detail(self, token): raise SourceError("پاسخ نامفهوم")
+_ig.source_for = lambda cfg, name: _Broken()
+_st.upsert({"id": "sp-x1", "source": "sheypoor", "token": "x1", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "rasht", "city_name": "رشت", "province": "gilan", "title": "آزمون", "price": 1e9, "area": 100})
+_raised = 0
+for _ in range(3):
+    try:
+        _ig.fetch_detail(_ig.cfg(), "sp-x1", "x1", source="sheypoor")
+    except SourceError:
+        _raised += 1
+check(_raised == 2 and _st.get("sp-x1")["detail_at"], "آگهی‌ای که مدام خطا می‌دهد پس از ۳ بار کنار می‌رود و دریافت را نگه نمی‌دارد")
 check("tehran" in _ig.expansion()["active"] and "mashhad" not in _ig.cfg()["cities"] and "tehran" in _ig.cfg()["cities"], "شمال کامل شد: تهران فعال و شهرهایش به دریافت اضافه شد")
 check("parking" not in catalog.detect_amenities("پارکینگ: ندارد"), "نبود امکان")
 it = {}; catalog.enrich_from_attributes(it, {"متراژ": "۱۲۰", "ساخت": "۹۸", "اتاق": "۲"})

@@ -353,7 +353,7 @@ class SheypoorAutoSource:
         order = [self.active] if self.active else [self.mcp, self.direct]
         if self.active:
             order.append(self.direct if self.active is self.mcp else self.mcp)
-        last = None
+        last, statuses = None, []
         for src in order:
             try:
                 out = fn(src)
@@ -363,8 +363,14 @@ class SheypoorAutoSource:
                 if e.status is not None and e.status not in (404, 405, 502, 503, 530) and not e.quota:
                     raise  # خطای واقعی آگهی (مثلاً ۴۲۹)، نه مشکل رسیدن به سرور
                 self.errors[src.name] = str(e)
+                # سرور واسط خطای شیپور را گاهی فقط در متن می‌آورد («404 Not Found: ...»)
+                statuses.append(404 if e.status == 404 or (e.status is None and str(e).lstrip().startswith("404")) else e.status)
                 last = e
-        raise SourceError(" | ".join(f"{'واسط MCP' if k == 'sheypoor' else 'مستقیم'}: {v}" for k, v in self.errors.items())) from last
+        # هر دو راه «پیدا نشد» (۴۰۴) گفتند: آگهی در شیپور حذف شده است، نه اینکه سرور در دسترس نباشد؛
+        # وضعیت ۴۰۴ حفظ می‌شود تا موتور آگهی را «حذف‌شده» علامت بزند و بی‌توقف ادامه دهد
+        status = 404 if statuses and all(s == 404 for s in statuses) else None
+        raise SourceError(" | ".join(f"{'واسط MCP' if k == 'sheypoor' else 'مستقیم'}: {v}" for k, v in self.errors.items()),
+                          status=status) from last
 
     def categories(self):
         return self._run(lambda s: s.categories())

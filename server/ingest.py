@@ -28,11 +28,11 @@ DEFAULT_INGEST = {
     "enabled": True,          # پیش‌فرض روشن؛ فقط مدیر آن را خاموش می‌کند
     "mode": "mcp",            # mcp = خودکار (اول سرور MCP، اگر سهمیه تمام شد یا نرسید مستقیم) | mcp_only | direct
     "mcp_url": "",
-    "hourly_limit": 60,
+    "hourly_limit": 300,      # ۵ در دقیقه؛ سقف سرور MCP دیوار ۲۰ در دقیقه برای هر IP است (مشترک بین دو منبع)
     "cities": [c["key"] for c in catalog.CITIES if c["province"] in catalog.NORTH],
     "categories": [c["slug"] for c in catalog.CATEGORIES if c["default"]],
-    "refresh_hours": 6,
-    "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
+    "refresh_hours": 12,
+    "detail_ratio": 1,        # تعداد جزئیات به ازای هر صفحه فهرست
     "recheck_days": 4,
     "sheypoor": True,         # منبع دوم: شیپور (پیش‌فرض روشن)
     "sheypoor_mode": "auto",  # auto = اول سرور واسط MCP، اگر نرسید مستقیم | mcp | direct
@@ -61,6 +61,7 @@ class Ingestor:
         self.pause_until = 0
         self.fail_streak = 0
         self.detail_credit = 0
+        self.detail_fails = {}
         self.state = {"running": False, "last": None, "last_at": None, "next_at": None, "error": None, "discover": None}
         self.discover_thread = None
         self.dirty = 0
@@ -146,7 +147,7 @@ class Ingestor:
     def cfg(self) -> dict:
         base = DEFAULT_INGEST if os.environ.get("ARA_INGEST_DEFAULT", "1") != "0" else {**DEFAULT_INGEST, "enabled": False, "sheypoor": False}
         c = {**base, **(self.store.get_setting("ingest") or {})}
-        c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 60), 1200))
+        c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 300), 1200))
         c["categories"] = [x for x in c["categories"] if x in catalog.CATEGORY_BY_SLUG] or ["real-estate"]
         divar_client.NET["proxy"] = c.get("proxy") or "auto"
         return c
@@ -386,6 +387,14 @@ class Ingestor:
             self.store.log_request("detail", False, f"{token}: {e}")
             if e.status and 400 <= e.status < 500 and e.status != 429:  # آگهی مشکل‌دار: رد شو
                 self.store.mark(lid, detail_at=int(time.time()), checked_at=int(time.time()))
+                return
+            # یک آگهی نباید کل دریافت را نگه دارد: پس از ۳ بار خطا پشت سر هم، این آگهی تا بازبینی بعدی کنار می‌رود
+            fails = self.detail_fails.get(lid, 0) + 1
+            self.detail_fails[lid] = fails
+            if fails >= 3 and not e.quota and e.status != 429:
+                self.detail_fails.pop(lid, None)
+                self.store.mark(lid, detail_at=int(time.time()), checked_at=int(time.time()))
+                self.store.log_request("detail", False, f"{token}: پس از ۳ تلاش ناموفق کنار گذاشته شد")
                 return
             raise
         current = self.store.get(lid) or {}
