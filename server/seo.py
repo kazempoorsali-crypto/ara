@@ -269,7 +269,7 @@ def city(app, base, key):
             f". قیمت هر متر محله‌های {name}، آپارتمان و ویلای زیر قیمت و مقایسهٔ هر آگهی با محلهٔ خودش.")
     crumbs = [("صفحهٔ اصلی", "/"), (f"ملک {name}", city_path(key))]
     body = (_crumbs_html(crumbs)
-            + f'<h2>دربارهٔ بازار ملک {ESC(name)}</h2><p class="seo-upd">استان {ESC(prov)} · آخرین به‌روزرسانی: {jdate(_updated(st))}</p>'
+            + f'<h2>دربارهٔ بازار ملک {ESC(name)}</h2><p class="seo-upd">استان {ESC(prov)}؛ آخرین به‌روزرسانی: {jdate(_updated(st))}</p>'
             + ("".join(f"<p>{ESC(p)}</p>" for p in paras) if paras else f"<p>آگهی‌های ملک {ESC(name)} به‌تدریج جمع‌آوری می‌شوند؛ با رسیدن داده کافی، قیمت هر متر محله‌ها و فرصت‌ها این‌جا نمایش داده می‌شود.</p>")
             + (f'<h3>آگهی‌ها و فرصت‌های {ESC(name)}</h3><ul>{"".join(_li(l) for l in rows)}</ul>' if rows else "")
             + (f'<h3>محله‌های {ESC(name)}</h3><ul class="seo-cols">' + "".join(
@@ -411,7 +411,7 @@ def guide_city(app, base, key):
     title = f"راهنمای خرید آپارتمان در {name}: بهترین محله‌ها، قیمت هر متر و فرصت‌ها | {site['name']}"
     desc = f"کدام محلهٔ {name} برای خرید آپارتمان مناسب‌تر است؟ قیمت هر متر همهٔ محله‌ها، بودجه‌های رایج و فرصت‌های زیر قیمت، از {fa(o['valid'])} آگهی معتبر."
     crumbs = [("صفحهٔ اصلی", "/"), (f"ملک {name}", city_path(key)), ("راهنمای خرید", guide_path(key))]
-    body = (_crumbs_html(crumbs) + f'<h1>راهنمای خرید آپارتمان در {ESC(name)}</h1><p class="seo-upd">آخرین به‌روزرسانی: {jdate(_updated(st))} · از {fa(o["valid"])} آگهی معتبر</p>'
+    body = (_crumbs_html(crumbs) + f'<h1>راهنمای خرید آپارتمان در {ESC(name)}</h1><p class="seo-upd">آخرین به‌روزرسانی: {jdate(_updated(st))}؛ از {fa(o["valid"])} آگهی معتبر</p>'
             + "".join(f"<p>{ESC(p)}</p>" for p in paras)
             + (f'<h2>قیمت هر متر آپارتمان در محله‌های {ESC(name)} (از ارزان به گران)</h2><div class="tbl-scroll"><table class="tbl"><thead><tr><th>محله</th><th>میانهٔ هر متر</th><th>میانهٔ قیمت کل</th><th>آگهی</th><th>فرصت</th></tr></thead><tbody>{rows_ppm}</tbody></table></div>' if rows_ppm else "")
             + (f"<h2>با چه بودجه‌ای چند آگهی هست؟</h2><ul>{bud}</ul>" if bud else "")

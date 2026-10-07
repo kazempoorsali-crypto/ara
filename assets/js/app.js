@@ -275,7 +275,7 @@ const App = (() => {
       const total = cs.reduce((a, x) => a + x.s.n, 0);
       return `<div class="prov__col"><h3>${p.name}<small>${fa(total)} آگهی</small></h3>${cs.slice(0, 8).map(({ c, s }) => {
         const ppm = s.ppm && (s.ppm.apartment || s.ppm.villa);
-        return `<a class="city-row" href="/melk/${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? ` · میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
+        return `<a class="city-row" href="/melk/${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? `، میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
       }).join("")}${cs.length > 8 ? `<a class="btn btn--ghost btn--sm" href="#/market" style="margin-top:8px">${fa(cs.length - 8)} شهر دیگر</a>` : ""}</div>`;
     }).join("");
   }
@@ -422,8 +422,8 @@ const App = (() => {
       const r = await DataLayer.tickets().catch(() => ({ items: [] }));
       if (!$("#tkList")) return;
       $("#tkList").innerHTML = r.items.length ? r.items.map((t) => `<details class="ticket ${t.user_unread ? "is-new" : ""}" data-t="${t.id}" ${t.user_unread ? "open" : ""}>
-          <summary><b>#${fa(t.id)} · ${esc(t.category_name)}</b><span class="tk-st tk-st--${t.status}">${esc(t.status_name)}</span><small>${UI.ago(t.updated)}</small></summary>
-          <div class="ticket__msgs">${t.messages.map((m) => `<div class="tmsg tmsg--${m.sender}"><small>${m.sender === "user" ? "شما" : m.sender === "auto" ? "پاسخ خودکار" : "پشتیبانی"} · ${UI.ago(m.created)}</small><p>${esc(m.body || "")}</p>${m.has_image ? `<button type="button" class="btn btn--line btn--sm" data-img="${m.id}">نمایش پیوست</button>` : ""}</div>`).join("")}</div>
+          <summary><b>#${fa(t.id)}، ${esc(t.category_name)}</b><span class="tk-st tk-st--${t.status}">${esc(t.status_name)}</span><small>${UI.ago(t.updated)}</small></summary>
+          <div class="ticket__msgs">${t.messages.map((m) => `<div class="tmsg tmsg--${m.sender}"><small>${m.sender === "user" ? "شما" : m.sender === "auto" ? "پاسخ خودکار" : "پشتیبانی"}، ${UI.ago(m.created)}</small><p>${esc(m.body || "")}</p>${m.has_image ? `<button type="button" class="btn btn--line btn--sm" data-img="${m.id}">نمایش پیوست</button>` : ""}</div>`).join("")}</div>
           ${t.status !== "closed" ? `<form class="ticket__reply" data-r="${t.id}"><textarea class="input" rows="2" maxlength="3000" placeholder="پاسخ یا توضیح بیشتر"></textarea><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><button class="btn btn--ink btn--sm">ارسال</button></form>` : `<p class="small muted">این تیکت بسته شده است؛ برای مشکل تازه، تیکت تازه ثبت کنید.</p>`}
         </details>`).join("") : `<div class="empty"><p>هنوز تیکتی ثبت نکرده‌اید.</p></div>`;
       r.items.filter((t) => t.user_unread).forEach((t) => DataLayer.seenTicket(t.id));
@@ -555,14 +555,14 @@ const App = (() => {
       const row = mrows.rows.find((r) => r.deal === "sale" && r.kind === kg && norm(r.district) === norm(dist));
       if (!row || row.n < 5) { $("#vOut").innerHTML = `<span>در ${esc(dist)} هنوز ${row ? "فقط " + fa(row.n) + " آگهی معتبر" : "آگهی معتبری"} از این نوع هست؛ برای تخمین قابل اتکا دست‌کم ۵ آگهی هم‌محله لازم است.</span>`; return; }
       if (!area) { $("#vOut").innerHTML = "<span>متراژ را وارد کن.</span>"; return; }
-      $("#vOut").innerHTML = `<b>حدود ${money(row.median * area)} تومان</b><span>بازهٔ معمول ${money(row.p25 * area)} تا ${money(row.p75 * area)} · میانهٔ هر متر در ${esc(dist)} ${money(row.median)} از ${fa(row.n)} آگهی معتبر، به نرخ امروز${DataLayer.samples ? " (داده نمونه)" : ""}</span>${year ? `<span class="small">سن بنا در این بازه لحاظ نشده؛ برای اثر دقیق سال ساخت، آگهی‌های همین محله را در <a href="#/market?city=${city}">صفحهٔ بازار</a> ببین.</span>` : ""}`;
+      $("#vOut").innerHTML = `<b>حدود ${money(row.median * area)} تومان</b><span>بازهٔ معمول ${money(row.p25 * area)} تا ${money(row.p75 * area)}، میانهٔ هر متر در ${esc(dist)} ${money(row.median)} از ${fa(row.n)} آگهی معتبر، به نرخ امروز${DataLayer.samples ? " (داده نمونه)" : ""}</span>${year ? `<span class="small">سن بنا در این بازه لحاظ نشده؛ برای اثر دقیق سال ساخت، آگهی‌های همین محله را در <a href="#/market?city=${city}">صفحهٔ بازار</a> ببین.</span>` : ""}`;
     };
     fillDists().then(val);
     const loan = () => {
       const P = num($("#lAmt").value), r = num($("#lRate").value) / 1200, n = num($("#lYears").value) * 12;
       if (!P || !n) { $("#lOut").innerHTML = ""; return; }
       const pay = r ? (P * r) / (1 - Math.pow(1 + r, -n)) : P / n;
-      $("#lOut").innerHTML = `<b>${fa(Math.round(pay))} تومان</b><span>قسط ماهانه · کل بازپرداخت ${money(pay * n)} · سود ${money(pay * n - P)}</span>`;
+      $("#lOut").innerHTML = `<b>${fa(Math.round(pay))} تومان</b><span>قسط ماهانه، کل بازپرداخت ${money(pay * n)}، سود ${money(pay * n - P)}</span>`;
     };
     const conv = () => {
       const d = num($("#cDep").value), rent = num($("#cRent").value), r = num($("#cRate").value) / 100;
@@ -886,7 +886,7 @@ const App = (() => {
     return `<div class="vcard">
       <div class="vcard__top">
         ${l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
-        <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? ` · رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
+        <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? `، رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
       ${claimNote(l, v)}
       ${expM ? UI.priceBar(meM, expM) : ""}
@@ -1001,7 +1001,7 @@ const App = (() => {
           <header class="ad__head">
             <div class="ad__badges">${UI.typePill(l)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
             <h1>${UI.tt(l.title)}</h1>
-            <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? " · ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
+            <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? "، ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
           <div class="facts">${facts.filter(([, x]) => x).map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>
@@ -1033,7 +1033,7 @@ const App = (() => {
     document.title = `${l.title} | ${cfg.site.name}`;
     const cc = UI.cityOf(l.city_key), pos = l.latlng_exact || !cc ? [l.lat, l.lng] : [cc.lat, cc.lng];
     const mini = UI.makeMap($("#mini"), { center: pos, zoom: l.latlng_exact ? 14 : 12, wheel: false });
-    if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#df5a2c", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
+    if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#0b6f79", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adShare").addEventListener("click", async () => {
@@ -1082,7 +1082,7 @@ const App = (() => {
   function hbars(groups, cityMed, unit = "") {
     if (!groups.length) return `<p class="muted small">دادهٔ کافی نیست.</p>`;
     const max = Math.max(...groups.map((g) => g.median_ppm), cityMed || 0) * 1.08;
-    return `<div class="hb">${groups.map((g) => `<div class="hb__row"><span class="hb__lab">${esc(g.label)}<small>${fa(g.n)} آگهی${g.low ? " · دادهٔ کم" : ""}</small></span><span class="hb__track"><i style="width:${(g.median_ppm / max) * 100}%"></i>${cityMed ? `<em style="right:${(cityMed / max) * 100}%"></em>` : ""}</span><b>${mln(g.median_ppm)}${unit}</b></div>`).join("")}</div>`;
+    return `<div class="hb">${groups.map((g) => `<div class="hb__row"><span class="hb__lab">${esc(g.label)}<small>${fa(g.n)} آگهی${g.low ? "، دادهٔ کم" : ""}</small></span><span class="hb__track"><i style="width:${(g.median_ppm / max) * 100}%"></i>${cityMed ? `<em style="right:${(cityMed / max) * 100}%"></em>` : ""}</span><b>${mln(g.median_ppm)}${unit}</b></div>`).join("")}</div>`;
   }
   async function marketPage(params) {
     const city = params.city || "rasht", deal = params.deal === "rent" ? "rent" : "sale", kind = params.kind || "apartment";
@@ -1122,7 +1122,7 @@ const App = (() => {
       : `<b class="amen__pct">${a.premium >= 0 ? "+" : "−"}${pct(a.premium)}</b><p>درون یک محله، ${a.name} هر متر را حدود ${pct(a.premium)} ${a.premium >= 0 ? "گران‌تر" : "ارزان‌تر"} می‌کند؛ در ${fa(a.higher)} از ${fa(a.districts)} محله گران‌تر است.${a.share != null ? ` ${pct(a.share)} آگهی‌ها ${a.name} دارند.` : ""}</p>`;
     $("#mBody").innerHTML = `
       <header class="mkt-hero">
-        <span class="kicker">بازار ${KG[kind]} ${esc(cname)}${DataLayer.samples ? " · داده نمونه و ساختگی" : ""}</span>
+        <span class="kicker">بازار ${KG[kind]} ${esc(cname)}${DataLayer.samples ? "، داده نمونه و ساختگی" : ""}</span>
         <h1>${rentWord}هر متر ${KG[kind]} در ${esc(cname)}، میانه <span class="hl">${mln(o.median_ppm)}</span> میلیون تومان${o.spread && o.n_districts >= 2 ? `؛ محله‌ها تا <span class="hl">${fa(+o.spread.toFixed(1))}</span> برابر فرق دارند` : ""}</h1>
         <p class="lead">قیمت هر متر، بودجه، خواب، سن بنا و محله‌به‌محله؛ همه از آگهی‌های معتبر ${UI.dealName(deal)} ${KG[kind]} ${esc(cname)} در سایت‌های آگهی. روی هر ردیف بزن تا همان آگهی‌ها را ببینی.</p>
         <div class="mkt-kpis">
@@ -1260,7 +1260,7 @@ const App = (() => {
       }
       setTimeout(() => $("#aiInput").focus(), 50);
     }
-    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز · " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + UI.gapPct(l.verdict) + " زیر قیمت" : ""}</small></span></a>`).join("")}</div>`;
+    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز، " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + UI.gapPct(l.verdict) + " زیر قیمت" : ""}</small></span></a>`).join("")}</div>`;
     async function respond(v) {
       const it = NLP.intent(v);
       if (it === "greet") { say("درود! کدام شهر و چه نوع ملکی؟ بودجه را هم بگو."); return; }
