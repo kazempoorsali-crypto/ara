@@ -264,7 +264,7 @@ const DataLayer = (() => {
   async function verifyOtp(phone, code) {
     const r = await json(await fetch("api/auth/verify", { method: "POST", headers: H(), body: JSON.stringify({ phone, code }) }));
     tok.set(r.token); me = r.user;
-    return r.user;
+    return { ...r.user, trial_started: r.trial_days || 0 };
   }
   async function refreshMe() {
     if (!server || !tok.get()) return (me = null);

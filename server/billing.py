@@ -24,6 +24,8 @@ DEFAULT_BILLING = {
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
     # مبلغ یکتا: قیمت طرح ± چند گام (پیش‌فرض گام هزار تومانی؛ برای قیمت ۵۰۰ هزار: ۴۹۸، ۴۹۹، ۵۰۰، ۵۰۱، ۵۰۲ هزار ...)
     "card_step": 1000, "card_span": 100,
+    # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
+    "trial_enabled": True, "trial_days": 10,
 }
 # provider: kavenegar (کلید API + نام قالب Verify) یا payamak (پنل پیامک هاست‌ایران / ملی پیامک:
 # نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
@@ -166,12 +168,17 @@ class Billing:
             self.store.x("UPDATE otps SET attempts=attempts+1 WHERE phone=?", (phone,))
             raise ValueError("کد نادرست است")
         self.store.x("DELETE FROM otps WHERE phone=?", (phone,))
-        self.store.x("INSERT OR IGNORE INTO users(phone, created) VALUES(?,?)", (phone, now))
+        new = self.store.x("INSERT OR IGNORE INTO users(phone, created) VALUES(?,?)", (phone, now)).rowcount == 1
         self.store.x("UPDATE users SET last_login=? WHERE phone=?", (now, phone))
+        c = self.cfg()
+        trial = 0
+        if new and c.get("trial_enabled") and int(c.get("trial_days") or 0) > 0:
+            trial = int(c["trial_days"])
+            self.store.x("UPDATE users SET sub_until=?, plan='trial' WHERE phone=?", (now + trial * 86400, phone))
         token = secrets.token_urlsafe(32)
         self.store.x("INSERT INTO user_sessions VALUES(?,?,?)", (token, phone, now + SESSION_DAYS * 86400))
         self.store.x("DELETE FROM user_sessions WHERE expires < ?", (now,))
-        return {"token": token, "user": self.user(phone)}
+        return {"token": token, "user": self.user(phone), "trial_days": trial}
 
     def user_by_token(self, token: str | None):
         if not token:
@@ -185,7 +192,8 @@ class Billing:
             return None
         now = int(time.time())
         return {"phone": r["phone"], "sub_until": r["sub_until"] or 0, "plan": r["plan"],
-                "active": (r["sub_until"] or 0) > now, "days_left": max(0, ((r["sub_until"] or 0) - now) // 86400)}
+                "active": (r["sub_until"] or 0) > now, "days_left": max(0, -(-((r["sub_until"] or 0) - now) // 86400)),
+                "trial": r["plan"] == "trial"}
 
     def logout(self, token):
         self.store.x("DELETE FROM user_sessions WHERE token=?", (token,))

@@ -77,6 +77,14 @@ class App:
         self.billing = Billing(self.store)
         self.support = Support(self.store, self.billing, data_dir)
 
+    def regions(self):
+        """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
+        act = [p for p in self.ingest.expansion()["active"] if p not in catalog.NORTH]
+        return {"active": catalog.NORTH + act,
+                "provinces": [{"id": p, "name": catalog.PROVINCES[p]["name"], "center": list(catalog.PROVINCES[p]["center"])} for p in act],
+                "cities": [{"id": c["key"], "name": c["name"], "province": c["province"], "lat": c["lat"], "lng": c["lng"], "tags": []}
+                           for c in catalog.CITIES if c["province"] in act]}
+
     def public_config(self):
         s, b = self.store, self.billing
         return {
@@ -86,12 +94,14 @@ class App:
             "plans": b.plans(), "payable": b.payable(), "test_payments": b.cfg()["test_mode"],
             "free_preview": int(b.cfg().get("free_preview") or 0),
             "free_results": int(b.cfg().get("free_results") or 0),
+            "trial_days": int(b.cfg().get("trial_days") or 0) if b.cfg().get("trial_enabled") else 0,
             "gateway": "card" if b.cfg()["gateway"] == "card" and not b.cfg()["test_mode"] else "online",
             "owner": {k: v for k, v in {**DEFAULT_OWNER, **(s.get_setting("owner") or {})}.items() if v},
             "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
             "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
             "sms_live": b.sms_live(),
             "admin_ready": bool(s.get_setting("admin")),
+            "regions": self.regions(),
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
         }
 
@@ -487,7 +497,11 @@ class Handler(BaseHTTPRequestHandler):
                 "images": dict(s.q("SELECT COUNT(*) n, SUM(image IS NOT NULL AND image != '') w FROM listings WHERE status='active'", one=True)),
                 "by_source": {r["source"]: r["n"] for r in s.q("SELECT source, COUNT(*) n FROM listings WHERE status='active' GROUP BY source")},
                 "city_ids": {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})},
-                "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
+                "catalog": {"cities": [c for c in catalog.CITIES if c["province"] in a.ingest.expansion()["active"]],
+                            "categories": catalog.CATEGORIES,
+                            "provinces": {k: v for k, v in catalog.PROVINCES.items() if k in a.ingest.expansion()["active"]},
+                            "all_provinces": catalog.PROVINCES},
+                "expansion": a.ingest.expansion(), "province_progress": a.ingest.province_progress(),
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "tickets_unread": a.support.unread_admin(), "sms_last_notify": s.get_setting("sms_last_notify"),
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
@@ -616,6 +630,26 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/review":
             a.billing.review(data.get("id"), bool(data.get("approve")))
             return self.send_json({"ok": True})
+        if path == "/api/admin/expansion":
+            exp = a.ingest.expansion()
+            if "auto" in data:
+                exp["auto"] = bool(data["auto"])
+            if data.get("threshold") is not None:
+                exp["threshold"] = min(1.0, max(0.3, float(data["threshold"])))
+            if data.get("deep_pages") is not None:
+                exp["deep_pages"] = min(500, max(1, int(data["deep_pages"])))
+            if isinstance(data.get("order"), list):
+                exp["order"] = [p for p in data["order"] if p in catalog.PROVINCES and p not in catalog.NORTH]
+            if data.get("deactivate") in exp["active"] and data["deactivate"] not in catalog.NORTH:
+                p = data["deactivate"]
+                exp["active"].remove(p)
+                cur = s.get_setting("ingest") or {}
+                cur["cities"] = [c for c in (cur.get("cities") or []) if catalog.CITY_BY_KEY.get(c, {}).get("province") != p]
+                s.set_setting("ingest", cur)
+            s.set_setting("expansion", exp)
+            if data.get("activate"):
+                a.ingest.activate_province(data["activate"], "دستی از پنل")
+            return self.send_json({"ok": True, "expansion": a.ingest.expansion()})
         if path == "/api/admin/ticket":
             return self.send_json(a.support.admin_reply(data.get("id"), data.get("body"), bool(data.get("close")), bool(data.get("reopen"))))
         if path == "/api/admin/grant":

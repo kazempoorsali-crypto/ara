@@ -160,10 +160,12 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px"><button class="btn btn--hot btn--lg">ذخیره تنظیمات</button><button type="button" class="btn btn--line btn--lg" id="test">آزمون اتصال</button></div>
       </form>
       <div class="panel" id="testOut" hidden></div>
+      ${expansionPanel()}
       <div class="panel"><h2>پیشرفت هر فهرست <button class="btn btn--ghost btn--sm" id="resetFeeds">شروع دوباره همه فهرست‌ها</button></h2>
         <div class="tbl-scroll"><table class="tbl"><thead><tr><th>شهر</th><th>دسته</th><th>صفحه</th><th>آگهی جدید</th><th>وضعیت</th><th>آخرین تازه‌سازی</th></tr></thead><tbody>
         ${S.feeds.map((f) => { const c = cat.cities.find((x) => x.key === f.city_key); return `<tr><td>${c ? c.name : f.city_key}</td><td>${f.category.startsWith("sheypoor:") ? "شیپور: " + esc(((S.sheypoor_cats || []).find((c) => "sheypoor:" + c.id === f.category) || {}).name || f.category.slice(9)) : "دیوار: " + ((cat.categories.find((x) => x.slug === f.category) || {}).name || f.category)}</td><td>${fa(f.pages_done)}</td><td>${fa(f.items)}</td><td>${f.last_error ? `<span class="bad">${esc(f.last_error.slice(0, 60))}</span>` : f.has_next ? (f.pages_done ? "در حال پیمایش" : "در صف") : '<span class="ok">کامل</span>'}</td><td>${when(f.last_page1)}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">پس از روشن کردن دریافت، ${fa(totalFeeds || cfg.cities.length * cfg.categories.length)} فهرست ساخته می‌شود.</td></tr>`}
         </tbody></table></div></div>`;
+    bindExpansion();
     const form = $("#ingForm");
     $("#allC").addEventListener("click", () => $$("[name=city]", form).forEach((i) => (i.checked = true)));
     $("#noneC").addEventListener("click", () => $$("[name=city]", form).forEach((i) => (i.checked = false)));
@@ -278,6 +280,42 @@
     $("#gf").addEventListener("submit", async (e) => { e.preventDefault(); try { await api("admin/grant", { phone: e.target.phone.value.trim(), plan: e.target.plan.value }); toast("فعال شد"); users(); } catch (err) { toast(err.message); } });
   }
 
+  /* ---------- گسترش تدریجی استان‌ها ---------- */
+  function expansionPanel() {
+    const E = S.expansion, P = S.province_progress || {}, all = S.catalog.all_provinces;
+    const next = E.order.find((p) => !E.active.includes(p));
+    return `<div class="panel" id="expPanel"><h2>گسترش تدریجی به استان‌های دیگر</h2>
+      <p class="hint">ابتدا شهرهای شمال کامل دریافت می‌شوند. وقتی دست‌کم ${fa(Math.round(E.threshold * 100))}٪ فهرست‌های هر استان فعال کامل شد (به انتهای فهرست رسید یا ${fa(E.deep_pages)} صفحه پیمایش شد)، استان بعدی به ترتیب زیر خودکار فعال می‌شود و شهرهایش به دریافت اضافه می‌شوند. سقف درخواست ساعتی ثابت می‌ماند؛ پس با هر استان تازه، تازه‌سازی شهرهای قبلی کمی کندتر می‌شود.</p>
+      <label class="switch"><input type="checkbox" id="expAuto" ${E.auto ? "checked" : ""}><i></i>فعال شدن خودکار استان بعدی</label>
+      <div class="grid2" style="margin-top:12px">
+        <label class="field"><span>آستانهٔ کامل بودن (درصد فهرست‌ها)</span><input class="input" id="expTh" type="number" min="30" max="100" value="${Math.round(E.threshold * 100)}"></label>
+        <label class="field"><span>کامل حساب شدن فهرست پس از چند صفحه</span><input class="input" id="expDp" type="number" min="1" max="500" value="${E.deep_pages}"></label>
+      </div>
+      <h3 style="margin:14px 0 8px">استان‌های فعال</h3>
+      <div class="tbl-scroll"><table class="tbl"><thead><tr><th>استان</th><th>فهرست کامل</th><th>پیشرفت</th><th></th></tr></thead><tbody>
+        ${E.active.map((p) => { const g = P[p] || { feeds: 0, done: 0, ratio: 0 }; return `<tr><td>${esc(all[p].name)}</td><td>${fa(g.done)} از ${fa(g.feeds)}</td><td>${fa(Math.round(g.ratio * 100))}٪</td><td>${["gilan", "mazandaran", "golestan"].includes(p) ? "" : `<button type="button" class="btn btn--line btn--sm" data-deact="${p}">غیرفعال</button>`}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <h3 style="margin:14px 0 8px">صف استان‌ها (به ترتیب جمعیت؛ با دکمه‌ها جابه‌جا کنید)</h3>
+      <ol id="expOrder" style="display:grid;gap:4px;padding-inline-start:22px">${E.order.filter((p) => !E.active.includes(p)).map((p) => `<li data-p="${p}"><span>${esc(all[p].name)}</span> <button type="button" class="btn btn--ghost btn--sm" data-up="${p}">▲</button><button type="button" class="btn btn--ghost btn--sm" data-down="${p}">▼</button> <button type="button" class="btn btn--line btn--sm" data-act="${p}">فعال کن</button></li>`).join("")}</ol>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button type="button" class="btn btn--ink" id="expSave">ذخیرهٔ تنظیمات گسترش</button>${next ? `<button type="button" class="btn btn--line" data-act="${next}">همین حالا ${esc(all[next].name)} را فعال کن</button>` : ""}</div>
+      ${E.log.length ? `<p class="hint" style="margin-top:10px">${E.log.slice(0, 5).map((l) => `${when(l.at)}: ${esc(all[l.province]?.name || l.province)} (${esc(l.reason)})`).join("<br>")}</p>` : ""}
+    </div>`;
+  }
+  function bindExpansion() {
+    const box = $("#expPanel"); if (!box) return;
+    const send = async (body) => { try { await api("admin/expansion", body); toast("ثبت شد"); S = await api("admin/state"); ingest(); } catch (err) { toast(err.message); } };
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.act) return send({ activate: b.dataset.act });
+      if (b.dataset.deact) return confirm("دریافت شهرهای این استان متوقف شود؟ آگهی‌های قبلی می‌مانند.") && send({ deactivate: b.dataset.deact });
+      const li = b.closest("li");
+      if (b.dataset.up && li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling);
+      if (b.dataset.down && li.nextElementSibling) li.parentNode.insertBefore(li.nextElementSibling, li);
+      if (b.id === "expSave") send({ auto: $("#expAuto").checked, threshold: (+$("#expTh").value || 90) / 100, deep_pages: +$("#expDp").value || 30,
+        order: [...S.expansion.active.filter((p) => !["gilan", "mazandaran", "golestan"].includes(p)), ...$$("#expOrder li").map((x) => x.dataset.p)] });
+    });
+  }
+
   /* ---------- پشتیبانی ---------- */
   async function support() {
     const st = sessionStorage.getItem("tk_filter") || "";
@@ -328,6 +366,8 @@
         <label class="field"><span>مدت هفتگی (روز)</span><input class="input" name="weekly_days" type="number" min="1" value="${b.weekly_days}"></label>
         <label class="field"><span>اشتراک ماهانه</span><input class="input" name="monthly_price" type="number" min="0" value="${b.monthly_price || ""}"></label>
         <label class="field"><span>مدت ماهانه (روز)</span><input class="input" name="monthly_days" type="number" min="1" value="${b.monthly_days}"></label>
+        <label class="field"><span>طول دورهٔ رایگان ثبت‌نام (روز)</span><input class="input" name="trial_days" type="number" min="1" max="365" value="${b.trial_days || 10}"></label>
+        <label class="switch" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="trial_enabled" ${b.trial_enabled ? "checked" : ""}><i></i>دورهٔ رایگان: هر کس تازه ثبت‌نام کند، همهٔ امکانات برایش باز است</label>
         <label class="field"><span>تعداد نتیجهٔ رایگان هر جست‌وجو (بدون اشتراک)</span><input class="input" name="free_results" type="number" min="0" max="100" value="${b.free_results}"></label>
         <label class="field"><span>تعداد فرصت برتر رایگان با جزئیات کامل</span><input class="input" name="free_preview" type="number" min="0" max="50" value="${b.free_preview}"></label>
       </div><p class="hint">خالی یا صفر = آن طرح نمایش داده نمی‌شود.</p></div>
@@ -375,7 +415,7 @@
       const f = e.target;
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
-          free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0,
+          free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked, trial_days: +f.trial_days.value || 10,
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
         sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), dev_mode: f.dev_mode.checked },
       };

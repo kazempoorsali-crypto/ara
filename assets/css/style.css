@@ -267,7 +267,7 @@ p { margin: 0; }
 .split.is-map .results { display: none; }
 .split.is-map .mapbox { height: calc(100vh - 240px); position: static; }
 .results .cards { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-.mapbox { position: sticky; top: 230px; height: calc(100vh - 250px); min-height: 420px; border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); background: var(--sea-soft); isolation: isolate; }
+.mapbox { position: sticky; top: calc(var(--top-h, 72px) + var(--sbar-h, 158px) + 14px); height: calc(100vh - var(--top-h, 72px) - var(--sbar-h, 158px) - 30px); min-height: 360px; transition: top .2s, height .2s; border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); background: var(--sea-soft); isolation: isolate; }
 #map, .minimap { width: 100%; height: 100%; }
 .pager { display: flex; justify-content: center; gap: 8px; margin-top: 28px; }
 .empty { text-align: center; padding: 64px 20px; border: 1.5px dashed var(--line-2); border-radius: var(--r-xl); background: var(--surface); }
@@ -803,3 +803,15 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .ticket__reply input[type=file] { font-size: 13px; max-width: 100%; }
 .pay-holder { display: block; margin-top: 6px; font-size: 14px; }
 @media (max-width: 560px) { .mkt-bar .field { width: 100%; } .mkt-bar .field > div { width: 100%; } }
+
+/* نوار جست‌وجو هنگام پیمایش جمع‌وجور می‌شود تا نتیجه‌ها و نقشه جای بیشتری بگیرند */
+.sbar { transition: padding .2s; }
+.sbar.is-compact { padding: 8px 0 8px; }
+.sbar.is-compact .sbar__q, .sbar.is-compact .atags { display: none; }
+.sbar.is-compact #dds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; }
+.sbar.is-compact #dds > * { flex: none; }
+.sbar.is-compact .sbar__meta { margin-top: 6px; }
+.sbar.is-compact .sbar__meta h1 { font-size: 16px; }
+.sbar.is-compact .dd > button, .sbar.is-compact #dds .chip { min-height: 36px; }
+.sbar.is-compact .sbar__tools .select, .sbar.is-compact .sbar__tools .btn, .sbar.is-compact #viewSeg button { min-height: 36px; }
+@media (max-width: 560px) { .sbar.is-compact .sbar__tools { display: none; } }

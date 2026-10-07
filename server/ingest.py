@@ -29,7 +29,7 @@ DEFAULT_INGEST = {
     "mode": "mcp",            # mcp = خودکار (اول سرور MCP، اگر سهمیه تمام شد یا نرسید مستقیم) | mcp_only | direct
     "mcp_url": "",
     "hourly_limit": 60,
-    "cities": [c["key"] for c in catalog.CITIES],
+    "cities": [c["key"] for c in catalog.CITIES if c["province"] in catalog.NORTH],
     "categories": [c["slug"] for c in catalog.CATEGORIES if c["default"]],
     "refresh_hours": 6,
     "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
@@ -40,6 +40,12 @@ DEFAULT_INGEST = {
     "proxy": "auto",          # auto = پروکسی سیستم با بازگشت خودکار؛ none = بدون پروکسی؛ یا نشانی پروکسی
 }
 SRC_PREFIX = {"divar": "dv-", "sheypoor": "sp-"}
+
+
+# گسترش تدریجی به استان‌های دیگر: وقتی دست‌کم «threshold» فهرست‌های استان‌های فعال کامل شد
+# (به انتهای فهرست رسید یا «deep_pages» صفحه پیمایش شد)، استان بعدی به ترتیب «order» فعال می‌شود.
+DEFAULT_EXPANSION = {"auto": True, "active": list(catalog.NORTH), "order": list(catalog.EXPANSION_ORDER),
+                     "threshold": 0.9, "deep_pages": 30, "log": []}
 
 
 class Ingestor:
@@ -79,6 +85,59 @@ class Ingestor:
                         st.db.execute("UPDATE listings SET lat=?, lng=? WHERE id=?", (lat, lng, r["id"]))
                 st.db.commit()
             st.set_setting("mig_geo_v2", int(time.time()))
+
+    # ---------------------------------------------------------- expansion
+    def expansion(self) -> dict:
+        e = {**DEFAULT_EXPANSION, **(self.store.get_setting("expansion") or {})}
+        e["active"] = [p for p in e["active"] if p in catalog.PROVINCES] or list(catalog.NORTH)
+        e["order"] = [p for p in e["order"] if p in catalog.PROVINCES and p not in catalog.NORTH]
+        e["order"] += [p for p in catalog.EXPANSION_ORDER if p not in e["order"]]
+        return e
+
+    def feed_done(self, f, deep_pages) -> bool:
+        return bool(f["pages_done"]) and (not f["has_next"] or f["pages_done"] >= deep_pages)
+
+    def province_progress(self, cfg=None, exp=None) -> dict:
+        """پیشرفت هر استان فعال: تعداد فهرست‌های کامل از کل فهرست‌های شهرهای انتخاب‌شدهٔ آن."""
+        cfg, exp = cfg or self.cfg(), exp or self.expansion()
+        feeds = self.active_feeds(cfg)
+        out = {}
+        for p in exp["active"]:
+            fs = [f for f in feeds if catalog.CITY_BY_KEY.get(f["city_key"], {}).get("province") == p]
+            done = sum(1 for f in fs if self.feed_done(f, exp["deep_pages"]))
+            out[p] = {"name": catalog.PROVINCES[p]["name"], "feeds": len(fs), "done": done, "ratio": (done / len(fs)) if fs else 0.0}
+        return out
+
+    def activate_province(self, pkey, reason="دستی"):
+        if pkey not in catalog.PROVINCES:
+            raise ValueError("استان نامعتبر است")
+        exp = self.expansion()
+        if pkey not in exp["active"]:
+            exp["active"].append(pkey)
+            exp["log"] = ([{"at": int(time.time()), "province": pkey, "reason": reason}] + exp["log"])[:50]
+            self.store.set_setting("expansion", exp)
+        cur = self.store.get_setting("ingest") or {}
+        cities = cur.get("cities") or list(DEFAULT_INGEST["cities"])
+        add = [c["key"] for c in catalog.CITIES if c["province"] == pkey and c["key"] not in cities]
+        self.store.set_setting("ingest", {**cur, "cities": cities + add})
+        self.store.log_request("expand", True, f"استان {catalog.PROVINCES[pkey]['name']} فعال شد ({reason}): {len(add)} شهر")
+        self.poke()
+
+    def maybe_expand(self, cfg):
+        """هر چند دقیقه: اگر همهٔ استان‌های فعال به آستانهٔ کامل شدن رسیده‌اند، استان بعدی را فعال کن."""
+        now = time.time()
+        if now - getattr(self, "_exp_checked", 0) < 600:
+            return
+        self._exp_checked = now
+        exp = self.expansion()
+        if not exp["auto"]:
+            return
+        nxt = next((p for p in exp["order"] if p not in exp["active"]), None)
+        if not nxt:
+            return
+        prog = self.province_progress(cfg, exp)
+        if prog and all(v["feeds"] and v["ratio"] >= exp["threshold"] for v in prog.values()):
+            self.activate_province(nxt, "خودکار: استان‌های قبلی کامل شدند")
 
     # ---------------------------------------------------------- config
     def cfg(self) -> dict:
@@ -225,6 +284,7 @@ class Ingestor:
                 self.store.log_request("discover", False, f"شیپور: {e}")
             return
         self.ensure_feeds(cfg)
+        self.maybe_expand(cfg)
         feeds = self.active_feeds(cfg)
         src = self.get_source(cfg)
         if cfg["mode"] == "direct" or (hasattr(src, "using_direct") and src.using_direct()):
@@ -245,13 +305,15 @@ class Ingestor:
                                   AND status='active'
                                   ORDER BY (label IN ('gold','good')) DESC, (score IS NOT NULL) DESC, score DESC, first_seen DESC LIMIT 1""",
                                srcs, one=True)
-        if stale:
+        deep = [f for f in feeds if f["has_next"]]
+        # با شهرهای زیاد، تازه‌سازی صفحهٔ اول نباید کل سهمیه را بگیرد: نوبت در میان با پیمایش عمیق
+        self.turn = not getattr(self, "turn", False)
+        if stale and (not deep or self.turn or len(stale) < 10):
             f = min(stale, key=lambda f: f["last_page1"] or 0)
             return self.fetch_page(cfg, f, first=True)
         if pending and self.detail_credit > 0:
             self.detail_credit -= 1
             return self.fetch_detail(cfg, pending["id"], pending["token"], source=pending["source"])
-        deep = [f for f in feeds if f["has_next"]]
         if deep:
             f = min(deep, key=lambda f: (f["pages_done"], f["items"]))
             return self.fetch_page(cfg, f, first=False)

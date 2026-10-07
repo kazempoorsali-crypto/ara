@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 
-from catalog import find_city, norm, parse_money_text
+from catalog import PROVINCES, find_city, norm, parse_money_text, squash
 import json
 import urllib.parse
 
@@ -20,7 +20,6 @@ from divar_client import McpSource, SourceError, _http, find_images
 
 DEFAULT_SHEYPOOR_MCP = "https://sheypoor-mcp.farhamaghdasi.workers.dev/"  # نشانی رسمی در README پروژه
 SHEYPOOR_API = "https://www.sheypoor.com/api/v10.0.0"
-PROVINCE_NAMES = {"gilan": "گیلان", "mazandaran": "مازندران", "golestan": "گلستان"}
 # دسته‌های ملک شیپور که می‌خوانیم؛ نام دسته برای تشخیص نوع ملک و معامله به کار می‌رود
 ESTATE_RX = r"آپارتمان|خانه|ویلا|زمین|باغ|مغازه|تجاری|اداری|دفتر|سوئیت|کلنگی|اجاره|رهن|فروش"
 
@@ -110,22 +109,25 @@ class SheypoorSource(McpSource):
             self.store.set_setting("sheypoor_map", m)
 
     def city_ref(self, city: dict) -> dict | None:
+        """شناسهٔ شیپوری شهر؛ شهرهای هر استان یک‌بار (با اولین شهر همان استان) کشف و ذخیره می‌شوند."""
         m = self._cache()
         if city["key"] in m.get("cities", {}):
             return m["cities"][city["key"]]
-        if m.get("cities_done"):
+        done = m.setdefault("prov_done", ["gilan", "mazandaran", "golestan"] if m.get("cities_done") else [])
+        pkey = city.get("province")
+        if pkey in done or pkey not in PROVINCES:
             return None
         cities = m.setdefault("cities", {})
+        pname = PROVINCES[pkey]["name"]
         provinces = _list(self.call("list_provinces", {}), "provinces")
-        for pkey, pname in PROVINCE_NAMES.items():
-            prov = next((p for p in provinces if pname in norm(p.get("name"))), None)
-            arg = (prov or {}).get("slug") or pname
-            res = self.call("list_cities", {"province": arg})
-            for c in _list(res, "cities"):
-                hit = find_city(c.get("name"))
-                if hit and norm(hit["name"]).replace(" ", "") == norm(c.get("name")).replace(" ", ""):
-                    cities[hit["key"]] = {"id": c.get("id"), "slug": c.get("slug"), "name": c.get("name")}
-        m["cities_done"] = True
+        prov = next((p for p in provinces if squash(pname) in squash(p.get("name")) or squash(p.get("name")) == squash(pname)), None)
+        arg = (prov or {}).get("slug") or pname
+        res = self.call("list_cities", {"province": arg})
+        for c in _list(res, "cities"):
+            hit = find_city(c.get("name"))
+            if hit and hit["province"] == pkey and squash(hit["name"]) == squash(c.get("name")):
+                cities[hit["key"]] = {"id": c.get("id"), "slug": c.get("slug"), "name": c.get("name")}
+        done.append(pkey)
         self._save(m)
         return cities.get(city["key"])
 

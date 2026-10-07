@@ -19,6 +19,23 @@ check(catalog.classify_estate("فروش خانه و ویلا", "") == ("villa", 
 check(catalog.classify_estate("اجارهٔ مسکونی آپارتمان", "")[1] == "rent", "دسته اجاره")
 check(catalog.classify_estate("اجاره کوتاه مدت ویلا", "")[1] == "daily", "اجاره روزانه")
 check(catalog.find_city("بابلسر")["key"] == "babolsar" and catalog.find_city("بابل")["key"] == "babol", "تطابق شهر")
+check(catalog.find_city("مشهد")["province"] == "khorasan_razavi" and catalog.find_city("نور")["key"] == "nur", "تطابق شهرهای استان‌های دیگر")
+# گسترش تدریجی: وقتی فهرست‌های شمال کامل شد، تهران فعال می‌شود
+os.environ["ARA_INGEST_DEFAULT"] = "0"
+from store import Store  # noqa
+from ingest import Ingestor  # noqa
+from pathlib import Path  # noqa
+_st = Store(Path(tempfile.mkdtemp()) / "t.db")
+_ig = Ingestor(_st)
+_cfg = _ig.cfg()
+check(all(catalog.CITY_BY_KEY[c]["province"] in catalog.NORTH for c in _cfg["cities"]), "پیش‌فرض دریافت فقط شهرهای شمال")
+_ig.ensure_feeds(_cfg)
+_ig.maybe_expand(_cfg)
+check("tehran" not in _ig.expansion()["active"], "پیش از کامل شدن شمال، استان تازه فعال نمی‌شود")
+_st.x("UPDATE feeds SET pages_done=40, has_next=1")
+_ig._exp_checked = 0
+_ig.maybe_expand(_ig.cfg())
+check("tehran" in _ig.expansion()["active"] and "mashhad" not in _ig.cfg()["cities"] and "tehran" in _ig.cfg()["cities"], "شمال کامل شد: تهران فعال و شهرهایش به دریافت اضافه شد")
 check("parking" not in catalog.detect_amenities("پارکینگ: ندارد"), "نبود امکان")
 it = {}; catalog.enrich_from_attributes(it, {"متراژ": "۱۲۰", "ساخت": "۹۸", "اتاق": "۲"})
 check(it == {"area": 120, "year": 1398, "rooms": 2}, "ویژگی‌ها")
@@ -85,6 +102,12 @@ def run(mode):
             with urllib.request.urlopen(rq) as rr: pub = json.loads(rr.read())
         except urllib.error.HTTPError as e: pub = json.loads(e.read())
         check("dev_code" not in pub, f"[{mode}] کد آزمایشی ورود از اینترنت نمایش داده نمی‌شود")
+        # دورهٔ رایگان ۱۰ روزه برای ثبت‌نام تازه (پیش‌فرض روشن)
+        ot = call("/api/auth/otp", {"phone": "09123334444"})
+        vt = call("/api/auth/verify", {"phone": "09123334444", "code": ot["dev_code"]})
+        check(vt["user"]["active"] and vt["user"]["trial"] and vt["user"]["days_left"] == 10 and vt.get("trial_days") == 10, f"[{mode}] ثبت‌نام تازه: ۱۰ روز دسترسی کامل رایگان")
+        call("/api/admin/settings", {"billing": {"trial_enabled": False}}, tok)
+        check(call("/api/config")["trial_days"] == 0, f"[{mode}] دورهٔ رایگان خاموش شد")
         o = call("/api/auth/otp", {"phone": "۰۹۱۲۱۲۳۴۵۶۷"})
         check(o.get("dev_code"), f"[{mode}] کد ورود (حالت آزمایشی پیامک)")
         check(call("/api/auth/verify", {"phone": "09121234567", "code": "00000"}).get("status") == 400, f"[{mode}] کد نادرست رد شد")

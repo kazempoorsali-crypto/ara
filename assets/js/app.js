@@ -12,6 +12,10 @@ const App = (() => {
     applyTheme(store.get("theme_v2", "light"));
     const info = await DataLayer.init();
     cfg = info.config;
+    // استان‌هایی که به‌تدریج اضافه می‌شوند (تهران، خراسان رضوی و ...) از سرور می‌آیند
+    const R = (cfg && cfg.regions) || {};
+    (R.provinces || []).forEach((p) => { if (!PROVINCES.some((x) => x.id === p.id)) PROVINCES.push(p); });
+    (R.cities || []).forEach((c) => { if (!CITIES.some((x) => x.id === c.id)) CITIES.push(c); });
     applySite();
     if (info.useSamples) {
       const bar = $("#demoBar");
@@ -86,9 +90,9 @@ const App = (() => {
     <section class="hero">
       <div class="wrap hero__grid">
         <div>
-          <span class="kicker">گیلان · مازندران · گلستان</span>
+          <span class="kicker">${PROVINCES.length > 4 ? PROVINCES.slice(0, 4).map((p) => p.name).join(" · ") + ` و ${fa(PROVINCES.length - 4)} استان دیگر` : PROVINCES.map((p) => p.name).join(" · ")}</span>
           <h1>ملکی که <span class="accent">زیر قیمت</span> است،<br>پیش از بقیه پیدا کن.</h1>
-          <p class="hero__lead">همهٔ آگهی‌های ملک ${fa(CITIES.length)} شهر شمال را می‌خوانیم و هر کدام را فقط با <b>محلهٔ خودش</b> می‌سنجیم، با همان سن بنا، متراژ، طبقه، آسانسور، پارکینگ و سند. فرصت یعنی دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی آن؛ قیمت‌های مشکوک و اشتباه جدا می‌شوند.</p>
+          <p class="hero__lead">همهٔ آگهی‌های ملک ${fa(CITIES.length)} شهر ${PROVINCES.length > 3 ? `در ${fa(PROVINCES.length)} استان` : "شمال"} را می‌خوانیم و هر کدام را فقط با <b>محلهٔ خودش</b> می‌سنجیم، با همان سن بنا، متراژ، طبقه، آسانسور، پارکینگ و سند. فرصت یعنی دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی آن؛ قیمت‌های مشکوک و اشتباه جدا می‌شوند.</p>
           <form class="search-card" id="heroForm" autocomplete="off">
             <div class="search-card__tabs">
               <div class="search-card__deals" id="heroDeals" style="margin-inline-start:0">
@@ -148,7 +152,7 @@ const App = (() => {
     ${methodTeaser()}
     <section class="section section--sunk">
       <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>از آستارا تا کلاله</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
+        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>${PROVINCES.length > 3 ? "شهر به شهر، استان به استان" : "از آستارا تا کلاله"}</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
         <div class="prov">${provinceColumns(st)}</div>
       </div>
     </section>
@@ -294,7 +298,7 @@ const App = (() => {
     const free = cfg.free_results || 10;
     return `<section class="section" id="plans">
       <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">اشتراک</span><h2>رایگان یا ${esc(cfg.site.name)} پرو</h2><p>همه می‌توانند حکم قیمت، امتیاز و بازار محله‌ها را ببینند. با اشتراک، همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل و پیوند مستقیم هر آگهی اصلی باز می‌شود.</p></div></div>
+        <div class="sec-head"><div><span class="kicker">اشتراک</span><h2>رایگان یا ${esc(cfg.site.name)} پرو</h2><p>همه می‌توانند حکم قیمت، امتیاز و بازار محله‌ها را ببینند. با اشتراک، همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل و پیوند مستقیم هر آگهی اصلی باز می‌شود.${cfg.trial_days ? ` <b>ثبت‌نام با شماره موبایل، ${fa(cfg.trial_days)} روز دسترسی کامل و رایگان می‌دهد.</b>` : ""}</p></div></div>
         <div class="plans">
           <div class="plan"><h3>رایگان</h3><b class="plan__price">۰</b><ul class="check-list">
             <li>${fa(free)} نتیجهٔ اول هر جست‌وجو، بدون ورود</li><li>حکم قیمت، درصد زیر یا بالای قیمت محله و امتیاز</li><li>شناسنامهٔ قیمت و «چرا این قیمت؟»</li><li>صفحهٔ بازار همهٔ شهرها</li><li class="is-off">آگهی‌های مشکوک پنهان‌اند</li><li class="is-off">بدون پیوند مستقیم آگهی اصلی</li>
@@ -429,7 +433,7 @@ const App = (() => {
   /* ---------- ورود با کد پیامکی ---------- */
   function loginDialog(after) {
     openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی برایتان پیامک می‌شود. ثبت‌نام همزمان انجام می‌شود.</p>
+      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی برایتان پیامک می‌شود. ثبت‌نام همزمان انجام می‌شود.${cfg.trial_days ? ` <b>با ثبت‌نام، همهٔ امکانات سایت ${fa(cfg.trial_days)} روز رایگان برایتان باز می‌شود.</b>` : ""}</p>
       <form class="form-grid" id="otpForm">
         <label class="field"><span>شماره موبایل</span><input class="input input--ltr" id="otpPhone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required autocomplete="tel"></label>
         <div id="otpStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="otpCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="otpNote" style="margin-top:6px"></p></div>
@@ -448,8 +452,8 @@ const App = (() => {
           $("#otpNote").innerHTML = r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>` : "کد تا ۳ دقیقه معتبر است.";
           btn.textContent = "ورود"; $("#otpCode").focus();
         } else {
-          await DataLayer.verifyOtp($("#otpPhone").value, $("#otpCode").value);
-          $("#dlg").close(); updateAccount(); toast("وارد شدید");
+          const u = await DataLayer.verifyOtp($("#otpPhone").value, $("#otpCode").value);
+          $("#dlg").close(); updateAccount(); toast(u.trial_started ? `خوش آمدید؛ همهٔ امکانات تا ${fa(u.trial_started)} روز برایتان رایگان باز است` : "وارد شدید");
           if (after) after(); else route();
         }
       } catch (err) { toast(err.message); }
@@ -467,7 +471,7 @@ const App = (() => {
       <div class="sec-head"><div><span class="kicker">حساب من</span><h2>${me ? "اشتراک و حساب کاربری" : "ورود و اشتراک"}</h2></div></div>
       ${me ? `<div class="account">
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
-          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `فعال، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
+          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
           <a class="btn btn--line" href="#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
@@ -617,7 +621,7 @@ const App = (() => {
     }
     function titleOf() {
       const c = UI.cityOf(F.city), p = UI.provOf(F.province);
-      const where = F.district ? `در ${F.district.split(",").join("، ")}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : "در شمال";
+      const where = F.district ? `در ${F.district.split(",").join("، ")}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : PROVINCES.length > 3 ? "در همهٔ شهرها" : "در شمال";
       const kinds = (F.kinds || "").split(",").filter(Boolean).map(UI.kindName).join(" و ") || "ملک";
       return `${F.ranked || F.opp ? "فرصت‌های " : ""}${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
     }
@@ -1274,6 +1278,25 @@ const App = (() => {
   function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
   function bindGlobal() {
     const top = document.querySelector(".top");
+    // نوار جست‌وجوی جمع‌شونده و اندازهٔ نقشه بر پایهٔ ارتفاع واقعی نوارها
+    const measure = () => {
+      const sb = document.querySelector(".sbar");
+      document.documentElement.style.setProperty("--top-h", top.offsetHeight + "px");
+      if (sb) document.documentElement.style.setProperty("--sbar-h", sb.offsetHeight + "px");
+    };
+    const onScroll = () => {
+      const sb = document.querySelector(".sbar");
+      if (!sb || sb.querySelector(".dd.is-open")) return;
+      const compact = sb.classList.contains("is-compact"), want = scrollY > (compact ? 40 : 140);
+      if (want !== compact) {
+        sb.classList.toggle("is-compact", want);
+        requestAnimationFrame(measure);
+        setTimeout(() => state.map && state.map.invalidateSize(), 260);
+      }
+    };
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", measure);
+    if (window.ResizeObserver) new ResizeObserver(measure).observe(document.body);
     $("#menuBtn").addEventListener("click", () => { const on = top.classList.toggle("is-menu"); $("#menuBtn").setAttribute("aria-expanded", on); });
     $$(".nav a").forEach((a) => a.addEventListener("click", () => { top.classList.remove("is-menu"); $("#menuBtn").setAttribute("aria-expanded", "false"); }));
     document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });

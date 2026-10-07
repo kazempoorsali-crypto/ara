@@ -176,7 +176,7 @@ const UI = (() => {
   }
   /* کارت قفل: نتیجه‌های بعد از سهم رایگان */
   function lockCard(n) {
-    return `<article class="card card--lock"><div class="lockbox">${icon("lock")}<h3>${fa(n)} نتیجهٔ دیگر برای مشترکان</h3><p>${fa(DataLayer.config.free_results || 10)} نتیجهٔ اول هر جست‌وجو رایگان است. با اشتراک، همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل و پیوند مستقیم آگهی اصلی باز می‌شود.</p><a class="btn btn--hot" href="#/account">دیدن اشتراک‌ها</a></div></article>`;
+    return `<article class="card card--lock"><div class="lockbox">${icon("lock")}<h3>${fa(n)} نتیجهٔ دیگر برای مشترکان</h3><p>${fa(DataLayer.config.free_results || 10)} نتیجهٔ اول هر جست‌وجو رایگان است. با اشتراک، همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل و پیوند مستقیم آگهی اصلی باز می‌شود.</p>${DataLayer.config.trial_days && !DataLayer.me ? `<a class="btn btn--hot" href="#/account">ثبت‌نام و ${fa(DataLayer.config.trial_days)} روز رایگان</a>` : `<a class="btn btn--hot" href="#/account">دیدن اشتراک‌ها</a>`}</div></article>`;
   }
 
   /* ---------- نمودار تاریخچه قیمت ---------- */
