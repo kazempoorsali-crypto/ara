@@ -154,7 +154,7 @@ const UI = (() => {
     const favs = App.favs, c = cityOf(l.city_key), v = l.verdict;
     const loc = [c ? c.name : l.city_name, l.district].filter(Boolean).join("، ");
     const sig = l.signals || {};
-    const ppmLine = l.deal === "sale" && l.ppm ? `، متری ${money(l.ppm)}` : "";
+    const ppmLine = l.deal === "sale" && l.ppm ? `متری ${money(l.ppm)}` : "";
     const verdictRow = l.label === "sus"
       ? `<p class="card__verdict"><span class="lab lab--sus">قیمت مشکوک</span> <span class="small">${esc(l.sus_reason || "")}</span></p>`
       : v ? `<p class="card__verdict">${dealPill(v)}</p><p class="card__conf">${confLine(v)}${v.wide ? " · قیمت‌های این محله پراکنده‌اند" : ""}</p>`
@@ -167,7 +167,7 @@ const UI = (() => {
       </div>
       <div class="card__body">
         ${verdictRow}
-        <div class="card__price">${priceHTML(l)}<small class="muted">${ppmLine}</small></div>
+        <div class="card__price">${priceHTML(l)}${ppmLine ? `<small class="card__ppm">${ppmLine}</small>` : ""}</div>
         <h3 class="card__title"><a href="#/ad/${encodeURIComponent(l.id)}">${tt(l.title)}</a></h3>
         <p class="card__loc">${esc(loc)}${l.posted_at || l.first_seen ? "، درج " + ago(l.posted_at || l.first_seen) : l.time_text ? "، " + esc(l.time_text) : ""}</p>
         <div class="card__specs">${specs(l).map((s) => `<span>${esc(s)}</span>`).join("")}</div>

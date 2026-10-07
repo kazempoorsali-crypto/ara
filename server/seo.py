@@ -232,7 +232,7 @@ def home(app, base):
     body = (f'<h2>ملک زیر قیمت در شهرهای ایران، محله به محله</h2>'
             f'<p>{ESC(site["name"])} آگهی‌های عمومی ملک را شهر به شهر می‌خواند و هر آگهی را فقط با آگهی‌های مشابه همان محله، با در نظر گرفتن متراژ، سن بنا، طبقه، آسانسور، پارکینگ و سند می‌سنجد. فرصت‌های زیر قیمت محله رتبه‌بندی و قیمت‌های مشکوک جدا می‌شوند. آخرین به‌روزرسانی: {jdate(_updated(st))}.</p>'
             + (f'<h3>برترین فرصت‌های امروز</h3><ul>{top}</ul>' if top else "")
-            + f'<h3>قیمت ملک در شهرها</h3>{"".join(provs)}'
+            + f'<details class="seo-more"><summary>همهٔ شهرها</summary>{"".join(provs)}</details>'
             + (f'<h3>راهنماهای خرید</h3><ul class="seo-cols">{guides}<li><a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a></li><li><a href="/rahnama/ejare">چک‌لیست رهن و اجاره</a></li></ul>')
             + (f'<h3>مقاله‌ها</h3><ul>{arts}</ul>' if arts else ""))
     title = f'{site["name"]} | ملک زیر قیمت، محله به محله'

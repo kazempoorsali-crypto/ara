@@ -223,6 +223,7 @@ p { margin: 0; }
 .card__price b { font-size: 19px; font-weight: 900; }
 .card__price small { font-size: 12px; color: var(--muted); }
 .card__price .sep { color: var(--line-2); }
+.card__price .card__ppm { color: var(--muted); font-size: 12px; margin-inline-start: auto; }
 .card__title { font-size: 14.5px; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card__title a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
 .card__loc { font-size: 12.5px; color: var(--muted); }
@@ -839,3 +840,27 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .seo-page th, .seo-page td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: start; white-space: nowrap; }
 .seo-note { font-size: 13px; color: var(--muted); }
 .seo-img { max-width: 100%; height: auto; border-radius: var(--r-lg); }
+
+/* ---------- پرداخت نهایی (polish) ---------- */
+/* فیلترهای جست‌وجو روی رایانه در یک ردیف فشرده‌تر جا می‌شوند */
+@media (min-width: 561px) {
+  .sbar__row { gap: 6px; }
+  .dd > button { padding: 0 12px; gap: 6px; min-height: 40px; }
+  #dds .chip { padding: 0 12px; min-height: 40px; }
+}
+/* موبایل: اول نتیجه‌ها؛ نقشه با دکمهٔ «نقشه» باز می‌شود */
+@media (max-width: 860px) {
+  .split:not(.is-map) .mapbox { display: none; }
+}
+/* موبایل: متن معرفی بالای صفحه کوتاه‌تر تا کادر جست‌وجو زودتر دیده شود */
+@media (max-width: 560px) {
+  .hero__lead { font-size: 15.5px; line-height: 1.95; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .hero h1 { margin: 10px 0 12px; }
+  .search-card { margin-top: 18px; }
+}
+/* دکمهٔ دستیار در صفحهٔ آگهی و جست‌وجو جمع‌وجور و دور از دکمه‌های اصلی */
+body[data-page="ad"] .ai-fab, body[data-page="s"] .ai-fab { padding: 0; width: 52px; min-height: 52px; justify-content: center; }
+body[data-page="ad"] .ai-fab b, body[data-page="s"] .ai-fab b, body[data-page="ad"] .ai-fab span, body[data-page="s"] .ai-fab span { display: none; }
+@media (min-width: 861px) { body[data-page="ad"] .ai-fab { inset-inline-end: auto; inset-inline-start: 22px; } }
+/* تمرکز صفحه‌کلید واضح و یکدست */
+:where(a, button, input, select, textarea, summary):focus-visible { outline: 2.5px solid var(--forest); outline-offset: 2px; border-radius: 10px; }

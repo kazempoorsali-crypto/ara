@@ -59,6 +59,7 @@ const App = (() => {
   function route() {
     const { path, params } = parseHash();
     const [page, arg] = path.split("/");
+    document.body.dataset.page = page || "home";
     $$("[data-nav]").forEach((a) => a.classList.remove("is-on"));
     document.body.classList.remove("has-mcta");
     if (page === "s") {
@@ -706,7 +707,14 @@ const App = (() => {
         set({ sus: F.sus ? "" : 1 });
       });
       $$(".dd").forEach((d) => {
-        d.firstElementChild.addEventListener("click", (e) => { e.stopPropagation(); const open = d.classList.contains("is-open"); $$(".dd.is-open").forEach((x) => x.classList.remove("is-open")); d.classList.toggle("is-open", !open); });
+        d.firstElementChild.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const open = d.classList.contains("is-open");
+          $$(".dd.is-open").forEach((x) => x.classList.remove("is-open"));
+          const sb = $(".sbar");  // نوار جمع‌شده باز می‌شود تا پنل فیلتر بریده نشود
+          if (!open && sb && sb.classList.contains("is-compact")) { sb.classList.remove("is-compact"); sb.style.marginBottom = ""; }
+          d.classList.toggle("is-open", !open);
+        });
         const panel = d.querySelector(".dd__panel");
         const pending = {};
         panel.addEventListener("click", (e) => {
