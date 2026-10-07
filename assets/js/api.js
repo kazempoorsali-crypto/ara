@@ -4,7 +4,7 @@ const DataLayer = (() => {
   const RENT_RATE = 0.03;
   const DEFAULT_CONFIG = {
     mode: "preview",
-    site: { name: "فرصت‌یاب", tagline: "قیمت منصفانه ملک در شمال", about: "", email: "" },
+    site: { name: "فرصت‌یاب", tagline: "ملک زیر قیمت، محله به محله", about: "", email: "" },
     display: { show_samples: true },
     plans: [], payable: false, free_preview: 3, free_results: 10, sms_live: false, owner: {},
     thresholds: { opp: 0.15, gold: 0.22, sus: 0.4 },

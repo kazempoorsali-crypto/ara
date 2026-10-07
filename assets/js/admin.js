@@ -87,7 +87,7 @@
     if (!S.billing.merchant_id && !S.billing.card_number && !S.billing.test_mode) missing.push("درگاه پرداخت یا شمارهٔ کارت");
     if (!S.sms_live) missing.push("سامانه پیامک (تا تنظیم نشود، ورود از اینترنت ممکن نیست؛ کد آزمایشی فقط روی همین رایانه نمایش داده می‌شود)");
     if (S.billing.test_mode) missing.push("خاموش کردن «حالت آزمایشی پرداخت» (از اینترنت کار نمی‌کند، ولی پیش از انتشار خاموشش کنید)");
-    main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی</p>
+    main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی${S.version ? ` · نسخهٔ نصب‌شده: <bdi dir="ltr">v ${esc(S.version.replace("|", " — "))}</bdi>` : ""}</p>
       ${missing.length ? `<div class="note" style="margin-bottom:18px">برای شروع: ${missing.join("، ")} را در بخش «اشتراک، درگاه و پیامک» تنظیم کنید.</div>` : ""}
       <div class="kpis">
         <div><b>${fa(st.total)}</b><span>آگهی فعال</span></div>
@@ -147,7 +147,7 @@
             <option value="mcp" ${cfg.sheypoor_mode === "mcp" ? "selected" : ""}>فقط سرور MCP شیپور</option>
             <option value="direct" ${cfg.sheypoor_mode === "direct" ? "selected" : ""}>فقط اتصال مستقیم به شیپور</option></select></label>
           <label class="field"><span>نشانی سرور MCP شیپور</span><input class="input input--ltr" name="sheypoor_url" value="${esc(cfg.sheypoor_url || "")}" placeholder="https://sheypoor-mcp.farhamaghdasi.workers.dev/"><span class="hint">خالی بماند تا نشانی عمومی sheypoor-mcp استفاده شود.</span></label></div>
-        <p class="hint">سقف درخواست ساعتی بین دو منبع مشترک است. دسته‌های ملک و شهرهای شمال یک‌بار خودکار کشف می‌شوند. آگهی تکراری که در هر دو سایت آمده، با تطبیق شهر، متراژ و قیمت یک‌بار شمرده می‌شود. شیپور گاهی شمارهٔ آگهی‌دهنده را عمومی برمی‌گرداند؛ نمایش آن تابع تنظیم «اطلاعات تماس» در بخش تنظیمات سایت است.</p>
+        <p class="hint">سقف درخواست ساعتی بین دو منبع مشترک است. دسته‌های ملک و شهرهای هر استان یک‌بار خودکار کشف می‌شوند. آگهی تکراری که در هر دو سایت آمده، با تطبیق شهر، متراژ و قیمت یک‌بار شمرده می‌شود. شیپور گاهی شمارهٔ آگهی‌دهنده را عمومی برمی‌گرداند؛ نمایش آن تابع تنظیم «اطلاعات تماس» در بخش تنظیمات سایت است.</p>
         <button type="button" class="btn btn--line" id="testSp" style="margin-top:10px">آزمون اتصال شیپور</button></div>
       <div class="panel"><h2>دسته‌های دیوار</h2><div class="checks">${cat.categories.map((c) => `<label><input type="checkbox" name="cat" value="${c.slug}" ${cfg.categories.includes(c.slug) ? "checked" : ""}><span>${c.name}</span></label>`).join("")}</div>
         <p class="hint">«همه املاک» کل بازار ملک را پوشش می‌دهد؛ زیردسته‌ها فقط برای تمرکز بیشتر هستند.</p></div>
@@ -221,6 +221,12 @@
           <div><button class="btn btn--hot">ذخیره آستانه‌ها</button></div>
         </form>
         <p class="hint">قیمت محله فقط از آگهی‌های همان محله ساخته می‌شود (دست‌کم ۵ آگهی معتبر هم‌نوع) و هرگز با میانهٔ شهر جایگزین نمی‌شود. پیش‌فرض: ۱۵، ۲۲، ۴۰، ۲۵ و ۱. برای زمان: آگهی‌های قدیمی‌تر از ۹۰ روز کنار می‌روند، وزن هر آگهی هر ۴۵ روز نصف می‌شود و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ برآوردشده به نرخ امروز آورده می‌شود.</p></div>
+      <div class="panel"><h2>دقت فرمول ارزش‌گذاری (بیرون از نمونه)</h2>
+        ${(v.accuracy || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>استان</th><th>نوع</th><th>معامله</th><th>آگهی سنجیده</th><th>میانهٔ خطا</th><th>در ±۱۰٪</th><th>در ±۲۰٪</th></tr></thead><tbody>
+          ${v.accuracy.map((a) => `<tr><td>${esc(cityName(a.scope))}</td><td>${KG[a.kind] || a.kind}</td><td>${DEAL[a.deal] || a.deal}</td><td>${fa(a.n)}</td><td><b>${fa((a.mdape * 100).toFixed(1))}٪</b></td><td>${fa(Math.round(a.within10 * 100))}٪</td><td>${fa(Math.round(a.within20 * 100))}٪</td></tr>`).join("")}
+        </tbody></table></div>` : '<p class="muted">پس از اولین محاسبه با دادهٔ کافی نمایش داده می‌شود.</p>'}
+        <p class="hint">برای هر آگهی، قیمت محله بدون خود آن آگهی ساخته و قیمت منصفانه‌اش با قیمت درخواستی مقایسه می‌شود. «میانهٔ خطا» یعنی نیمی از آگهی‌ها کمتر از این درصد با برآورد فاصله دارند. این خطا شامل تفاوت واقعی قیمت‌ها هم هست، پس عدد کوچک‌تر = فرمول دقیق‌تر.</p>
+        ${v.raised ? `<p class="hint"><b>پایش اثر سایت بر قیمت‌ها:</b> ${fa(v.raised.all)} آگهی فعال پس از درج قیمتشان را بالا برده‌اند${v.raised.was_opp ? `، از جمله ${fa(v.raised.was_opp)} آگهی که پیش‌تر «فرصت» بودند` : ""}. افزایش قیمت پس از درج در ساختن قیمت محله نادیده گرفته می‌شود تا هیچ فروشنده‌ای نتواند قیمت محله را بالا بکشد.</p>` : ""}</div>
       <div class="panel"><h2>روند ماهانهٔ قیمت (برای به‌روز کردن قیمت آگهی‌های قدیمی‌تر)</h2>
         ${(v.trends || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>استان</th><th>نوع</th><th>معامله</th><th>روند ماهانه</th><th>نمونه</th><th>منبع</th></tr></thead><tbody>
           ${v.trends.map((t) => `<tr><td>${esc(cityName(t.scope))}</td><td>${KG[t.kind] || t.kind}</td><td>${DEAL[t.deal] || t.deal}</td><td>${t.monthly >= 0 ? "+" : "−"}${fa(Math.abs(t.monthly * 100).toFixed(1))}٪</td><td>${fa(t.n)}</td><td class="small">${esc(t.source)}</td></tr>`).join("")}
@@ -229,7 +235,8 @@
       <div class="panel"><h2>مدل‌های قیمت ساخته‌شده</h2>
         ${(v.models || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>محدوده</th><th>نوع</th><th>معامله</th><th>نمونه</th><th>R²</th><th>اثر ویژگی‌ها (ضریب استانداردشده لگاریتمی)</th></tr></thead><tbody>
           ${v.models.map((m) => `<tr><td>${esc(cityName(m.scope))}</td><td>${KG[m.kind] || m.kind}</td><td>${DEAL[m.deal] || m.deal}</td><td>${fa(m.n)}</td><td>${fa(m.r2)}</td><td class="small">${Object.entries(m.effects).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8).map(([k, e]) => `<span style="display:inline-block;margin:2px 6px" class="${e >= 0 ? "ok" : "bad"}">${esc(k)} ${e >= 0 ? "+" : "−"}${fa(Math.abs(e).toFixed(3))}</span>`).join("")}</td></tr>`).join("")}
-        </tbody></table></div>` : '<p class="muted">هنوز هیچ شهر یا استانی ۶۰ آگهی پاک‌سازی‌شده هم‌نوع ندارد؛ فعلاً قیمت محله بدون تعدیل ویژگی‌ها، فقط میانهٔ همان محله است.</p>'}</div>`;
+        </tbody></table></div>` : '<p class="muted">هنوز هیچ شهر یا استانی ۶۰ آگهی پاک‌سازی‌شده هم‌نوع ندارد؛ فعلاً قیمت محله بدون تعدیل ویژگی‌ها، فقط میانهٔ همان محله است.</p>'}
+        <p class="hint">روش: قیمت محله میانهٔ وزنی «قیمت هر متر تعدیل‌شده برای ویژگی‌ها» در همان محله است و مدل با برازش متناوب (سه دور) و رگرسیون ریج مقاوم ساخته می‌شود؛ پس ترکیب آگهی‌های محله (مثلاً بیشتر نوساز) خط پایه را منحرف نمی‌کند. فرصت فقط وقتی اعلام می‌شود که فاصله از عدم‌قطعیت برآورد بزرگ‌تر باشد و نزدیک‌ترین آگهی‌های مشابه همان محله هم آن را تأیید کنند.</p></div>`;
     $("#revalue").addEventListener("click", async (e) => { e.target.disabled = true; try { await api("admin/revalue", {}); toast("محاسبه شد"); load(); } catch (err) { toast(err.message); } });
     $("#wf").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -285,7 +292,7 @@
     const E = S.expansion, P = S.province_progress || {}, all = S.catalog.all_provinces;
     const next = E.order.find((p) => !E.active.includes(p));
     return `<div class="panel" id="expPanel"><h2>گسترش تدریجی به استان‌های دیگر</h2>
-      <p class="hint">ابتدا شهرهای شمال کامل دریافت می‌شوند. وقتی دست‌کم ${fa(Math.round(E.threshold * 100))}٪ فهرست‌های هر استان فعال کامل شد (به انتهای فهرست رسید یا ${fa(E.deep_pages)} صفحه پیمایش شد)، استان بعدی به ترتیب زیر خودکار فعال می‌شود و شهرهایش به دریافت اضافه می‌شوند. سقف درخواست ساعتی ثابت می‌ماند؛ پس با هر استان تازه، تازه‌سازی شهرهای قبلی کمی کندتر می‌شود.</p>
+      <p class="hint">ابتدا شهرهای استان‌های آغازین (گیلان، مازندران، گلستان) کامل دریافت می‌شوند. وقتی دست‌کم ${fa(Math.round(E.threshold * 100))}٪ فهرست‌های هر استان فعال کامل شد (به انتهای فهرست رسید یا ${fa(E.deep_pages)} صفحه پیمایش شد)، استان بعدی به ترتیب زیر خودکار فعال می‌شود و شهرهایش به دریافت اضافه می‌شوند. سقف درخواست ساعتی ثابت می‌ماند؛ پس با هر استان تازه، تازه‌سازی شهرهای قبلی کمی کندتر می‌شود.</p>
       <label class="switch"><input type="checkbox" id="expAuto" ${E.auto ? "checked" : ""}><i></i>فعال شدن خودکار استان بعدی</label>
       <div class="grid2" style="margin-top:12px">
         <label class="field"><span>آستانهٔ کامل بودن (درصد فهرست‌ها)</span><input class="input" id="expTh" type="number" min="30" max="100" value="${Math.round(E.threshold * 100)}"></label>

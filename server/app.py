@@ -29,12 +29,13 @@ sys.path.insert(0, str(HERE))
 import catalog  # noqa: E402
 from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from support import DEFAULT_SUPPORT, Support  # noqa: E402
+import seo  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
 from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
-DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "قیمت منصفانه ملک در شمال", "about": "", "email": ""}
+DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -51,6 +52,28 @@ def hash_pw(pw: str, salt: str) -> str:
 
 
 TICKET_IPS: dict = {}
+SITEMAP: dict = {}
+
+
+def _version() -> str:
+    """شناسهٔ کوتاه نسخهٔ نصب‌شده (کامیت گیت) برای نمایش در پایین سایت و پنل، و شکستن کش مرورگر."""
+    try:
+        import subprocess
+        v = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%h|%cd", "--date=format:%Y-%m-%d %H:%M"],
+                           capture_output=True, text=True, timeout=5).stdout.strip()
+        if v:
+            return v
+    except Exception:  # noqa: BLE001
+        pass
+    return str(int(max(f.stat().st_mtime for f in (ROOT / "assets").rglob("*") if f.is_file())))
+
+
+VERSION = _version()
+
+
+def band5(x: float) -> float:
+    """گرد کردن به سمت صفر در گام‌های ۵ درصدی (۰٫۲۷ ← ۰٫۲۵، −۰٫۱۸ ← −۰٫۱۵)."""
+    return (1 if x >= 0 else -1) * (int(abs(x) * 100) // 5 * 5) / 100
 
 
 def decode_upload(raw):
@@ -101,7 +124,7 @@ class App:
             "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
             "sms_live": b.sms_live(),
             "admin_ready": bool(s.get_setting("admin")),
-            "regions": self.regions(),
+            "regions": self.regions(), "version": VERSION,
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
         }
 
@@ -149,6 +172,22 @@ class Handler(BaseHTTPRequestHandler):
             return True
         return False
 
+    @staticmethod
+    def versioned(data: bytes) -> bytes:
+        """هر نسخهٔ تازه، فایل‌های تازه را از مرورگر می‌خواهد (شکستن کش)."""
+        tag = re.sub(r"\W", "", VERSION.split("|")[0])
+        return re.sub(rb'((?:src|href)="assets/[^"?]+\.(?:js|css))"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
+
+    def send_text(self, text: str, ctype: str, status=200, cache="public, max-age=600"):
+        body = text.encode()
+        self.send_response(status)
+        self.send_header("content-type", ctype)
+        self.send_header("content-length", str(len(body)))
+        self.send_header("cache-control", cache)
+        self.end_headers()
+        self.wfile.write(body)
+        return None
+
     def ticket_keys(self):
         return [k.strip() for k in (self.headers.get("x-ticket-keys") or "").split(",") if k.strip()][:20]
 
@@ -194,6 +233,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self.image_proxy(qs.get("u") or "")
             if url.path.startswith("/api/"):
                 return self.api_get(url.path, qs)
+            if url.path == "/robots.txt":
+                return self.send_text(seo.robots(self.base_url()), "text/plain; charset=utf-8")
+            if url.path == "/sitemap.xml":
+                key = self.base_url()
+                if SITEMAP.get("key") != key or time.time() - SITEMAP.get("at", 0) > 600:
+                    SITEMAP.update(key=key, at=time.time(), xml=seo.sitemap(self.app, key))
+                return self.send_text(SITEMAP["xml"], "application/xml; charset=utf-8")
+            p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
+            if p is not None:
+                tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
+                return self.send_text(seo.render(tpl, p, VERSION), "text/html; charset=utf-8", cache="no-cache")
+            if re.fullmatch(r"/(melk|ad)/.*", url.path):
+                tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
+                body = seo.render(tpl, {"title": "یافت نشد", "desc": "این صفحه پیدا نشد.", "canonical": self.base_url() + "/",
+                                        "body": "<h1>این صفحه پیدا نشد</h1><p><a href=\"/\">بازگشت به صفحهٔ اصلی</a></p>",
+                                        "ld": [], "hash": "", "noindex": True}, VERSION)
+                return self.send_text(body, "text/html; charset=utf-8", status=404)
             return self.static(url.path)
         except Exception as e:  # noqa: BLE001
             return self.send_json({"error": str(e)}, 500)
@@ -224,6 +280,8 @@ class Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or ctype in ("application/javascript", "image/svg+xml"):
             ctype += "; charset=utf-8"
         data = target.read_bytes()
+        if rel.endswith(".html"):
+            data = self.versioned(data)
         self.send_response(200)
         self.send_header("content-type", ctype)
         self.send_header("content-length", str(len(data)))
@@ -282,12 +340,18 @@ class Handler(BaseHTTPRequestHandler):
                 d.pop(k, None)
             if d.get("lat") is not None:  # موقعیت دقیق فقط برای مشترکان؛ برای بقیه حدود یک کیلومتر
                 d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
+            # درصد دقیق فقط برای مشترکان؛ بقیه بازهٔ ۵ درصدی می‌بینند تا سایت مبنای «قیمت‌گذاری» فروشنده نشود
+            if d.get("discount") is not None:
+                d["discount"] = band5(d["discount"])
             if isinstance(d.get("verdict"), dict):
                 d["verdict"].pop("fair", None)
                 d["verdict"].pop("fair_ppm", None)
+                if d["verdict"].get("delta") is not None:
+                    d["verdict"]["delta"] = -band5(-d["verdict"]["delta"])
+                    d["verdict"]["approx"] = True
             ex = d.get("explain") or {}
             if full:
-                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "rank", "rank_n",
+                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n",
                         "ctx", "caution", "sus", "flags")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
         else:

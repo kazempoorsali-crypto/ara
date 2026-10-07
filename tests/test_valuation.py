@@ -109,4 +109,38 @@ errs = [abs(get(i)["fair_ppm"] - truth[i]) / truth[i] for i in truth if get(i)["
 med_err = sorted(errs)[len(errs) // 2]
 check(med_err < 0.08, f"میانه خطای قیمت منصفانه هر متر: {med_err:.1%} (نویز داده ۶٪)")
 check({"گلسار", "منظریه", "معلم", "بلوار گیلان"} <= {r["district"] for r in store.market_rows("rasht")}, "جدول بازار ۴ محله اصلی رشت")
+acc = next((a for a in info["accuracy"] if a["scope"] == "gilan" and a["deal"] == "sale"), None)
+check(acc and acc["mdape"] < 0.10 and acc["n"] > 300, f"دقت بیرون از نمونه گزارش شد: میانهٔ خطا {acc and acc['mdape']:.1%}، {acc and acc['within10']:.0%} آگهی‌ها در ±۱۰٪")
+
+# ---- سوگیری ترکیب محله: محله‌ای که بیشتر آگهی‌هایش نوساز است نباید آگهی کهنه با قیمت درست را «فرصت» نشان دهد
+st2 = Store(Path(tempfile.mkdtemp()) / "t2.db")
+rnd2 = random.Random(11)
+def add2(i, dist, age, base_ppm, mult=1.0, area=100):
+    ppm = base_ppm * math.exp(-0.02 * age) * mult
+    it = {"id": i, "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
+          "description": "آسانسور دارد. پارکینگ دارد.", "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": dist,
+          "price": round(ppm * area / 1e6) * 1e6, "area": area, "rooms": 2, "year": now_year - age, "detail_at": 1, "posted_at": int(NOW)}
+    it["feat"] = features.extract(it)
+    st2.upsert(it)
+for i in range(24):
+    add2(f"n{i}", "نوساز", rnd2.randint(0, 2), 80e6, math.exp(rnd2.gauss(0, 0.04)), rnd2.randint(80, 140))
+for i in range(6):
+    add2(f"o{i}", "نوساز", rnd2.randint(28, 32), 80e6, math.exp(rnd2.gauss(0, 0.04)), rnd2.randint(80, 140))
+for i in range(70):
+    add2(f"x{i}", "دیگر", rnd2.randint(0, 30), 60e6, math.exp(rnd2.gauss(0, 0.04)), rnd2.randint(60, 160))
+add2("oldfair", "نوساز", 30, 80e6)
+valuation.recompute(st2)
+of = st2.get("oldfair")
+check(of["label"] == "fair" and abs(of["discount"]) < 0.08, f"آگهی کهنه با قیمت درست در محلهٔ نوساز: {of['label']}، فاصله {of['discount']:.0%}")
+# ---- ضد قیمت‌سازی: افزایش قیمت پس از درج، قیمت محلهٔ بقیه را بالا نمی‌برد
+before = st2.get("x5")["fair_ppm"]
+for k in range(8):
+    it = dict(st2.get(f"x{k + 10}"))
+    it["price"] = round(it["price"] * 1.5 / 1e6) * 1e6
+    st2.upsert({k2: it[k2] for k2 in ("id", "source", "vertical", "kind", "deal", "title", "description", "city_key", "city_name",
+                                       "province", "district", "price", "area", "rooms", "year", "detail_at", "posted_at", "feat")})
+valuation.recompute(st2)
+after = st2.get("x5")["fair_ppm"]
+check(abs(after / before - 1) < 0.02, f"۸ آگهی قیمتشان را ۵۰٪ بالا بردند؛ قیمت منصفانهٔ همسایه {abs(after / before - 1):.1%} تغییر کرد")
+check(st2.get("x10")["explain"]["raised"] and st2.get("x10")["label"] == "high", "آگهی‌ای که قیمتش را بالا برد «بالاتر از قیمت محله» شد")
 print("همه آزمون‌های ارزش‌گذاری موفق بود.")

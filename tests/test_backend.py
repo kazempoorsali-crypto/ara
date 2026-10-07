@@ -120,6 +120,22 @@ def run(mode):
             except urllib.error.HTTPError as e: return {"status": e.code, **json.loads(e.read())}
         check(not ucall("/api/me")["user"]["active"], f"[{mode}] کاربر جدید بدون اشتراک")
         check("url" not in ucall("/api/listing/" + one["id"]), f"[{mode}] بدون اشتراک پیوند دیوار ندارد")
+        # سئو: صفحه‌های واقعی شهر و آگهی، نقشهٔ سایت و robots
+        def raw(path):
+            try:
+                with urllib.request.urlopen(B + path) as r: return r.status, r.read().decode()
+            except urllib.error.HTTPError as e: return e.code, e.read().decode()
+        sm = raw("/sitemap.xml")[1]
+        check("/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
+        cs, ch = raw("/melk/rasht")
+        check(cs == 200 and "<title>قیمت روز ملک در رشت" in ch and 'rel="canonical"' in ch and 'src="/assets/js/app.js' in ch and "/ad/" in ch, f"[{mode}] صفحهٔ سئوی شهر رشت")
+        aid = sm.split("/ad/")[1].split("<")[0]
+        as_, ah = raw("/ad/" + aid)
+        check(as_ == 200 and "RealEstateListing" in ah and "divar" not in ah.lower().split("<main")[1].split("</main>")[0], f"[{mode}] صفحهٔ سئوی آگهی بدون نام منبع")
+        check(raw("/melk/nowhere")[0] == 404 and raw("/ad/nope-1")[0] == 404, f"[{mode}] نشانی نامعتبر ۴۰۴")
+        pub = call("/api/listings?limit=60&sort=score")["items"]
+        check(all(x.get("discount") is None or abs(x["discount"] * 20 - round(x["discount"] * 20)) < 1e-9 for x in pub)
+              and all(x.get("verdict") is None or x["verdict"].get("approx") for x in pub), f"[{mode}] غیرمشترک فقط بازهٔ ۵ درصدی می‌بیند")
         p = ucall("/api/pay/start", {"plan": "weekly"})
         check(p.get("activated"), f"[{mode}] خرید اشتراک هفتگی (حالت آزمایشی پرداخت)")
         me = ucall("/api/me")["user"]

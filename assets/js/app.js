@@ -36,6 +36,7 @@ const App = (() => {
     $$("[data-site]").forEach((el) => { if (s[el.dataset.site]) el.textContent = s[el.dataset.site]; });
     document.title = `${s.name} | ${s.tagline}`;
     if (s.about) $("#footAbout").textContent = s.about;
+    if (cfg.version && $("#siteVer")) $("#siteVer").textContent = "v " + cfg.version.split("|")[0];
     const o = cfg.owner || {}, rows = [];
     if (o.support_url) rows.push(`<li>پشتیبانی: <a href="${esc(o.support_url)}" rel="noopener">${esc(o.support_label || o.support_url.replace(/^(https:\/\/|tel:|mailto:)/, ""))}</a></li>`);
     if (o.legal_name) rows.push(`<li>${esc(o.legal_name)}</li>`);
@@ -90,9 +91,9 @@ const App = (() => {
     <section class="hero">
       <div class="wrap hero__grid">
         <div>
-          <span class="kicker">${PROVINCES.length > 4 ? PROVINCES.slice(0, 4).map((p) => p.name).join(" · ") + ` و ${fa(PROVINCES.length - 4)} استان دیگر` : PROVINCES.map((p) => p.name).join(" · ")}</span>
+          <span class="kicker">ملک زیر قیمت، محله به محله</span>
           <h1>ملکی که <span class="accent">زیر قیمت</span> است،<br>پیش از بقیه پیدا کن.</h1>
-          <p class="hero__lead">همهٔ آگهی‌های ملک ${fa(CITIES.length)} شهر ${PROVINCES.length > 3 ? `در ${fa(PROVINCES.length)} استان` : "شمال"} را می‌خوانیم و هر کدام را فقط با <b>محلهٔ خودش</b> می‌سنجیم، با همان سن بنا، متراژ، طبقه، آسانسور، پارکینگ و سند. فرصت یعنی دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی آن؛ قیمت‌های مشکوک و اشتباه جدا می‌شوند.</p>
+          <p class="hero__lead">همهٔ آگهی‌های ملک ${fa(CITIES.length)} شهر در ${fa(PROVINCES.length)} استان را می‌خوانیم و هر کدام را فقط با <b>محلهٔ خودش</b> می‌سنجیم، با همان سن بنا، متراژ، طبقه، آسانسور، پارکینگ و سند. فرصت یعنی دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی آن؛ قیمت‌های مشکوک و اشتباه جدا می‌شوند.</p>
           <form class="search-card" id="heroForm" autocomplete="off">
             <div class="search-card__tabs">
               <div class="search-card__deals" id="heroDeals" style="margin-inline-start:0">
@@ -152,7 +153,7 @@ const App = (() => {
     ${methodTeaser()}
     <section class="section section--sunk">
       <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>${PROVINCES.length > 3 ? "شهر به شهر، استان به استان" : "از آستارا تا کلاله"}</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
+        <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>شهر به شهر، استان به استان</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه. استان‌های تازه به‌تدریج اضافه می‌شوند.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
         <div class="prov">${provinceColumns(st)}</div>
       </div>
     </section>
@@ -205,7 +206,7 @@ const App = (() => {
       if (!$("#boardList")) return;
       const rows = top.slice(off, off + 5);
       if (rows.length < 5) rows.push(...top.slice(0, Math.min(top.length, 5 - rows.length)));
-      $("#boardList").innerHTML = rows.length ? rows.map((l, i) => `<li><a class="board__row" style="animation-delay:${i * 60}ms" href="#/ad/${encodeURIComponent(l.id)}"><b>${UI.tt(l.title)}</b><span class="board__price">${l.score != null ? fa(Math.round(l.score)) + " امتیاز" : ""}</span><span>${esc(l.city_name || UI.cityOf(l.city_key)?.name || "")}${l.district ? "، " + esc(l.district) : ""}، ${esc(UI.pinLabel(l))}</span><span style="text-align:left">${l.verdict && l.verdict.delta < 0 ? pct(l.verdict.delta) + " زیر قیمت" : ""}</span></a></li>`).join("")
+      $("#boardList").innerHTML = rows.length ? rows.map((l, i) => `<li><a class="board__row" style="animation-delay:${i * 60}ms" href="#/ad/${encodeURIComponent(l.id)}"><b>${UI.tt(l.title)}</b><span class="board__price">${l.score != null ? fa(Math.round(l.score)) + " امتیاز" : ""}</span><span>${esc(l.city_name || UI.cityOf(l.city_key)?.name || "")}${l.district ? "، " + esc(l.district) : ""}، ${esc(UI.pinLabel(l))}</span><span style="text-align:left">${l.verdict && l.verdict.delta < 0 ? UI.gapPct(l.verdict) + " زیر قیمت" : ""}</span></a></li>`).join("")
         : `<li class="board__row"><span>با جمع شدن آگهی کافی، فرصت‌ها اینجا نمایش داده می‌شوند.</span></li>`;
       off = (off + 5) % Math.max(5, top.length);
     };
@@ -269,7 +270,7 @@ const App = (() => {
       const total = cs.reduce((a, x) => a + x.s.n, 0);
       return `<div class="prov__col"><h3>${p.name}<small>${fa(total)} آگهی</small></h3>${cs.slice(0, 8).map(({ c, s }) => {
         const ppm = s.ppm && (s.ppm.apartment || s.ppm.villa);
-        return `<a class="city-row" href="#/market?city=${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? ` · میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
+        return `<a class="city-row" href="/melk/${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? ` · میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
       }).join("")}${cs.length > 8 ? `<a class="btn btn--ghost btn--sm" href="#/market" style="margin-top:8px">${fa(cs.length - 8)} شهر دیگر</a>` : ""}</div>`;
     }).join("");
   }
@@ -366,7 +367,7 @@ const App = (() => {
       ["چرا بعضی آگهی‌ها «مشکوک»اند؟", `آگهی‌ای که بیش از ${pct(th.sus || 0.4)} ارزان‌تر از محلهٔ خودش باشد، یا خیلی ارزان باشد و در متنش آمده باشد عکس‌ها مال این ملک نیست یا چند قیمت داده باشد، یا متن مشکوک داشته باشد (مثل بیعانه پیش از بازدید). این آگهی‌ها امتیاز نمی‌گیرند، در محاسبهٔ قیمت محله نمی‌آیند و فقط برای مشترکان، همراه با دلیل، نشان داده می‌شوند.`],
       ["آگهی‌های قدیمی چطور حساب می‌شوند؟", `قیمت هر آگهی قیمت روز درج آن است. آگهی‌های قدیمی‌تر از ${fa(th.max_age_days || 90)} روز در قیمت محله نمی‌آیند، آگهی‌های تازه‌تر وزن بیشتری دارند و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ بازار، که از خود آگهی‌ها برآورد می‌شود، به نرخ امروز آورده می‌شود. زمان درج هر آگهی روی کارت آن آمده است.`],
       ["شهری و روستایی را چطور تشخیص می‌دهید؟", "از نام محله و متن آگهی: اشاره به روستا، دهستان، ییلاق یا خارج از محدودهٔ شهر، آگهی را «روستایی» می‌کند. این تشخیص خودکار است و ممکن است گاهی اشتباه کند."],
-      ["داده‌ها از کجاست و چقدر تازه است؟", `از آگهی‌های عمومی سایت‌های آگهی در ${fa(CITIES.length)} شهر گیلان، مازندران و گلستان که به‌تدریج و شبانه‌روزی خوانده می‌شوند. ${name} مستقل است و وابسته به هیچ سایت آگهی نیست.${cfg.updated ? " آخرین به‌روزرسانی: " + UI.ago(cfg.updated) + "." : ""}`],
+      ["داده‌ها از کجاست و چقدر تازه است؟", `از آگهی‌های عمومی سایت‌های آگهی در ${fa(CITIES.length)} شهر از استان‌های ${PROVINCES.map((p) => p.name).join("، ")} که به‌تدریج و شبانه‌روزی خوانده می‌شوند؛ استان‌های دیگر هم یکی‌یکی اضافه می‌شوند. ${name} مستقل است و وابسته به هیچ سایت آگهی نیست.${cfg.updated ? " آخرین به‌روزرسانی: " + UI.ago(cfg.updated) + "." : ""}`],
       ["آیا این قیمت کارشناسی است؟", `نه. قیمت‌های آگهی‌ها قیمت پیشنهادی فروشنده‌اند، نه قیمت معامله‌شده؛ «زیر قیمت محله» یعنی ارزان‌تر از آگهی‌های مشابه همان محله. ${name} مشاور املاک نیست و خانه‌ها را ندیده است؛ پیش از هر معامله ملک را ببینید و سند، پایان‌کار و بدهی را استعلام کنید.`],
       ["اشتراک چه چیزی را باز می‌کند و چطور پرداخت کنم؟", `بدون اشتراک ${fa(cfg.free_results || 10)} نتیجهٔ اول هر جست‌وجو را می‌بینید. اشتراک همهٔ نتیجه‌ها، آگهی‌های مشکوک با دلیل و پیوند مستقیم آگهی اصلی را باز می‌کند. ورود با کد پیامکی است، اشتراک بلافاصله پس از پرداخت فعال می‌شود و تمدید خودکار ندارد.`],
     ];
@@ -621,7 +622,7 @@ const App = (() => {
     }
     function titleOf() {
       const c = UI.cityOf(F.city), p = UI.provOf(F.province);
-      const where = F.district ? `در ${F.district.split(",").join("، ")}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : PROVINCES.length > 3 ? "در همهٔ شهرها" : "در شمال";
+      const where = F.district ? `در ${F.district.split(",").join("، ")}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : "در همهٔ شهرها";
       const kinds = (F.kinds || "").split(",").filter(Boolean).map(UI.kindName).join(" و ") || "ملک";
       return `${F.ranked || F.opp ? "فرصت‌های " : ""}${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
     }
@@ -853,16 +854,19 @@ const App = (() => {
     }
     const ask = l.deal === "daily" ? l.price : l.pp;
     const meM = l.deal === "daily" ? ask : l.area ? ask / l.area : null;
-    const expM = meM && v.delta != null ? meM / (1 + v.delta) : null;
-    const diff = ask && v.delta != null ? ask - ask / (1 + v.delta) : null;
+    // برای غیرمشترک فاصله فقط بازه‌ای است؛ قیمت مورد انتظار و مبلغ اختلاف از آن ساخته نمی‌شود
+    const expM = meM && v.delta != null && !v.approx ? meM / (1 + v.delta) : null;
+    const diff = ask && v.delta != null && !v.approx ? ask - ask / (1 + v.delta) : null;
     return `<div class="vcard">
       <div class="vcard__top">
         ${l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? ` · رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
-      ${UI.priceBar(meM, expM)}
+      ${expM ? UI.priceBar(meM, expM) : ""}
+      ${ex.fair_low && ex.fair_high && !v.approx ? `<p class="small">بازهٔ قیمت منصفانه برای همین خانه: <b>${money(ex.fair_low)}</b> تا <b>${money(ex.fair_high)}</b> تومان (با در نظر گرفتن پراکندگی قیمت‌های این محله).</p>` : ""}
+      ${ex.disagree ? `<p class="small note-soft">${icon("info", 'width="16"')} فرصت اعلام نشد: مدل قیمت فاصلهٔ زیادی نشان می‌دهد، ولی نزدیک‌ترین آگهی‌های مشابه همین محله این فاصله را تأیید نمی‌کنند.</p>` : ""}
       ${v.wide ? `<p class="small note-soft">${icon("info", 'width="16"')} منصفانه با این فاصله: قیمت‌های این محله خیلی پراکنده‌اند و این فاصله هنوز در دامنهٔ عادی محله است.</p>` : ""}
-      <p class="small">${diff != null && Math.abs(v.delta) > 0.005 ? `یعنی حدود <b>${money(Math.abs(diff))} تومان ${diff < 0 ? "کمتر" : "بیشتر"}</b> از قیمتی که برای همین خانه در همین محله انتظار می‌رود.` : "تقریباً همان قیمتی است که برای همین خانه در همین محله انتظار می‌رود."}</p>
+      <p class="small">${v.approx ? "قیمت مورد انتظار، بازهٔ قیمت منصفانه و درصد دقیق برای مشترکان نمایش داده می‌شود." : diff != null && Math.abs(v.delta) > 0.005 ? `یعنی حدود <b>${money(Math.abs(diff))} تومان ${diff < 0 ? "کمتر" : "بیشتر"}</b> از قیمتی که برای همین خانه در همین محله انتظار می‌رود.` : "تقریباً همان قیمتی است که برای همین خانه در همین محله انتظار می‌رود."}</p>
       <p class="small muted">امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل.</p>
     </div>`;
   }
@@ -884,11 +888,13 @@ const App = (() => {
     const rent = l.deal === "rent";
     const ask = l.deal === "daily" ? l.price : l.pp;
     const meM = l.deal === "daily" ? ask : l.area ? ask / l.area : null;
-    const expM = meM ? meM / (1 + v.delta) : null;
+    const expM = meM && !v.approx ? meM / (1 + v.delta) : null;
     const row = (k, val, sub = "") => `<div class="pid__row"><span>${k}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     let html = "";
     if (ex.district_median) html += row(`میانهٔ قیمت هر متر در ${esc(l.district || "این محله")}، به نرخ امروز`, "متری " + money(ex.district_median), `از ${fa(ex.district_raw_n)} آگهی معتبر همین محله؛ آگهی‌های تازه‌تر وزن بیشتری دارند${ex.trend ? ` و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ ${ex.trend > 0 ? "+" : "−"}${pct(ex.trend)} به امروز آورده شده` : ""}`);
     if (expM) html += row("قیمت مورد انتظار برای همین خانه", "متری " + money(expM), l.area && l.deal !== "daily" ? `برای ${fa(l.area)} متر حدود ${money(expM * l.area)} تومان` : "");
+    else if (v.approx) html += row("قیمت مورد انتظار برای همین خانه", `<span class="blur">متری ۰۰ میلیون</span>`, "با اشتراک");
+    if (!l.locked && ex.comp_n) html += row("تأیید با آگهی‌های مشابه", `${fa(ex.comp_n)} آگهی`, ex.comp_disc != null ? `نزدیک‌ترین آگهی‌های همین محله از نظر متراژ، سن، طبقه و امکانات؛ فاصله از آن‌ها ${ex.comp_disc >= 0 ? pct(ex.comp_disc) + " ارزان‌تر" : pct(ex.comp_disc) + " گران‌تر"}` : "");
     if (l.locked) html += row("تعدیل برای این خانه", `<span class="blur">+۰٪</span>`, ex.effects_count ? `${fa(ex.effects_count)} ویژگی اثر داشته؛ جزئیات با اشتراک` : "سن، متراژ، طبقه، آسانسور و پارکینگ این خانه لحاظ شده");
     else if (ex.adj != null) html += row("تعدیل برای این خانه", (ex.adj >= 0 ? "+" : "−") + pct(ex.adj), ex.adj ? "نسبت به خط پایهٔ محله" : "بدون تعدیل");
     if (meM) html += row("این آگهی", "متری " + money(meM), ex.age_days ? `قیمتی که ${fa(ex.age_days)} روز پیش در آگهی درج شده` : "");
@@ -1141,11 +1147,15 @@ const App = (() => {
       <h1>${esc(cfg.site.name)} هر آگهی را چطور با محلهٔ خودش می‌سنجد</h1>
       <p class="lead">همهٔ مراحل خودکار است و با هر دستهٔ تازه از آگهی‌ها از نو انجام می‌شود. هیچ انسانی آگهی‌ها را دستی امتیاز نمی‌دهد.</p>
       <h2>۱. گردآوری</h2>
-      <p>آگهی‌های ملک ${fa(CITIES.length)} شهر گیلان، مازندران و گلستان، به‌تدریج و با رعایت سقف درخواست، خوانده می‌شوند. صفحهٔ کامل هر آگهی برای استخراج مشخصات خوانده و هر تغییر قیمت ثبت می‌شود. هر آگهی از روی محله و متنش «شهری» یا «روستایی» برچسب می‌خورد.</p>
+      <p>آگهی‌های ملک ${fa(CITIES.length)} شهر از استان‌های ${PROVINCES.map((p) => p.name).join("، ")}، به‌تدریج و با رعایت سقف درخواست، خوانده می‌شوند. صفحهٔ کامل هر آگهی برای استخراج مشخصات خوانده و هر تغییر قیمت ثبت می‌شود. هر آگهی از روی محله و متنش «شهری» یا «روستایی» برچسب می‌خورد.</p>
       <h2>۲. کنار گذاشتن</h2>
       <p>قیمت نمادین یا توافقی، پیش‌فروش، مشارکت در ساخت، معاوضه، فروش دانگی، هم‌خانه و آگهی تکراری کنار می‌روند. قیمت‌هایی که با محلهٔ خودشان نمی‌خوانند (فاصلهٔ لگاریتمی با معیار MAD بیش از ۳٫۵) یا احتمالاً یک صفر کم یا زیاد دارند، یا قیمت هر متر را به جای قیمت کل نوشته‌اند، «مشکوک» می‌شوند. هیچ‌کدام در محاسبهٔ قیمت محله شرکت داده نمی‌شوند.</p>
       <h2>۳. قیمت محله برای همین خانه</h2>
-      <p>اول قیمت هر محله ساخته می‌شود: برای هر نوع ملک و معامله، میانهٔ قیمت هر متر آگهی‌های معتبر همان محله. محله‌ای که کمتر از ۵ آگهی معتبر هم‌نوع دارد سنجیده نمی‌شود و آگهی‌هایش «در انتظار داده» می‌مانند؛ میانهٔ شهر هیچ‌وقت جای قیمت محله را نمی‌گیرد. سپس یک مدل رگرسیون ریج، جدا از اثر محله، اثر سن بنا، طبقه، متراژ، تعداد خواب، آسانسور، پارکینگ، انباری، نوع سند، دید دریا و ویژگی‌های دیگر را برآورد می‌کند و قیمت مورد انتظار همین خانه به دست می‌آید.</p>
+      <p>قیمت هر متر به متراژ، سن بنا، طبقه، آسانسور، پارکینگ، انباری، سند و ویژگی‌های دیگر بستگی دارد؛ پس میانهٔ خام آگهی‌های یک محله کافی نیست. اگر بیشتر آگهی‌های یک محله نوساز باشند، میانهٔ خام برای یک خانهٔ قدیمی بیش از حد بالاست و آن را به اشتباه «ارزان» نشان می‌دهد. برای همین، اثر هر ویژگی با یک مدل آماری از خود آگهی‌ها برآورد می‌شود (رگرسیون مقاوم که آگهی‌های غیرعادی ضریب‌ها را منحرف نکنند؛ اثر متراژ و سن غیرخطی است و طبقهٔ بالا بدون آسانسور جدا سنجیده می‌شود). «قیمت محله» میانهٔ قیمت‌هایی است که برای ویژگی‌ها تعدیل شده‌اند؛ مدل و قیمت محله چند دور به‌تناوب از نو ساخته می‌شوند تا به هم برسند. قیمت منصفانهٔ هر آگهی یعنی قیمت محله به‌اضافهٔ اثر ویژگی‌های همان خانه. محله‌ای که کمتر از ۵ آگهی معتبر هم‌نوع دارد سنجیده نمی‌شود و هیچ آگهی با میانهٔ شهر مقایسه نمی‌شود.</p>
+      <p><b>بدون خوداثری:</b> قیمت محلهٔ هر آگهی بدون خود آن آگهی ساخته می‌شود تا قیمت خودش در معیار سنجش خودش اثر نگذارد.</p>
+      <p><b>تأیید دوگانه:</b> علاوه بر مدل، نزدیک‌ترین آگهی‌های مشابه همان محله (از نظر متراژ، سن، طبقه، تعداد خواب، آسانسور و پارکینگ) جداگانه مقایسه می‌شوند. فرصت فقط وقتی اعلام می‌شود که هر دو روش فاصلهٔ کافی نشان دهند و این فاصله از عدم‌قطعیت برآورد (پراکندگی قیمت‌های محله به‌اضافهٔ خطای خود قیمت محله که با تعداد آگهی‌ها کم می‌شود) بزرگ‌تر باشد.</p>
+      <p><b>مقاوم در برابر قیمت‌سازی:</b> ${esc(cfg.site.name)} قیمت تعیین نمی‌کند و نباید مبنای قیمت‌گذاری فروشنده شود. در ساختن قیمت محله، افزایش قیمتِ پس از درج آگهی نادیده گرفته می‌شود؛ پس اگر فروشنده‌ای پس از دیدن سایت قیمتش را بالا ببرد، قیمت محله برای بقیه بالا نمی‌رود و خود آن آگهی «بالاتر از قیمت محله» دیده می‌شود. قیمت محله میانه است، نه میانگین، و یک یا چند آگهی نمی‌توانند آن را جابه‌جا کنند. درصد دقیق فاصله و قیمت مورد انتظار فقط برای مشترکان نمایش داده می‌شود و دیگران بازهٔ ۵ درصدی می‌بینند.</p>
+      <p><b>سنجش دقت:</b> برای هر گروه، قیمت منصفانهٔ هر آگهی بدون خودش برآورد و با قیمت درخواستی‌اش مقایسه می‌شود و میانهٔ این خطا در پنل گزارش می‌شود تا دقت فرمول همیشه قابل وارسی باشد.</p>
       <h2>۴. حکم</h2>
       <p><b>فرصت طلایی</b>: دست‌کم ${pct(th.gold || 0.22)} زیر قیمت محله و بیرون از پراکندگی عادی آن. <b>زیر قیمت بازار</b>: دست‌کم ${pct(th.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی. <b>منصفانه</b>: نزدیک قیمت محله، یا فاصله‌ای که در محله‌های پرپراکندگی هنوز عادی است. <b>بالاتر از بازار</b>: دست‌کم ${pct(th.opp || 0.15)} گران‌تر. <b>مشکوک</b>: بیش از ${pct(th.sus || 0.4)} ارزان‌تر، یا دست‌کم ${pct(th.sus_flagged || 0.25)} ارزان‌تر همراه با «عکس‌ها مال این ملک نیست» یا چند قیمت در متن، یا ارزان با متن مشکوک.</p>
       <h2>۵. امتیاز و اطمینان</h2>
@@ -1215,7 +1225,7 @@ const App = (() => {
       }
       setTimeout(() => $("#aiInput").focus(), 50);
     }
-    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز · " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + pct(l.verdict.delta) + " زیر قیمت" : ""}</small></span></a>`).join("")}</div>`;
+    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز · " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + UI.gapPct(l.verdict) + " زیر قیمت" : ""}</small></span></a>`).join("")}</div>`;
     async function respond(v) {
       const it = NLP.intent(v);
       if (it === "greet") { say("درود! کدام شهر و چه نوع ملکی؟ بودجه را هم بگو."); return; }
@@ -1284,15 +1294,22 @@ const App = (() => {
       document.documentElement.style.setProperty("--top-h", top.offsetHeight + "px");
       if (sb) document.documentElement.style.setProperty("--sbar-h", sb.offsetHeight + "px");
     };
+    // فضای آزادشده با حاشیهٔ پایین جبران می‌شود تا ارتفاع صفحه و جای پیمایش نپرد (در صفحه‌های کوتاه هم کار کند)
     const onScroll = () => {
       const sb = document.querySelector(".sbar");
       if (!sb || sb.querySelector(".dd.is-open")) return;
-      const compact = sb.classList.contains("is-compact"), want = scrollY > (compact ? 40 : 140);
-      if (want !== compact) {
-        sb.classList.toggle("is-compact", want);
-        requestAnimationFrame(measure);
-        setTimeout(() => state.map && state.map.invalidateSize(), 260);
+      const compact = sb.classList.contains("is-compact"), want = scrollY > (compact ? 20 : 60);
+      if (want === compact) return;
+      if (want) {
+        const full = sb.offsetHeight;
+        sb.classList.add("is-compact");
+        sb.style.marginBottom = Math.max(0, full - sb.offsetHeight) + "px";
+      } else {
+        sb.classList.remove("is-compact");
+        sb.style.marginBottom = "";
       }
+      measure();
+      setTimeout(() => state.map && state.map.invalidateSize(), 260);
     };
     addEventListener("scroll", onScroll, { passive: true });
     addEventListener("resize", measure);

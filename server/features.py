@@ -215,6 +215,7 @@ LABELS = {
     "seaview": "دید دریا", "sea_close": "نزدیکی به دریا", "pool": "استخر", "gated": "شهرکی", "duplex": "دوبلکس",
     "forest": "دید جنگل", "furnished": "مبله", "log_land": "متراژ زمین", "residential_use": "کاربری مسکونی",
     "frontage": "عرض بر", "in_city": "داخل بافت", "agency": "آگهی مشاور املاک", "units": "واحد در هر طبقه",
+    "log_area2": "متراژ", "floor_noelev": "طبقهٔ بالا بدون آسانسور",
 }
 
 

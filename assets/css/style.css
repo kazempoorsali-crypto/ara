@@ -805,7 +805,7 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 @media (max-width: 560px) { .mkt-bar .field { width: 100%; } .mkt-bar .field > div { width: 100%; } }
 
 /* نوار جست‌وجو هنگام پیمایش جمع‌وجور می‌شود تا نتیجه‌ها و نقشه جای بیشتری بگیرند */
-.sbar { transition: padding .2s; }
+.sbar { transition: none; }
 .sbar.is-compact { padding: 8px 0 8px; }
 .sbar.is-compact .sbar__q, .sbar.is-compact .atags { display: none; }
 .sbar.is-compact #dds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; }
@@ -815,3 +815,6 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .sbar.is-compact .dd > button, .sbar.is-compact #dds .chip { min-height: 36px; }
 .sbar.is-compact .sbar__tools .select, .sbar.is-compact .sbar__tools .btn, .sbar.is-compact #viewSeg button { min-height: 36px; }
 @media (max-width: 560px) { .sbar.is-compact .sbar__tools { display: none; } }
+.map-hint { position: absolute; inset: 0; z-index: 800; display: grid; place-items: center; padding: 20px; text-align: center; background: rgba(19,32,28,.55); color: #fff; font-weight: 700; font-size: 15px; opacity: 0; pointer-events: none; transition: opacity .25s; }
+.map-hint.is-on { opacity: 1; }
+.seo-pre { padding: 40px 0; line-height: 2; } .seo-pre h1 { font-size: 28px; } .seo-pre ul { padding-inline-start: 20px; } .seo-pre nav { font-size: 13px; color: var(--muted); }

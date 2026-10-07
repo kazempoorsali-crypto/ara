@@ -75,6 +75,9 @@ class Ingestor:
             if cur is not None:
                 st.set_setting("ingest", {**cur, "enabled": True, "sheypoor": True})
             st.set_setting("mig_ingest_on", int(time.time()))
+        site = st.get_setting("site") or {}
+        if site.get("tagline") == "قیمت منصفانه ملک در شمال":  # شعار قدیمی منطقه‌ای؛ سایت سراسری شده است
+            st.set_setting("site", {**site, "tagline": "ملک زیر قیمت، محله به محله"})
         if not st.get_setting("mig_geo_v2"):
             rows = st.q("SELECT id, token, city_key FROM listings WHERE COALESCE(latlng_exact,0)=0")
             with st.lock:

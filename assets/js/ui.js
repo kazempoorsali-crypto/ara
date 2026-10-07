@@ -122,7 +122,9 @@ const UI = (() => {
   const LABELS = { gold: "فرصت طلایی", good: "زیر قیمت بازار", fair: "منصفانه", high: "بالاتر از بازار", sus: "قیمت مشکوک", pending: "در انتظار داده" };
   const CONF = { high: "اطمینان بالا", medium: "اطمینان متوسط", low: "اطمینان کم" };
   const labelPill = (v) => (v && v.label ? `<span class="lab lab--${v.label}">${LABELS[v.label] || ""}</span>` : "");
-  const gapText = (v) => (!v ? "" : v.delta < -0.005 ? `${pct(v.delta)} زیر قیمت محله` : v.delta > 0.005 ? `${pct(v.delta)} بالاتر از قیمت محله` : "هم‌قیمت محله");
+  // برای غیرمشترکان درصد دقیق نمی‌آید، فقط بازهٔ ۵ درصدی (مثلاً «۲۵ تا ۳۰٪»)
+  const gapPct = (v) => (v.approx ? (Math.abs(v.delta) < 0.05 ? "کمتر از ۵٪" : `${fa(Math.round(Math.abs(v.delta) * 100))} تا ${fa(Math.round(Math.abs(v.delta) * 100) + 5)}٪`) : pct(v.delta));
+  const gapText = (v) => (!v ? "" : v.approx && Math.abs(v.delta) < 0.05 ? "نزدیک قیمت محله" : v.delta < -0.005 ? `${gapPct(v)} زیر قیمت محله` : v.delta > 0.005 ? `${gapPct(v)} بالاتر از قیمت محله` : "هم‌قیمت محله");
   // سازگاری با فراخوانی‌های قبلی: برچسب + فاصله
   const dealPill = (v) => (v ? `${labelPill(v)} <span class="gap gap--${v.delta < 0 ? "below" : "above"}">${gapText(v)}</span>` : "");
   const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
@@ -199,7 +201,29 @@ const UI = (() => {
   /* ---------- نقشه ---------- */
   function makeMap(el, opts = {}) {
     if (!window.L) { el.innerHTML = '<p class="muted" style="padding:40px;text-align:center">نقشه در دسترس نیست.</p>'; return null; }
-    const map = L.map(el, { zoomControl: true, scrollWheelZoom: opts.wheel !== false, attributionControl: true }).setView(opts.center || [36.9, 52.2], opts.zoom || 7);
+    // چرخ موس و کشیدن تک‌انگشتی صفحه را پیمایش می‌کنند، نه نقشه را؛ بزرگ‌نمایی با Ctrl + چرخ، دکمه‌های + و − یا دو انگشت
+    const touch = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+    const map = L.map(el, { zoomControl: true, scrollWheelZoom: false, dragging: !touch, tap: false, attributionControl: true }).setView(opts.center || [36.9, 52.2], opts.zoom || 7);
+    let hintT = null;
+    const hint = (txt) => {
+      let h = el.querySelector(".map-hint");
+      if (!h) { h = document.createElement("div"); h.className = "map-hint"; el.appendChild(h); }
+      h.textContent = txt; h.classList.add("is-on");
+      clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove("is-on"), 1400);
+    };
+    if (opts.wheel !== false) {
+      el.addEventListener("wheel", (e) => {
+        if (e.ctrlKey || e.metaKey) { e.preventDefault(); map.setZoom(map.getZoom() + (e.deltaY < 0 ? 1 : -1)); }
+        else hint("برای بزرگ‌نمایی نقشه Ctrl را نگه دارید و چرخ موس را بچرخانید");
+      }, { passive: false });
+    }
+    if (touch) {
+      el.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 1) map.dragging.enable();
+        else hint("برای جابه‌جایی نقشه از دو انگشت استفاده کنید");
+      }, { passive: true });
+      el.addEventListener("touchend", (e) => { if (!e.touches.length) map.dragging.disable(); }, { passive: true });
+    }
     let errs = 0;
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" })
       .on("tileerror", () => { if (++errs === 4) el.classList.add("no-tiles"); }).addTo(map);
@@ -285,5 +309,5 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
 })();
