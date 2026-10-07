@@ -30,6 +30,7 @@ import catalog  # noqa: E402
 from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from support import DEFAULT_SUPPORT, Support  # noqa: E402
 import seo  # noqa: E402
+from features import clean_title  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
 from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
@@ -41,7 +42,7 @@ DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address":
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
 DEFAULT_OWNER = {"support_url": "", "support_label": "", "legal_name": "", "refund_text": "", "enamad_url": ""}
 PUBLIC_DIRS = ("assets",)
-PUBLIC_FILES = ("index.html", "admin.html", "favicon.svg")
+PUBLIC_FILES = ("index.html", "admin.html", "favicon.svg", "manifest.webmanifest")
 SESSIONS: dict[str, float] = {}
 LOGIN_FAILS: dict[str, list] = {}
 LOCKED_FIELDS = ("url", "token")
@@ -99,6 +100,7 @@ class App:
         self.ingest.migrate()
         self.billing = Billing(self.store)
         self.support = Support(self.store, self.billing, data_dir)
+        seo.ensure_articles(self.store)
 
     def regions(self):
         """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
@@ -218,7 +220,10 @@ class Handler(BaseHTTPRequestHandler):
         return not self.headers.get("x-forwarded-for") and self.client_address[0] in ("127.0.0.1", "::1")
 
     def base_url(self):
-        host = self.headers.get("host") or "127.0.0.1:8000"
+        # نشانی متعارف بدون www تا گوگل دو نسخه از یک صفحه نبیند
+        host = (self.headers.get("host") or "127.0.0.1:8000").lower()
+        if host.startswith("www."):
+            host = host[4:]
         proto = self.headers.get("x-forwarded-proto") or "http"
         return f"{proto}://{host}"
 
@@ -244,13 +249,13 @@ class Handler(BaseHTTPRequestHandler):
             if p is not None:
                 tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
                 return self.send_text(seo.render(tpl, p, VERSION), "text/html; charset=utf-8", cache="no-cache")
-            if re.fullmatch(r"/(melk|ad)/.*", url.path):
+            if re.fullmatch(r"/(melk|ad|rahnama|maghale)/.*", url.path):
                 tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
                 body = seo.render(tpl, {"title": "یافت نشد", "desc": "این صفحه پیدا نشد.", "canonical": self.base_url() + "/",
                                         "body": "<h1>این صفحه پیدا نشد</h1><p><a href=\"/\">بازگشت به صفحهٔ اصلی</a></p>",
                                         "ld": [], "hash": "", "noindex": True}, VERSION)
                 return self.send_text(body, "text/html; charset=utf-8", status=404)
-            return self.static(url.path)
+            return self.static(url.path, versioned="v" in qs)
         except Exception as e:  # noqa: BLE001
             return self.send_json({"error": str(e)}, 500)
 
@@ -266,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001
             return self.send_json({"error": str(e)}, 500)
 
-    def static(self, path):
+    def static(self, path, versioned=False):
         if path in ("", "/"):
             path = "/index.html"
         rel = urllib.parse.unquote(path).lstrip("/")
@@ -285,7 +290,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("content-type", ctype)
         self.send_header("content-length", str(len(data)))
-        self.send_header("cache-control", "no-cache")
+        # فایل‌های نسخه‌دار (?v=) و کتابخانه‌ها یک سال در مرورگر می‌مانند؛ بقیه هر بار بازبینی می‌شوند
+        long = (versioned and not rel.endswith(".html")) or rel.startswith("assets/vendor/") or rel.startswith("assets/img/")
+        self.send_header("cache-control", "public, max-age=31536000, immutable" if long else "no-cache")
         self.end_headers()
         self.wfile.write(data)
 
@@ -335,6 +342,13 @@ class Handler(BaseHTTPRequestHandler):
         """پیوند دیوار و جزئیات کامل ارزش‌گذاری فقط برای مشترکان فعال."""
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
+        # ادعاهای تبلیغاتی عنوان («فرصت طلایی»، «زیر قیمت»، ...) با برچسب‌های سایت قاطی نشوند
+        if d.get("title") and "claims" not in d:
+            raw = d["title"]
+            d["title"], claims = clean_title(raw, d.get("kind"), d.get("area"), d.get("district"))
+            d["claims"] = claims
+            if full and d["title"] != raw:
+                d["title_raw"] = raw
         if not active:
             for k in LOCKED_FIELDS + ("fair_price", "fair_ppm", "phone", "address"):
                 d.pop(k, None)
@@ -427,6 +441,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(r)
         if path == "/api/stats":
             return self.send_json(a.store.stats())
+        if path == "/api/page":  # راهنماها و مقاله‌ها برای نمایش درون برنامه
+            p = seo.page(a, self.base_url(), qs.get("path") or "")
+            if not p or p.get("kind") != "content":
+                return self.send_json({"error": "یافت نشد"}, 404)
+            return self.send_json({"title": p["title"], "body": p["body"]})
         if path == "/api/tickets":
             u = self.user()
             return self.send_json({"items": a.support.mine(u["phone"] if u else None, self.ticket_keys())})
@@ -600,6 +619,8 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/admin/ticket-img/(\d+)", path)
         if m:
             return self.send_upload(a.data_dir / "tickets" / f"{int(m.group(1))}.img")
+        if path == "/api/admin/articles":
+            return self.send_json({"items": seo.articles_list(s, 500, all_=True)})
         if path == "/api/admin/tickets":
             return self.send_json({"items": a.support.admin_list(qs.get("status") or None), "support": a.support.cfg()})
         return self.send_json({"error": "مسیر نامعتبر"}, 404)
@@ -694,6 +715,22 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/review":
             a.billing.review(data.get("id"), bool(data.get("approve")))
             return self.send_json({"ok": True})
+        if path == "/api/admin/article":
+            slug = seo.slugify(data.get("slug") or data.get("title") or "")
+            if data.get("delete"):
+                s.x("DELETE FROM articles WHERE slug=?", (slug,))
+                SITEMAP.clear()
+                return self.send_json({"ok": True})
+            title, body = (data.get("title") or "").strip()[:200], (data.get("body") or "").strip()[:60000]
+            if not slug or len(title) < 5 or len(body) < 50:
+                raise ValueError("عنوان (دست‌کم ۵ نویسه) و متن (دست‌کم ۵۰ نویسه) لازم است")
+            now = int(time.time())
+            old = s.q("SELECT created FROM articles WHERE slug=?", (slug,), one=True)
+            ck = data.get("city_key") if data.get("city_key") in catalog.CITY_BY_KEY else None
+            s.x("INSERT OR REPLACE INTO articles VALUES(?,?,?,?,?,?,?,?)",
+                (slug, title, (data.get("summary") or "").strip()[:300], body, ck, int(bool(data.get("published", True))), old["created"] if old else now, now))
+            SITEMAP.clear()
+            return self.send_json({"ok": True, "slug": slug})
         if path == "/api/admin/expansion":
             exp = a.ingest.expansion()
             if "auto" in data:

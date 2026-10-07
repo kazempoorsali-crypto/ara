@@ -1,6 +1,11 @@
-# Caddy گواهی HTTPS را خودکار از Let's Encrypt می‌گیرد و تمدید می‌کند.
-__DOMAIN__, www.__DOMAIN__ {
-	encode gzip
+# Caddy گواهی HTTPS را خودکار از Let's Encrypt می‌گیرد و تمدید می‌کند و http را خودکار به https می‌برد.
+# نسخهٔ www با تغییر مسیر دائمی (۳۰۱) به نشانی اصلی می‌رود تا گوگل دو نسخه از سایت نبیند.
+www.__DOMAIN__ {
+	redir https://__DOMAIN__{uri} permanent
+}
+
+__DOMAIN__ {
+	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"

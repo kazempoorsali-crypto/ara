@@ -48,7 +48,7 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
@@ -61,7 +61,7 @@
     </div>`;
     $$(".side [data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; location.hash = tab; load(); }));
     $("#logout").addEventListener("click", (e) => { e.preventDefault(); token = ""; sessionStorage.removeItem("ara-admin"); login(); });
-    ({ dash, ingest, valuation: valuationTab, excluded, users, support, billing, site, security }[tab] || dash)();
+    ({ dash, ingest, valuation: valuationTab, excluded, users, support, articles, billing, site, security }[tab] || dash)();
     clearInterval(timer);
     if (tab === "dash" || tab === "ingest" || tab === "valuation") timer = setInterval(refreshLive, 15000);
   }
@@ -321,6 +321,42 @@
       if (b.id === "expSave") send({ auto: $("#expAuto").checked, threshold: (+$("#expTh").value || 90) / 100, deep_pages: +$("#expDp").value || 30,
         order: [...S.expansion.active.filter((p) => !["gilan", "mazandaran", "golestan"].includes(p)), ...$$("#expOrder li").map((x) => x.dataset.p)] });
     });
+  }
+
+  /* ---------- مقاله‌ها و سئو ---------- */
+  async function articles() {
+    const r = await api("admin/articles");
+    const cities = S.catalog.cities;
+    const form = (a = {}) => `<form class="panel" id="artForm"><h2>${a.slug ? "ویرایش مقاله" : "مقالهٔ تازه"}</h2>
+      <div class="grid2"><label class="field"><span>عنوان (در گوگل نمایش داده می‌شود)</span><input class="input" name="title" value="${esc(a.title || "")}" maxlength="200"></label>
+      <label class="field"><span>نشانی کوتاه (خالی = از روی عنوان)</span><input class="input" name="slug" value="${esc(a.slug || "")}" ${a.slug ? "readonly" : ""}></label></div>
+      <label class="field"><span>خلاصه (توضیح زیر عنوان در گوگل، حدود ۱۵۰ نویسه)</span><input class="input" name="summary" value="${esc(a.summary || "")}" maxlength="300"></label>
+      <label class="field"><span>شهر مرتبط (اختیاری)</span><select class="select" name="city_key"><option value="">—</option>${cities.map((c) => `<option value="${c.key}" ${a.city_key === c.key ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+      <label class="field"><span>متن مقاله</span><textarea class="input" name="body" rows="16" style="padding:10px 14px;line-height:2">${esc(a.body || "")}</textarea></label>
+      <p class="hint">قالب ساده: خطی که با «## » شروع شود عنوان بخش، با «- » فهرست؛ پیوند: [متن](/melk/rasht). هر پاراگراف یک خط. متن را خودتان و بر پایهٔ واقعیت بنویسید؛ گوگل محتوای تکراری، کپی یا انبوه ماشینی را جریمه می‌کند.</p>
+      <label class="switch"><input type="checkbox" name="published" ${a.published === 0 ? "" : "checked"}><i></i>منتشر شود</label>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn--hot">ذخیره</button>${a.slug ? `<button type="button" class="btn btn--line" id="artNew">مقالهٔ تازه</button>` : ""}</div></form>`;
+    main().innerHTML = `<h1>مقاله‌ها و سئو</h1>
+      <div class="panel"><h2>صفحه‌هایی که خودکار برای گوگل ساخته می‌شوند</h2>
+        <p class="hint">برای هر شهر (<a href="/melk/rasht" target="_blank">/melk/rasht</a>)، هر محله با دست‌کم ۵ آگهی، هر آگهی (/ad/...)، راهنمای خرید هر شهر با دست‌کم ۲۰ آگهی (<a href="/rahnama/rasht" target="_blank">/rahnama/rasht</a>) و چک‌لیست‌های خرید و اجاره، صفحه‌ای با عنوان، توضیح و متن ساخته‌شده از دادهٔ واقعی همان لحظه. فهرست همهٔ این صفحه‌ها: <a href="/sitemap.xml" target="_blank">sitemap.xml</a> — این نشانی را در سرچ کنسول گوگل ثبت کنید.</p></div>
+      <div id="artBox">${form()}</div>
+      <div class="panel"><h2>مقاله‌ها</h2>${r.items.length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>عنوان</th><th>نشانی</th><th>وضعیت</th><th>به‌روزرسانی</th><th></th></tr></thead><tbody>
+        ${r.items.map((a) => `<tr><td>${esc(a.title)}</td><td><a href="/maghale/${encodeURIComponent(a.slug)}" target="_blank" dir="ltr">/maghale/${esc(a.slug)}</a></td><td>${a.published ? "منتشرشده" : "پیش‌نویس"}</td><td>${when(a.updated)}</td><td style="white-space:nowrap"><button class="btn btn--line btn--sm" data-edit="${esc(a.slug)}">ویرایش</button> <button class="btn btn--ghost btn--sm" data-del="${esc(a.slug)}">حذف</button></td></tr>`).join("")}
+      </tbody></table></div>` : '<p class="muted">هنوز مقاله‌ای ننوشته‌اید.</p>'}</div>`;
+    const bind = () => {
+      $("#artForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        try {
+          await api("admin/article", { title: f.title.value, slug: f.slug.value, summary: f.summary.value, city_key: f.city_key.value, body: f.body.value, published: f.published.checked });
+          toast("ذخیره شد"); articles();
+        } catch (err) { toast(err.message); }
+      });
+      $("#artNew")?.addEventListener("click", () => { $("#artBox").innerHTML = form(); bind(); });
+    };
+    bind();
+    $$("[data-edit]").forEach((b) => b.addEventListener("click", () => { $("#artBox").innerHTML = form(r.items.find((a) => a.slug === b.dataset.edit)); bind(); scrollTo({ top: 0, behavior: "smooth" }); }));
+    $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("این مقاله حذف شود؟")) return; try { await api("admin/article", { slug: b.dataset.del, delete: true }); toast("حذف شد"); articles(); } catch (err) { toast(err.message); } }));
   }
 
   /* ---------- پشتیبانی ---------- */

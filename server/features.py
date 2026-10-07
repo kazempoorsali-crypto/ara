@@ -233,3 +233,38 @@ def settlement(title: str | None, desc: str | None, district: str | None, feat: 
     if (feat or {}).get("in_city") == 0:
         return "rural"
     return "urban"
+
+
+# ---------------------------------------------------------------- ادعاهای تبلیغاتی عنوان
+# آگهی‌دهنده‌ها گاهی عنوان را با «فرصت طلایی»، «زیر قیمت»، «استثنایی» و ... می‌نویسند. این واژه‌ها با برچسب‌های خود
+# سایت (فرصت طلایی، زیر قیمت محله) قاطی می‌شوند و ممکن است با سنجش ما در تضاد باشند؛ پس از عنوان نمایشی حذف می‌شوند
+# و فقط به‌عنوان «ادعای آگهی‌دهنده» نگه داشته می‌شوند تا کنار حکم سایت شفاف نشان داده شوند.
+_S = r"[\s\u200c]*"
+HYPE_RULES = [
+    ("opportunity", rf"فرصت{_S}(?:طلایی|طلائی|استثنایی|استثنائی|خاص|ویژه|بی{_S}نظیر|عالی|ناب|استثنا|سرمایه{_S}گذاری|خرید|طلا|بی{_S}تکرار)"),
+    ("cheap", rf"(?:زیر|کمتر{_S}از|پایین{_S}تر{_S}از){_S}(?:قیمت|کارشناسی|بازار)(?:{_S}(?:کارشناسی|بازار|منطقه|واقعی|روز|محل))?"),
+    ("cheap", rf"نصف{_S}قیمت|قیمت{_S}(?:استثنایی|استثنائی|باور{_S}نکردنی|عالی|مناسب|ویژه|پایین|استثنا|خوب|بی{_S}رقیب|رقابتی)"),
+    ("cheap", rf"(?:سوپر{_S})?ارزان(?:{_S}ترین|{_S}قیمت)?|اکازیون|حراج"),
+    ("hype", rf"بی{_S}نظیر|استثنایی|استثنائی|باور{_S}نکردنی|فوق{_S}العاده|طلایی|طلائی|رویایی|بی{_S}رقیب|بی{_S}تکرار"),
+]
+_HYPE_RX = [(k, re.compile(rx)) for k, rx in HYPE_RULES]
+_NOISE_RX = re.compile(r"[!\u203c\u2757\u2755*#]+|[\U0001F300-\U0001FAFF\u2600-\u27BF\uFE0F]+")
+_KIND_FA = {"apartment": "آپارتمان", "suite": "سوئیت", "villa": "ویلا", "land": "زمین", "garden": "باغ", "shop": "مغازه", "office": "دفتر کار"}
+
+
+def clean_title(title: str | None, kind=None, area=None, district=None) -> tuple[str, list]:
+    """عنوان نمایشی بدون ادعای تبلیغاتی + فهرست نوع ادعاها (opportunity، cheap، hype)."""
+    t = (title or "").replace("ي", "ی").replace("ك", "ک")
+    claims = []
+    for k, rx in _HYPE_RX:
+        if rx.search(t):
+            if k not in claims:
+                claims.append(k)
+            t = rx.sub(" ", t)
+    t = re.sub(r"(فوری[\s\u200c]*){2,}", "فوری ", t)
+    t = _NOISE_RX.sub(" ", t)
+    t = re.sub(r"\s{2,}", " ", t).strip(" \t،,-–—|:؛.")
+    t = re.sub(r"\s+([،,:؛])", r"\1", t)
+    if len(re.sub(r"[\W\d_]", "", t)) < 4:  # چیزی جز ادعا نماند: عنوان ساده از مشخصات
+        t = " ".join(x for x in (_KIND_FA.get(kind or "", "ملک"), f"{int(area)} متری".translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")) if area else "", f"در {district}" if district else "") if x)
+    return t, claims

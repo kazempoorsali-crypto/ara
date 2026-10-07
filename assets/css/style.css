@@ -817,4 +817,25 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 @media (max-width: 560px) { .sbar.is-compact .sbar__tools { display: none; } }
 .map-hint { position: absolute; inset: 0; z-index: 800; display: grid; place-items: center; padding: 20px; text-align: center; background: rgba(19,32,28,.55); color: #fff; font-weight: 700; font-size: 15px; opacity: 0; pointer-events: none; transition: opacity .25s; }
 .map-hint.is-on { opacity: 1; }
-.seo-pre { padding: 40px 0; line-height: 2; } .seo-pre h1 { font-size: 28px; } .seo-pre ul { padding-inline-start: 20px; } .seo-pre nav { font-size: 13px; color: var(--muted); }
+
+/* متن سئو: «دربارهٔ بازار» زیر صفحه، و صفحه‌های راهنما و مقاله */
+.seo-text { border-top: 1px solid var(--line); background: var(--paper-2); padding: 40px 0; color: var(--ink-2); line-height: 2.05; font-size: 14.5px; }
+.seo-text[hidden] { display: none; }
+.seo-text h2 { font-size: 21px; color: var(--ink); margin: 8px 0 6px; }
+.seo-text h3 { font-size: 16.5px; color: var(--ink); margin: 22px 0 6px; }
+.seo-text ul, .seo-page ul, .seo-page ol { padding-inline-start: 22px; margin: 6px 0; }
+.seo-cols { columns: 3 220px; column-gap: 28px; }
+.seo-text details, .seo-page details { border-bottom: 1px solid var(--line); padding: 6px 0; }
+.seo-text summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.seo-crumbs { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.seo-crumbs a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.seo-upd { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+.seo-page { padding: 34px 0 60px; line-height: 2.1; max-width: 860px; }
+.seo-page h1 { font-size: clamp(24px, 3vw, 34px); font-weight: 900; line-height: 1.5; margin: 6px 0 12px; }
+.seo-page h2 { font-size: 21px; margin: 28px 0 8px; }
+.seo-page a, .seo-text p a, .seo-text li a { color: var(--forest); }
+.seo-page .tbl-scroll { overflow-x: auto; }
+.seo-page table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.seo-page th, .seo-page td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: start; white-space: nowrap; }
+.seo-note { font-size: 13px; color: var(--muted); }
+.seo-img { max-width: 100%; height: auto; border-radius: var(--r-lg); }

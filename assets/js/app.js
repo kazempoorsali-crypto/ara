@@ -73,7 +73,11 @@ const App = (() => {
     else if (page === "account") accountPage(params);
     else if (page === "faq") faqPage();
     else if (page === "support") supportPage(params);
+    else if (page === "p") contentPage("/" + path.split("/").slice(1).join("/"));
     else homePage();
+    // متن «دربارهٔ بازار» که سرور برای همین نشانی ساخته، فقط روی همان صفحه دیده می‌شود
+    const st = $("#seoText");
+    if (st) st.hidden = (st.dataset.hash || "#/").replace(/^#?\/?$/, "#/") !== (location.hash || "#/").replace(/^#?\/?$/, "#/");
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
   }
@@ -378,6 +382,20 @@ const App = (() => {
   function faqPage() {
     view().innerHTML = `<section class="section--tight"><div class="wrap method"><span class="kicker">راهنما</span><h1>پرسش‌ها و پاسخ‌ها</h1>${faqHTML()}
       ${cfg.owner?.support_url ? `<p style="margin-top:20px">پاسخ پرسشت را پیدا نکردی؟ <a href="${esc(cfg.owner.support_url)}" rel="noopener">${esc(cfg.owner.support_label || "پشتیبانی")}</a></p>` : ""}</div></section>`;
+  }
+
+  /* ---------- راهنماها و مقاله‌ها (متن از سرور) ---------- */
+  async function contentPage(path) {
+    const pre = view().querySelector(".seo-page");
+    if (!pre) view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="skeleton" style="height:300px"></div></div></section>`;
+    try {
+      const r = await (await fetch("api/page?path=" + encodeURIComponent(path))).json();
+      if (r.error) throw new Error(r.error);
+      view().innerHTML = `<article class="wrap seo-page">${r.body}</article>`;
+      document.title = r.title;
+    } catch {
+      view().innerHTML = `<div class="wrap empty"><h3>این صفحه پیدا نشد</h3><a class="btn btn--ink" href="#/">صفحهٔ اصلی</a></div>`;
+    }
   }
 
   /* ---------- پشتیبانی ---------- */
@@ -862,6 +880,7 @@ const App = (() => {
         ${l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? ` · رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
+      ${claimNote(l, v)}
       ${expM ? UI.priceBar(meM, expM) : ""}
       ${ex.fair_low && ex.fair_high && !v.approx ? `<p class="small">بازهٔ قیمت منصفانه برای همین خانه: <b>${money(ex.fair_low)}</b> تا <b>${money(ex.fair_high)}</b> تومان (با در نظر گرفتن پراکندگی قیمت‌های این محله).</p>` : ""}
       ${ex.disagree ? `<p class="small note-soft">${icon("info", 'width="16"')} فرصت اعلام نشد: مدل قیمت فاصلهٔ زیادی نشان می‌دهد، ولی نزدیک‌ترین آگهی‌های مشابه همین محله این فاصله را تأیید نمی‌کنند.</p>` : ""}
@@ -869,6 +888,14 @@ const App = (() => {
       <p class="small">${v.approx ? "قیمت مورد انتظار، بازهٔ قیمت منصفانه و درصد دقیق برای مشترکان نمایش داده می‌شود." : diff != null && Math.abs(v.delta) > 0.005 ? `یعنی حدود <b>${money(Math.abs(diff))} تومان ${diff < 0 ? "کمتر" : "بیشتر"}</b> از قیمتی که برای همین خانه در همین محله انتظار می‌رود.` : "تقریباً همان قیمتی است که برای همین خانه در همین محله انتظار می‌رود."}</p>
       <p class="small muted">امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل.</p>
     </div>`;
+  }
+  /* ادعای آگهی‌دهنده («فرصت طلایی»، «زیر قیمت») در برابر سنجش سایت؛ عنوان نمایشی بدون این ادعاهاست */
+  function claimNote(l, v) {
+    const c = l.claims || [];
+    if (!c.length) return "";
+    const said = c.includes("opportunity") ? "«فرصت» یا «فرصت طلایی»" : c.includes("cheap") ? "«زیر قیمت» یا «ارزان»" : "با صفت‌هایی مثل «استثنایی» و «بی‌نظیر»";
+    const ours = !v ? "هنوز سنجیده نشده است" : v.label === "gold" || v.label === "good" ? "در سنجش ما هم زیر قیمت محله است" : v.label === "high" ? "در سنجش ما بالاتر از قیمت محله است" : v.label === "sus" ? "در سنجش ما قیمتش مشکوک است" : "در سنجش ما هم‌قیمت محله است، نه فرصت";
+    return `<p class="small note-soft">${icon("info", 'width="16"')} آگهی‌دهنده این ملک را ${said} معرفی کرده؛ ${ours}. برچسب‌های ${esc(cfg.site.name)} فقط از مقایسه با آگهی‌های مشابه همان محله می‌آیند، نه از متن آگهی.${l.title_raw ? ` عنوان اصلی آگهی: «${UI.tt(l.title_raw)}»` : ""}</p>`;
   }
   /* نشانی تقریبی و راه تماس: فقط برای مشترکان؛ نمایش شماره به تصمیم مدیر در پنل */
   function contactBox(l, c) {

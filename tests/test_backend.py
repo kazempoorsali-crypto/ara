@@ -123,7 +123,7 @@ def run(mode):
         # سئو: صفحه‌های واقعی شهر و آگهی، نقشهٔ سایت و robots
         def raw(path):
             try:
-                with urllib.request.urlopen(B + path) as r: return r.status, r.read().decode()
+                with urllib.request.urlopen(B + path) as r: return r.status, r.read().decode(errors="replace")
             except urllib.error.HTTPError as e: return e.code, e.read().decode()
         sm = raw("/sitemap.xml")[1]
         check("/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
@@ -133,6 +133,15 @@ def run(mode):
         as_, ah = raw("/ad/" + aid)
         check(as_ == 200 and "RealEstateListing" in ah and "divar" not in ah.lower().split("<main")[1].split("</main>")[0], f"[{mode}] صفحهٔ سئوی آگهی بدون نام منبع")
         check(raw("/melk/nowhere")[0] == 404 and raw("/ad/nope-1")[0] == 404, f"[{mode}] نشانی نامعتبر ۴۰۴")
+        check('id="seoText"' in ch and "دربارهٔ بازار ملک رشت" in ch and "Place" in ch, f"[{mode}] متن «دربارهٔ بازار» و داده‌های ساخت‌یافتهٔ مکان")
+        gs, gh = raw("/rahnama/kharid-melk")
+        check(gs == 200 and "<h1>چک‌لیست خرید ملک" in gh and '"Article"' in gh, f"[{mode}] صفحهٔ راهنمای ثابت")
+        check(raw("/manifest.webmanifest")[0] == 200 and raw("/assets/img/og.png")[0] == 200, f"[{mode}] manifest و تصویر اشتراک‌گذاری")
+        ar = call("/api/admin/article", {"title": "راهنمای خرید آپارتمان در رشت", "summary": "آزمون", "city_key": "rasht",
+                                         "body": "## بخش اول\nاین یک متن آزمایشی برای مقاله است که باید بیش از پنجاه نویسه داشته باشد.\n- مورد [رشت](/melk/rasht)"}, tok)
+        mst, mh = raw("/maghale/" + urllib.parse.quote(ar["slug"]))
+        check(ar.get("ok") and mst == 200 and "<h2>بخش اول</h2>" in mh and 'href="/melk/rasht"' in mh and "/maghale/" in raw("/sitemap.xml")[1], f"[{mode}] مقاله منتشر شد و در نقشهٔ سایت است")
+        check(call("/api/page?path=/rahnama/ejare").get("body"), f"[{mode}] نمایش راهنما درون برنامه")
         pub = call("/api/listings?limit=60&sort=score")["items"]
         check(all(x.get("discount") is None or abs(x["discount"] * 20 - round(x["discount"] * 20)) < 1e-9 for x in pub)
               and all(x.get("verdict") is None or x["verdict"].get("approx") for x in pub), f"[{mode}] غیرمشترک فقط بازهٔ ۵ درصدی می‌بیند")
