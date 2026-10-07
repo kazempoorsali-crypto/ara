@@ -9,7 +9,7 @@ const App = (() => {
 
   /* ---------- راه‌اندازی ---------- */
   async function boot() {
-    applyTheme(store.get("theme", ""));
+    applyTheme(store.get("theme_v2", "light"));
     const info = await DataLayer.init();
     cfg = info.config;
     applySite();
@@ -67,6 +67,7 @@ const App = (() => {
     else if (page === "method") { $('[data-nav="method"]').classList.add("is-on"); methodPage(); }
     else if (page === "account") accountPage(params);
     else if (page === "faq") faqPage();
+    else if (page === "support") supportPage(params);
     else homePage();
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
@@ -94,9 +95,15 @@ const App = (() => {
                 <button type="button" class="is-on" data-d="">همه</button><button type="button" data-d="sale">خرید</button><button type="button" data-d="rent">رهن و اجاره</button><button type="button" data-d="daily">روزانه</button>
               </div>
             </div>
+            <div class="loc-row" aria-label="انتخاب محدوده">
+              <label class="loc-row__f"><span>استان</span><div id="hProv"></div></label>
+              <label class="loc-row__f"><span>شهر</span><div id="hCity"></div></label>
+              <label class="loc-row__f"><span>محله</span><div id="hDist"></div></label>
+            </div>
+            <label class="loc-opp"><input type="checkbox" id="hOpp" checked> فقط فرصت‌های زیر قیمت محله</label>
             <div class="search-row">
               <span class="search-row__ai">${icon("spark")}</span>
-              <input id="heroQ" placeholder="مثلاً: آپارتمان ۲ خوابه گلسار رشت زیر ۸ میلیارد" aria-label="جست‌وجو" />
+              <input id="heroQ" placeholder="جزئیات دلخواه (اختیاری)؛ مثلاً: ۲ خوابه زیر ۸ میلیارد" aria-label="جست‌وجو" />
               <button class="btn btn--hot btn--lg">یافتن فرصت‌ها</button>
             </div>
             <div class="parsed" id="heroParsed" aria-live="polite"></div>
@@ -164,8 +171,28 @@ const App = (() => {
       e.preventDefault();
       const v = $("#heroQ").value.trim();
       const f = v ? NLP.parseQuery(v, deal ? { deal } : {}).filters : (deal ? { deal } : {});
+      if (H.prov) { f.province = H.prov; delete f.city; delete f.district; }
+      if (H.city) f.city = H.city;
+      if (H.dist) f.district = H.dist;
+      if ($("#hOpp").checked) f.opp = 1;
       go("#/s?" + toQuery({ sort: "score", ...f }));
     });
+    const H = { prov: "", city: "", dist: "" };
+    const hCities = () => CITIES.filter((c) => !H.prov || c.province === H.prov).map((c) => ({ id: c.id, label: c.name, hint: H.prov ? "" : (PROVINCES.find((p) => p.id === c.province) || {}).name }));
+    UI.combo($("#hProv"), { items: PROVINCES.map((p) => ({ id: p.id, label: p.name })), value: null, allLabel: "همهٔ استان‌ها", placeholder: "همهٔ استان‌ها",
+      onChange: ({ id }) => { H.prov = id || ""; H.city = ""; H.dist = ""; hCity.setItems(hCities(), null); hDist.setItems([], null); setTimeout(() => hCity.focus(), 0); } });
+    const hCity = UI.combo($("#hCity"), { items: hCities(), value: null, allLabel: "همهٔ شهرها", placeholder: "نام شهر را بنویس",
+      onChange: async ({ id }) => {
+        H.city = id || ""; H.dist = "";
+        const c = UI.cityOf(H.city); if (c) H.prov = c.province;
+        hDist.setItems([], null);
+        if (!H.city) return;
+        const r = await DataLayer.districts(H.city, deal === "sale" || deal === "" ? "sale" : deal).catch(() => ({ items: [] }));
+        hDist.setItems(r.items.map((x) => ({ id: x.name, label: x.name, hint: fa(x.n) + " آگهی" })), null);
+        if (!$("#hDist input")) return;
+        $("#hDist input").placeholder = r.items.length ? "همهٔ محله‌ها" : "هنوز محله‌ای ثبت نشده";
+      } });
+    const hDist = UI.combo($("#hDist"), { items: [], value: null, allLabel: "همهٔ محله‌ها", placeholder: "اول شهر را انتخاب کن", onChange: ({ id }) => { H.dist = id || ""; } });
     $("#heroQuick").addEventListener("click", (e) => { const c = e.target.closest("[data-q]"); if (c) { $("#heroQ").value = c.dataset.q; $("#heroForm").requestSubmit(); } });
 
     const top = (await DataLayer.search({ sort: "score", ranked: 1, limit: 15 })).items;
@@ -297,14 +324,14 @@ const App = (() => {
     const num16 = r.card.number.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1-");
     openDialog(`<div class="dlg__head"><h2>پرداخت کارت‌به‌کارت</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       <ol class="pay-steps">
-        <li><span>دقیقاً این مبلغ را واریز کن؛ سه رقم آخر، پرداخت تو را از بقیه جدا می‌کند.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
-        <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}${r.card.holder ? " به نام " + esc(r.card.holder) : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button></li>
-        <li><span>کد پیگیری یا عکس رسید را بفرست. اشتراک ${esc(r.plan)} همان لحظه فعال می‌شود و واریز بعداً بررسی می‌شود.</span></li>
+        <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
+        <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button>${r.card.holder ? `<span class="pay-holder">به نام <b>${esc(r.card.holder)}</b></span>` : ""}</li>
+        <li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>
       </ol>
       <form class="form-grid" id="rcForm">
         <label class="field"><span>کد پیگیری یا شمارهٔ مرجع</span><input class="input input--ltr" id="rcTrack" inputmode="numeric" autocomplete="off"></label>
         <label class="field"><span>عکس رسید (اختیاری، تا ۵ مگابایت)</span><input class="input" type="file" id="rcFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
-        <button class="btn btn--hot btn--lg" id="rcBtn">${icon("upload")} ثبت رسید و فعال‌سازی</button>
+        <button class="btn btn--hot btn--lg" id="rcBtn">${icon("upload")} ${r.auto ? "ثبت رسید و فعال‌سازی" : "ثبت رسید"}</button>
         <p class="small muted">اگر واریز با مبلغ و رسید نخواند، روزهای اشتراک پس گرفته می‌شود. تمدید خودکار نداریم.</p>
       </form>`);
     $("#cpCard").addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
@@ -348,6 +375,57 @@ const App = (() => {
       ${cfg.owner?.support_url ? `<p style="margin-top:20px">پاسخ پرسشت را پیدا نکردی؟ <a href="${esc(cfg.owner.support_url)}" rel="noopener">${esc(cfg.owner.support_label || "پشتیبانی")}</a></p>` : ""}</div></section>`;
   }
 
+  /* ---------- پشتیبانی ---------- */
+  const readFile = (f) => new Promise((ok, no) => { if (!f) return ok(null); if (f.size > 5e6) return no(new Error("حجم فایل زیاد است: حداکثر ۵ مگابایت")); const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(f); });
+  async function supportPage(params) {
+    if (DataLayer.server) await DataLayer.refreshMe().catch(() => {});
+    const me = DataLayer.me;
+    const CATS = [["payment", "پرداخت و اشتراک"], ["sms", "پیامک و کد ورود"], ["listing", "آگهی‌ها و قیمت‌ها"], ["other", "سایر"]];
+    view().innerHTML = `<section class="section--tight"><div class="wrap support">
+      <div class="sec-head"><div><span class="kicker">پشتیبانی</span><h1>درخواست پشتیبانی</h1><p>مشکل پرداخت، نرسیدن پیامک یا هر پرسش دیگری را بنویسید. برای پرداخت کارت‌به‌کارت، عکس رسید را پیوست کنید تا با مبلغ یکتای شما تطبیق داده شود.</p></div></div>
+      <div class="support__grid">
+        <form class="panel-card form-grid" id="tkForm">
+          <h2>تیکت تازه</h2>
+          <label class="field"><span>موضوع</span><select class="select" id="tkCat">${CATS.map(([k, n]) => `<option value="${k}" ${params.cat === k ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+          ${me ? `<p class="small muted">با شمارهٔ <bdi dir="ltr">${esc(me.phone)}</bdi> ثبت می‌شود.</p>` : `<label class="field"><span>شمارهٔ موبایل (برای پیگیری)</span><input class="input input--ltr" id="tkPhone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="tel"></label><p class="small muted">وارد نشده‌اید؛ پاسخ‌ها در همین مرورگر نمایش داده می‌شوند.</p>`}
+          <label class="field"><span>پیام</span><textarea class="input" id="tkBody" rows="5" maxlength="3000" placeholder="مشکل را با جزئیات بنویسید؛ مثلاً زمان و مبلغ واریز"></textarea></label>
+          <label class="field"><span>پیوست تصویر یا PDF (اختیاری، تا ۵ مگابایت)</span><input class="input" type="file" id="tkFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+          <button class="btn btn--hot btn--lg" id="tkBtn">ارسال تیکت</button>
+        </form>
+        <div><h2 style="margin-bottom:12px">تیکت‌های من</h2><div id="tkList"><div class="skeleton" style="height:120px"></div></div></div>
+      </div></div></section>`;
+    const draw = async () => {
+      const r = await DataLayer.tickets().catch(() => ({ items: [] }));
+      if (!$("#tkList")) return;
+      $("#tkList").innerHTML = r.items.length ? r.items.map((t) => `<details class="ticket ${t.user_unread ? "is-new" : ""}" data-t="${t.id}" ${t.user_unread ? "open" : ""}>
+          <summary><b>#${fa(t.id)} · ${esc(t.category_name)}</b><span class="tk-st tk-st--${t.status}">${esc(t.status_name)}</span><small>${UI.ago(t.updated)}</small></summary>
+          <div class="ticket__msgs">${t.messages.map((m) => `<div class="tmsg tmsg--${m.sender}"><small>${m.sender === "user" ? "شما" : m.sender === "auto" ? "پاسخ خودکار" : "پشتیبانی"} · ${UI.ago(m.created)}</small><p>${esc(m.body || "")}</p>${m.has_image ? `<button type="button" class="btn btn--line btn--sm" data-img="${m.id}">نمایش پیوست</button>` : ""}</div>`).join("")}</div>
+          ${t.status !== "closed" ? `<form class="ticket__reply" data-r="${t.id}"><textarea class="input" rows="2" maxlength="3000" placeholder="پاسخ یا توضیح بیشتر"></textarea><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><button class="btn btn--ink btn--sm">ارسال</button></form>` : `<p class="small muted">این تیکت بسته شده است؛ برای مشکل تازه، تیکت تازه ثبت کنید.</p>`}
+        </details>`).join("") : `<div class="empty"><p>هنوز تیکتی ثبت نکرده‌اید.</p></div>`;
+      r.items.filter((t) => t.user_unread).forEach((t) => DataLayer.seenTicket(t.id));
+    };
+    $("#tkList").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-img]"); if (!b) return;
+      try { window.open(await DataLayer.ticketImage(b.dataset.img), "_blank"); } catch (err) { toast(err.message); }
+    });
+    $("#tkList").addEventListener("submit", async (e) => {
+      const f = e.target.closest("[data-r]"); if (!f) return;
+      e.preventDefault();
+      try { await DataLayer.replyTicket(f.dataset.r, f.querySelector("textarea").value, await readFile(f.querySelector("input[type=file]").files[0])); toast("ارسال شد"); draw(); } catch (err) { toast(err.message); }
+    });
+    $("#tkForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("#tkBtn"); btn.disabled = true;
+      try {
+        await DataLayer.createTicket({ category: $("#tkCat").value, phone: $("#tkPhone")?.value, body: $("#tkBody").value, image: await readFile($("#tkFile").files[0]) });
+        $("#tkBody").value = ""; $("#tkFile").value = "";
+        toast("تیکت ثبت شد"); await DataLayer.refreshMe().catch(() => {}); updateAccount(); draw();
+      } catch (err) { toast(err.message); }
+      btn.disabled = false;
+    });
+    draw();
+  }
+
   /* ---------- ورود با کد پیامکی ---------- */
   function loginDialog(after) {
     openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
@@ -356,6 +434,7 @@ const App = (() => {
         <label class="field"><span>شماره موبایل</span><input class="input input--ltr" id="otpPhone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required autocomplete="tel"></label>
         <div id="otpStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="otpCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="otpNote" style="margin-top:6px"></p></div>
         <button class="btn btn--hot btn--lg" type="submit" id="otpBtn">دریافت کد</button>
+        <p class="small muted">کد نمی‌رسد؟ <a href="#/support?cat=sms" data-close>تیکت پشتیبانی بفرستید</a>.</p>
       </form>`);
     let sent = false;
     $("#otpForm").addEventListener("submit", async (e) => {
@@ -390,8 +469,9 @@ const App = (() => {
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
           <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `فعال، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
+          <a class="btn btn--line" href="#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
-        </div>` : `<div class="empty"><h3>با شماره موبایل وارد شوید</h3><p>ثبت‌نام و ورود با یک کد پیامکی انجام می‌شود.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button></div>`}
+        </div>` : `<div class="empty"><h3>با شماره موبایل وارد شوید</h3><p>ثبت‌نام و ورود با یک کد پیامکی انجام می‌شود.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
     </div></section>${plansSection()}`;
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
     $("#logoutBtn")?.addEventListener("click", async () => { await DataLayer.logout(); updateAccount(); route(); });
@@ -887,7 +967,7 @@ const App = (() => {
           ${l.description ? `<section class="block"><h2>متن آگهی<small>نقل از آگهی اصلی</small></h2><blockquote class="quote">${esc(l.description).replace(/\n+/g, "<br>")}</blockquote><p class="quote-src">متن آگهی‌دهنده؛ این نوشتهٔ فروشنده است، نه حکم ${esc(cfg.site.name)}.</p></section>` : ""}
           <section class="block"><h2>امکانات</h2><ul class="amen-list">${amen}</ul><p class="small muted" style="margin-top:10px">امکانات از متن آگهی استخراج شده است؛ در بازدید تأیید کنید.</p></section>
           ${attrs.length ? `<section class="block"><h2>مشخصات</h2><div class="attrs">${attrs.map(([k, x]) => `<div><span>${esc(k)}</span><b>${UI.tt(x)}</b></div>`).join("")}</div></section>` : ""}
-          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap"><div class="minimap" id="mini"></div></div><p class="small muted" style="margin-top:8px">${l.latlng_exact ? "موقعیت اعلام‌شده در آگهی." : "نقطه تقریبی در محدوده شهر."}</p></section>
+          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap"><div class="minimap" id="mini"></div></div><p class="map-note">${l.latlng_exact ? "این موقعیت را آگهی‌دهنده روی نقشه ثبت کرده است." : "آگهی مختصات دقیق ندارد؛ دایره فقط محدودهٔ شهر را نشان می‌دهد، نه محل ملک."} موقعیت بر اساس اطلاعات ثبت‌شده توسط آگهی‌دهنده است و ممکن است دقیق نباشد؛ نشانی را پیش از بازدید از خود آگهی‌دهنده بپرسید.</p></section>
           <section class="block"><h2>پیش از معامله</h2><ul class="check">${["دیدن اصل سند و تطبیق مشخصات با ملک", "استعلام وضعیت حقوقی، رهن و توقیف", "پایان‌کار و پروانه ساخت (ملک نوساز)", "بدهی عوارض، آب، برق و گاز", l.deal === "rent" ? "دریافت کد رهگیری اجاره‌نامه" : "تنظیم قرارداد با کد رهگیری"].map((x) => `<li>${x}</li>`).join("")}</ul></section>
           ${similarSection(l)}
         </div>
@@ -906,8 +986,9 @@ const App = (() => {
     <div class="mobile-cta">${l.locked ? `<button class="btn btn--hot" id="divarBtnM">مشاهده آگهی اصلی</button>` : l.url ? `<a class="btn btn--hot" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">مشاهده آگهی اصلی</a>` : ""}</div>`;
     document.body.classList.add("has-mcta");
     document.title = `${l.title} | ${cfg.site.name}`;
-    const mini = UI.makeMap($("#mini"), { center: [l.lat, l.lng], zoom: 13, wheel: false });
-    if (mini) L.circle([l.lat, l.lng], { radius: l.latlng_exact ? 120 : 900, color: "#df5a2c", weight: 2, fillOpacity: 0.12 }).addTo(mini);
+    const cc = UI.cityOf(l.city_key), pos = l.latlng_exact || !cc ? [l.lat, l.lng] : [cc.lat, cc.lng];
+    const mini = UI.makeMap($("#mini"), { center: pos, zoom: l.latlng_exact ? 14 : 12, wheel: false });
+    if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#df5a2c", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adShare").addEventListener("click", async () => {
@@ -969,8 +1050,15 @@ const App = (() => {
         <div class="seg" id="mDeal"><button data-v="sale" class="${deal === "sale" ? "is-on" : ""}">خرید</button><button data-v="rent" class="${deal === "rent" ? "is-on" : ""}">رهن و اجاره</button></div>
         <div class="seg" id="mKind">${Object.entries(KG).map(([k, n]) => `<button data-v="${k}" class="${kind === k ? "is-on" : ""}">${n}</button>`).join("")}</div>
       </div>
+      <section class="mkt-opps" id="mOpps"><div class="sec-head"><div><span class="kicker">فرصت‌های ${esc(cname)}</span><h2>بهترین فرصت‌های ${UI.dealName(deal)} ${esc(cname)}</h2><p>آگهی‌هایی که از قیمت محلهٔ خودشان پایین‌ترند، به ترتیب امتیاز.</p></div><a class="btn btn--hot" href="#/s?${toQuery({ city, deal, sort: "score", opp: 1 })}">همهٔ فرصت‌های ${esc(cname)} ${icon("arrow")}</a></div>
+        <div class="cards" id="mOppGrid">${Array.from({ length: 4 }, () => '<div class="skeleton"></div>').join("")}</div></section>
       <div id="mBody"><div class="skeleton" style="height:320px"></div></div>
     </div></section>`;
+    DataLayer.search({ city, deal, opp: 1, sort: "score", limit: 8 }).then((r) => {
+      if (!$("#mOppGrid")) return;
+      $("#mOppGrid").innerHTML = r.items.length ? r.items.map((l) => UI.card(l)).join("")
+        : `<div class="empty" style="grid-column:1/-1"><h3>فعلاً فرصتی در ${esc(cname)} ثبت نشده</h3><p>با دریافت آگهی‌های بیشتر این بخش پر می‌شود. <a href="#/s?${toQuery({ city, deal, sort: "score" })}">همهٔ آگهی‌های ${esc(cname)}</a></p></div>`;
+    }).catch(() => { if ($("#mOppGrid")) $("#mOppGrid").innerHTML = ""; });
     const nav = (patch) => go("#/market?" + toQuery({ city, deal, kind, ...patch }));
     UI.cityPicker($("#mCity"), { value: city, showGroup: true, onChange: ({ id }) => id && nav({ city: id }) });
     $("#mDeal").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) nav({ deal: b.dataset.v }); });
@@ -1185,9 +1273,12 @@ const App = (() => {
   /* ---------- رویدادهای سراسری ---------- */
   function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
   function bindGlobal() {
+    const top = document.querySelector(".top");
+    $("#menuBtn").addEventListener("click", () => { const on = top.classList.toggle("is-menu"); $("#menuBtn").setAttribute("aria-expanded", on); });
+    $$(".nav a").forEach((a) => a.addEventListener("click", () => { top.classList.remove("is-menu"); $("#menuBtn").setAttribute("aria-expanded", "false"); }));
+    document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });
     $("#themeBtn").addEventListener("click", () => {
-      const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      const t = cur === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme", t);
+      const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme_v2", t);
     });
     $("#dlg").addEventListener("click", (e) => { if (e.target.id === "dlg" || e.target.closest("[data-close]")) $("#dlg").close(); });
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });

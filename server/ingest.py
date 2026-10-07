@@ -25,7 +25,7 @@ import divar_client
 from sheypoor_client import SheypoorAutoSource, SheypoorDirectSource, SheypoorSource
 
 DEFAULT_INGEST = {
-    "enabled": False,
+    "enabled": True,          # پیش‌فرض روشن؛ فقط مدیر آن را خاموش می‌کند
     "mode": "mcp",            # mcp = خودکار (اول سرور MCP، اگر سهمیه تمام شد یا نرسید مستقیم) | mcp_only | direct
     "mcp_url": "",
     "hourly_limit": 60,
@@ -34,7 +34,7 @@ DEFAULT_INGEST = {
     "refresh_hours": 6,
     "detail_ratio": 2,        # تعداد جزئیات به ازای هر صفحه فهرست
     "recheck_days": 4,
-    "sheypoor": False,        # منبع دوم: شیپور
+    "sheypoor": True,         # منبع دوم: شیپور (پیش‌فرض روشن)
     "sheypoor_mode": "auto",  # auto = اول سرور واسط MCP، اگر نرسید مستقیم | mcp | direct
     "sheypoor_url": "",
     "proxy": "auto",          # auto = پروکسی سیستم با بازگشت خودکار؛ none = بدون پروکسی؛ یا نشانی پروکسی
@@ -60,9 +60,30 @@ class Ingestor:
         self.dirty = 0
         self.valuing = threading.Lock()
 
+    def migrate(self):
+        """یک‌بار برای نصب‌های قبلی: دریافت هر دو منبع روشن می‌شود و مختصات تقریبی با قاعدهٔ رو به خشکی بازسازی می‌شود.
+        پس از آن انتخاب مدیر (حتی خاموش کردن) حفظ می‌شود."""
+        st = self.store
+        if not st.get_setting("mig_ingest_on") and os.environ.get("ARA_INGEST_DEFAULT", "1") != "0":
+            cur = st.get_setting("ingest")
+            if cur is not None:
+                st.set_setting("ingest", {**cur, "enabled": True, "sheypoor": True})
+            st.set_setting("mig_ingest_on", int(time.time()))
+        if not st.get_setting("mig_geo_v2"):
+            rows = st.q("SELECT id, token, city_key FROM listings WHERE COALESCE(latlng_exact,0)=0")
+            with st.lock:
+                for r in rows:
+                    c = catalog.CITY_BY_KEY.get(r["city_key"])
+                    if c and r["token"]:
+                        lat, lng = catalog.jitter(r["token"], c["lat"], c["lng"], city_key=c["key"])
+                        st.db.execute("UPDATE listings SET lat=?, lng=? WHERE id=?", (lat, lng, r["id"]))
+                st.db.commit()
+            st.set_setting("mig_geo_v2", int(time.time()))
+
     # ---------------------------------------------------------- config
     def cfg(self) -> dict:
-        c = {**DEFAULT_INGEST, **(self.store.get_setting("ingest") or {})}
+        base = DEFAULT_INGEST if os.environ.get("ARA_INGEST_DEFAULT", "1") != "0" else {**DEFAULT_INGEST, "enabled": False, "sheypoor": False}
+        c = {**base, **(self.store.get_setting("ingest") or {})}
         c["hourly_limit"] = max(1, min(int(c.get("hourly_limit") or 60), 1200))
         c["categories"] = [x for x in c["categories"] if x in catalog.CATEGORY_BY_SLUG] or ["real-estate"]
         divar_client.NET["proxy"] = c.get("proxy") or "auto"
@@ -315,7 +336,7 @@ class Ingestor:
         cat = catalog.CATEGORY_BY_SLUG.get(category, {"vertical": "estate"})
         cat_text = row.get("category_text") or category
         mapped = catalog.find_city(row.get("city_name")) or city
-        lat, lng = catalog.jitter(row["token"], mapped["lat"], mapped["lng"])
+        lat, lng = catalog.jitter(row["token"], mapped["lat"], mapped["lng"], city_key=mapped["key"])
         item = {
             "id": SRC_PREFIX[source] + row["token"], "source": source, "token": row["token"], "url": row.get("url"),
             "vertical": cat["vertical"], "category": category, "title": row.get("title"),

@@ -212,12 +212,27 @@ def detect_amenities(*texts) -> list[str]:
     return found
 
 
-def jitter(key: str, lat: float, lng: float, spread: float = 0.025) -> tuple[float, float]:
-    """موقعیت تقریبیِ پایدار برای آگهی بدون مختصات (بر پایه هش توکن)."""
+# سمت خشکی شهرهای ساحلی: نقطهٔ تقریبی فقط به این سمت جابه‌جا می‌شود تا در دریا یا تالاب نیفتد.
+# S = جنوب (ساحل شرقی‌غربی)، W = غرب (ساحل شمالی‌جنوبی تالش و آستارا)، T = نوار باریک بین دریا و تالاب.
+COAST = {
+    "anzali": "T", "astara": "W", "talesh": "W", "kiashahr": "S", "chaboksar": "S", "rudsar": "S", "langarud": "S",
+    "babolsar": "S", "fereydunkenar": "S", "mahmudabad": "S", "nur": "S", "nowshahr": "S", "chalus": "S",
+    "abbasabad": "S", "tonekabon": "S", "ramsar": "S", "torkaman": "S", "bandargaz": "S", "astaneh": "S",
+}
+
+
+def jitter(key: str, lat: float, lng: float, spread: float = 0.02, city_key: str | None = None) -> tuple[float, float]:
+    """موقعیت تقریبیِ پایدار برای آگهی بدون مختصات (بر پایه هش توکن)؛ در شهرهای ساحلی فقط رو به خشکی."""
     h = hashlib.sha1(key.encode()).digest()
-    a = (h[0] / 255 - 0.5) * 2 * spread
-    b = (h[1] / 255 - 0.5) * 2 * spread * 1.3
-    return round(lat + a, 5), round(lng + b, 5)
+    u, v = h[0] / 255 - 0.5, h[1] / 255 - 0.5
+    side = COAST.get(city_key or "")
+    if side == "T":
+        return round(lat, 5), round(lng + v * 0.012, 5)
+    if side == "S":
+        return round(lat - (0.002 + abs(u) * 0.022), 5), round(lng + v * 1.6 * spread, 5)
+    if side == "W":
+        return round(lat + u * 1.6 * spread, 5), round(lng - (0.004 + abs(v) * 0.03), 5)
+    return round(lat + u * 2 * spread, 5), round(lng + v * 2 * spread * 1.3, 5)
 
 
 ATTR_KEYS = {

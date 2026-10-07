@@ -22,10 +22,14 @@ DEFAULT_BILLING = {
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
+    # مبلغ یکتا: قیمت طرح ± چند گام (پیش‌فرض گام هزار تومانی؛ برای قیمت ۵۰۰ هزار: ۴۹۸، ۴۹۹، ۵۰۰، ۵۰۱، ۵۰۲ هزار ...)
+    "card_step": 1000, "card_span": 100,
 }
 # provider: kavenegar (کلید API + نام قالب Verify) یا payamak (پنل پیامک هاست‌ایران / ملی پیامک:
 # نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
-DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True}
+DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True,
+               # الگوی دوم برای پیامک «دسترسی شما باز شد»؛ تنها متغیر الگو تعداد روز اشتراک است
+               "notify_template": ""}
 PAYAMAK_URL = os.environ.get("ARA_PAYAMAK_URL") or "https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber"
 
 OTP_TTL = 180
@@ -187,7 +191,7 @@ class Billing:
         self.store.x("DELETE FROM user_sessions WHERE token=?", (token,))
 
     # ---------------------------------------------------------- payment
-    def activate(self, phone, plan_id, pay_id=None, ref=None):
+    def activate(self, phone, plan_id, pay_id=None, ref=None, notify=True):
         plan = next((p for p in self.plans() if p["id"] == plan_id), None)
         days = plan["days"] if plan else (7 if plan_id == "weekly" else 30)
         now = int(time.time())
@@ -196,6 +200,8 @@ class Billing:
         self.store.x("UPDATE users SET sub_until=?, plan=? WHERE phone=?", (start + days * 86400, plan_id, phone))
         if pay_id:
             self.store.x("UPDATE payments SET status='paid', paid_at=?, ref_id=? WHERE id=?", (now, ref, pay_id))
+        if notify:
+            self.notify_active(phone, days)
 
     def start(self, phone, plan_id, callback_url, local: bool = True) -> dict:
         plan = next((p for p in self.plans() if p["id"] == plan_id), None)
@@ -209,7 +215,7 @@ class Billing:
                            (phone, plan_id, plan["price"], "test" if c["test_mode"] else c["gateway"], now))
         pid = cur.lastrowid
         if c["test_mode"]:
-            self.activate(phone, plan_id, pid, "TEST")
+            self.activate(phone, plan_id, pid, "TEST", notify=False)
             self.store.x("UPDATE payments SET note='حالت آزمایشی؛ پولی دریافت نشد' WHERE id=?", (pid,))
             return {"ok": True, "activated": True, "test": True}
         if c["gateway"] == "card":
@@ -243,15 +249,41 @@ class Billing:
         c = self.cfg()
         if len(c["card_number"].replace("-", "").replace(" ", "")) != 16:
             raise ValueError("شماره کارت هنوز در پنل وارد نشده است")
-        busy = {r["amount"] for r in self.store.q(
-            "SELECT amount FROM payments WHERE gateway='card' AND status IN ('pending','review') AND created>?", (int(time.time()) - 3 * 86400,))}
-        for _ in range(50):
-            amount = plan["price"] + 100 + secrets.randbelow(900)
-            if amount not in busy:
-                break
+        amount = self.unique_amount(plan["price"], exclude=pid)
         self.store.x("UPDATE payments SET amount=?, note='در انتظار رسید کارت‌به‌کارت' WHERE id=?", (amount, pid))
         return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"]},
-                "payment_id": pid, "amount": amount, "plan": plan["name"]}
+                "payment_id": pid, "amount": amount, "price": plan["price"], "plan": plan["name"], "auto": bool(c["card_auto_activate"])}
+
+    def unique_amount(self, price: int, exclude=None) -> int:
+        """نزدیک‌ترین مبلغ آزاد به قیمت طرح با گام ثابت (۰، −۱، +۱، −۲، +۲ ... گام) تا هر واریز با مبلغش شناخته شود."""
+        c = self.cfg()
+        step = max(1, int(c.get("card_step") or 1000))
+        span = max(1, int(c.get("card_span") or 100))
+        busy = {r["amount"] for r in self.store.q(
+            "SELECT amount FROM payments WHERE gateway='card' AND status IN ('pending','review') AND created>? AND id!=?",
+            (int(time.time()) - 3 * 86400, exclude or 0))}
+        for k in range(span + 1):
+            for a in ((price,) if k == 0 else (price - k * step, price + k * step)):
+                if a > 0 and a not in busy:
+                    return a
+        while True:  # همهٔ گام‌ها پر است: پایان سه‌رقمی تصادفی
+            a = price + (span + 1) * step + secrets.randbelow(900) + 100
+            if a not in busy:
+                return a
+
+    def notify_active(self, phone, days):
+        """پیامک «دسترسی شما باز شد» با الگوی دوم پنل پیامک؛ اگر الگو تعریف نشده باشد چیزی ارسال نمی‌شود."""
+        s = self.sms_cfg()
+        if not (self.sms_live() and s.get("notify_template")):
+            return
+        def run():
+            try:
+                ok, r = self._send_code({**s, "template": s["notify_template"]}, phone, str(days))
+            except Exception as e:  # noqa: BLE001
+                ok, r = False, {"error": str(e)}
+            self.store.set_setting("sms_last_notify", {"at": int(time.time()), "phone": phone[:4] + "***" + phone[-2:], "ok": bool(ok), "resp": str(r)[:200]})
+        import threading
+        threading.Thread(target=run, daemon=True).start()
 
     def card_receipt(self, phone, pid, tracking, image: bytes | None, receipts_dir) -> dict:
         pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=? AND gateway='card'", (int(pid or 0), phone), one=True)

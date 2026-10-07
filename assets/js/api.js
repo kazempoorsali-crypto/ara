@@ -279,10 +279,33 @@ const DataLayer = (() => {
   async function submitReceipt(payment_id, tracking, image) {
     return json(await fetch("api/pay/receipt", { method: "POST", headers: H(), body: JSON.stringify({ payment_id, tracking, image }) }));
   }
+  /* ---------- پشتیبانی ---------- */
+  const tkeys = { get: () => { try { return JSON.parse(localStorage.getItem("ticket_keys") || "[]"); } catch { return []; } },
+    add: (k) => { try { localStorage.setItem("ticket_keys", JSON.stringify([k, ...tkeys.get()].slice(0, 20))); } catch { /* */ } } };
+  const TKH = () => ({ ...H(), "x-ticket-keys": tkeys.get().join(",") });
+  async function tickets() {
+    if (!server) return { items: [] };
+    return json(await fetch("api/tickets", { headers: TKH() }));
+  }
+  async function createTicket(body) {
+    if (!server) throw new Error("پشتیبانی در پیش‌نمایش فعال نیست؛ نسخهٔ اجراشده روی سرور را باز کنید.");
+    const r = await json(await fetch("api/tickets", { method: "POST", headers: TKH(), body: JSON.stringify(body) }));
+    if (r.key) tkeys.add(r.key);
+    return r;
+  }
+  async function replyTicket(id, body, image) {
+    return json(await fetch(`api/tickets/${id}/reply`, { method: "POST", headers: TKH(), body: JSON.stringify({ body, image }) }));
+  }
+  async function seenTicket(id) { return fetch(`api/tickets/${id}/seen`, { method: "POST", headers: TKH(), body: "{}" }).catch(() => {}); }
+  async function ticketImage(mid) {
+    const r = await fetch(`api/ticket-img/${mid}`, { headers: TKH() });
+    if (!r.ok) throw new Error("فایل پیدا نشد");
+    return URL.createObjectURL(await r.blob());
+  }
   async function startPayment(plan) {
     return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan }) }));
   }
 
-  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt,
+  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, tickets, createTicket, replyTicket, seenTicket, ticketImage,
     get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, get me() { return me; }, RENT_RATE };
 })();

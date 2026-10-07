@@ -28,6 +28,7 @@ sys.path.insert(0, str(HERE))
 
 import catalog  # noqa: E402
 from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
+from support import DEFAULT_SUPPORT, Support  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
 from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
@@ -49,12 +50,32 @@ def hash_pw(pw: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 200_000).hex()
 
 
+TICKET_IPS: dict = {}
+
+
+def decode_upload(raw):
+    """تصویر یا PDF ارسال‌شده به‌صورت data URL؛ حداکثر ۵ مگابایت."""
+    if not raw:
+        return None
+    import base64
+    raw = str(raw)
+    m = re.match(r"^data:(image/(?:jpeg|png|webp)|application/pdf);base64,", raw)
+    if not m:
+        raise ValueError("فقط تصویر JPG، PNG، WebP یا PDF")
+    img = base64.b64decode(raw[m.end():], validate=False)
+    if len(img) > 5_000_000:
+        raise ValueError("حجم فایل زیاد است: حداکثر ۵ مگابایت")
+    return img
+
+
 class App:
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.store = Store(data_dir / "ara.db")
         self.ingest = Ingestor(self.store)
+        self.ingest.migrate()
         self.billing = Billing(self.store)
+        self.support = Support(self.store, self.billing, data_dir)
 
     def public_config(self):
         s, b = self.store, self.billing
@@ -117,6 +138,23 @@ class Handler(BaseHTTPRequestHandler):
             SESSIONS[tok] = time.time() + 8 * 3600
             return True
         return False
+
+    def ticket_keys(self):
+        return [k.strip() for k in (self.headers.get("x-ticket-keys") or "").split(",") if k.strip()][:20]
+
+    def send_upload(self, f):
+        if not f.is_file():
+            return self.send_json({"error": "فایل پیدا نشد"}, 404)
+        data = f.read_bytes()
+        ctype = "application/pdf" if data[:4] == b"%PDF" else "image/png" if data[:4] == b"\x89PNG" else "image/webp" if data[8:12] == b"WEBP" else "image/jpeg"
+        self.send_response(200)
+        self.send_header("content-type", ctype)
+        self.send_header("content-length", str(len(data)))
+        self.send_header("cache-control", "no-store")
+        self.send_header("x-content-type-options", "nosniff")
+        self.end_headers()
+        self.wfile.write(data)
+        return None
 
     def user(self):
         return self.app.billing.user_by_token(self.headers.get("x-user-token"))
@@ -315,6 +353,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(r)
         if path == "/api/stats":
             return self.send_json(a.store.stats())
+        if path == "/api/tickets":
+            u = self.user()
+            return self.send_json({"items": a.support.mine(u["phone"] if u else None, self.ticket_keys())})
+        m = re.fullmatch(r"/api/ticket-img/(\d+)", path)
+        if m:
+            tid = a.support.image_owner(m.group(1))
+            u = self.user()
+            if not tid or not a.support.owns(tid, u["phone"] if u else None, self.ticket_keys()):
+                return self.send_json({"error": "یافت نشد"}, 404)
+            return self.send_upload(a.data_dir / "tickets" / f"{int(m.group(1))}.img")
         if path == "/api/districts":
             if qs.get("city") not in catalog.CITY_BY_KEY:
                 return self.send_json({"items": []})
@@ -367,17 +415,25 @@ class Handler(BaseHTTPRequestHandler):
             u = self.user()
             if not u:
                 return self.send_json({"error": "ابتدا وارد شوید"}, 401)
-            img = None
-            if data.get("image"):
-                import base64
-                raw = str(data["image"])
-                m = re.match(r"^data:(image/(?:jpeg|png|webp)|application/pdf);base64,", raw)
-                if not m:
-                    raise ValueError("فقط تصویر JPG، PNG، WebP یا PDF")
-                img = base64.b64decode(raw[m.end():], validate=False)
-                if len(img) > 5_000_000:
-                    raise ValueError("حجم فایل زیاد است: حداکثر ۵ مگابایت")
+            img = decode_upload(data.get("image"))
             return self.send_json(a.billing.card_receipt(u["phone"], data.get("payment_id"), data.get("tracking"), img, a.data_dir / "receipts"))
+        if path == "/api/tickets":
+            u = self.user()
+            ip = self.client_ip()
+            recent = [t for t in TICKET_IPS.get(ip, []) if t > time.time() - 3600]
+            r = a.support.create(u["phone"] if u else data.get("phone"), data.get("category"), data.get("body"),
+                                 decode_upload(data.get("image")), guest=not u, ip_recent=len(recent))
+            TICKET_IPS[ip] = recent + [time.time()]
+            return self.send_json(r)
+        m = re.fullmatch(r"/api/tickets/(\d+)/(reply|seen)", path)
+        if m:
+            u = self.user()
+            if not a.support.owns(m.group(1), u["phone"] if u else None, self.ticket_keys()):
+                return self.send_json({"error": "یافت نشد"}, 404)
+            if m.group(2) == "seen":
+                a.support.seen_user(m.group(1))
+                return self.send_json({"ok": True})
+            return self.send_json(a.support.reply_user(m.group(1), data.get("body"), decode_upload(data.get("image"))))
         if path == "/api/admin/setup":
             if a.store.get_setting("admin"):
                 return self.send_json({"error": "رمز قبلاً تعیین شده است"}, 403)
@@ -433,6 +489,7 @@ class Handler(BaseHTTPRequestHandler):
                 "city_ids": {**{c["key"]: c["divar_id"] for c in catalog.CITIES if c["divar_id"]}, **(s.get_setting("city_ids") or {})},
                 "catalog": {"cities": catalog.CITIES, "categories": catalog.CATEGORIES, "provinces": catalog.PROVINCES},
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
+                "tickets_unread": a.support.unread_admin(), "sms_last_notify": s.get_setting("sms_last_notify"),
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
                 "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
@@ -461,18 +518,12 @@ class Handler(BaseHTTPRequestHandler):
             })
         m = re.fullmatch(r"/api/admin/receipt/(\d+)", path)
         if m:
-            f = a.data_dir / "receipts" / f"{int(m.group(1))}.img"
-            if not f.is_file():
-                return self.send_json({"error": "رسید تصویری ندارد"}, 404)
-            data = f.read_bytes()
-            ctype = "application/pdf" if data[:4] == b"%PDF" else "image/png" if data[:4] == b"\x89PNG" else "image/webp" if data[8:12] == b"WEBP" else "image/jpeg"
-            self.send_response(200)
-            self.send_header("content-type", ctype)
-            self.send_header("content-length", str(len(data)))
-            self.send_header("cache-control", "no-store")
-            self.end_headers()
-            self.wfile.write(data)
-            return None
+            return self.send_upload(a.data_dir / "receipts" / f"{int(m.group(1))}.img")
+        m = re.fullmatch(r"/api/admin/ticket-img/(\d+)", path)
+        if m:
+            return self.send_upload(a.data_dir / "tickets" / f"{int(m.group(1))}.img")
+        if path == "/api/admin/tickets":
+            return self.send_json({"items": a.support.admin_list(qs.get("status") or None), "support": a.support.cfg()})
         return self.send_json({"error": "مسیر نامعتبر"}, 404)
 
     def admin_post(self, path, data):
@@ -484,6 +535,13 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(data.get(key), dict):
                     clean = {k: v for k, v in data[key].items() if k in default}
                     s.set_setting(key, {**default, **(s.get_setting(key) or {}), **clean})
+            if isinstance(data.get("support"), dict):
+                sup = {**DEFAULT_SUPPORT, **(s.get_setting("support") or {})}
+                if "auto_reply" in data["support"]:
+                    sup["auto_reply"] = bool(data["support"]["auto_reply"])
+                if isinstance(data["support"].get("auto_text"), dict):
+                    sup["auto_text"] = {**sup.get("auto_text", {}), **{k: str(v)[:1000] for k, v in data["support"]["auto_text"].items() if k in DEFAULT_SUPPORT["auto_text"]}}
+                s.set_setting("support", sup)
             if isinstance(data.get("sms"), dict):
                 cur = {**DEFAULT_SMS, **(s.get_setting("sms") or {})}
                 new = {k: v for k, v in data["sms"].items() if k in DEFAULT_SMS}
@@ -558,6 +616,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/review":
             a.billing.review(data.get("id"), bool(data.get("approve")))
             return self.send_json({"ok": True})
+        if path == "/api/admin/ticket":
+            return self.send_json(a.support.admin_reply(data.get("id"), data.get("body"), bool(data.get("close")), bool(data.get("reopen"))))
         if path == "/api/admin/grant":
             phone = data.get("phone")
             if not a.billing.user(phone):

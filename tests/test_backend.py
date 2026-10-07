@@ -26,7 +26,7 @@ check(it == {"area": 120, "year": 1398, "rooms": 2}, "ویژگی‌ها")
 def run(mode):
     data = tempfile.mkdtemp()
     env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0",
-           "ARA_PAYAMAK_URL": "http://127.0.0.1:8799/api/SendSMS/BaseServiceNumber"}
+           "ARA_PAYAMAK_URL": "http://127.0.0.1:8799/api/SendSMS/BaseServiceNumber", "ARA_INGEST_DEFAULT": "0"}
     srv = subprocess.Popen([sys.executable, "server/app.py", "--port", "8788", "--data", data, "--no-browser"], cwd=ROOT, env=env)
     time.sleep(1.5)
     B = "http://127.0.0.1:8788"
@@ -120,15 +120,48 @@ def run(mode):
         call("/api/admin/settings", {"billing": {"test_mode": False, "gateway": "card", "card_number": "6037-9900-0000-0000", "card_holder": "آزمون"}}, tok)
         check(call("/api/config")["gateway"] == "card", f"[{mode}] درگاه کارت‌به‌کارت فعال")
         c = ucall("/api/pay/start", {"plan": "monthly"})
-        check(c.get("card") and 600100 <= c["amount"] <= 600999, f"[{mode}] مبلغ یکتا برای کارت‌به‌کارت: {c.get('amount')}")
+        check(c.get("card") and c["amount"] == 600000, f"[{mode}] مبلغ یکتا برای کارت‌به‌کارت، اولین نفر خود قیمت: {c.get('amount')}")
+        c2 = ucall("/api/pay/start", {"plan": "monthly"})
+        c3 = ucall("/api/pay/start", {"plan": "monthly"})
+        check({c2.get("amount"), c3.get("amount")} == {599000, 601000}, f"[{mode}] مبلغ‌های بعدی با گام هزار تومانی: {c2.get('amount')}، {c3.get('amount')}")
+        call("/api/admin/settings", {"sms": {"provider": "payamak", "username": "user", "api_key": "pass", "template": "123456", "notify_template": "777"}}, tok)
         check(ucall("/api/pay/receipt", {"payment_id": c["payment_id"], "tracking": "12"}).get("status") == 400, f"[{mode}] رسید بی‌کد رد شد")
         png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         rc = ucall("/api/pay/receipt", {"payment_id": c["payment_id"], "tracking": "۱۲۳۴۵۶", "image": png})
         before = ucall("/api/me")["user"]["days_left"]
         check(rc.get("activated") and before >= 35, f"[{mode}] رسید ثبت و اشتراک فوراً تمدید شد ({before} روز)")
+        time.sleep(0.8)
+        last = json.loads(urllib.request.urlopen("http://127.0.0.1:8799/payamak-last").read())
+        check(last.get("bodyId") == "777" and last.get("text") == "30", f"[{mode}] پیامک «دسترسی شما باز شد» با الگوی فعال‌سازی ارسال شد")
+        call("/api/admin/settings", {"sms": {"provider": "kavenegar", "api_key": "", "template": "", "notify_template": ""}}, tok)
         call("/api/admin/review", {"id": c["payment_id"], "approve": False}, tok)
         after = ucall("/api/me")["user"]["days_left"]
         check(after <= before - 29, f"[{mode}] رد رسید، روزهای اضافه را پس گرفت ({after} روز)")
+        # پشتیبانی: تیکت مهمان (کد ورود نمی‌رسد) و تیکت پرداخت با رسید
+        def hcall(path, body=None, headers=None):
+            req = urllib.request.Request(B + path, data=json.dumps(body).encode() if body is not None else None, method="POST" if body is not None else "GET")
+            req.add_header("content-type", "application/json")
+            for k, v in (headers or {}).items(): req.add_header(k, v)
+            try:
+                with urllib.request.urlopen(req) as r: return json.loads(r.read())
+            except urllib.error.HTTPError as e: return {"status": e.code, **json.loads(e.read())}
+        g = hcall("/api/tickets", {"category": "sms", "phone": "09125555555", "body": "کد ورود برای من نمی‌آید"})
+        check(g.get("ok") and g.get("key"), f"[{mode}] تیکت مهمان ثبت شد")
+        gl = hcall("/api/tickets", headers={"x-ticket-keys": g["key"]})["items"]
+        check(len(gl) == 1 and gl[0]["messages"][-1]["sender"] == "auto", f"[{mode}] تیکت مهمان با کلید دیده می‌شود و پاسخ خودکار دارد")
+        check(hcall("/api/tickets")["items"] == [], f"[{mode}] بدون کلید تیکت دیگران دیده نمی‌شود")
+        c4 = ucall("/api/pay/start", {"plan": "weekly"})
+        utk = ucall("/api/tickets", {"category": "payment", "body": "واریز کردم", "image": png})
+        mine = ucall("/api/tickets")["items"]
+        tk = next((x for x in mine if x["id"] == utk.get("id")), {})
+        check(tk.get("payment_id") == c4.get("payment_id") and "رسید" in tk["messages"][-1]["body"], f"[{mode}] پیوست تیکت پرداخت، رسید پرداخت کارت‌به‌کارت شد")
+        at = call("/api/admin/tickets", tok=tok)["items"]
+        check(len(at) >= 2 and call("/api/admin/state", tok=tok)["tickets_unread"] >= 2, f"[{mode}] تیکت‌ها در پنل مدیریت")
+        call("/api/admin/ticket", {"id": g["id"], "body": "پیامک شما بررسی شد"}, tok)
+        gl = hcall("/api/tickets", headers={"x-ticket-keys": g["key"]})["items"]
+        check(gl[0]["status"] == "answered" and gl[0]["messages"][-1]["sender"] == "admin" and gl[0]["user_unread"], f"[{mode}] پاسخ مدیر به کاربر رسید")
+        mid = tk["messages"][0]["id"]
+        check(hcall(f"/api/ticket-img/{mid}").get("status") == 404, f"[{mode}] پیوست تیکت برای دیگران باز نمی‌شود")
         if True:
             # منبع دوم: شیپور (در دور mcp از طریق سرور واسط، در دور direct مستقیم)
             call("/api/admin/ingest", {"sheypoor": True, "sheypoor_mode": mode, "sheypoor_url": "http://127.0.0.1:8799/sheypoor/mcp"}, tok)

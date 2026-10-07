@@ -48,20 +48,20 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
       <aside class="side">
         <a class="brand" href="./" target="_blank"><svg class="brand__mark" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#fffdf9" fill-opacity=".08"/><path d="M10 31c4.5-3.4 9-3.4 13.5 0s9 3.4 13.5 0" stroke="#7fc7a6" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M14 25l10-10 10 10" stroke="#fffdf9" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="13" r="3.4" fill="#df5a2c"/></svg><span class="brand__txt"><b>${esc(S.site.name)}</b><small>پنل مدیریت</small></span></a>
-        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}</button>`).join("")}
+        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}${k === "support" && S.tickets_unread ? `<span class="badge">${fa(S.tickets_unread)}</span>` : ""}</button>`).join("")}
         <div class="side__foot"><a href="./" target="_blank">مشاهده سایت ↗</a><a href="#" id="logout">خروج</a></div>
       </aside>
       <main class="main" id="main"></main>
     </div>`;
     $$(".side [data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; location.hash = tab; load(); }));
     $("#logout").addEventListener("click", (e) => { e.preventDefault(); token = ""; sessionStorage.removeItem("ara-admin"); login(); });
-    ({ dash, ingest, valuation: valuationTab, excluded, users, billing, site, security }[tab] || dash)();
+    ({ dash, ingest, valuation: valuationTab, excluded, users, support, billing, site, security }[tab] || dash)();
     clearInterval(timer);
     if (tab === "dash" || tab === "ingest" || tab === "valuation") timer = setInterval(refreshLive, 15000);
   }
@@ -278,6 +278,46 @@
     $("#gf").addEventListener("submit", async (e) => { e.preventDefault(); try { await api("admin/grant", { phone: e.target.phone.value.trim(), plan: e.target.plan.value }); toast("فعال شد"); users(); } catch (err) { toast(err.message); } });
   }
 
+  /* ---------- پشتیبانی ---------- */
+  async function support() {
+    const st = sessionStorage.getItem("tk_filter") || "";
+    const r = await api("admin/tickets" + (st ? "?status=" + st : ""));
+    const sp = r.support, CAT = { payment: "پرداخت و اشتراک", sms: "پیامک و کد ورود", listing: "آگهی‌ها و قیمت‌ها", other: "سایر" };
+    main().innerHTML = `<h1>پشتیبانی و تیکت‌ها</h1><p class="muted">تیکت‌های کاربران؛ پیوست رسید تیکت‌های پرداخت، اگر کاربر پرداخت کارت‌به‌کارتِ در انتظار داشته باشد، خودکار به همان پرداخت وصل می‌شود و در «کاربران و پرداخت‌ها» برای تأیید می‌آید.</p>
+      <div class="panel"><div style="display:flex;gap:6px;flex-wrap:wrap">${[["", "همه"], ["open", "در انتظار پاسخ"], ["answered", "پاسخ داده شد"], ["closed", "بسته"]].map(([k, n]) => `<button class="btn btn--sm ${st === k ? "btn--ink" : "btn--line"}" data-f="${k}">${n}</button>`).join("")}</div></div>
+      ${r.items.length ? r.items.map((t) => `<div class="panel" style="${t.admin_unread && t.status !== "closed" ? "border-color:var(--hot, #df5a2c)" : ""}">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b>#${fa(t.id)} · ${esc(t.category_name)}</b><span dir="ltr">${esc(t.phone)}</span><span class="muted small">${when(t.created)}</span><span class="small">${esc(t.status_name)}</span>${t.payment_id ? `<span class="small">پرداخت #${fa(t.payment_id)}</span>` : ""}</div>
+        <div style="display:grid;gap:6px;margin:10px 0">${t.messages.map((m) => `<div style="background:var(--sunk, #f4f1ea);border-radius:10px;padding:8px 12px"><small class="muted">${m.sender === "user" ? "کاربر" : m.sender === "auto" ? "پاسخ خودکار" : "پشتیبانی"} · ${when(m.created)}</small><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.body || "")}</div>${m.has_image ? `<button class="btn btn--line btn--sm" data-img="${m.id}">نمایش پیوست</button>` : ""}</div>`).join("")}</div>
+        <form data-t="${t.id}" style="display:grid;gap:8px"><textarea class="input" rows="2" placeholder="پاسخ به کاربر" style="padding:8px 12px"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn--ink btn--sm" data-a="reply">ارسال پاسخ</button><button class="btn btn--line btn--sm" data-a="close">${t.status === "closed" ? "بازگشایی" : "پاسخ و بستن"}</button></div></form>
+      </div>`).join("") : `<div class="panel muted">تیکتی نیست.</div>`}
+      <form class="panel" id="spf"><h2>پاسخ خودکار</h2>
+        <label class="switch"><input type="checkbox" name="auto_reply" ${sp.auto_reply ? "checked" : ""}><i></i>به هر تیکت تازه بی‌درنگ پاسخ خودکار داده شود (پاسخ شما بعداً اضافه می‌شود)</label>
+        <div class="grid2" style="margin-top:12px">${Object.entries(CAT).map(([k, n]) => `<label class="field"><span>${n}</span><textarea class="input" name="t_${k}" rows="3" style="padding:8px 12px">${esc(sp.auto_text[k] || "")}</textarea></label>`).join("")}</div>
+        <button class="btn btn--hot" style="margin-top:10px">ذخیره</button></form>`;
+    $$("[data-f]").forEach((b) => b.addEventListener("click", () => { sessionStorage.setItem("tk_filter", b.dataset.f); support(); }));
+    $$("[data-img]").forEach((b) => b.addEventListener("click", async () => {
+      const res = await fetch("api/admin/ticket-img/" + b.dataset.img, { headers: { "x-admin-token": token } });
+      if (!res.ok) return toast("پیوست پیدا نشد");
+      window.open(URL.createObjectURL(await res.blob()), "_blank");
+    }));
+    $$("form[data-t]").forEach((f) => f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const a = e.submitter?.dataset.a || "reply", t = r.items.find((x) => x.id === +f.dataset.t);
+      const body = f.querySelector("textarea").value.trim();
+      if (a === "reply" && !body) return toast("متن پاسخ را بنویسید");
+      try {
+        await api("admin/ticket", { id: +f.dataset.t, body, close: a === "close" && t.status !== "closed", reopen: a === "close" && t.status === "closed" });
+        toast("ثبت شد"); S = await api("admin/state"); support();
+      } catch (err) { toast(err.message); }
+    }));
+    $("#spf").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      try { await api("admin/settings", { support: { auto_reply: f.auto_reply.checked, auto_text: Object.fromEntries(Object.keys(CAT).map((k) => [k, f["t_" + k].value.trim()])) } }); toast("ذخیره شد"); } catch (err) { toast(err.message); }
+    });
+  }
+
   /* ---------- اشتراک، درگاه و پیامک ---------- */
   function billing() {
     const b = S.billing, sm = S.sms;
@@ -300,7 +340,16 @@
         <label class="field"><span>نام دارندهٔ کارت</span><input class="input" name="card_holder" value="${esc(b.card_holder)}"></label>
         <label class="field"><span>بانک</span><input class="input" name="card_bank" value="${esc(b.card_bank)}"></label>
       </div>
-      <label class="switch" style="margin-top:10px"><input type="checkbox" name="card_auto_activate" ${b.card_auto_activate ? "checked" : ""}><i></i>اشتراک با ثبت رسید فوراً فعال شود (بررسی بعدی در «کاربران و پرداخت‌ها»)</label><br>
+      <div class="grid2" style="margin-top:10px">
+        <label class="field"><span>گام مبلغ یکتا (تومان)</span><input class="input" name="card_step" type="number" min="1" value="${b.card_step || 1000}"></label>
+        <label class="field"><span>حداکثر تعداد گام بالا و پایین قیمت</span><input class="input" name="card_span" type="number" min="1" max="1000" value="${b.card_span || 100}"></label>
+      </div>
+      <p class="hint">هر خریدار مبلغی یکتا می‌بیند تا واریزش در صورت‌حساب بانکی دقیق شناخته شود؛ با گام ۱۰۰۰ و قیمت ۵۰۰٬۰۰۰: ۵۰۰، ۴۹۹، ۵۰۱، ۴۹۸، ۵۰۲ هزار تومان و ... (نزدیک‌ترین مبلغ آزاد).</p>
+      <fieldset class="panel" style="margin-top:12px;padding:12px 16px"><legend style="font-weight:800">فعال‌سازی پس از ثبت رسید</legend>
+        <label class="switch"><input type="radio" name="card_mode" value="auto" ${b.card_auto_activate ? "checked" : ""}> خودکار: اشتراک با ثبت رسید فوراً باز می‌شود؛ شما بعداً رسید را با صورت‌حساب بانک تطبیق می‌دهید و در صورت رد، روزها پس گرفته می‌شود.</label><br>
+        <label class="switch" style="margin-top:8px"><input type="radio" name="card_mode" value="manual" ${b.card_auto_activate ? "" : "checked"}> دستی: اشتراک فقط پس از تأیید شما در «کاربران و پرداخت‌ها» باز می‌شود.</label>
+        <p class="hint">تأیید واقعی واریز بدون اتصال به سامانهٔ بانک ممکن نیست؛ «خودکار» یعنی اعتماد اولیه به رسید و بررسی بعدی. در هر دو حالت، اگر الگوی پیامک فعال‌سازی تعریف شده باشد، پیامک «دسترسی شما باز شد» ارسال می‌شود.</p>
+      </fieldset>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="sandbox" ${b.sandbox ? "checked" : ""}><i></i>محیط آزمایشی درگاه (Sandbox)</label><br><br>
       <label class="switch"><input type="checkbox" name="test_mode" ${b.test_mode ? "checked" : ""}><i></i>حالت آزمایشی پرداخت: اشتراک بدون پرداخت فعال شود</label>
       <p class="hint" style="color:var(--over)">حالت آزمایشی پرداخت فقط برای آزمون است؛ پیش از انتشار عمومی حتماً خاموشش کنید.</p></div>
@@ -311,7 +360,9 @@
         <label class="field" data-only="payamak"><span>نام کاربری پنل پیامک</span><input class="input input--ltr" name="username" value="${esc(sm.username || "")}"></label>
         <label class="field"><span data-only="payamak">رمز پنل یا کلید API</span><span data-only="kavenegar">کلید API</span><input class="input input--ltr" name="api_key" value="${esc(sm.api_key)}"></label>
         <label class="field"><span data-only="payamak">کد الگو (bodyId)</span><span data-only="kavenegar">نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}"></label>
+        <label class="field"><span data-only="payamak">کد الگوی پیامک فعال‌سازی (اختیاری)</span><span data-only="kavenegar">نام قالب پیامک فعال‌سازی (اختیاری)</span><input class="input input--ltr" name="notify_template" value="${esc(sm.notify_template || "")}"></label>
       </div>
+      <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت‌یاب برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (فقط روی همین رایانه، هرگز از اینترنت)</label>
       <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت‌یاب: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
       <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
@@ -325,8 +376,8 @@
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0,
-          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_auto_activate.checked, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
-        sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), dev_mode: f.dev_mode.checked },
+          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
+        sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), dev_mode: f.dev_mode.checked },
       };
       try { await api("admin/settings", body); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
     });
