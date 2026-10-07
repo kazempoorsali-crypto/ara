@@ -1033,7 +1033,7 @@ const App = (() => {
     document.title = `${l.title} | ${cfg.site.name}`;
     const cc = UI.cityOf(l.city_key), pos = l.latlng_exact || !cc ? [l.lat, l.lng] : [cc.lat, cc.lng];
     const mini = UI.makeMap($("#mini"), { center: pos, zoom: l.latlng_exact ? 14 : 12, wheel: false });
-    if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#0b6f79", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
+    if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#e0531f", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adShare").addEventListener("click", async () => {
