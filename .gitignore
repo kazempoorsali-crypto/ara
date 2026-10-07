@@ -1,2 +1,5 @@
 .arena/
 __pycache__/
+
+# Skill zips live on the separate skill-zips branch
+outputs/skill-zips/
