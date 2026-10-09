@@ -678,7 +678,6 @@ const App = (() => {
     }
 
     function dropdowns() {
-      const cityLabel = UI.cityOf(F.city)?.name || (F.province ? "استان " + UI.provOf(F.province).name : "همه شهرها");
       const priceSet = F.min || F.max;
       const priceLabel = priceSet ? [F.min && "از " + money(+F.min), F.max && "تا " + money(+F.max)].filter(Boolean).join(" ") : "قیمت";
       const kinds = (F.kinds || "").split(",").filter(Boolean);
