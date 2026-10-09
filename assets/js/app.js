@@ -81,6 +81,7 @@ const App = (() => {
     if (st) st.hidden = (st.dataset.hash || "#/").replace(/^#?\/?$/, "#/") !== (location.hash || "#/").replace(/^#?\/?$/, "#/");
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
+    setTimeout(applyScrollReveals, 100);
   }
   const go = (hash) => { location.hash = hash; };
   const toQuery = (f) => new URLSearchParams(Object.entries(f).filter(([, v]) => v !== "" && v != null && v !== 0 && v !== false)).toString();
@@ -1125,7 +1126,7 @@ const App = (() => {
           ${l.description ? `<section class="block"><h2>متن آگهی<small>نقل از آگهی اصلی</small></h2><blockquote class="quote">${esc(l.description).replace(/\n+/g, "<br>")}</blockquote><p class="quote-src">متن آگهی‌دهنده؛ این نوشتهٔ فروشنده است، نه حکم ${esc(cfg.site.name)}.</p></section>` : ""}
           <section class="block"><h2>امکانات</h2><ul class="amen-list">${amen}</ul><p class="small muted" style="margin-top:10px">امکانات از متن آگهی استخراج شده است؛ در بازدید تأیید کنید.</p></section>
           ${attrs.length ? `<section class="block"><h2>مشخصات</h2><div class="attrs">${attrs.map(([k, x]) => `<div><span>${esc(k)}</span><b>${UI.tt(x)}</b></div>`).join("")}</div></section>` : ""}
-          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap"><div class="minimap" id="mini"></div></div><p class="map-note">${l.latlng_exact ? "این موقعیت را آگهی‌دهنده روی نقشه ثبت کرده است." : "آگهی مختصات دقیق ندارد؛ دایره فقط محدودهٔ شهر را نشان می‌دهد، نه محل ملک."} موقعیت بر اساس اطلاعات ثبت‌شده توسط آگهی‌دهنده است و ممکن است دقیق نباشد؛ نشانی را پیش از بازدید از خود آگهی‌دهنده بپرسید.</p></section>
+          <section class="block"><h2>موقعیت تقریبی</h2><div class="minimap-wrap" style="position:relative"><div class="minimap" id="mini"></div><button class="minimap-expand-btn" id="openMapBtn" type="button" title="بزرگ‌نمایی نقشه"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> بزرگ‌نمایی نقشه</button></div><p class="map-note">${l.latlng_exact ? "این موقعیت را آگهی‌دهنده روی نقشه ثبت کرده است." : "آگهی مختصات دقیق ندارد؛ دایره فقط محدودهٔ شهر را نشان می‌دهد، نه محل ملک."} موقعیت بر اساس اطلاعات ثبت‌شده توسط آگهی‌دهنده است و ممکن است دقیق نباشد؛ نشانی را پیش از بازدید از خود آگهی‌دهنده بپرسید.</p></section>
           <section class="block"><h2>پیش از معامله</h2><ul class="check">${["دیدن اصل سند و تطبیق مشخصات با ملک", "استعلام وضعیت حقوقی، رهن و توقیف", "پایان‌کار و پروانه ساخت (ملک نوساز)", "بدهی عوارض، آب، برق و گاز", l.deal === "rent" ? "دریافت کد رهگیری اجاره‌نامه" : "تنظیم قرارداد با کد رهگیری"].map((x) => `<li>${x}</li>`).join("")}</ul></section>
           ${similarSection(l)}
         </div>
@@ -1149,6 +1150,8 @@ const App = (() => {
     const mini = UI.makeMap($("#mini"), { center: pos, zoom: l.latlng_exact ? 14 : 12, wheel: false });
     if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#e0531f", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
+    $("#openMapBtn")?.addEventListener("click", () => openMapModal(l, pos, cc));
+    $("#mini")?.addEventListener("dblclick", () => openMapModal(l, pos, cc));
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
     $("#adShare").addEventListener("click", async () => {
@@ -1159,92 +1162,329 @@ const App = (() => {
     $("#divarBtnM")?.addEventListener("click", paywall);
   }
 
+  /* ---------- بزرگ‌نمایی تصویر (لایت‌باکس با اسکرول کامل و مدیریت دکمه بازگشت) ---------- */
   function lightbox(l, i) {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [null, null, null, null, null];
     const n = imgs.length;
     let zoomLevel = 1;
+    let modalOpen = true;
+    let hasZoomHistory = false;
+
+    // ثبت در تاریخچه برای دکمه بازگشت مرورگر و موبایل (مشکل ۲)
+    history.pushState({ modal: "lightbox", adId: l.id, zoom: 1, idx: i }, "", location.hash);
+
     const el = document.createElement("div");
     el.className = "lightbox";
 
+    const close = (rewindHistory = true) => {
+      if (!modalOpen) return;
+      modalOpen = false;
+      window.removeEventListener("popstate", onPopState);
+      document.removeEventListener("keydown", onKeyDown);
+
+      if (rewindHistory) {
+        const steps = hasZoomHistory ? 2 : 1;
+        hasZoomHistory = false;
+        history.go(-steps);
+      }
+
+      el.classList.add("is-closing");
+      setTimeout(() => el.remove(), 200);
+    };
+
+    // مدیریت رویداد دکمه بازگشت مرورگر و موبایل (مشکل ۲)
+    const onPopState = (e) => {
+      if (!modalOpen) return;
+      // اگر در حالت زوم بودیم، دکمه بازگشت ابتدا زوم را ریست می‌کند
+      if (zoomLevel > 1) {
+        hasZoomHistory = false;
+        setZoom(1, false);
+        return;
+      }
+      // در اندازه عادی، لایت‌باکس بسته شده و کاربر به صفحه برمی‌گردد
+      modalOpen = false;
+      close(false);
+    };
+    window.addEventListener("popstate", onPopState);
+
+    const setZoom = (targetZoom, syncHistory = true) => {
+      const clamped = Math.max(1, Math.min(4, +(targetZoom).toFixed(2)));
+      if (clamped === zoomLevel) return;
+
+      const prevZoom = zoomLevel;
+      zoomLevel = clamped;
+
+      if (syncHistory) {
+        if (prevZoom === 1 && zoomLevel > 1 && !hasZoomHistory) {
+          hasZoomHistory = true;
+          history.pushState({ modal: "lightbox", adId: l.id, zoom: zoomLevel, idx: i }, "", location.hash);
+        } else if (prevZoom > 1 && zoomLevel === 1 && hasZoomHistory) {
+          hasZoomHistory = false;
+          history.back();
+        }
+      }
+
+      applyZoomLayout();
+    };
+
+    const applyZoomLayout = () => {
+      const vp = el.querySelector("#lbVp");
+      const stage = el.querySelector("#lbStage");
+      const canvas = el.querySelector("#lbCanvas");
+      const zoomVal = el.querySelector("#lbZoomVal");
+      if (zoomVal) zoomVal.textContent = fa(Math.round(zoomLevel * 100)) + "٪";
+
+      if (!vp || !stage || !canvas) return;
+
+      if (zoomLevel <= 1) {
+        vp.style.cursor = "zoom-in";
+        stage.style.width = "";
+        stage.style.height = "";
+        canvas.style.minWidth = "100%";
+        canvas.style.minHeight = "100%";
+        const imgEl = stage.querySelector("img, svg");
+        if (imgEl) {
+          imgEl.style.width = "";
+          imgEl.style.height = "";
+          imgEl.style.maxWidth = "90vw";
+          imgEl.style.maxHeight = "calc(100vh - 140px)";
+        }
+        vp.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+      } else {
+        vp.style.cursor = "grab";
+        // ابعاد مبنای صفحه برای محاسبه اسکیل فیزیکی محتوا جهت پدیدار شدن اسکرول‌بار واقعی
+        const baseW = Math.min(window.innerWidth * 0.9, 1080);
+        const baseH = Math.min(window.innerHeight - 140, 720);
+        const scaledW = Math.round(baseW * zoomLevel);
+        const scaledH = Math.round(baseH * zoomLevel);
+
+        stage.style.width = scaledW + "px";
+        stage.style.height = scaledH + "px";
+        canvas.style.minWidth = (scaledW + 60) + "px";
+        canvas.style.minHeight = (scaledH + 60) + "px";
+
+        const imgEl = stage.querySelector("img, svg");
+        if (imgEl) {
+          imgEl.style.width = "100%";
+          imgEl.style.height = "100%";
+          imgEl.style.maxWidth = "none";
+          imgEl.style.maxHeight = "none";
+        }
+
+        // تمرکز هوشمند روی مرکز تصویر پس از زوم
+        setTimeout(() => {
+          const targetX = Math.max(0, (vp.scrollWidth - vp.clientWidth) / 2);
+          const targetY = Math.max(0, (vp.scrollHeight - vp.clientHeight) / 2);
+          vp.scrollTo({ left: targetX, top: targetY, behavior: "smooth" });
+        }, 40);
+      }
+    };
+
     const draw = () => {
       el.innerHTML = `
-        <div class="lightbox__viewport" id="lbVp" style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 84px);width:100vw;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;cursor:${zoomLevel > 1 ? "grab" : "zoom-in"};padding:30px;box-sizing:border-box">
-          <div id="lbWrap" style="transform:scale(${zoomLevel});transform-origin:center center;transition:transform 0.15s ease;display:flex;align-items:center;justify-content:center;min-width:max-content;min-height:max-content;user-select:none;touch-action:pan-x pan-y">
-            ${UI.media(l, i)}
+        <div class="lightbox__viewport" id="lbVp">
+          <div class="lightbox__canvas" id="lbCanvas">
+            <div class="lightbox__stage" id="lbStage">
+              ${UI.media(l, i, "lb-active-img")}
+            </div>
           </div>
         </div>
         <div class="lightbox__bar">
-          <button class="btn btn--line btn--sm" data-d="-1">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
+          <button class="btn btn--line btn--sm" data-d="-1" title="تصویر قبلی">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
           <span style="font-size:13px;font-weight:700">${fa(i + 1)} از ${fa(n)}</span>
-          <button class="btn btn--line btn--sm" data-d="1">بعدی ${icon("arrow")}</button>
+          <button class="btn btn--line btn--sm" data-d="1" title="تصویر بعدی">بعدی ${icon("arrow")}</button>
           <div style="display:inline-flex;gap:4px;margin-inline:10px;align-items:center">
             <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">＋ زوم</button>
             <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">－ کوچک</button>
-            <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه">${fa(Math.round(zoomLevel * 100))}٪</button>
+            <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه"><span id="lbZoomVal">${fa(Math.round(zoomLevel * 100))}٪</span></button>
           </div>
-          <button class="btn btn--line btn--sm" data-x>✕ بستن</button>
+          <button class="btn btn--line btn--sm" data-x title="بستن">✕ بستن</button>
         </div>`;
-      bindDragPan();
+
+      bindEvents();
+      applyZoomLayout();
     };
 
-    const bindDragPan = () => {
+    const bindEvents = () => {
       const vp = el.querySelector("#lbVp");
       if (!vp) return;
-      let isDown = false, sX, sY, sLeft, sTop;
+
+      // پیمایش و کشیدن تصویر با ماوس (Drag / Pan)
+      let isDragging = false;
+      let startX, startY, startScrollX, startScrollY;
+
       vp.addEventListener("mousedown", (e) => {
-        if (zoomLevel <= 1 || e.target.closest("button")) return;
-        isDown = true;
+        if (zoomLevel <= 1 || e.target.closest("button") || e.target.closest(".lightbox__bar")) return;
+        isDragging = true;
         vp.style.cursor = "grabbing";
-        sX = e.pageX - vp.offsetLeft;
-        sY = e.pageY - vp.offsetTop;
-        sLeft = vp.scrollLeft;
-        sTop = vp.scrollTop;
+        startX = e.clientX;
+        startY = e.clientY;
+        startScrollX = vp.scrollLeft;
+        startScrollY = vp.scrollTop;
       });
-      vp.addEventListener("mouseleave", () => { isDown = false; if (zoomLevel > 1) vp.style.cursor = "grab"; });
-      vp.addEventListener("mouseup", () => { isDown = false; if (zoomLevel > 1) vp.style.cursor = "grab"; });
-      vp.addEventListener("mousemove", (e) => {
-        if (!isDown) return;
+
+      window.addEventListener("mouseup", () => {
+        if (isDragging) {
+          isDragging = false;
+          if (zoomLevel > 1) vp.style.cursor = "grab";
+        }
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDragging || zoomLevel <= 1) return;
         e.preventDefault();
-        const x = e.pageX - vp.offsetLeft;
-        const y = e.pageY - vp.offsetTop;
-        vp.scrollLeft = sLeft - (x - sX) * 1.5;
-        vp.scrollTop = sTop - (y - sY) * 1.5;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        vp.scrollLeft = startScrollX - dx;
+        vp.scrollTop = startScrollY - dy;
       });
+
+      // بزرگ‌نمایی دو انگشتی (Pinch to zoom) روی موبایل
+      let touchDistanceStart = 0;
+      let touchZoomStart = 1;
+      vp.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          touchDistanceStart = Math.hypot(dx, dy);
+          touchZoomStart = zoomLevel;
+        }
+      }, { passive: true });
+
+      vp.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2 && touchDistanceStart > 0) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const currentDist = Math.hypot(dx, dy);
+          const ratio = currentDist / touchDistanceStart;
+          setZoom(touchZoomStart * ratio);
+        }
+      }, { passive: true });
     };
 
-    const close = () => { el.remove(); document.removeEventListener("keydown", key); };
-    const key = (e) => {
-      if (e.key === "Escape") close();
-      if (e.key === "ArrowLeft") { i = (i + 1) % n; zoomLevel = 1; draw(); }
-      if (e.key === "ArrowRight") { i = (i - 1 + n) % n; zoomLevel = 1; draw(); }
-      if (e.key === "+" || e.key === "=") { zoomLevel = Math.min(3.5, +(zoomLevel + 0.3).toFixed(1)); draw(); }
-      if (e.key === "-") { zoomLevel = Math.max(1, +(zoomLevel - 0.3).toFixed(1)); draw(); }
-    };
+    const onKeyDown = (e) => {
+      const vp = el.querySelector("#lbVp");
+      if (e.key === "Escape") { close(); e.preventDefault(); return; }
+      if (e.key === "+" || e.key === "=") { setZoom(zoomLevel + 0.35); e.preventDefault(); return; }
+      if (e.key === "-") { setZoom(zoomLevel - 0.35); e.preventDefault(); return; }
 
-    draw();
+      // اسکرول با کلیدهای جهت‌نما در حالت زوم (مشکل ۱)
+      if (zoomLevel > 1 && vp) {
+        if (e.key === "ArrowUp") { vp.scrollBy({ top: -80, behavior: "smooth" }); e.preventDefault(); }
+        else if (e.key === "ArrowDown") { vp.scrollBy({ top: 80, behavior: "smooth" }); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { vp.scrollBy({ left: -80, behavior: "smooth" }); e.preventDefault(); }
+        else if (e.key === "ArrowRight") { vp.scrollBy({ left: 80, behavior: "smooth" }); e.preventDefault(); }
+      } else {
+        if (e.key === "ArrowLeft") { i = (i + 1) % n; zoomLevel = 1; draw(); }
+        else if (e.key === "ArrowRight") { i = (i - 1 + n) % n; zoomLevel = 1; draw(); }
+      }
+    };
 
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (b?.dataset.d) { i = (i + +b.dataset.d + n) % n; zoomLevel = 1; draw(); }
-      else if (b?.dataset.zoom === "in") { zoomLevel = Math.min(3.5, +(zoomLevel + 0.4).toFixed(1)); draw(); }
-      else if (b?.dataset.zoom === "out") { zoomLevel = Math.max(1, +(zoomLevel - 0.4).toFixed(1)); draw(); }
-      else if (b?.dataset.zoom === "reset") { zoomLevel = 1; draw(); }
-      else if (b?.hasAttribute("data-x") || e.target.id === "lbVp" || e.target === el) close();
-      else if (e.target.closest("#lbWrap")) {
-        zoomLevel = zoomLevel === 1 ? 2.2 : 1;
+      if (b?.dataset.d) {
+        i = (i + +b.dataset.d + n) % n;
+        zoomLevel = 1;
         draw();
+      } else if (b?.dataset.zoom === "in") {
+        setZoom(zoomLevel + 0.4);
+      } else if (b?.dataset.zoom === "out") {
+        setZoom(zoomLevel - 0.4);
+      } else if (b?.dataset.zoom === "reset") {
+        setZoom(1);
+      } else if (b?.hasAttribute("data-x") || e.target.id === "lbVp" || e.target.id === "lbCanvas") {
+        close();
+      } else if (e.target.closest("#lbStage")) {
+        setZoom(zoomLevel === 1 ? 2.2 : 1);
       }
     });
 
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
-      if (e.deltaY < 0) zoomLevel = Math.min(3.5, +(zoomLevel + 0.25).toFixed(2));
-      else zoomLevel = Math.max(1, +(zoomLevel - 0.25).toFixed(2));
-      draw();
+      if (e.deltaY < 0) setZoom(zoomLevel + 0.25);
+      else setZoom(zoomLevel - 0.25);
     }, { passive: false });
 
-    document.addEventListener("keydown", key);
+    document.addEventListener("keydown", onKeyDown);
     document.body.appendChild(el);
+    draw();
+  }
+
+  /* ---------- مدال نقشه تعاملی با کنترل کامل زوم، اسکرول و دکمه بازگشت ---------- */
+  function openMapModal(l, pos, cc) {
+    let modalOpen = true;
+    history.pushState({ modal: "map", adId: l.id }, "", location.hash);
+
+    const el = document.createElement("div");
+    el.className = "lightbox lightbox--map";
+    el.innerHTML = `
+      <div class="lightbox__viewport" style="display:flex;flex-direction:column;height:calc(100vh - 76px);width:100vw;position:relative;overflow:hidden;padding:0">
+        <div id="fullMapModal" style="width:100%;height:100%"></div>
+        <div class="map-hud-overlay">
+          <div class="map-hud-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${esc(l.title)}</div>
+          <div class="map-hud-actions">
+            <button class="btn btn--line btn--sm" id="hudZoomIn" title="بزرگ‌نمایی">＋ زوم</button>
+            <button class="btn btn--line btn--sm" id="hudZoomOut" title="کوچک‌نمایی">－ کوچک</button>
+            <button class="btn btn--line btn--sm" id="hudReset" title="مرکز موقعیت">⌖ مرکز</button>
+          </div>
+        </div>
+      </div>
+      <div class="lightbox__bar">
+        <span style="font-size:13.5px;font-weight:700">${esc(l.city_name || (cc && cc.name) || "نقشه موقعیت ملک")}</span>
+        <div style="display:inline-flex;gap:6px;align-items:center">
+          <button class="btn btn--line btn--sm" id="barZoomIn">＋ زوم</button>
+          <button class="btn btn--line btn--sm" id="barZoomOut">－ کوچک</button>
+          <button class="btn btn--line btn--sm" id="barReset">⌖ مرکز</button>
+        </div>
+        <button class="btn btn--line btn--sm" id="barClose">✕ بستن</button>
+      </div>`;
+
+    const close = (rewindHistory = true) => {
+      if (!modalOpen) return;
+      modalOpen = false;
+      window.removeEventListener("popstate", onPopState);
+      document.removeEventListener("keydown", onKeyDown);
+      if (rewindHistory) history.back();
+      el.classList.add("is-closing");
+      setTimeout(() => el.remove(), 200);
+    };
+
+    const onPopState = () => {
+      if (!modalOpen) return;
+      modalOpen = false;
+      close(false);
+    };
+    window.addEventListener("popstate", onPopState);
+
+    let map = null;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") { close(); e.preventDefault(); return; }
+      if (!map) return;
+      if (e.key === "ArrowUp") { map.panBy([0, -80]); e.preventDefault(); }
+      else if (e.key === "ArrowDown") { map.panBy([0, 80]); e.preventDefault(); }
+      else if (e.key === "ArrowLeft") { map.panBy([-80, 0]); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { map.panBy([80, 0]); e.preventDefault(); }
+      else if (e.key === "+" || e.key === "=") { map.zoomIn(); e.preventDefault(); }
+      else if (e.key === "-") { map.zoomOut(); e.preventDefault(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    document.body.appendChild(el);
+
+    const mapEl = el.querySelector("#fullMapModal");
+    map = UI.makeMap(mapEl, { center: pos, zoom: l.latlng_exact ? 15 : 13, scrollWheelZoom: true, dragging: true });
+    if (map) {
+      L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#e0531f", weight: 2.5, fillOpacity: 0.15, dashArray: l.latlng_exact ? null : "6 6" }).addTo(map);
+      L.marker(pos).addTo(map).bindPopup(`<b>${esc(l.title)}</b><br>${money(l.price || l.deposit)} تومان`).openPopup();
+    }
+
+    el.querySelector("#hudZoomIn")?.addEventListener("click", () => map?.zoomIn());
+    el.querySelector("#hudZoomOut")?.addEventListener("click", () => map?.zoomOut());
+    el.querySelector("#hudReset")?.addEventListener("click", () => map?.setView(pos, l.latlng_exact ? 15 : 13));
+    el.querySelector("#barZoomIn")?.addEventListener("click", () => map?.zoomIn());
+    el.querySelector("#barZoomOut")?.addEventListener("click", () => map?.zoomOut());
+    el.querySelector("#barReset")?.addEventListener("click", () => map?.setView(pos, l.latlng_exact ? 15 : 13));
+    el.querySelector("#barClose")?.addEventListener("click", () => close());
   }
 
   /* ---------- ذخیره‌شده‌ها ---------- */
@@ -1466,7 +1706,18 @@ const App = (() => {
     const d = $("#dlg");
     $("#dlgBody").innerHTML = html;
     d.className = "dlg" + (wide ? " dlg--wide" : "");
-    if (!d.open) d.showModal();
+    if (!d.open) {
+      history.pushState({ modal: "dialog" }, "", location.hash);
+      d.showModal();
+      const onPop = () => {
+        if (d.open) d.close();
+        window.removeEventListener("popstate", onPop);
+      };
+      window.addEventListener("popstate", onPop);
+      d.addEventListener("close", () => {
+        window.removeEventListener("popstate", onPop);
+      }, { once: true });
+    }
   }
 
   /* ---------- دستیار ---------- */
@@ -1550,6 +1801,72 @@ const App = (() => {
 
   /* ---------- رویدادهای سراسری ---------- */
   function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+  /* ---------- انیمیشن ورود تدریجی و تعاملات بصری (مشکل ۳) ---------- */
+  function applyScrollReveals() {
+    if (!("IntersectionObserver" in window)) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+
+    document.querySelectorAll(".card, .block, .section, .strip > div, .trust__item, .how__card, .hero__grid > *").forEach((elem) => {
+      if (!elem.classList.contains("reveal-on-scroll")) {
+        elem.classList.add("reveal-on-scroll");
+        obs.observe(elem);
+      }
+    });
+  }
+
+  function initCustomCursor() {
+    if (!window.matchMedia || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (document.querySelector(".cur-dot")) return;
+
+    const dot = document.createElement("div");
+    dot.className = "cur-dot";
+    const ring = document.createElement("div");
+    ring.className = "cur-ring";
+    document.body.appendChild(dot);
+    document.body.appendChild(ring);
+
+    let mouseX = -100, mouseY = -100;
+    let ringX = -100, ringY = -100;
+    let isHovering = false;
+
+    window.addEventListener("mousemove", (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
+    }, { passive: true });
+
+    document.addEventListener("mousedown", () => ring.classList.add("is-down"));
+    document.addEventListener("mouseup", () => ring.classList.remove("is-down"));
+
+    const checkHover = (e) => {
+      const target = e.target;
+      const interactive = target && target.closest("a, button, [role=button], .card, .atag, .vtab, input, select");
+      if (interactive && !isHovering) {
+        isHovering = true;
+        ring.classList.add("is-hover");
+      } else if (!interactive && isHovering) {
+        isHovering = false;
+        ring.classList.remove("is-hover");
+      }
+    };
+    document.addEventListener("mouseover", checkHover, { passive: true });
+
+    function renderCursor() {
+      ringX += (mouseX - ringX) * 0.18;
+      ringY += (mouseY - ringY) * 0.18;
+      ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
+      requestAnimationFrame(renderCursor);
+    }
+    requestAnimationFrame(renderCursor);
+  }
+
   function bindGlobal() {
     const top = document.querySelector(".top");
     // نوار جست‌وجوی جمع‌شونده و اندازهٔ نقشه بر پایهٔ ارتفاع واقعی نوارها
@@ -1604,6 +1921,7 @@ const App = (() => {
     });
     document.addEventListener("keydown", (e) => { if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); ($("#heroQ") || $("#sqInput"))?.focus(); } });
     ai.bind();
+    initCustomCursor();
   }
 
   document.addEventListener("DOMContentLoaded", boot);

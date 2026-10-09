@@ -1034,18 +1034,101 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   backdrop-filter: blur(8px);
 }
 
-/* اسکرول و جابجایی روان در حالت زوم لایت‌باکس */
+/* اسکرول و جابجایی روان در حالت زوم لایت‌باکس با نوار اسکرول کاملاً مشخص و روان */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(5, 9, 8, 0.94);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  animation: lbFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.lightbox.is-closing {
+  animation: lbFadeOut 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes lbFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes lbFadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
+}
+
 .lightbox__viewport {
   width: 100vw !important;
-  height: calc(100vh - 84px) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  height: calc(100vh - 74px) !important;
+  display: block !important;
   overflow: auto !important;
   overscroll-behavior: contain !important;
   -webkit-overflow-scrolling: touch !important;
-  padding: 24px !important;
+  padding: 16px !important;
   box-sizing: border-box !important;
+  position: relative !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--narenj, #e0531f) rgba(255, 255, 255, 0.08) !important;
+}
+
+/* نوار اسکرول واضح و ارگونومیک برای حرکت در تصویر بزرگ‌شده و نقشه */
+.lightbox__viewport::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+.lightbox__viewport::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.55) !important;
+  border-radius: 8px !important;
+  margin: 6px !important;
+}
+.lightbox__viewport::-webkit-scrollbar-thumb {
+  background: var(--narenj, #e0531f) !important;
+  border-radius: 8px !important;
+  border: 2px solid rgba(0, 0, 0, 0.35) !important;
+}
+.lightbox__viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--narenj-2, #c0410f) !important;
+}
+
+.lightbox__canvas {
+  min-width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 20px;
+}
+.lightbox__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.22s var(--ease), height 0.22s var(--ease);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lightbox__stage img,
+.lightbox__stage svg {
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  display: block;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: rgba(18, 33, 29, 0.88);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  z-index: 10;
 }
 
 /* برچسب‌های فیلترهای انتخابی زیر کادرهای صفحه اصلی */
@@ -1188,4 +1271,212 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+
+/* ==========================================================
+   طراحی پیشرفته، انیمیشن‌ها و ترفندهای جذابیت بصری
+   ========================================================== */
+
+/* ۱. دکمه بزرگ‌نمایی نقشه و کنترل‌های هدایت نقشه */
+.minimap-wrap {
+  position: relative !important;
+}
+.minimap-expand-btn {
+  position: absolute !important;
+  bottom: 12px !important;
+  left: 12px !important;
+  z-index: 400 !important;
+  background: var(--surface, #ffffff) !important;
+  color: var(--forest, #1d4a3c) !important;
+  border: 1.5px solid var(--forest, #1d4a3c) !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  cursor: pointer !important;
+  transition: transform 0.2s var(--ease), background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.minimap-expand-btn:hover {
+  background: var(--forest, #1d4a3c) !important;
+  color: var(--on-dark, #fffdf9) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+}
+.minimap-expand-btn:active {
+  transform: translateY(1px) scale(0.98) !important;
+}
+
+.map-hud-overlay {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  left: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 400;
+  pointer-events: none;
+}
+.map-hud-title {
+  background: rgba(18, 33, 29, 0.9);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 800;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.map-hud-actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+/* ۲. هاله و جلوه نوری جذاب در پس‌زمینه هدر و بخش Hero */
+.hero {
+  position: relative !important;
+  isolation: isolate !important;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -40px -25px -25px -25px;
+  background: radial-gradient(circle at 82% 22%, rgba(224, 83, 31, 0.10), transparent 50%),
+              radial-gradient(circle at 18% 68%, rgba(29, 74, 60, 0.12), transparent 52%);
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(40px);
+  animation: heroPulse 16s ease-in-out infinite alternate;
+  border-radius: 40px;
+}
+@keyframes heroPulse {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.85; }
+  100% { transform: scale(1.05) translate(-12px, 14px); opacity: 1; }
+}
+
+/* ۳. انیمیشن ورود تدریجی بخش‌ها و کارت‌ها هنگام اسکرول (Scroll Reveal) */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.62s cubic-bezier(0.16, 1, 0.3, 1), transform 0.62s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.cards > .card:nth-child(1) { transition-delay: 0.03s; }
+.cards > .card:nth-child(2) { transition-delay: 0.06s; }
+.cards > .card:nth-child(3) { transition-delay: 0.09s; }
+.cards > .card:nth-child(4) { transition-delay: 0.12s; }
+.cards > .card:nth-child(5) { transition-delay: 0.15s; }
+.cards > .card:nth-child(6) { transition-delay: 0.18s; }
+
+/* ۴. تعاملات روان هاور و کلیک روی کارت‌ها و دکمه‌ها */
+.card {
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.28s ease !important;
+  will-change: transform, box-shadow;
+}
+.card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 16px 36px -12px rgba(19, 32, 28, 0.18) !important;
+  border-color: rgba(29, 74, 60, 0.35) !important;
+}
+
+.btn, .vtab, .chip, .icon-btn, .atag, .seg button {
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.btn:hover, .vtab:hover, .atag:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(19, 32, 28, 0.1);
+}
+.btn:active, .vtab:active, .atag:active, .seg button:active {
+  transform: translateY(1px) scale(0.98) !important;
+}
+
+/* ۵. نشانگر ماوس سفارشی لوکس و نامحسوس روی دسکتاپ */
+.cur-dot {
+  position: fixed;
+  top: -4px;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--narenj, #e0531f);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99999;
+  will-change: transform;
+}
+.cur-ring {
+  position: fixed;
+  top: -18px;
+  left: -18px;
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid rgba(224, 83, 31, 0.5);
+  background: rgba(224, 83, 31, 0.03);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99998;
+  will-change: transform, width, height, border-color, background;
+  transition: width 0.22s var(--ease), height 0.22s var(--ease), border-color 0.22s var(--ease), background 0.22s var(--ease);
+}
+.cur-ring.is-hover {
+  top: -26px;
+  left: -26px;
+  width: 52px;
+  height: 52px;
+  border-color: var(--forest, #1d4a3c);
+  background: rgba(29, 74, 60, 0.07);
+}
+.cur-ring.is-down {
+  transform: scale(0.85);
+}
+
+/* ۶. بارگذاری تدریجی با افکت Blur-up روی تصاویر */
+.img-blur-load {
+  filter: blur(8px);
+  transform: scale(1.02);
+  transition: filter 0.4s ease, transform 0.4s ease;
+  will-change: filter, transform;
+}
+.img-blur-load.is-loaded {
+  filter: blur(0);
+  transform: scale(1);
+}
+
+/* ۷. افکت شیشه‌ای (Glassmorphism) */
+#top.is-scrolled {
+  background: rgba(243, 245, 242, 0.88) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(219, 225, 216, 0.6) !important;
+}
+
+/* ۸. پشتیبانی از کاهش حرکت برای دسترسی‌پذیری کامل (prefers-reduced-motion) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .hero::before { animation: none !important; }
+  .cur-dot, .cur-ring { display: none !important; }
+  .reveal-on-scroll { opacity: 1 !important; transform: none !important; }
+}
+
+@media (pointer: coarse) {
+  .cur-dot, .cur-ring { display: none !important; }
 }

@@ -99,7 +99,7 @@ const UI = (() => {
   const imgSrc = (u) => (DataLayer.server && /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "img?u=" + encodeURIComponent(u) : u);
   function media(l, i = 0, cls = "") {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
-    if (imgs[i]) return `<img src="${esc(imgSrc(imgs[i]))}" alt="${esc(l.title)}" loading="lazy" referrerpolicy="no-referrer" class="${cls}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:UI.scene(${esc(JSON.stringify({ id: l.id, title: l.title, scene: l.scene || (l.vertical === "car" ? "road" : "city"), kind: l.kind, vertical: l.vertical, amenities: l.amenities }))},${i})}).firstChild)">`;
+    if (imgs[i]) return `<img src="${esc(imgSrc(imgs[i]))}" alt="${esc(l.title)}" loading="lazy" referrerpolicy="no-referrer" class="${cls} img-blur-load" onload="this.classList.add('is-loaded')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:UI.scene(${esc(JSON.stringify({ id: l.id, title: l.title, scene: l.scene || (l.vertical === "car" ? "road" : "city"), kind: l.kind, vertical: l.vertical, amenities: l.amenities }))},${i})}).firstChild)">`;
     return scene({ ...l, scene: l.scene || (l.vertical === "car" ? "road" : "city") }, i);
   }
 
@@ -213,7 +213,9 @@ const UI = (() => {
     if (!window.L) { el.innerHTML = '<p class="muted" style="padding:40px;text-align:center">نقشه در دسترس نیست.</p>'; return null; }
     // چرخ موس و کشیدن تک‌انگشتی صفحه را پیمایش می‌کنند، نه نقشه را؛ بزرگ‌نمایی با Ctrl + چرخ، دکمه‌های + و − یا دو انگشت
     const touch = window.matchMedia && matchMedia("(pointer: coarse)").matches;
-    const map = L.map(el, { zoomControl: true, scrollWheelZoom: false, dragging: !touch, tap: false, attributionControl: true }).setView(opts.center || [36.9, 52.2], opts.zoom || 7);
+    const isDragging = opts.dragging !== undefined ? opts.dragging : !touch;
+    const isWheel = opts.scrollWheelZoom !== undefined ? opts.scrollWheelZoom : false;
+    const map = L.map(el, { zoomControl: opts.zoomControl !== undefined ? opts.zoomControl : true, scrollWheelZoom: isWheel, dragging: isDragging, keyboard: true, keyboardPanDelta: 80, tap: false, attributionControl: true }).setView(opts.center || [36.9, 52.2], opts.zoom || 7);
     let hintT = null;
     const hint = (txt) => {
       let h = el.querySelector(".map-hint");
