@@ -99,11 +99,17 @@ const DataLayer = (() => {
     const rooms = f.rooms !== undefined && f.rooms !== "" ? String(f.rooms).split(",").filter((x) => x !== "").map(Number) : null;
     return SAMPLE_LISTINGS.filter((l) => {
       if (l.excluded && !(f.sus && l.label === "sus")) return false;
-      if (f.city) {
+      if (f.city && f.province) {
+        const cks = String(f.city).split(",").map(x => x.trim()).filter(Boolean);
+        const pks = String(f.province).split(",").map(x => x.trim()).filter(Boolean);
+        if (!cks.includes(l.city_key) && !pks.includes(l.province)) return false;
+      } else if (f.city) {
         const cks = String(f.city).split(",").map(x => x.trim()).filter(Boolean);
         if (cks.length && !cks.includes(l.city_key)) return false;
+      } else if (f.province) {
+        const pks = String(f.province).split(",").map(x => x.trim()).filter(Boolean);
+        if (pks.length && !pks.includes(l.province)) return false;
       }
-      if (!f.city && f.province && l.province !== f.province) return false;
       if (ds && !ds.includes((l.district || "").replace(/[\s‌]/g, ""))) return false;
       if (f.deal && l.deal !== f.deal) return false;
       if (f.settle && l.settlement !== f.settle) return false;

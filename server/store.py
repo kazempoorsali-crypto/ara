@@ -218,14 +218,22 @@ class Store:
             where.append(cond)
             args.extend(a)
 
-        if f.get("city"):
+        if f.get("city") and f.get("province"):
+            cities = [c.strip() for c in str(f["city"]).split(",") if c.strip()]
+            provinces = [p.strip() for p in str(f["province"]).split(",") if p.strip()]
+            add(f"(city_key IN ({','.join('?' * len(cities))}) OR province IN ({','.join('?' * len(provinces))}))", *cities, *provinces)
+        elif f.get("city"):
             cities = [c.strip() for c in str(f["city"]).split(",") if c.strip()]
             if len(cities) == 1:
                 add("city_key=?", cities[0])
             elif len(cities) > 1:
                 add(f"city_key IN ({','.join('?' * len(cities))})", *cities)
         elif f.get("province"):
-            add("province=?", f["province"])
+            provinces = [p.strip() for p in str(f["province"]).split(",") if p.strip()]
+            if len(provinces) == 1:
+                add("province=?", provinces[0])
+            elif len(provinces) > 1:
+                add(f"province IN ({','.join('?' * len(provinces))})", *provinces)
         if f.get("deal"):
             add("deal=?", f["deal"])
         if f.get("kinds"):

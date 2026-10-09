@@ -1033,3 +1033,73 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
 }
+
+/* اسکرول و جابجایی روان در حالت زوم لایت‌باکس */
+.lightbox__viewport {
+  width: 100vw !important;
+  height: calc(100vh - 84px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+}
+
+/* برچسب‌های فیلترهای انتخابی زیر کادرهای صفحه اصلی */
+#hTags .atag {
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#hTags .atag:hover {
+  border-color: var(--over);
+  color: var(--over);
+}
+
+
+/* هماهنگی و تراز طول سطرها (Text Justification) در سراسر بخش‌های متنی و توضیحی */
+.quote,
+.quote-src,
+.agent__note,
+.foot__legal span,
+.note-soft,
+.why__col,
+.why__col p,
+.why__col ul,
+.why__col li,
+.why__market-reasons li,
+.map-note,
+.pid__foot,
+.faq details p,
+.method p,
+.method .lead,
+.seo-text p,
+.seo-text li,
+.check li,
+.contact span,
+.card__snippet,
+.tmsg p,
+.ticket__reply p {
+  text-align: justify;
+  text-justify: inter-word;
+  text-align-last: start;
+  line-height: 1.85;
+}
+
+.why__col ul,
+.why__market-reasons {
+  text-align: justify;
+  text-justify: inter-word;
+}

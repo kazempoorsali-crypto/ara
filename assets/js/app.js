@@ -106,10 +106,11 @@ const App = (() => {
               </div>
             </div>
             <div class="loc-row" aria-label="انتخاب محدوده">
-              <label class="loc-row__f"><span>استان</span><div id="hProv"></div></label>
-              <label class="loc-row__f"><span>شهر</span><div id="hCity"></div></label>
+              <label class="loc-row__f"><span>استان (چند انتخابی)</span><div id="hProv"></div></label>
+              <label class="loc-row__f"><span>شهر (چند انتخابی)</span><div id="hCity"></div></label>
               <label class="loc-row__f"><span>محله</span><div id="hDist"></div></label>
             </div>
+            <div class="atags" id="hTags" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
             <label class="loc-opp"><input type="checkbox" id="hOpp" checked> فقط فرصت‌های زیر قیمت محله</label>
             <div class="search-row">
               <span class="search-row__ai">${icon("spark")}</span>
@@ -177,32 +178,47 @@ const App = (() => {
       const { tags } = v.length > 2 ? NLP.parseQuery(v) : { tags: [] };
       $("#heroParsed").innerHTML = tags.length ? `<span>برداشت:</span>${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join("")}` : "";
     });
+    const H = { provs: [], cities: [], dist: "" };
+    const drawHTags = () => {
+      const el = $("#hTags");
+      if (!el) return;
+      const tags = [];
+      H.provs.forEach((p) => tags.push({ k: "prov", id: p, label: "استان " + (PROVINCES.find((x) => x.id === p)?.name || p) }));
+      H.cities.forEach((c) => tags.push({ k: "city", id: c, label: (CITIES.find((x) => x.id === c) || [null, c])[1] }));
+      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}" style="background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px;cursor:pointer">${esc(t.label)} <i style="color:var(--over);font-style:normal;font-weight:bold">✕</i></button>`).join("");
+    };
+
+    $("#hTags")?.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-k]"); if (!b) return;
+      if (b.dataset.k === "prov") H.provs = H.provs.filter((x) => x !== b.dataset.id);
+      if (b.dataset.k === "city") H.cities = H.cities.filter((x) => x !== b.dataset.id);
+      drawHTags();
+    });
+
     $("#heroForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const v = $("#heroQ").value.trim();
       const f = v ? NLP.parseQuery(v, deal ? { deal } : {}).filters : (deal ? { deal } : {});
-      if (H.prov) { f.province = H.prov; delete f.city; delete f.district; }
-      if (H.city) f.city = H.city;
+      if (H.provs.length) f.province = H.provs.join(",");
+      if (H.cities.length) f.city = H.cities.join(",");
       if (H.dist) f.district = H.dist;
       if ($("#hOpp").checked) f.opp = 1;
       go("#/s?" + toQuery({ sort: "score", ...f }));
     });
-    const H = { prov: "", city: "", dist: "" };
-    const hCities = () => CITIES.filter((c) => !H.prov || c.province === H.prov).map((c) => ({ id: c.id, label: c.name, hint: H.prov ? "" : (PROVINCES.find((p) => p.id === c.province) || {}).name }));
-    UI.combo($("#hProv"), { items: PROVINCES.map((p) => ({ id: p.id, label: p.name })), value: null, allLabel: "همهٔ استان‌ها", placeholder: "همهٔ استان‌ها",
-      onChange: ({ id }) => { H.prov = id || ""; H.city = ""; H.dist = ""; hCity.setItems(hCities(), null); hDist.setItems([], null); setTimeout(() => hCity.focus(), 0); } });
-    const hCity = UI.combo($("#hCity"), { items: hCities(), value: null, allLabel: "همهٔ شهرها", placeholder: "نام شهر را بنویس",
+
+    const hCities = () => CITIES.map((c) => ({ id: c.id, label: c.name, hint: (PROVINCES.find((p) => p.id === c.province) || {}).name }));
+    UI.combo($("#hProv"), { items: PROVINCES.map((p) => ({ id: p.id, label: p.name })), value: null, allLabel: "انتخاب استان", placeholder: "افزودن استان...",
+      onChange: ({ id }) => { if (id && !H.provs.includes(id)) { H.provs.push(id); drawHTags(); } } });
+    const hCity = UI.combo($("#hCity"), { items: hCities(), value: null, allLabel: "انتخاب شهر", placeholder: "افزودن شهر...",
       onChange: async ({ id }) => {
-        H.city = id || ""; H.dist = "";
-        const c = UI.cityOf(H.city); if (c) H.prov = c.province;
-        hDist.setItems([], null);
-        if (!H.city) return;
-        const r = await DataLayer.districts(H.city, deal === "sale" || deal === "" ? "sale" : deal).catch(() => ({ items: [] }));
+        if (!id) return;
+        if (!H.cities.includes(id)) { H.cities.push(id); drawHTags(); }
+        H.dist = "";
+        const r = await DataLayer.districts(id, deal === "sale" || deal === "" ? "sale" : deal).catch(() => ({ items: [] }));
         hDist.setItems(r.items.map((x) => ({ id: x.name, label: x.name, hint: fa(x.n) + " آگهی" })), null);
-        if (!$("#hDist input")) return;
-        $("#hDist input").placeholder = r.items.length ? "همهٔ محله‌ها" : "هنوز محله‌ای ثبت نشده";
+        if ($("#hDist input")) $("#hDist input").placeholder = r.items.length ? "همهٔ محله‌ها" : "محله‌ها";
       } });
-    const hDist = UI.combo($("#hDist"), { items: [], value: null, allLabel: "همهٔ محله‌ها", placeholder: "اول شهر را انتخاب کن", onChange: ({ id }) => { H.dist = id || ""; } });
+    const hDist = UI.combo($("#hDist"), { items: [], value: null, allLabel: "همهٔ محله‌ها", placeholder: "انتخاب محله", onChange: ({ id }) => { H.dist = id || ""; } });
     $("#heroQuick").addEventListener("click", (e) => { const c = e.target.closest("[data-q]"); if (c) { $("#heroQ").value = c.dataset.q; $("#heroForm").requestSubmit(); } });
 
     const top = (await DataLayer.search({ sort: "score", ranked: 1, limit: 15 })).items;
@@ -640,8 +656,16 @@ const App = (() => {
       setTimeout(() => state.map && state.map.invalidateSize(), 60);
     }
     function titleOf() {
-      const c = UI.cityOf(F.city), p = UI.provOf(F.province);
-      const where = F.district ? `در ${F.district.split(",").join("، ")}، ${c ? c.name : ""}` : c ? `در ${c.name}` : p ? `در استان ${p.name}` : "در همهٔ شهرها";
+      const cities = (F.city || "").split(",").filter(Boolean);
+      const provs = (F.province || "").split(",").filter(Boolean);
+      let where = "در همهٔ شهرها";
+      if (F.district) {
+        where = `در ${F.district.split(",").join("، ")}`;
+      } else if (cities.length) {
+        where = cities.length === 1 ? `در ${UI.cityOf(cities[0])?.name || cities[0]}` : `در ${cities.map((c) => UI.cityOf(c)?.name || c).join(" و ")}`;
+      } else if (provs.length) {
+        where = provs.length === 1 ? `در استان ${UI.provOf(provs[0])?.name || provs[0]}` : `در استان‌های ${provs.map((p) => UI.provOf(p)?.name || p).join(" و ")}`;
+      }
       const kinds = (F.kinds || "").split(",").filter(Boolean).map(UI.kindName).join(" و ") || "ملک";
       return `${F.ranked || F.opp ? "فرصت‌های " : ""}${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
     }
@@ -660,7 +684,26 @@ const App = (() => {
       const kinds = (F.kinds || "").split(",").filter(Boolean);
       const am = (F.amenities || "").split(",").filter(Boolean);
       const dd = (id, label, on, body) => `<div class="dd" data-dd="${id}"><button type="button" class="${on ? "is-set" : ""}">${esc(label)}</button><div class="dd__panel">${body}<div class="dd__foot"><button type="button" class="btn btn--ghost btn--sm" data-clear="${id}">پاک کردن</button><button type="button" class="btn btn--ink btn--sm" data-apply="${id}">اعمال</button></div></div></div>`;
-      let html = dd("city", cityLabel, F.city || F.province, `<div class="dd__label">استان و شهر؛ نام شهر را تایپ کن یا اول استان را انتخاب کن</div><div id="ddCityPick"></div>`);
+      const citiesSel = (F.city || "").split(",").filter(Boolean);
+      const provsSel = (F.province || "").split(",").filter(Boolean);
+      let cityLabel = "استان و شهر";
+      if (citiesSel.length) {
+        cityLabel = citiesSel.length === 1 ? (UI.cityOf(citiesSel[0])?.name || citiesSel[0]) : `${fa(citiesSel.length)} شهر`;
+      } else if (provsSel.length) {
+        cityLabel = provsSel.length === 1 ? ("استان " + (UI.provOf(provsSel[0])?.name || provsSel[0])) : `${fa(provsSel.length)} استان`;
+      }
+
+      const provChips = PROVINCES.map((p) => `<button type="button" class="chip ${provsSel.includes(p.id) ? "is-on" : ""}" data-toggle="province" data-val="${p.id}">${p.name}</button>`).join("");
+      const cityChips = CITIES.map((c) => `<button type="button" class="chip ${citiesSel.includes(c.id) ? "is-on" : ""}" data-toggle="city" data-val="${c.id}" data-prov="${c.province}">${c.name}</button>`).join("");
+
+      let html = dd("city", cityLabel, citiesSel.length || provsSel.length, `
+        <div class="dd__label">استان‌ها (انتخاب همزمان چند استان)</div>
+        <div class="dd__grid" style="margin-bottom:12px">${provChips}</div>
+        <div class="dd__label">شهرها (انتخاب همزمان چند شهر)</div>
+        <input class="input" id="ddCityQ" placeholder="جست‌وجوی شهر..." style="margin-bottom:8px">
+        <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:160px;overflow-y:auto">${cityChips}</div>
+        <p class="small muted" style="margin-top:8px">چند استان یا چند شهر را تیک بزنید؛ فیلترها زیر نوار جست‌وجو قرار می‌گیرند.</p>
+      `);
       const dsel = (F.district || "").split(",").filter(Boolean);
       const settle = F.settle || "";
       const shown = districts.filter((x) => !settle || (settle === "rural") === !!x.rural);
@@ -702,9 +745,12 @@ const App = (() => {
         </div>
         <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
-      UI.cityPicker($("#ddCityPick"), { value: F.city || null, groupValue: F.province || "", groupLabel: "استان ", allLabel: "همه شهرها", groupPick: true,
-        onChange: ({ id, group }) => set(id ? { city: id, province: group, district: "" } : group ? { province: group, city: "", district: "" } : { city: "", province: "", district: "" }) });
-      $('[data-dd="city"] > button').addEventListener("click", () => setTimeout(() => $("#ddCityPick input")?.focus(), 30));
+      $("#ddCityQ")?.addEventListener("input", (e) => {
+        const q = NLP.toEn(e.target.value.trim().toLowerCase());
+        $$("#ddCityGrid button").forEach((b) => {
+          b.hidden = q && !b.textContent.toLowerCase().includes(q);
+        });
+      });
       $("#oppChip").addEventListener("click", () => set({ opp: 1, ranked: "" }));
       $("#allAdsChip")?.addEventListener("click", () => set({ opp: "", ranked: "" }));
       $("#dropChip").addEventListener("click", () => set({ drop: F.drop ? "" : 1 }));
@@ -726,6 +772,18 @@ const App = (() => {
         panel.addEventListener("click", (e) => {
           e.stopPropagation();
           const t = e.target.closest("button"); if (!t) return;
+          if (t.dataset.toggle === "province") {
+            const cur = (F.province || "").split(",").filter(Boolean);
+            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
+            set({ province: next.join(",") });
+            return;
+          }
+          if (t.dataset.toggle === "city") {
+            const cur = (F.city || "").split(",").filter(Boolean);
+            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
+            set({ city: next.join(",") });
+            return;
+          }
           if (t.dataset.prov) { set({ province: t.dataset.prov, city: "", district: "" }); return; }
           if (t.dataset.pick) {
             $$(`[data-pick="${t.dataset.pick}"]`, panel).forEach((x) => x.classList.toggle("is-on", x === t));
@@ -776,7 +834,16 @@ const App = (() => {
     }
     function activeTags() {
       const t = [];
-      if (F.city) t.push(["city", UI.cityOf(F.city)?.name]); else if (F.province) t.push(["province", "استان " + UI.provOf(F.province)?.name]);
+      if (F.province) {
+        String(F.province).split(",").filter(Boolean).forEach((p) => {
+          t.push(["province:" + p, "استان " + (UI.provOf(p)?.name || p)]);
+        });
+      }
+      if (F.city) {
+        String(F.city).split(",").filter(Boolean).forEach((c) => {
+          t.push(["city:" + c, (UI.cityOf(c)?.name || c)]);
+        });
+      }
       (F.district || "").split(",").filter(Boolean).forEach((d) => t.push(["district:" + d, d]));
       if (F.deal) t.push(["deal", UI.dealName(F.deal)]);
       (F.kinds || "").split(",").filter(Boolean).forEach((k) => t.push(["kinds:" + k, UI.kindName(k)]));
@@ -1102,8 +1169,8 @@ const App = (() => {
 
     const draw = () => {
       el.innerHTML = `
-        <div class="lightbox__viewport" style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 84px);overflow:hidden;cursor:${zoomLevel > 1 ? "grab" : "zoom-in"}">
-          <div id="lbWrap" style="transform:scale(${zoomLevel});transition:transform 0.2s cubic-bezier(0.2,0,0,1);max-width:92vw;max-height:84vh;display:flex;align-items:center;justify-content:center;user-select:none">
+        <div class="lightbox__viewport" id="lbVp" style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 84px);width:100vw;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;cursor:${zoomLevel > 1 ? "grab" : "zoom-in"};padding:30px;box-sizing:border-box">
+          <div id="lbWrap" style="transform:scale(${zoomLevel});transform-origin:center center;transition:transform 0.15s ease;display:flex;align-items:center;justify-content:center;min-width:max-content;min-height:max-content;user-select:none;touch-action:pan-x pan-y">
             ${UI.media(l, i)}
           </div>
         </div>
@@ -1118,6 +1185,32 @@ const App = (() => {
           </div>
           <button class="btn btn--line btn--sm" data-x>✕ بستن</button>
         </div>`;
+      bindDragPan();
+    };
+
+    const bindDragPan = () => {
+      const vp = el.querySelector("#lbVp");
+      if (!vp) return;
+      let isDown = false, sX, sY, sLeft, sTop;
+      vp.addEventListener("mousedown", (e) => {
+        if (zoomLevel <= 1 || e.target.closest("button")) return;
+        isDown = true;
+        vp.style.cursor = "grabbing";
+        sX = e.pageX - vp.offsetLeft;
+        sY = e.pageY - vp.offsetTop;
+        sLeft = vp.scrollLeft;
+        sTop = vp.scrollTop;
+      });
+      vp.addEventListener("mouseleave", () => { isDown = false; if (zoomLevel > 1) vp.style.cursor = "grab"; });
+      vp.addEventListener("mouseup", () => { isDown = false; if (zoomLevel > 1) vp.style.cursor = "grab"; });
+      vp.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - vp.offsetLeft;
+        const y = e.pageY - vp.offsetTop;
+        vp.scrollLeft = sLeft - (x - sX) * 1.5;
+        vp.scrollTop = sTop - (y - sY) * 1.5;
+      });
     };
 
     const close = () => { el.remove(); document.removeEventListener("keydown", key); };
@@ -1125,7 +1218,7 @@ const App = (() => {
       if (e.key === "Escape") close();
       if (e.key === "ArrowLeft") { i = (i + 1) % n; zoomLevel = 1; draw(); }
       if (e.key === "ArrowRight") { i = (i - 1 + n) % n; zoomLevel = 1; draw(); }
-      if (e.key === "+" || e.key === "=") { zoomLevel = Math.min(3.2, +(zoomLevel + 0.3).toFixed(1)); draw(); }
+      if (e.key === "+" || e.key === "=") { zoomLevel = Math.min(3.5, +(zoomLevel + 0.3).toFixed(1)); draw(); }
       if (e.key === "-") { zoomLevel = Math.max(1, +(zoomLevel - 0.3).toFixed(1)); draw(); }
     };
 
@@ -1134,10 +1227,10 @@ const App = (() => {
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button");
       if (b?.dataset.d) { i = (i + +b.dataset.d + n) % n; zoomLevel = 1; draw(); }
-      else if (b?.dataset.zoom === "in") { zoomLevel = Math.min(3.2, +(zoomLevel + 0.4).toFixed(1)); draw(); }
+      else if (b?.dataset.zoom === "in") { zoomLevel = Math.min(3.5, +(zoomLevel + 0.4).toFixed(1)); draw(); }
       else if (b?.dataset.zoom === "out") { zoomLevel = Math.max(1, +(zoomLevel - 0.4).toFixed(1)); draw(); }
       else if (b?.dataset.zoom === "reset") { zoomLevel = 1; draw(); }
-      else if (b?.hasAttribute("data-x") || e.target.classList.contains("lightbox__viewport") || e.target === el) close();
+      else if (b?.hasAttribute("data-x") || e.target.id === "lbVp" || e.target === el) close();
       else if (e.target.closest("#lbWrap")) {
         zoomLevel = zoomLevel === 1 ? 2.2 : 1;
         draw();
