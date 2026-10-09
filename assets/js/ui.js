@@ -157,12 +157,10 @@ const UI = (() => {
     const ppmLine = l.deal === "sale" && l.ppm ? `متری ${money(l.ppm)}` : "";
     const profit = (v && v.estimated_profit) || l.estimated_profit;
     const profitText = profit && profit >= 1e7
-      ? `<div class="card__profit"><span>${icon("spark")} سود تخمینی خرید:</span> <b>${money(profit)} تومان</b></div>`
+      ? `<div class="card__profit"><span>${icon("spark")} تخمین سود خرید:</span> <b>${money(profit)} تومان</b></div>`
       : "";
-    const trust = (v && v.trust_score) || l.trust_score || (l.label === "gold" ? 85 : l.label === "good" ? 78 : 65);
-    const trustPill = trust >= 75
-      ? `<span class="pill pill--trust pill--verified" title="شاخص اعتبار ${fa(trust)} از ۱۰۰">${icon("check")} معتبر (${fa(trust)})</span>`
-      : `<span class="pill pill--trust pill--caution" title="شاخص اعتبار ${fa(trust)} از ۱۰۰">${icon("alert")} ارزیابی (${fa(trust)})</span>`;
+    const isMulti = /انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase());
+    const multiPill = isMulti ? `<span class="pill pill--multi" title="آگهی شامل چند واحد یا فایل مختلف است">${icon("layers")} چندموردی</span>` : "";
     const verdictRow = l.label === "sus"
       ? `<p class="card__verdict"><span class="lab lab--sus">قیمت مشکوک</span> <span class="small">${esc(l.sus_reason || "")}</span></p>`
       : v ? `<p class="card__verdict">${dealPill(v)}</p><p class="card__conf">${confLine(v)}${v.wide ? "، قیمت‌های این محله پراکنده‌اند" : ""}</p>`
@@ -170,7 +168,7 @@ const UI = (() => {
     return `<article class="card${l.label === "gold" ? " card--gold" : ""}" data-id="${esc(l.id)}">
       <div class="card__media">${media(l)}
         ${scoreBadge(l)}
-        <div class="card__badges">${typePill(l)}${trustPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
+        <div class="card__badges">${typePill(l)}${multiPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>
       </div>
       <div class="card__body">
@@ -183,7 +181,7 @@ const UI = (() => {
         ${sig.caution || sig.fake ? `<p class="card__warn">${icon("alert")} پیش از خرید: ${[sig.fake && "عکس‌ها مال این ملک نیست", sig.caution && fa(sig.caution) + " مورد برای استعلام"].filter(Boolean).join("، ")}</p>` : ""}
         <div class="card__actions">
           ${opts.compare !== false ? `<label class="card__cmp"><input type="checkbox" data-cmp="${esc(l.id)}" ${App.compare.includes(l.id) ? "checked" : ""}> مقایسه</label>` : ""}
-          <button class="card__flag-btn" type="button" data-flag="${esc(l.id)}" onclick="event.stopPropagation();event.preventDefault();if(window.openReportDialog)window.openReportDialog('${esc(l.id)}');" title="گزارش آگهی فیک یا فروخته‌شده">${icon("alert")} گزارش تخلف</button>
+          <button class="card__flag-btn" type="button" data-flag="${esc(l.id)}" onclick="event.stopPropagation();event.preventDefault();if(window.openReportDialog)window.openReportDialog(\'${esc(l.id)}\');return false;" title="گزارش آگهی فیک، فروش‌رفته یا اطلاعات نادرست">${icon("alert")} گزارش تخلف</button>
         </div>
       </div>
     </article>`;

@@ -952,3 +952,84 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   height: 13px;
   pointer-events: none;
 }
+
+/* تضمین کلیک‌پذیری دکمه‌های کنشی کارت بالای پیوند کلیک کل کارت */
+.card__actions {
+  position: relative !important;
+  z-index: 5 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.card__flag-btn {
+  position: relative !important;
+  z-index: 6 !important;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  cursor: pointer !important;
+  background: none;
+  border: 0;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+  pointer-events: auto !important;
+}
+.card__flag-btn:hover {
+  color: var(--over);
+  background: color-mix(in srgb, var(--over) 10%, transparent);
+}
+.card__flag-btn svg {
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+
+/* نشان آگهی چندموردی یا پروژه‌ای */
+.pill--multi {
+  background: rgba(79, 70, 229, 0.9) !important;
+  color: #fff !important;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* فاصله امن در موبایل برای جلوگیری از رفتن محتوا و فوتر زیر آیکون شناور دستیار */
+@media (max-width: 768px) {
+  .foot {
+    padding-bottom: 96px !important;
+  }
+  .ad, .search-page, .mkt-page, .saved-page, .content-page {
+    padding-bottom: 96px !important;
+  }
+  body.has-mcta .ai-fab {
+    bottom: 88px !important;
+  }
+}
+
+/* استایل‌های بزرگ‌نمایی زوم در لایت‌باکس تصاویر */
+.lightbox__viewport {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+}

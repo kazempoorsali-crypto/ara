@@ -219,7 +219,11 @@ class Store:
             args.extend(a)
 
         if f.get("city"):
-            add("city_key=?", f["city"])
+            cities = [c.strip() for c in str(f["city"]).split(",") if c.strip()]
+            if len(cities) == 1:
+                add("city_key=?", cities[0])
+            elif len(cities) > 1:
+                add(f"city_key IN ({','.join('?' * len(cities))})", *cities)
         elif f.get("province"):
             add("province=?", f["province"])
         if f.get("deal"):
@@ -273,7 +277,7 @@ class Store:
             add(f"id IN ({','.join('?' * len(ids))})", *ids)
         w = " AND ".join(where)
         order = {"new": "featured DESC, COALESCE(posted_at, first_seen) DESC", "score": "score IS NULL, score DESC, discount DESC", "deal": "discount IS NULL, discount DESC",
-                 "cheap": "pp IS NULL, pp ASC", "exp": "pp DESC", "ppm": "ppm IS NULL, ppm ASC", "area": "area DESC",
+                 "cheap": "pp IS NULL, pp ASC", "exp": "pp DESC", "area_asc": "area IS NULL, area ASC", "age_asc": "year IS NULL, year DESC", "exp": "pp DESC", "ppm": "ppm IS NULL, ppm ASC", "area": "area DESC",
                  "drop": "price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
         total = self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]
         limit = max(1, min(int(f.get("limit") or 24), 60))

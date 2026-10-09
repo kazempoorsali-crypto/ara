@@ -695,12 +695,18 @@ const App = (() => {
       html += dd("more", "متراژ و امکانات", moreOn,
         `<div class="dd__label">متراژ (متر مربع)</div><div class="range"><input class="input" id="ddAMin" inputmode="numeric" placeholder="از" value="${F.areaMin || ""}"><input class="input" id="ddAMax" inputmode="numeric" placeholder="تا" value="${F.areaMax || ""}"></div>
         <div class="dd__label">امکانات</div><div class="dd__grid">${AMENITIES.map((a) => `<button type="button" class="chip ${am.includes(a.id) ? "is-on" : ""}" data-toggle="amenities" data-val="${a.id}">${a.name}</button>`).join("")}</div>`);
-      html += `<button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip">فقط فرصت‌ها</button><button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
+      html += `
+        <div class="mode-switcher" style="display:inline-flex;gap:4px;background:var(--sunk);padding:2px 4px;border-radius:999px;border:1px solid var(--line);align-items:center;">
+          <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" style="border:0">🎯 فقط فرصت‌ها</button>
+          <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" style="border:0">📋 همه آگهی‌ها</button>
+        </div>
+        <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
       UI.cityPicker($("#ddCityPick"), { value: F.city || null, groupValue: F.province || "", groupLabel: "استان ", allLabel: "همه شهرها", groupPick: true,
         onChange: ({ id, group }) => set(id ? { city: id, province: group, district: "" } : group ? { province: group, city: "", district: "" } : { city: "", province: "", district: "" }) });
       $('[data-dd="city"] > button').addEventListener("click", () => setTimeout(() => $("#ddCityPick input")?.focus(), 30));
-      $("#oppChip").addEventListener("click", () => set({ opp: F.opp ? "" : 1, ranked: "" }));
+      $("#oppChip").addEventListener("click", () => set({ opp: 1, ranked: "" }));
+      $("#allAdsChip")?.addEventListener("click", () => set({ opp: "", ranked: "" }));
       $("#dropChip").addEventListener("click", () => set({ drop: F.drop ? "" : 1 }));
       $("#susChip").addEventListener("click", () => {
         if (!active()) { toast("نمایش آگهی‌های مشکوک فقط برای مشترکان است"); return go("#/account"); }
@@ -800,7 +806,18 @@ const App = (() => {
       page = +F.page || 0; delete F.page;
       if (cityChanged) await loadDistricts();
       dropdowns(); activeTags(); applyView();
-      const sorts = [["score", "بهترین فرصت"], ["cheap", "ارزان‌ترین"], ["ppm", "متری ارزان‌تر"], ["new", "تازه‌ترین"], ["deal", "بیشترین فاصله تا قیمت محله"], ["area", "بزرگ‌ترین"], ["drop", "بیشترین کاهش قیمت"]];
+      const sorts = [
+        ["score", "بهترین فرصت"],
+        ["cheap", "کمترین قیمت کل"],
+        ["exp", "بالاترین قیمت کل"],
+        ["ppm", "کمترین قیمت هر متر"],
+        ["new", "تازه‌ترین زمان ثبت"],
+        ["deal", "بیشترین فاصله تا میانگین محله"],
+        ["area", "بیشترین متراژ"],
+        ["area_asc", "کمترین متراژ"],
+        ["age_asc", "نوسازترین (کمترین سن بنا)"],
+        ["drop", "بیشترین کاهش قیمت"]
+      ];
       $("#sort").innerHTML = sorts.map(([v, n]) => `<option value="${v}" ${(F.sort || "score") === v ? "selected" : ""}>${n}</option>`).join("");
       $("#grid").innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton"></div>').join("");
       const id = ++reqId;
@@ -938,19 +955,45 @@ const App = (() => {
     return `<section class="block pid"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div>${html}${fx}
       <p class="pid__foot">«میانهٔ محله» یعنی نیمی از آگهی‌های محله گران‌ترند و نیمی ارزان‌تر. ${rent ? "«رهن کامل» یعنی ودیعه به‌اضافهٔ اجارهٔ ماهانه که به ودیعه تبدیل شده؛ هر ۱ میلیون تومان اجارهٔ ماهانه حدود ۳۳ میلیون تومان ودیعه حساب شده و همهٔ آگهی‌های اجاره با همین حساب مقایسه می‌شوند." : ""}</p></section>`;
   }
-  /* چرا این قیمت؟ آنچه لحاظ شده، آنچه شاید دلیل ارزانی است، آنچه باید استعلام کنی */
+  /* تحلیل قیمت و عوامل مؤثر: جایگزینی حرفه‌ای واژه ارزانی و تشریح دلایل اقتصادی */
   function whySection(l) {
     const ex = l.explain || {}, ft = l.feat || {};
     const yn = (k, a, b, c) => (ft[k] == null ? c : ft[k] ? a : b);
-    const done = [l.area && fa(l.area) + " متر", l.rooms != null && (l.rooms ? fa(l.rooms) + " خواب" : "استودیو"), l.year && "ساخت " + faY(l.year),
-      ft.floor != null && "طبقهٔ " + fa(ft.floor), yn("elevator", "آسانسور دارد", "بی‌آسانسور", "آسانسور نامشخص"), yn("parking", "پارکینگ دارد", "بی‌پارکینگ", "پارکینگ نامشخص"),
-      yn("warehouse", "انباری دارد", "بی‌انباری", null)].filter(Boolean);
+    const done = [
+      l.area && fa(l.area) + " متر",
+      l.rooms != null && (l.rooms ? fa(l.rooms) + " خواب" : "استودیو"),
+      l.year && "ساخت " + faY(l.year),
+      ft.floor != null && "طبقهٔ " + fa(ft.floor),
+      yn("elevator", "آسانسور دارد", "بی‌آسانسور", "آسانسور نامشخص"),
+      yn("parking", "پارکینگ دارد", "بی‌پارکینگ", "پارکینگ نامشخص"),
+      yn("warehouse", "انباری دارد", "بی‌انباری", null)
+    ].filter(Boolean);
     const list = (a) => `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
     const caution = [...(ex.sus || []), ...(ex.caution || [])];
-    return `<section class="block why"><h2>چرا این قیمت؟<small>آنچه لحاظ شده، آنچه شاید دلیل ارزانی است، آنچه باید استعلام کنی</small></h2>
+
+    // دلایل احتمالی قیمت پایین‌تر
+    const sellerReasons = (ex.ctx || []);
+    let priceReasonsHtml = "";
+    if (sellerReasons.length) {
+      priceReasonsHtml = `<div style="font-weight:700;margin-bottom:6px;color:var(--ink)">${icon("check")} نکات ذکرشده توسط فروشنده:</div>${list(sellerReasons)}`;
+    } else {
+      priceReasonsHtml = `
+        <p class="muted small" style="margin-bottom:8px">مالک در متن آگهی دلیل خاصی برای قیمت پیشنهادی ذکر نکرده است؛ با این حال در بازار مسکن معمولاً این تفاوت قیمت ناشی از یکی از موارد زیر است:</p>
+        <ul class="why__market-reasons small" style="display:grid;gap:5px;line-height:1.7;padding-inline-start:18px">
+          <li>نیاز فوری فروشنده به نقدینگی و تبدیل تعهدات مالی یا خرید ملک دیگر</li>
+          <li>وضعیت خاص سندی (قولنامه‌ای، اوقافی، مشاع، یا در دست اقدام بودن تک‌برگ)</li>
+          <li>مشخصات نقشه، طبقه یا نورگیر (طبقه بدون آسانسور، نورگیر پاسیو، برِ کم)</li>
+          <li>سن بنای واقعی متفاوت از سن بازسازی‌شده یا نیاز به بازسازی اساسی داخلی</li>
+          <li>اعلام قیمت پایه در آگهی‌های چندواحدی، پیش‌فروش یا پروژه‌ای مشاوران</li>
+          <li>استراتژی بازاریابی مشاور جهت ترغیب خریدار به تماس اولیه</li>
+        </ul>
+      `;
+    }
+
+    return `<section class="block why"><h2>تحلیل قیمت و عوامل مؤثر<small>آنچه در محاسبه لحاظ شده، دلایل احتمالی قیمت مناسب، و نکات نیازمند استعلام</small></h2>
       <div class="why__grid">
-        <div class="why__col"><h3>${icon("check")} در این مقایسه لحاظ شده</h3>${l.verdict ? list(done) : "<p>این آگهی هنوز سنجیده نشده؛ در این محله آگهی کافی برای مقایسه نیست.</p>"}</div>
-        <div class="why__col"><h3>${icon("info")} شاید دلیل ارزانی</h3>${(ex.ctx || []).length ? list(ex.ctx) : "<p>در متن آگهی دلیلی برای ارزانی پیدا نشد.</p>"}</div>
+        <div class="why__col"><h3>${icon("check")} در این برآورد لحاظ شده</h3>${l.verdict ? list(done) : "<p>این آگهی هنوز سنجیده نشده؛ در این محله آگهی کافی برای مقایسه نیست.</p>"}</div>
+        <div class="why__col"><h3>${icon("info")} دلایل قیمت پیشنهادی مناسب</h3>${priceReasonsHtml}</div>
         <div class="why__col why__col--warn"><h3>${icon("alert")} پیش از خرید استعلام کن</h3>${caution.length ? list(caution) : "<p>پرچمی پیدا نشد؛ در متن آگهی نشانهٔ سند ناقص، مستأجر یا عکس غیرواقعی نبود. سند، پایان‌کار و بدهی را باز هم استعلام کن.</p>"}</div>
       </div></section>`;
   }
@@ -998,6 +1041,7 @@ const App = (() => {
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
         <div>
+          ${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<div class="note-soft" style="margin-bottom:12px;background:rgba(79,70,229,0.12);border:1px solid rgba(79,70,229,0.3);color:var(--forest);padding:10px 14px;border-radius:var(--r);font-size:13px;display:flex;align-items:center;gap:8px">${icon("layers")} <b>توجه:</b> این آگهی شرکتی شامل چند فایل یا واحد مختلف است؛ قیمت و متراژ درج‌شده ممکن است فقط مربوط به یکی از گزینه‌ها باشد.</div>` : ""}
           <header class="ad__head">
             <div class="ad__badges">${UI.typePill(l)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
             <h1>${UI.tt(l.title)}</h1>
@@ -1023,8 +1067,9 @@ const App = (() => {
           <div class="agent__row">
             <button class="btn btn--line" id="adFav">${icon("heart")}<span>${state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"}</span></button>
             <button class="btn btn--line" id="adShare">${icon("share")} اشتراک‌گذاری</button>
+            <button class="btn btn--line" id="adReport" style="color:var(--over)">${icon("alert")} گزارش تخلف</button>
           </div>
-          <p class="agent__note">${esc(cfg.site.name)} این خانه را ندیده است؛ عکس‌های بیشتر در آگهی اصلی است. «قیمت محله» برآوردی آماری از آگهی‌های عمومی است، نه قیمت کارشناسی.</p>
+          <p class="agent__note">فرصت‌یاب موتور مستقل پالایش و رتبه‌بندی آماری آگهی‌های املاک است. کلیه آگهی‌ها از منابع معتبر عمومی گردآوری و تحلیل می‌شوند و جهت جزئیات و استعلام به سایت اصلی هدایت می‌شوید. فرصت‌یاب مشاور املاک نیست و قیمت محله برآورد آماری است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
         </aside>
       </div>
     </article>
@@ -1036,6 +1081,7 @@ const App = (() => {
     if (mini) L.circle(pos, { radius: l.latlng_exact ? 150 : 2200, color: "#e0531f", weight: 2, fillOpacity: 0.1, dashArray: l.latlng_exact ? null : "6 6" }).addTo(mini);
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
+    $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
     $("#adShare").addEventListener("click", async () => {
       try { if (navigator.share) await navigator.share({ title: l.title, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("پیوند کپی شد"); } } catch { /* لغو */ }
     });
@@ -1047,17 +1093,61 @@ const App = (() => {
   function lightbox(l, i) {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [null, null, null, null, null];
     const n = imgs.length;
+    let zoomLevel = 1;
     const el = document.createElement("div");
     el.className = "lightbox";
-    const draw = () => { el.innerHTML = `<div style="display:grid">${UI.media(l, i)}</div><div class="lightbox__bar"><button class="btn btn--line" data-d="-1">قبلی</button><span>${fa(i + 1)} از ${fa(n)}</span><button class="btn btn--line" data-d="1">بعدی</button><button class="btn btn--line" data-x>بستن</button></div>`; };
+
+    const draw = () => {
+      el.innerHTML = `
+        <div class="lightbox__viewport" style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 84px);overflow:hidden;cursor:${zoomLevel > 1 ? "grab" : "zoom-in"}">
+          <div id="lbWrap" style="transform:scale(${zoomLevel});transition:transform 0.2s cubic-bezier(0.2,0,0,1);max-width:92vw;max-height:84vh;display:flex;align-items:center;justify-content:center;user-select:none">
+            ${UI.media(l, i)}
+          </div>
+        </div>
+        <div class="lightbox__bar">
+          <button class="btn btn--line btn--sm" data-d="-1">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
+          <span style="font-size:13px;font-weight:700">${fa(i + 1)} از ${fa(n)}</span>
+          <button class="btn btn--line btn--sm" data-d="1">بعدی ${icon("arrow")}</button>
+          <div style="display:inline-flex;gap:4px;margin-inline:10px;align-items:center">
+            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">＋ زوم</button>
+            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">－ کوچک</button>
+            <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه">${fa(Math.round(zoomLevel * 100))}٪</button>
+          </div>
+          <button class="btn btn--line btn--sm" data-x>✕ بستن</button>
+        </div>`;
+    };
+
     const close = () => { el.remove(); document.removeEventListener("keydown", key); };
-    const key = (e) => { if (e.key === "Escape") close(); if (e.key === "ArrowLeft") { i = (i + 1) % n; draw(); } if (e.key === "ArrowRight") { i = (i - 1 + n) % n; draw(); } };
+    const key = (e) => {
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowLeft") { i = (i + 1) % n; zoomLevel = 1; draw(); }
+      if (e.key === "ArrowRight") { i = (i - 1 + n) % n; zoomLevel = 1; draw(); }
+      if (e.key === "+" || e.key === "=") { zoomLevel = Math.min(3.2, +(zoomLevel + 0.3).toFixed(1)); draw(); }
+      if (e.key === "-") { zoomLevel = Math.max(1, +(zoomLevel - 0.3).toFixed(1)); draw(); }
+    };
+
     draw();
+
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (b?.dataset.d) { i = (i + +b.dataset.d + n) % n; draw(); }
-      else if (b?.hasAttribute("data-x") || e.target === el) close();
+      if (b?.dataset.d) { i = (i + +b.dataset.d + n) % n; zoomLevel = 1; draw(); }
+      else if (b?.dataset.zoom === "in") { zoomLevel = Math.min(3.2, +(zoomLevel + 0.4).toFixed(1)); draw(); }
+      else if (b?.dataset.zoom === "out") { zoomLevel = Math.max(1, +(zoomLevel - 0.4).toFixed(1)); draw(); }
+      else if (b?.dataset.zoom === "reset") { zoomLevel = 1; draw(); }
+      else if (b?.hasAttribute("data-x") || e.target.classList.contains("lightbox__viewport") || e.target === el) close();
+      else if (e.target.closest("#lbWrap")) {
+        zoomLevel = zoomLevel === 1 ? 2.2 : 1;
+        draw();
+      }
     });
+
+    el.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      if (e.deltaY < 0) zoomLevel = Math.min(3.5, +(zoomLevel + 0.25).toFixed(2));
+      else zoomLevel = Math.max(1, +(zoomLevel - 0.25).toFixed(2));
+      draw();
+    }, { passive: false });
+
     document.addEventListener("keydown", key);
     document.body.appendChild(el);
   }
@@ -1334,6 +1424,13 @@ const App = (() => {
     function bind() {
       $("#aiFab").addEventListener("click", open);
       $("#aiClose").addEventListener("click", () => { $("#ai").hidden = true; $("#aiFab").classList.remove("is-hidden"); });
+      $("#aiLog").addEventListener("click", (e) => {
+        const a = e.target.closest("a");
+        if (a && a.getAttribute("href")?.startsWith("#/")) {
+          $("#ai").hidden = true;
+          $("#aiFab")?.classList.remove("is-hidden");
+        }
+      });
       $("#aiSugs").addEventListener("click", (e) => {
         const b = e.target.closest("button"); if (!b) return;
         const t = b.textContent;
