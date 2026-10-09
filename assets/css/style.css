@@ -877,3 +877,66 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
 }
 /* پنجره‌ها و پنل‌های پیمایشی، پیمایش صفحهٔ زیرشان را نکشند */
 .dlg__body, .cb__list, .dd__panel, .ai__log { overscroll-behavior: contain; }
+
+/* ---------- فاز ۱ و ۲: سود تخمینی، شاخص اعتبار و گزارش تخلف ---------- */
+.card__profit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(23, 120, 74, 0.09);
+  border: 1px solid rgba(23, 120, 74, 0.22);
+  color: var(--great);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  margin-block: 6px 8px;
+  font-weight: 700;
+}
+.card__profit span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.card__profit svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--great);
+}
+.pill--trust {
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pill--verified {
+  background: rgba(23, 120, 74, 0.9);
+  color: #fff;
+}
+.pill--caution {
+  background: rgba(201, 122, 31, 0.9);
+  color: #fff;
+}
+.card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.card__flag-btn {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  transition: color 0.15s ease;
+}
+.card__flag-btn:hover {
+  color: var(--over);
+}
+.card__flag-btn svg {
+  width: 13px;
+  height: 13px;
+}

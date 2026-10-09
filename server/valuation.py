@@ -533,8 +533,23 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 score = round(65 + 35 * (0.5 * p_rank + 0.5 * depth), 1)
             else:
                 score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
+        # سود تخمینی خرید به تومان و شاخص اعتبار (فاز ۱ و ۲)
+        profit = max(0, round(fair - ask)) if fair and ask and fair > ask else 0
+        t_score = 85
+        if "cheap_flagged" in flags or "too_cheap" in flags:
+            t_score -= 25
+        if not l.get("images") or len(l["images"]) == 0:
+            t_score -= 15
+        if set(sig) & {"fake_photos", "multi_price", "scam"}:
+            t_score -= 20
+        if "deed_single" in (feat.get("features") or []):
+            t_score += 10
+        if "renovated" in (feat.get("features") or []):
+            t_score += 4
+        trust_score = max(15, min(98, t_score))
+
         raw = dist_raw.get((l["city_key"], l["_district"] or "", l["_kg"], l["deal"])) or []
-        explain = {"base_ppm": round(math.exp(l["_base"])) if l.get("_base") is not None else None,
+        explain = {"estimated_profit": profit, "trust_score": trust_score, "base_ppm": round(math.exp(l["_base"])) if l.get("_base") is not None else None,
                    "district_n": dn, "city_n": cn, "effects": l.get("_contrib", []), "model": l.get("_model"),
                    "flags": [FLAG_TEXT.get(f, f) for f in flags], "filled": round(filled, 2), "label": label,
                    "district_median": round(statistics.median(raw)) if len(raw) >= 3 else None, "district_raw_n": len(raw),

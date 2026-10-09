@@ -202,7 +202,7 @@ class Store:
         ex = d.get("explain") or {}
         return {"label": label, "delta": round(-disc, 3), "fair": d.get("fair_price"), "fair_ppm": d.get("fair_ppm"),
                 "n": ex.get("district_n") or 0, "city_n": ex.get("city_n") or 0, "confidence": d.get("confidence"),
-                "score": d.get("score"), "wide": ex.get("wide"), "rank": ex.get("rank"), "rank_n": ex.get("rank_n")}
+                "score": d.get("score"), "wide": ex.get("wide"), "rank": ex.get("rank"), "rank_n": ex.get("rank_n"), "estimated_profit": ex.get("estimated_profit"), "trust_score": ex.get("trust_score")}
 
     # ---------------------------------------------------------- search
     def search(self, f: dict) -> dict:
