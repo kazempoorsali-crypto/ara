@@ -184,8 +184,8 @@ const App = (() => {
       if (!el) return;
       const tags = [];
       H.provs.forEach((p) => tags.push({ k: "prov", id: p, label: "استان " + (PROVINCES.find((x) => x.id === p)?.name || p) }));
-      H.cities.forEach((c) => tags.push({ k: "city", id: c, label: (CITIES.find((x) => x.id === c) || [null, c])[1] }));
-      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}" style="background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px;cursor:pointer">${esc(t.label)} <i style="color:var(--over);font-style:normal;font-weight:bold">✕</i></button>`).join("");
+      H.cities.forEach((c) => tags.push({ k: "city", id: c, label: UI.cityOf(c)?.name || c }));
+      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span><i>✕</i></button>`).join("");
     };
 
     $("#hTags")?.addEventListener("click", (e) => {

@@ -138,7 +138,7 @@ p { margin: 0; }
 .hero h1 { font-size: clamp(34px, 4.3vw, 64px); font-weight: 900; line-height: 1.18; margin: 16px 0 18px; text-wrap: balance; }
 .hero h1 .accent { color: var(--narenj); }
 .hero h1 .soft { color: var(--forest); }
-.hero__lead { font-size: 17px; color: var(--ink-2); max-width: 560px; }
+.hero__lead { font-size: 17px; color: var(--ink-2); max-width: 560px; text-align: justify; text-justify: inter-word; text-align-last: start; line-height: 1.85; }
 .search-card { margin-top: 28px; background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-3); border: 1px solid var(--line); padding: 10px; }
 .search-card__tabs { display: flex; gap: 6px; align-items: center; padding: 6px 6px 12px; flex-wrap: wrap; }
 .vtab { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 800; font-size: 14.5px; color: var(--ink-2); }
@@ -854,7 +854,7 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 }
 /* موبایل: متن معرفی بالای صفحه کوتاه‌تر تا کادر جست‌وجو زودتر دیده شود */
 @media (max-width: 560px) {
-  .hero__lead { font-size: 15.5px; line-height: 1.95; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .hero__lead { font-size: 15.5px; line-height: 1.95; text-align: justify; text-justify: inter-word; text-align-last: start; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .hero h1 { margin: 10px 0 12px; }
   .search-card { margin-top: 18px; }
 }
@@ -1049,27 +1049,73 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
 }
 
 /* برچسب‌های فیلترهای انتخابی زیر کادرهای صفحه اصلی */
-#hTags .atag {
-  background: var(--sunk);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-#hTags .atag:hover {
-  border-color: var(--over);
-  color: var(--over);
+#hTags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 10px !important;
+  margin-bottom: 8px !important;
+  align-items: center !important;
 }
 
+#hTags .atag {
+  background: var(--surface, #ffffff) !important;
+  border: 1.5px solid var(--forest, #1b4d3e) !important;
+  color: var(--ink, #13201c) !important;
+  border-radius: 999px !important;
+  padding: 6px 14px 6px 10px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.2s ease !important;
+}
+
+#hTags .atag span {
+  color: var(--ink, #13201c) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+#hTags .atag:hover {
+  background: var(--paper, #fdfbf7) !important;
+  border-color: var(--over, #e0531f) !important;
+  color: var(--over, #e0531f) !important;
+  box-shadow: 0 2px 8px rgba(224, 83, 31, 0.18) !important;
+}
+
+#hTags .atag:hover span {
+  color: var(--over, #e0531f) !important;
+}
+
+#hTags .atag i {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: var(--over, #e0531f) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  line-height: 1 !important;
+  transition: all 0.2s ease !important;
+}
+
+#hTags .atag:hover i {
+  background: var(--over, #e0531f) !important;
+  color: #ffffff !important;
+}
 
 /* هماهنگی و تراز طول سطرها (Text Justification) در سراسر بخش‌های متنی و توضیحی */
+.hero__lead,
+.lead,
 .quote,
 .quote-src,
 .agent__note,
@@ -1092,14 +1138,54 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
 .card__snippet,
 .tmsg p,
 .ticket__reply p {
-  text-align: justify;
-  text-justify: inter-word;
-  text-align-last: start;
-  line-height: 1.85;
+  text-align: justify !important;
+  text-justify: inter-word !important;
+  text-align-last: start !important;
+  line-height: 1.85 !important;
 }
 
 .why__col ul,
 .why__market-reasons {
-  text-align: justify;
-  text-justify: inter-word;
+  text-align: justify !important;
+  text-justify: inter-word !important;
+}
+
+/* وسط‌چین کردن دقیق کلیه اعداد و ارقام، برچسب‌ها و مقادیر در کادرها و باکس‌های آماری */
+.board__kpis .kpi,
+.board__kpis .kpi b,
+.board__kpis .kpi span,
+.facts div,
+.facts div b,
+.facts div span,
+.vcard__nums div,
+.vcard__nums div b,
+.vcard__nums div span,
+.mkt-kpis > div,
+.mkt-kpis b,
+.mkt-kpis span,
+.glance > div,
+.glance b,
+.glance span,
+.amen__cell,
+.amen__cell h3,
+.amen__pct,
+.amen__cell p,
+.kpis div,
+.kpis b,
+.kpis span,
+.cmp-tbl td:not(:first-child) {
+  text-align: center !important;
+}
+
+.board__kpis .kpi,
+.facts div,
+.vcard__nums div,
+.mkt-kpis > div,
+.glance > div,
+.amen__cell,
+.kpis div {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
