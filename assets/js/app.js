@@ -1240,6 +1240,41 @@ const App = (() => {
       ${AMENITIES.map((a) => row(a.name, (l) => (l.amenities || []).includes(a.id), null, (x) => (x ? "✓" : "—"))).join("")}
       </tbody></table></div><p class="small muted" style="margin-top:12px">خانه‌های سبز بهترین مقدار هر ردیف‌اند.</p>`, true);
   }
+  function openReportDialog(id) {
+    openDialog(`<div class="dlg__head"><h2>گزارش اشکال در آگهی</h2><button class="icon-btn" data-close aria-label="بستن">\${icon("x")}</button></div>
+      <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده، قیمتش دروغین است یا دلال است، گزارش دهید تا بررسی و از فهرست فرصت‌ها حذف شود:</p>
+      <form class="form-grid" id="flagForm">
+        <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="sold" checked> ملک قبلاً فروخته یا اجاره داده شده است</label>
+        <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="fake_price"> قیمت واقعی نیست (قیمت دروغین برای جلب تماس)</label>
+        <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="fake_photos"> عکس‌ها غیرواقعی یا دانلودی است</label>
+        <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="scam"> مشکوک به کلاهبرداری یا نقص سندی معارض</label>
+        <button class="btn btn--hot btn--lg" type="submit" id="flagBtn" style="margin-top:8px">ثبت گزارش</button>
+      </form>`);
+    const f = $("#flagForm");
+    if (f) {
+      f.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const reason = $('input[name="flagReason"]:checked')?.value || "fake_price";
+        const btn = $("#flagBtn");
+        btn.disabled = true;
+        try {
+          if (DataLayer.server) {
+            await fetch(`api/listing/${encodeURIComponent(id)}/flag`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ reason })
+            });
+          }
+          $("#dlg").close();
+          toast("گزارش شما با موفقیت ثبت شد و بررسی می‌شود");
+        } catch (err) {
+          toast("خطا در ارسال گزارش");
+        }
+        btn.disabled = false;
+      });
+    }
+  }
+
   function openDialog(html, wide = false) {
     const d = $("#dlg");
     $("#dlgBody").innerHTML = html;
@@ -1357,7 +1392,10 @@ const App = (() => {
     });
     $("#dlg").addEventListener("click", (e) => { if (e.target.id === "dlg" || e.target.closest("[data-close]")) $("#dlg").close(); });
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });
-    view().addEventListener("click", (e) => { const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); } });
+    view().addEventListener("click", (e) => {
+      const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); }
+      const fl = e.target.closest("[data-flag]"); if (fl) { e.preventDefault(); e.stopPropagation(); openReportDialog(fl.dataset.flag); }
+    });
     view().addEventListener("change", (e) => { if (e.target.dataset.cmp) toggleCompare(e.target.dataset.cmp, e.target); });
     const hot = (e, on) => { const c = e.target.closest(".card"); const m = c && state.markers[c.dataset.id]; if (m) { const el = m.getElement(); if (el) el.classList.toggle("is-hot", on); m.setZIndexOffset(on ? 1000 : 0); } };
     view().addEventListener("mouseover", (e) => hot(e, true));
