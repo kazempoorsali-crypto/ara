@@ -1241,7 +1241,7 @@ const App = (() => {
       </tbody></table></div><p class="small muted" style="margin-top:12px">خانه‌های سبز بهترین مقدار هر ردیف‌اند.</p>`, true);
   }
   function openReportDialog(id) {
-    openDialog(`<div class="dlg__head"><h2>گزارش اشکال در آگهی</h2><button class="icon-btn" data-close aria-label="بستن">\${icon("x")}</button></div>
+    openDialog(`<div class="dlg__head"><h2>گزارش اشکال در آگهی</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده، قیمتش دروغین است یا دلال است، گزارش دهید تا بررسی و از فهرست فرصت‌ها حذف شود:</p>
       <form class="form-grid" id="flagForm">
         <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="sold" checked> ملک قبلاً فروخته یا اجاره داده شده است</label>
@@ -1274,6 +1274,8 @@ const App = (() => {
       });
     }
   }
+
+  window.openReportDialog = openReportDialog;
 
   function openDialog(html, wide = false) {
     const d = $("#dlg");

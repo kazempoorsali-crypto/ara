@@ -917,6 +917,8 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   color: #fff;
 }
 .card__actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -926,17 +928,27 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   font-size: 12px;
 }
 .card__flag-btn {
+  position: relative;
+  z-index: 3;
   color: var(--muted);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11.5px;
-  transition: color 0.15s ease;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+  pointer-events: auto;
 }
 .card__flag-btn:hover {
   color: var(--over);
+  background: color-mix(in srgb, var(--over) 10%, transparent);
 }
 .card__flag-btn svg {
   width: 13px;
   height: 13px;
+  pointer-events: none;
 }

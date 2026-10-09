@@ -183,7 +183,7 @@ const UI = (() => {
         ${sig.caution || sig.fake ? `<p class="card__warn">${icon("alert")} پیش از خرید: ${[sig.fake && "عکس‌ها مال این ملک نیست", sig.caution && fa(sig.caution) + " مورد برای استعلام"].filter(Boolean).join("، ")}</p>` : ""}
         <div class="card__actions">
           ${opts.compare !== false ? `<label class="card__cmp"><input type="checkbox" data-cmp="${esc(l.id)}" ${App.compare.includes(l.id) ? "checked" : ""}> مقایسه</label>` : ""}
-          <button class="card__flag-btn" type="button" data-flag="${esc(l.id)}" title="گزارش آگهی فیک یا فروخته‌شده">${icon("alert")} گزارش تخلف</button>
+          <button class="card__flag-btn" type="button" data-flag="${esc(l.id)}" onclick="event.stopPropagation();event.preventDefault();if(window.openReportDialog)window.openReportDialog('${esc(l.id)}');" title="گزارش آگهی فیک یا فروخته‌شده">${icon("alert")} گزارش تخلف</button>
         </div>
       </div>
     </article>`;
