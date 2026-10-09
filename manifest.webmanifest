@@ -1,0 +1,15 @@
+{
+  "name": "فرصت‌یاب",
+  "short_name": "فرصت‌یاب",
+  "description": "ملک زیر قیمت، محله به محله",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f0e8",
+  "theme_color": "#13201c",
+  "icons": [
+    { "src": "/assets/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

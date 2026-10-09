@@ -3,3 +3,8 @@ __pycache__/
 
 # Skill zips live on the separate skill-zips branch
 outputs/skill-zips/
+
+data/
+*.db
+*.db-wal
+*.db-shm
