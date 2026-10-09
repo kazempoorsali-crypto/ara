@@ -969,7 +969,11 @@ const App = (() => {
       yn("warehouse", "انباری دارد", "بی‌انباری", null)
     ].filter(Boolean);
     const list = (a) => `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+    const isMulti = /انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase());
     const caution = [...(ex.sus || []), ...(ex.caution || [])];
+    if (isMulti) {
+      caution.unshift("توجه به آگهی چندموردی: این آگهی شرکتی شامل چند فایل یا واحد مختلف است؛ مشخصات و قیمت ثبت‌شده ممکن است تنها به یکی از گزینه‌ها اختصاص داشته باشد.");
+    }
 
     // دلایل احتمالی قیمت پایین‌تر
     const sellerReasons = (ex.ctx || []);
@@ -1041,9 +1045,8 @@ const App = (() => {
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
         <div>
-          ${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<div class="note-soft" style="margin-bottom:12px;background:rgba(79,70,229,0.12);border:1px solid rgba(79,70,229,0.3);color:var(--forest);padding:10px 14px;border-radius:var(--r);font-size:13px;display:flex;align-items:center;gap:8px">${icon("layers")} <b>توجه:</b> این آگهی شرکتی شامل چند فایل یا واحد مختلف است؛ قیمت و متراژ درج‌شده ممکن است فقط مربوط به یکی از گزینه‌ها باشد.</div>` : ""}
           <header class="ad__head">
-            <div class="ad__badges">${UI.typePill(l)}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
+            <div class="ad__badges">${UI.typePill(l)}${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<span class="pill pill--multi" title="آگهی شامل چند واحد یا فایل مختلف است">${icon("layers")} چندموردی / شرکتی</span>` : ""}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
             <h1>${UI.tt(l.title)}</h1>
             <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? "، ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
