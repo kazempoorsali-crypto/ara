@@ -446,22 +446,6 @@ class Handler(BaseHTTPRequestHandler):
             if not p or p.get("kind") != "content":
                 return self.send_json({"error": "یافت نشد"}, 404)
             return self.send_json({"title": p["title"], "body": p["body"]})
-        m_flag = re.fullmatch(r"/api/listing/([\w-]+)/flag", path)
-        if m_flag:
-            listing_id = m_flag.group(1)
-            reason = data.get("reason", "fake")
-            flags = a.store.get_setting("user_flags") or {}
-            listing_flags = flags.get(listing_id, [])
-            listing_flags.append({"reason": reason, "ip": self.client_ip(), "at": time.time()})
-            flags[listing_id] = listing_flags
-            a.store.set_setting("user_flags", flags)
-            if len(set(f.get("ip") for f in listing_flags)) >= 3:
-                d = a.store.get(listing_id)
-                if d:
-                    d["label"] = "sus"
-                    d["sus_reason"] = "گزارش مکرر کاربران مبنی بر عدم صحت قیمت یا فروش ملک"
-                    a.store.put(d)
-            return self.send_json({"ok": True, "message": "گزارش ثبت شد"})
 
         if path == "/api/tickets":
             u = self.user()
@@ -509,6 +493,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_post(self, path, data):
         a = self.app
+        m_flag = re.fullmatch(r"/api/listing/([\w-]+)/flag", path)
+        if m_flag:
+            listing_id = m_flag.group(1)
+            reason = (data or {}).get("reason", "fake_price")
+            flags = a.store.get_setting("user_flags") or {}
+            listing_flags = flags.get(listing_id, [])
+            listing_flags.append({"reason": reason, "ip": self.client_ip(), "at": time.time()})
+            flags[listing_id] = listing_flags
+            a.store.set_setting("user_flags", flags)
+            if len(set(f.get("ip") for f in listing_flags)) >= 3:
+                d = a.store.get(listing_id)
+                if d:
+                    d["label"] = "sus"
+                    d["sus_reason"] = "گزارش مکرر کاربران مبنی بر عدم اصالت یا فروش ملک"
+                    a.store.put(d)
+            return self.send_json({"ok": True, "message": "گزارش ثبت شد"})
+
         if path == "/api/auth/otp":
             return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local()))
         if path == "/api/auth/verify":

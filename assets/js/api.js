@@ -99,7 +99,10 @@ const DataLayer = (() => {
     const rooms = f.rooms !== undefined && f.rooms !== "" ? String(f.rooms).split(",").filter((x) => x !== "").map(Number) : null;
     return SAMPLE_LISTINGS.filter((l) => {
       if (l.excluded && !(f.sus && l.label === "sus")) return false;
-      if (f.city && l.city_key !== f.city) return false;
+      if (f.city) {
+        const cks = String(f.city).split(",").map(x => x.trim()).filter(Boolean);
+        if (cks.length && !cks.includes(l.city_key)) return false;
+      }
       if (!f.city && f.province && l.province !== f.province) return false;
       if (ds && !ds.includes((l.district || "").replace(/[\s‌]/g, ""))) return false;
       if (f.deal && l.deal !== f.deal) return false;
@@ -136,6 +139,8 @@ const DataLayer = (() => {
       exp: (a, b) => (b.pp ?? 0) - (a.pp ?? 0),
       ppm: (a, b) => (a.ppm ?? 1e18) - (b.ppm ?? 1e18),
       area: (a, b) => (b.area ?? 0) - (a.area ?? 0),
+      area_asc: (a, b) => (a.area ?? 1e9) - (b.area ?? 1e9),
+      age_asc: (a, b) => (b.year ?? 0) - (a.year ?? 0),
       drop: (a, b) => b.price_drop - a.price_drop,
     }[f.sort || "score"] || ((a, b) => (b.score ?? -1) - (a.score ?? -1));
     list = [...list].sort(by);
