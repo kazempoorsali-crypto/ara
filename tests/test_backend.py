@@ -193,6 +193,17 @@ def run(mode):
         check('id="seoText"' in ch and "دربارهٔ بازار ملک رشت" in ch and "Place" in ch, f"[{mode}] متن «دربارهٔ بازار» و داده‌های ساخت‌یافتهٔ مکان")
         gs, gh = raw("/rahnama/kharid-melk")
         check(gs == 200 and "<h1>چک‌لیست خرید ملک" in gh and '"Article"' in gh, f"[{mode}] صفحهٔ راهنمای ثابت")
+        rb = raw("/robots.txt")[1]
+        check("User-agent: GPTBot" in rb and "User-agent: ClaudeBot" in rb and "AhrefsBot" in rb and "/llms.txt" in rb, f"[{mode}] robots: دستیارهای هوش مصنوعی مجاز، خزندهٔ پربار بسته")
+        ls_, lt = raw("/llms.txt")
+        lf = raw("/llms-full.txt")[1]
+        check(ls_ == 200 and lt.startswith("# ") and "/method" in lt and "/melk/" in lt and "| شهر |" in lf and "قیمت پیشنهادی" in lf, f"[{mode}] llms.txt و llms-full.txt")
+        ms, mh2 = raw("/method")
+        check(ms == 200 and "TechArticle" in mh2 and "تبانی" in mh2 and 'class="seo-answer"' in mh2, f"[{mode}] صفحهٔ روش ارزش‌گذاری برای خزنده")
+        check(raw("/about")[0] == 200 and "AboutPage" in raw("/about")[1] and raw("/rahnama/pish-forosh")[0] == 200, f"[{mode}] دربارهٔ ما و راهنمای پیش‌فروش")
+        check('"Dataset"' in ch and "seo-answer" in ch and "speakable" in ch.lower() or '"Dataset"' not in ch and "میانهٔ قیمت هر متر" not in ch, f"[{mode}] Dataset و پاسخ کوتاه صفحهٔ شهر")
+        hs, hh = raw("/")
+        check('"FAQPage"' in hh and "pish-forosh" in hh, f"[{mode}] پرسش‌های پرتکرار صفحهٔ اصلی")
         check(raw("/manifest.webmanifest")[0] == 200 and raw("/assets/img/og.png")[0] == 200, f"[{mode}] manifest و تصویر اشتراک‌گذاری")
         ar = call("/api/admin/article", {"title": "راهنمای خرید آپارتمان در رشت", "summary": "آزمون", "city_key": "rasht",
                                          "body": "## بخش اول\nاین یک متن آزمایشی برای مقاله است که باید بیش از پنجاه نویسه داشته باشد.\n- مورد [رشت](/melk/rasht)"}, tok)

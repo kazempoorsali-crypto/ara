@@ -119,6 +119,7 @@ class BoundedServer(ThreadingHTTPServer):
         finally:
             self.slots.release()
 SITEMAP: dict = {}
+LLMS: dict = {}
 
 
 def _version() -> str:
@@ -340,6 +341,11 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             if url.path == "/robots.txt":
                 return self.send_text(seo.robots(self.base_url()), "text/plain; charset=utf-8")
+            if url.path in ("/llms.txt", "/llms-full.txt"):
+                key = (self.base_url(), url.path)
+                if LLMS.get(key, (0,))[0] < time.time() - 1800:
+                    LLMS[key] = (time.time(), seo.llms(self.app, self.base_url(), full=url.path == "/llms-full.txt"))
+                return self.send_text(LLMS[key][1], "text/markdown; charset=utf-8")
             if url.path == "/sitemap.xml":
                 key = self.base_url()
                 if SITEMAP.get("key") != key or time.time() - SITEMAP.get("at", 0) > 600:

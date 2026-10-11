@@ -22,6 +22,7 @@ import urllib.parse
 import catalog
 from features import clean_title
 from report import market_report
+from valuation import DEFAULT_THRESHOLDS
 
 ESC = html.escape
 KIND = {"apartment": "آپارتمان", "suite": "سوئیت", "villa": "ویلا", "land": "زمین", "garden": "باغ", "shop": "مغازه", "office": "دفتر کار"}
@@ -171,7 +172,7 @@ def _city_paragraphs(name, rep, rent):
             s += f"؛ گران‌ترین محله حدود {fa1(o['spread'])} برابر ارزان‌ترین است"
         ps.append(s + ". به همین دلیل هر آگهی فقط با آگهی‌های مشابه محلهٔ خودش مقایسه می‌شود، نه با میانهٔ کل شهر.")
     if o.get("opportunities"):
-        s = f"{fa(o['opportunities'])} آگهی آپارتمان در {name} دست‌کم ۱۵٪ زیر قیمت محلهٔ خودشان‌اند"
+        s = f"{fa(o['opportunities'])} آگهی آپارتمان در {name} دست‌کم ⟨OPP⟩ زیر قیمت محلهٔ خودشان‌اند"
         if o.get("gold"):
             s += f" که {fa(o['gold'])} مورد «فرصت طلایی» است"
         if rep.get("hotspots"):
@@ -209,13 +210,91 @@ def _city_faq(name, rep, rent):
         (f"گران‌ترین محله‌های {name} کدام‌اند؟",
          "از نظر میانهٔ قیمت هر متر: " + "، ".join(f"{d['name']} ({money(d['median_ppm'])})" for d in rep["pricey"][:4]) + "." if rep.get("pricey") and o.get("n_districts", 0) >= 2 else ""),
         (f"الان چند آپارتمان زیر قیمت در {name} هست؟",
-         f"{fa(o['opportunities'])} آگهی دست‌کم ۱۵٪ زیر قیمت محلهٔ خودشان‌اند؛ هر آگهی با آگهی‌های مشابه همان محله (متراژ، سن، طبقه و امکانات) سنجیده شده است." if o.get("opportunities") else ""),
+         f"{fa(o['opportunities'])} آگهی دست‌کم ⟨OPP⟩ زیر قیمت محلهٔ خودشان‌اند؛ هر آگهی با آگهی‌های مشابه همان محله (متراژ، سن، طبقه و امکانات) سنجیده شده است." if o.get("opportunities") else ""),
         (f"میانهٔ ودیعه و اجارهٔ آپارتمان در {name} چقدر است؟",
          f"میانهٔ ودیعه {money(ro['median_deposit'])}" + (f" و میانهٔ اجارهٔ ماهانه {money(ro['median_rent'])}" if ro.get("median_rent") else "") + f" از {fa(ro['valid'])} آگهی معتبر." if ro.get("valid") and ro.get("median_deposit") is not None else ""),
     ]
 
 
 # ---------------------------------------------------------------- pages
+def HOME_FAQ(name):
+    return [
+        (f"{name} چطور تشخیص می‌دهد یک ملک زیر قیمت است؟",
+         "هر آگهی فقط با آگهی‌های مشابه همان محله مقایسه می‌شود، نه با میانهٔ کل شهر. اثر متراژ، سن بنا، طبقه، آسانسور، پارکینگ، انباری و سند با یک مدل آماری از خود آگهی‌ها جدا می‌شود و برآورد با نزدیک‌ترین آگهی‌های مشابه هم تأیید می‌شود. آگهی‌ای «فرصت» است که دست‌کم ⟨OPP⟩ زیر قیمت محله باشد و این فاصله بیرون از پراکندگی عادی قیمت‌های آن محله باشد."),
+        ("آیا قیمت‌ها قیمت معامله‌شده‌اند؟",
+         "نه. همهٔ عددها از قیمت پیشنهادی آگهی‌های عمومی ساخته می‌شوند و قیمت معامله‌شده یا کارشناسی رسمی نیستند. پیش از خرید، بازدید، استعلام سند و مشورت با کارشناس لازم است."),
+        ("اگر دلال‌ها آگهی گران بگذارند، قیمت محله بالا نمی‌رود؟",
+         "آگهی‌های یک فروشنده (همان شماره یا همان متن الگو) در هر محله روی هم فقط یک رأی دارند، قیمت محله دست‌کم از ۳ فروشندهٔ مستقل ساخته می‌شود و افزایش قیمتِ پس از درج آگهی نادیده گرفته می‌شود."),
+        ("پیش‌فروش چطور سنجیده می‌شود؟",
+         "پیش‌فروش بازار جداست: با قیمت همان واحد در حالت نوساز و آماده در همان محله مقایسه می‌شود، منهای تخفیف معمول پیش‌فروش که از خود آگهی‌های پیش‌فروش و بر حسب زمان باقی‌مانده تا تحویل برآورد می‌شود."),
+        ("داده‌ها هر چند وقت به‌روز می‌شوند؟",
+         "آگهی‌ها پیوسته و به‌تدریج خوانده می‌شوند و ارزش‌گذاری با هر دستهٔ تازه از نو انجام می‌شود؛ تاریخ آخرین به‌روزرسانی روی هر صفحه آمده است."),
+    ]
+
+
+METHOD_HTML = """<h1>روش ارزش‌گذاری: قیمت محله و فرصت چطور سنجیده می‌شود</h1>
+<p class="seo-answer"><b>پاسخ کوتاه:</b> هر آگهی ملک با آگهی‌های مشابه همان محله مقایسه می‌شود؛ اثر متراژ، سن بنا، طبقه و امکانات جدا حساب می‌شود، قیمت هر آگهی در معیار سنجش خودش نمی‌آید و آگهی‌های یک فروشنده روی هم یک رأی دارند. «فرصت» یعنی دست‌کم ⟨OPP⟩ زیر قیمت محله و بیرون از پراکندگی عادی آن.</p>
+<h2>داده از کجا می‌آید؟</h2><p>از آگهی‌های عمومی ملک در شهرهای تحت پوشش، به‌تدریج و با رعایت سقف درخواست. صفحهٔ کامل هر آگهی برای مشخصات خوانده و هر تغییر قیمت ثبت می‌شود.</p>
+<h2>کدام آگهی‌ها کنار می‌روند؟</h2><p>قیمت نمادین یا توافقی، مشارکت در ساخت، معاوضه، فروش دانگی، هم‌خانه، آگهی تکراری، آگهی قدیمی و قیمت‌هایی که با محلهٔ خودشان نمی‌خوانند (پرت مقاوم با معیار MAD، اشتباه یک صفر، یا قیمت هر متر به جای قیمت کل).</p>
+<h2>قیمت محله برای یک خانهٔ مشخص چطور ساخته می‌شود؟</h2><p>میانهٔ وزنی «قیمت هر متر تعدیل‌شده برای ویژگی‌ها» در همان محله. اثر هر ویژگی با رگرسیون ریج مقاوم (هوبر) روی خود آگهی‌ها برآورد می‌شود و به‌طور متناوب با اثر محله برازش می‌شود؛ پس محله‌ای که آگهی‌هایش بیشتر نوساز است، خط پایهٔ بادکرده نمی‌گیرد. آگهی‌های تازه‌تر وزن بیشتری دارند و قیمت‌های قدیمی‌تر با روند ماهانهٔ برآوردشده به امروز آورده می‌شوند.</p>
+<h2>چرا قیمت‌سازی و تبانی اثر ندارد؟</h2><p>افزایش قیمتِ پس از درج آگهی در ساختن قیمت محله نادیده گرفته می‌شود. آگهی‌های یک فروشنده (همان شمارهٔ تماس یا همان متن الگو با عددهای متفاوت) در هر محله روی هم یک رأی دارند، قیمت محله دست‌کم از ۳ فروشندهٔ مستقل ساخته می‌شود و آگهی‌های هم‌فروشندهٔ یک آگهی در قیمت محلهٔ خودش شرکت نمی‌کنند. گزارش کاربران هم فقط وقتی اثر دارد که از چند کاربر مستقل و در زمان‌های مختلف برسد و تصمیم نهایی با مدیر است.</p>
+<h2>فرصت چه وقت اعلام می‌شود؟</h2><p>وقتی فاصلهٔ قیمت آگهی تا قیمت منصفانه دست‌کم ⟨OPP⟩ (فرصت طلایی ⟨GOLD⟩) باشد، این فاصله از عدم‌قطعیت برآورد بیشتر باشد و مقایسه با نزدیک‌ترین آگهی‌های مشابه همان محله هم آن را تأیید کند. بیش از ⟨SUS⟩ ارزانی «مشکوک» است، نه فرصت.</p>
+<h2>پیش‌فروش چطور سنجیده می‌شود؟</h2><p>مرجع، قیمت منصفانهٔ همین واحد در حالت نوساز و آماده در همان محله است؛ نسبت معمول پیش‌فروش به آماده از خود آگهی‌های پیش‌فروش (محله یا استان) و بر حسب ماه‌های باقی‌مانده تا تحویل برآورد می‌شود. زمان تحویل از متن آگهی خوانده می‌شود. عدم‌قطعیت بیشتر و آستانهٔ فرصت سخت‌تر است.</p>
+<h2>دقت چطور سنجیده می‌شود؟</h2><p>قیمت منصفانهٔ هر آگهی بدون خود آن برآورد و با قیمتش مقایسه می‌شود؛ میانهٔ خطای مطلق (MdAPE) برای هر گروه گزارش می‌شود.</p>
+<h2>محدودیت‌ها</h2><p>قیمت آگهی‌ها پیشنهادی است، نه معامله‌شده. تشخیص نشانه‌ها از متن ممکن است خطا کند و در محله‌های کم‌آگهی اطمینان پایین‌تر است. این تحلیل جای بازدید، استعلام سند و مشاورهٔ کارشناس را نمی‌گیرد.</p>"""
+
+ABOUT_HTML = """<h1>دربارهٔ {name}</h1>
+<p class="seo-answer"><b>{name}</b> ابزار مستقل تحلیل قیمت آگهی‌های ملک است: آگهی‌های عمومی را شهر به شهر می‌خواند، هر آگهی را با محلهٔ خودش می‌سنجد و فرصت‌های زیر قیمت و قیمت‌های مشکوک را جدا می‌کند.</p>
+<h2>چه کاری نمی‌کند؟</h2><p>{name} ملک نمی‌فروشد، کمیسیون نمی‌گیرد، قیمت تعیین نمی‌کند و به هیچ فروشنده یا مشاور املاکی وابسته نیست. رتبهٔ آگهی‌ها خریدنی نیست و هیچ انسانی آگهی‌ها را دستی امتیاز نمی‌دهد.</p>
+<h2>عددها از کجا می‌آیند؟</h2><p>همهٔ عددهای سایت از دادهٔ واقعی همان لحظه ساخته می‌شوند؛ اگر داده کافی نباشد، عددی نمایش داده نمی‌شود. روش کامل در صفحهٔ <a href="/method">روش ارزش‌گذاری</a> آمده است.</p>
+<h2>حریم خصوصی</h2><p>شمارهٔ تماس مالکان در صفحه‌های عمومی منتشر نمی‌شود. ورود با شمارهٔ موبایل فقط برای اشتراک و ذخیرهٔ تنظیمات است.</p>
+<h2>تماس</h2><p>پرسش، گزارش خطا یا پیشنهاد را از صفحهٔ <a href="/support">پشتیبانی</a> بفرستید.</p>"""
+
+PRESALE_HTML = """<p class="seo-answer"><b>پاسخ کوتاه:</b> قیمت منصفانهٔ پیش‌فروش = قیمت همان واحد اگر نوساز و آماده بود در همان محله، منهای تخفیف معمول پیش‌فروش برای زمان باقی‌مانده تا تحویل. هرچه تحویل دورتر و ریسک پروژه بیشتر باشد، تخفیف منصفانه بزرگ‌تر است.</p>
+<h2>قیمت پیش‌فروش را با چه مقایسه کنیم؟</h2><p>با آپارتمان‌های نوساز و آمادهٔ همان محله با متراژ و امکانات مشابه، نه با میانهٔ قیمت کل محله که خانه‌های قدیمی را هم دارد. سپس تخفیف پیش‌فروش را در نظر بگیرید: پول شما تا تحویل در پروژه می‌ماند و ریسک تأخیر و تکمیل نشدن را می‌پذیرید.</p>
+<h2>پیش از خرید پیش‌فروش چه چیزهایی را بررسی کنیم؟</h2><ol>
+<li>پروانهٔ ساخت معتبر و مطابقت مشخصات واحد (متراژ، طبقه، پارکینگ، انباری) با نقشهٔ مصوب.</li>
+<li>سند مالکیت زمین یا قرارداد مشارکت سازنده با مالک و اختیار او برای پیش‌فروش.</li>
+<li>تنظیم قرارداد پیش‌فروش در دفتر اسناد رسمی، مطابق قانون پیش‌فروش ساختمان، با زمان‌بندی پرداخت متناسب با پیشرفت ساخت.</li>
+<li>بیمهٔ مسئولیت سازنده و جریمهٔ تأخیر در تحویل، به‌صراحت در قرارداد.</li>
+<li>سابقهٔ سازنده: پروژه‌های تحویل‌شده و تأخیرهای قبلی.</li>
+<li>بازدید از محل و مقایسهٔ پیشرفت واقعی با آنچه در آگهی آمده است.</li></ol>
+<p>این فهرست برای کم کردن ریسک است و جای مشاورهٔ حقوقی را نمی‌گیرد. <a href="/method">روش ارزش‌گذاری پیش‌فروش</a></p>"""
+
+
+def method_page(app, base):
+    site = _site(app)
+    crumbs = [("صفحهٔ اصلی", "/"), ("روش ارزش‌گذاری", "/method")]
+    t = "روش ارزش‌گذاری: قیمت محله و فرصت چطور سنجیده می‌شود"
+    ld = [_crumbs_ld(base, crumbs), {"@context": "https://schema.org", "@type": "TechArticle", "headline": t[:110], "inLanguage": "fa-IR",
+          "author": {"@type": "Organization", "name": site["name"]}, "publisher": {"@type": "Organization", "name": site["name"]},
+          "dateModified": time.strftime("%Y-%m-%d", time.gmtime(_updated(app.store))), "mainEntityOfPage": base + "/method",
+          "speakable": {"@type": "SpeakableSpecification", "cssSelector": [".seo-answer"]}}]
+    return {"title": f"{t} | {site['name']}", "desc": "قیمت محلهٔ هر آگهی ملک چطور ساخته می‌شود، فرصت زیر قیمت چه وقت اعلام می‌شود و چرا قیمت‌سازی، تبانی دلال‌ها و گزارش‌های رقیب اثر ندارد.",
+            "canonical": base + "/method", "body": _crumbs_html(crumbs) + METHOD_HTML, "ld": ld, "hash": "#/method", "kind": "content"}
+
+
+def about_page(app, base):
+    site = _site(app)
+    crumbs = [("صفحهٔ اصلی", "/"), ("دربارهٔ ما", "/about")]
+    ld = [_crumbs_ld(base, crumbs), {"@context": "https://schema.org", "@type": "AboutPage", "name": f"دربارهٔ {site['name']}", "url": base + "/about",
+          "inLanguage": "fa-IR", "about": {"@type": "Organization", "name": site["name"], "url": base + "/"}}]
+    return {"title": f"دربارهٔ {site['name']}: تحلیل مستقل قیمت ملک", "desc": f"{site['name']} چه می‌کند، چه نمی‌کند و عددهایش از کجا می‌آیند.",
+            "canonical": base + "/about", "body": _crumbs_html(crumbs) + ABOUT_HTML.replace("{name}", ESC(site["name"])), "ld": ld,
+            "hash": "#/p/about", "kind": "content"}
+
+
+def _dataset_ld(base, site, title, desc, url, place, c, st):
+    t = _updated(st)
+    return {"@context": "https://schema.org", "@type": "Dataset", "name": title, "description": desc, "url": url, "inLanguage": "fa-IR",
+            "creator": {"@type": "Organization", "name": site["name"], "url": base + "/"}, "isAccessibleForFree": True,
+            "dateModified": time.strftime("%Y-%m-%d", time.gmtime(t)),
+            "temporalCoverage": time.strftime("%Y-%m-%d", time.gmtime(t - 90 * 86400)) + "/" + time.strftime("%Y-%m-%d", time.gmtime(t)),
+            "spatialCoverage": {"@type": "Place", "name": place, "geo": {"@type": "GeoCoordinates", "latitude": c["lat"], "longitude": c["lng"]}},
+            "variableMeasured": ["قیمت هر متر (تومان)", "قیمت کل (تومان)", "ودیعه و اجارهٔ ماهانه (تومان)", "تعداد آگهی معتبر"],
+            "measurementTechnique": "میانهٔ وزنی آگهی‌های معتبر هر محله پس از تعدیل ویژگی‌ها (مدل هدونیک)", "isBasedOn": base + "/method"}
+
+
 def home(app, base):
     st, site = app.store, _site(app)
     act = app.regions()["active"]
@@ -229,17 +308,22 @@ def home(app, base):
     guides = "".join(f'<li><a href="{guide_path(c["key"])}">راهنمای خرید ملک در {ESC(c["name"])}</a></li>'
                      for c in catalog.CITIES if counts.get(c["key"], 0) >= 20)
     arts = "".join(f'<li><a href="/maghale/{ESC(a["slug"])}">{ESC(a["title"])}</a></li>' for a in articles_list(st, 8))
+    home_faq_html, home_faq_ld = _faq(HOME_FAQ(site["name"]))
     body = (f'<h2>ملک زیر قیمت در شهرهای ایران، محله به محله</h2>'
             f'<p>{ESC(site["name"])} آگهی‌های عمومی ملک را شهر به شهر می‌خواند و هر آگهی را فقط با آگهی‌های مشابه همان محله، با در نظر گرفتن متراژ، سن بنا، طبقه، آسانسور، پارکینگ و سند می‌سنجد. فرصت‌های زیر قیمت محله رتبه‌بندی و قیمت‌های مشکوک جدا می‌شوند. آخرین به‌روزرسانی: {jdate(_updated(st))}.</p>'
             + (f'<h3>برترین فرصت‌های امروز</h3><ul>{top}</ul>' if top else "")
             + f'<details class="seo-more"><summary>همهٔ شهرها</summary>{"".join(provs)}</details>'
-            + (f'<h3>راهنماهای خرید</h3><ul class="seo-cols">{guides}<li><a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a></li><li><a href="/rahnama/ejare">چک‌لیست رهن و اجاره</a></li></ul>')
+            + (f'<h3>راهنماهای خرید</h3><ul class="seo-cols">{guides}<li><a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a></li><li><a href="/rahnama/ejare">چک‌لیست رهن و اجاره</a></li><li><a href="/rahnama/pish-forosh">راهنمای خرید پیش‌فروش</a></li><li><a href="/method">روش ارزش‌گذاری</a></li><li><a href="/about">دربارهٔ {ESC(site["name"])}</a></li></ul>')
+            + home_faq_html
             + (f'<h3>مقاله‌ها</h3><ul>{arts}</ul>' if arts else ""))
     title = f'{site["name"]} | ملک زیر قیمت، محله به محله'
     desc = ("آگهی‌های ملک شهرهای ایران، محله به محله با قیمت منصفانهٔ هر محله سنجیده می‌شوند؛ آپارتمان، ویلا و زمین زیر قیمت را "
             "برای خرید و اجاره پیش از بقیه پیدا کنید.")
     ld = [{"@context": "https://schema.org", "@type": "WebSite", "name": site["name"], "url": base + "/", "inLanguage": "fa-IR", "description": desc},
-          {"@context": "https://schema.org", "@type": "Organization", "name": site["name"], "url": base + "/", "logo": base + "/assets/img/icon-512.png"}]
+          {"@context": "https://schema.org", "@type": "Organization", "name": site["name"], "url": base + "/", "logo": base + "/assets/img/icon-512.png",
+           "description": "تحلیل مستقل قیمت آگهی‌های ملک، محله به محله", "knowsAbout": ["قیمت مسکن", "ارزش‌گذاری ملک", "بازار اجاره", "پیش‌فروش ساختمان"]}]
+    if home_faq_ld:
+        ld.append(home_faq_ld)
     return {"title": title, "desc": desc, "canonical": base + "/", "body": body, "ld": ld, "hash": "", "kind": "supplement"}
 
 
@@ -268,8 +352,10 @@ def city(app, base, key):
     desc = (f"بازار ملک {name}" + ("؛ " + "، ".join(parts) if parts else "") +
             f". قیمت هر متر محله‌های {name}، آپارتمان و ویلای زیر قیمت و مقایسهٔ هر آگهی با محلهٔ خودش.")
     crumbs = [("صفحهٔ اصلی", "/"), (f"ملک {name}", city_path(key))]
+    answer = _city_faq(name, rep, rent)[0][1]
     body = (_crumbs_html(crumbs)
             + f'<h2>دربارهٔ بازار ملک {ESC(name)}</h2><p class="seo-upd">استان {ESC(prov)}؛ آخرین به‌روزرسانی: {jdate(_updated(st))}</p>'
+            + (f'<p class="seo-answer"><b>پاسخ کوتاه:</b> {ESC(answer)}</p>' if answer else "")
             + ("".join(f"<p>{ESC(p)}</p>" for p in paras) if paras else f"<p>آگهی‌های ملک {ESC(name)} به‌تدریج جمع‌آوری می‌شوند؛ با رسیدن داده کافی، قیمت هر متر محله‌ها و فرصت‌ها این‌جا نمایش داده می‌شود.</p>")
             + (f'<h3>آگهی‌ها و فرصت‌های {ESC(name)}</h3><ul>{"".join(_li(l) for l in rows)}</ul>' if rows else "")
             + (f'<h3>محله‌های {ESC(name)}</h3><ul class="seo-cols">' + "".join(
@@ -281,6 +367,7 @@ def city(app, base, key):
     ld = [_crumbs_ld(base, crumbs),
           {"@context": "https://schema.org", "@type": "WebPage", "name": title, "url": base + city_path(key), "inLanguage": "fa-IR",
            "dateModified": time.strftime("%Y-%m-%d", time.gmtime(_updated(st))),
+           "speakable": {"@type": "SpeakableSpecification", "cssSelector": [".seo-answer", "#seoText details p"]},
            "about": {"@type": "Place", "name": name, "geo": {"@type": "GeoCoordinates", "latitude": c["lat"], "longitude": c["lng"]},
                      "containedInPlace": {"@type": "AdministrativeArea", "name": f"استان {prov}"}}}]
     if rows:
@@ -288,6 +375,9 @@ def city(app, base, key):
             {"@type": "ListItem", "position": i + 1, "url": f"{base}/ad/{l['id']}", "name": l["title"] or "آگهی ملک"} for i, l in enumerate(rows)]})
     if faq_ld:
         ld.append(faq_ld)
+    if o.get("median_ppm"):
+        ld.append(_dataset_ld(base, site, f"قیمت آگهی‌های ملک {name}", f"میانهٔ قیمت هر متر آپارتمان، قیمت محله‌ها، ودیعه و اجاره در {name} از {fa(o['valid'])} آگهی معتبر؛ قیمت پیشنهادی آگهی‌ها، نه قیمت معامله‌شده.",
+                              base + city_path(key), name, c, st))
     return {"title": title, "desc": desc, "canonical": base + city_path(key), "body": body, "ld": ld,
             "hash": "#/market?city=" + key, "kind": "supplement", "noindex": not counts.get(key)}
 
@@ -307,7 +397,7 @@ def district(app, base, key, dname):
     rep = market_report(st, key, "sale", "apartment")
     drow = next((d for d in rep.get("districts") or [] if d["name"].replace(" ", "").replace("‌", "") == dkey), None)
     ps = [f"{fa(match['n'])} آگهی ملک فعال در محلهٔ {dname} {name} بررسی شده است"
-          + (f" که {fa(match['opp'])} مورد دست‌کم ۱۵٪ زیر قیمت همین محله است" if match["opp"] else "") + "."]
+          + (f" که {fa(match['opp'])} مورد دست‌کم ⟨OPP⟩ زیر قیمت همین محله است" if match["opp"] else "") + "."]
     faq = []
     if drow:
         s = f"میانهٔ قیمت هر متر آپارتمان در {dname} {money(drow['median_ppm'])} از {fa(drow['n'])} آگهی معتبر است"
@@ -323,7 +413,7 @@ def district(app, base, key, dname):
     else:
         sib = sorted((d for d in all_d if d is not match and d["n"] >= 5), key=lambda d: -d["n"])[:6]
     if match["opp"]:
-        faq.append((f"در {dname} آپارتمان زیر قیمت هست؟", f"بله، {fa(match['opp'])} آگهی در حال حاضر دست‌کم ۱۵٪ زیر قیمت آگهی‌های مشابه همین محله‌اند."))
+        faq.append((f"در {dname} آپارتمان زیر قیمت هست؟", f"بله، {fa(match['opp'])} آگهی در حال حاضر دست‌کم ⟨OPP⟩ زیر قیمت آگهی‌های مشابه همین محله‌اند."))
     faq_html, faq_ld = _faq(faq)
     title = f"قیمت ملک در {dname} {name} | آپارتمان و فرصت‌های زیر قیمت | {site['name']}"
     desc = ps[-1] if drow else ps[0]
@@ -440,6 +530,9 @@ STATIC_GUIDES = {
                     "مدارکی که باید دید، استعلام‌های لازم و راه مقایسهٔ درست قیمت پیش از خرید آپارتمان، ویلا یا زمین.",
                     lambda site: f"<p>این فهرست برای کم کردن ریسک خرید است و جای مشاورهٔ حقوقی را نمی‌گیرد.</p>{CHECKLIST_BUY}"
                                  f"<h2>قیمت منصفانه را چطور بسنجیم؟</h2><p>میانهٔ قیمت کل شهر برای یک خانهٔ مشخص معیار خوبی نیست؛ فاصلهٔ قیمت محله‌ها گاهی چند برابر است. {ESC(site['name'])} هر آگهی را با آگهی‌های مشابه همان محله مقایسه می‌کند و اثر متراژ، سن بنا، طبقه و امکانات را جدا حساب می‌کند. <a href=\"/method\">روش ارزش‌گذاری</a></p>"),
+    "pish-forosh": ("خرید پیش‌فروش آپارتمان: قیمت منصفانه را چطور بسنجیم و چه چیزهایی را بررسی کنیم؟",
+                    "فرمول قیمت منصفانهٔ پیش‌فروش، مقایسه با واحد نوساز آماده و چک‌لیست قرارداد، پروانه و سازنده پیش از خرید.",
+                    lambda site: PRESALE_HTML),
     "ejare": ("چک‌لیست رهن و اجاره: پیش از امضای قرارداد",
               "مدارک موجر، کد رهگیری، تبدیل ودیعه و اجاره و نکته‌هایی که پیش از اجارهٔ آپارتمان باید بدانید.",
               lambda site: f"<p>این فهرست برای کم کردن ریسک اجاره است و جای مشاورهٔ حقوقی را نمی‌گیرد.</p>{CHECKLIST_RENT}"),
@@ -545,7 +638,23 @@ STATIC_PAGES = {
 }
 
 
+def _fill(app, text: str) -> str:
+    """آستانه‌های واقعی پنل به جای نشانه‌های متن (تا متن با تنظیمات مدیر یکی بماند)."""
+    th = {**DEFAULT_THRESHOLDS, **(app.store.get_setting("thresholds") or {})}
+    for k, v in (("OPP", th["opp"]), ("GOLD", th["gold"]), ("SUS", th["sus"])):
+        text = text.replace(f"⟨{k}⟩", fa(round(float(v) * 100)) + "٪")
+    return text
+
+
 def page(app, base, path):
+    p = _page(app, base, path)
+    if p:
+        p["title"], p["desc"], p["body"] = _fill(app, p["title"]), _fill(app, p["desc"]), _fill(app, p["body"])
+        p["ld"] = json.loads(_fill(app, json.dumps(p["ld"], ensure_ascii=False)))
+    return p
+
+
+def _page(app, base, path):
     path = urllib.parse.unquote(path).rstrip("/") or "/"
     if path in ("/", "/index.html"):
         return home(app, base)
@@ -566,6 +675,10 @@ def page(app, base, path):
     m = re.fullmatch(r"/maghale/(.+)", path)
     if m:
         return article(app, base, m.group(1))
+    if path == "/method":
+        return method_page(app, base)
+    if path == "/about":
+        return about_page(app, base)
     if path in STATIC_PAGES:
         t, h = STATIC_PAGES[path]
         site = _site(app)
@@ -599,15 +712,67 @@ def render(template: str, p: dict, version_tag: str) -> str:
     return out
 
 
+AI_BOTS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User",
+           "Google-Extended", "Applebot-Extended", "Bingbot", "Googlebot", "YandexBot", "DuckAssistBot", "MistralAI-User", "cohere-ai"]
+HEAVY_BOTS = ["AhrefsBot", "SemrushBot", "MJ12bot", "DotBot", "BLEXBot", "PetalBot", "DataForSeoBot", "Bytespider", "serpstatbot"]
+
+
 def robots(base) -> str:
-    return f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin.html\nDisallow: /img\nDisallow: /pay/\n\nSitemap: {base}/sitemap.xml\n"
+    rules = "Allow: /\nDisallow: /api/\nDisallow: /admin.html\nDisallow: /img\nDisallow: /pay/\n"
+    out = "# موتورهای جست‌وجو و دستیارهای هوش مصنوعی خوش‌آمدند؛ خلاصهٔ سایت برای مدل‌های زبانی: " + base + "/llms.txt\n\n"
+    out += "User-agent: *\n" + rules + "\n"
+    out += "".join(f"User-agent: {b}\n" for b in AI_BOTS) + rules + "\n"
+    # خزنده‌های تحلیل بک‌لینک بار زیادی می‌سازند و سودی برای کاربر ندارند
+    out += "".join(f"User-agent: {b}\n" for b in HEAVY_BOTS) + "Disallow: /\n\n"
+    return out + f"Sitemap: {base}/sitemap.xml\n"
+
+
+def llms(app, base, full=False) -> str:
+    """خلاصهٔ مارک‌داون سایت برای مدل‌های زبانی (llms.txt)؛ نسخهٔ کامل با روش و عددهای واقعی هر شهر."""
+    st, site = app.store, _site(app)
+    counts = _counts(st)
+    act = app.regions()["active"]
+    cities = [c for c in catalog.CITIES if c["province"] in act and counts.get(c["key"], 0) >= 20]
+    cities.sort(key=lambda c: -counts[c["key"]])
+    L = [f"# {site['name']}", "",
+         f"> {site['name']} ابزار مستقل تحلیل قیمت آگهی‌های ملک در ایران است. هر آگهی فقط با آگهی‌های مشابه همان محله سنجیده می‌شود "
+         "(تعدیل برای متراژ، سن بنا، طبقه و امکانات)، فرصت‌های دست‌کم ⟨OPP⟩ زیر قیمت محله رتبه‌بندی و قیمت‌های مشکوک جدا می‌شوند. "
+         "همهٔ عددها از قیمت پیشنهادی آگهی‌هاست، نه قیمت معامله‌شده.", "",
+         f"آخرین به‌روزرسانی داده: {jdate(_updated(st))} ({time.strftime('%Y-%m-%d', time.gmtime(_updated(st)))})", "",
+         "## صفحه‌های اصلی", "",
+         f"- [روش ارزش‌گذاری]({base}/method): قیمت محله، فرصت، ضد قیمت‌سازی و تبانی، پیش‌فروش، سنجش دقت",
+         f"- [دربارهٔ {site['name']}]({base}/about): استقلال، منبع عددها، حریم خصوصی",
+         f"- [چک‌لیست خرید ملک]({base}/rahnama/kharid-melk)", f"- [چک‌لیست رهن و اجاره]({base}/rahnama/ejare)",
+         f"- [راهنمای خرید پیش‌فروش]({base}/rahnama/pish-forosh)", f"- [پرسش‌های پرتکرار]({base}/faq)", "",
+         "## بازار ملک شهرها", ""]
+    for c in cities[:60]:
+        L.append(f"- [ملک {c['name']}]({base}{city_path(c['key'])}): قیمت هر متر محله‌ها، فرصت‌های زیر قیمت، رهن و اجاره")
+    arts = articles_list(st, 30)
+    if arts:
+        L += ["", "## مقاله‌ها", ""] + [f"- [{a['title']}]({base}/maghale/{urllib.parse.quote(a['slug'])})" for a in arts]
+    if not full:
+        L += ["", "## بیشتر", "", f"- [نسخهٔ کامل با روش و آمار هر شهر]({base}/llms-full.txt)"]
+        return _fill(app, "\n".join(L) + "\n")
+    txt = re.sub(r"<[^>]+>", "", METHOD_HTML.replace("</h2>", "\n").replace("<h2>", "\n### ").replace("</p>", "\n").replace("<h1>", "## ").replace("</h1>", "\n"))
+    L += ["", html.unescape(txt).strip(), "", "## آمار شهرها (آپارتمان، فروش)", "",
+          "| شهر | آگهی معتبر | میانهٔ قیمت هر متر (تومان) | فرصت زیر قیمت | میانهٔ ودیعه (تومان) |", "|---|---|---|---|---|"]
+    for c in cities[:60]:
+        o = market_report(st, c["key"], "sale", "apartment")["overview"]
+        ro = market_report(st, c["key"], "rent", "apartment")["overview"]
+        if not o.get("valid"):
+            continue
+        L.append(f"| [{c['name']}]({base}{city_path(c['key'])}) | {o['valid']} | {round(o['median_ppm']) if o.get('median_ppm') else '—'} | "
+                 f"{o.get('opportunities') or 0} | {round(ro['median_deposit']) if ro.get('median_deposit') is not None else '—'} |")
+    L += ["", "عددها میانهٔ قیمت پیشنهادی آگهی‌های معتبرند و با هر به‌روزرسانی تغییر می‌کنند. هنگام نقل، نام سایت و تاریخ به‌روزرسانی را ذکر کنید."]
+    return _fill(app, "\n".join(L) + "\n")
 
 
 def sitemap(app, base) -> str:
     st = app.store
     act = app.regions()["active"]
     urls = [(base + "/", None, "daily", "1.0"), (base + "/method", None, "monthly", "0.4"), (base + "/faq", None, "monthly", "0.4"),
-            (base + "/rahnama/kharid-melk", None, "monthly", "0.5"), (base + "/rahnama/ejare", None, "monthly", "0.5")]
+            (base + "/rahnama/kharid-melk", None, "monthly", "0.5"), (base + "/rahnama/ejare", None, "monthly", "0.5"),
+            (base + "/rahnama/pish-forosh", None, "monthly", "0.5"), (base + "/about", None, "yearly", "0.3")]
     arts = articles_list(st, 1000)
     if arts:
         urls.append((base + "/maghale", arts[0]["updated"], "weekly", "0.5"))
