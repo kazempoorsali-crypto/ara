@@ -58,11 +58,11 @@ COLUMNS = ["id", "source", "token", "url", "vertical", "category", "kind", "deal
            "area", "rooms", "year", "mileage", "floor", "brand", "gearbox", "fuel", "color", "body",
            "amenities", "attributes", "images", "image", "lat", "lng", "latlng_exact", "seller_type", "time_text",
            "first_seen", "last_seen", "detail_at", "checked_at", "status", "featured", "hidden", "price_drop",
-           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address", "posted_at"]
+           "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address", "posted_at", "presale"]
 JSON_COLS = {"amenities", "attributes", "images", "feat", "flags", "explain"}
 NEW_COLS = {"feat": "TEXT", "flags": "TEXT", "excluded": "INTEGER DEFAULT 0", "fair_ppm": "REAL", "fair_price": "REAL",
             "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT", "posted_at": "INTEGER",
-            "user_review": "INTEGER DEFAULT 0"}
+            "user_review": "INTEGER DEFAULT 0", "presale": "INTEGER DEFAULT 0"}
 
 
 def primary_price(d: dict) -> float | None:
@@ -86,6 +86,8 @@ class Store:
             for col, typ in NEW_COLS.items():  # ارتقای پایگاه داده نسخه قبل
                 if col not in have:
                     self.db.execute(f"ALTER TABLE listings ADD COLUMN {col} {typ}")
+                    if col == "presale":  # آگهی‌های موجود: از ویژگی‌های استخراج‌شده
+                        self.db.execute("""UPDATE listings SET presale=1 WHERE feat LIKE '%"market_flags"%' AND feat LIKE '%"presale"%'""")
             self.db.execute("CREATE INDEX IF NOT EXISTS ix_l_score ON listings(score)")
             self.db.commit()
         self._median_cache = (0, {})
@@ -172,6 +174,8 @@ class Store:
             from features import settlement
             d["settlement"] = settlement(d.get("title"), d.get("description"), d.get("district"),
                                          d.get("feat") if isinstance(d.get("feat"), dict) else None)
+        if isinstance(d.get("feat"), dict):
+            d["presale"] = 1 if "presale" in (d["feat"].get("market_flags") or []) else 0
         for c, default in (("status", "active"), ("hidden", 0), ("featured", 0), ("negotiable", 0),
                            ("price_drop", 0), ("latlng_exact", 0), ("excluded", 0)):
             if d.get(c) is None:
@@ -264,6 +268,8 @@ class Store:
             add("deposit <= ?", float(f["depMax"]))
         if f.get("rentMax"):
             add("rent <= ?", float(f["rentMax"]))
+        if str(f.get("presale")) in ("1", "0"):  # ۱: فقط پیش‌فروش، ۰: بدون پیش‌فروش
+            add("COALESCE(presale,0) = ?", int(f["presale"]))
         if f.get("settle") in ("urban", "rural"):
             add("COALESCE(settlement,'urban') = ?", f["settle"])
         if f.get("opp"):

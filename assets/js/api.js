@@ -113,6 +113,8 @@ const DataLayer = (() => {
       if (ds && !ds.includes((l.district || "").replace(/[\s‌]/g, ""))) return false;
       if (f.deal && l.deal !== f.deal) return false;
       if (f.settle && l.settlement !== f.settle) return false;
+      if (f.presale === "1" && !l.presale) return false;
+      if (f.presale === "0" && l.presale) return false;
       if (f.fresh && !((l.posted_at || l.first_seen) >= Date.now() / 1000 - +f.fresh * 86400)) return false;
       if (f.kinds && !f.kinds.split(",").includes(l.kind)) return false;
       if (f.min && !(l.pp >= +f.min)) return false;

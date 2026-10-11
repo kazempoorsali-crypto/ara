@@ -493,6 +493,8 @@ class Handler(BaseHTTPRequestHandler):
                 keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers",
                         "ctx", "caution", "sus", "flags")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
+                if ex.get("presale"):  # مشخصات پیش‌فروش بله، مرجع قیمت و نسبت (که قیمت منصفانه را لو می‌دهد) نه
+                    d["explain"]["presale"] = {k: ex["presale"].get(k) for k in ("months", "months_assumed", "progress", "installments")}
         else:
             d.pop("token", None)
             disp = {**DEFAULT_DISPLAY, **(self.app.store.get_setting("display") or {})}
@@ -785,7 +787,8 @@ class Handler(BaseHTTPRequestHandler):
                     new.pop("api_key", None)
                 s.set_setting("sms", {**cur, **new})
             if isinstance(data.get("thresholds"), dict):
-                bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10)}
+                bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10),
+                          "presale_monthly": (0.0, 0.04), "presale_default_months": (1, 60), "presale_extra": (0.0, 0.3)}
                 t = {}
                 for k, v in data["thresholds"].items():
                     if k not in DEFAULT_THRESHOLDS:

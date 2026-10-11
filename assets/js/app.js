@@ -715,7 +715,10 @@ const App = (() => {
           : `<p class="small muted">اول شهر را انتخاب کن تا فهرست محله‌هایش بیاید.</p>`);
       html += dd("settle", settle === "urban" ? "شهری" : settle === "rural" ? "روستایی" : "شهری / روستایی", settle,
         `<div class="dd__grid">${[["", "همه"], ["urban", "شهری"], ["rural", "روستایی و خارج از محدوده"]].map(([v, n]) => `<button type="button" class="chip ${settle === v ? "is-on" : ""}" data-pick="settle" data-val="${v}">${n}</button>`).join("")}</div><p class="small muted" style="margin-top:8px">از محله و متن آگهی تشخیص داده می‌شود: اشاره به روستا، دهستان یا خارج از محدودهٔ شهر.</p>`);
-      html += dd("deal", F.deal ? UI.dealName(F.deal) : "نوع معامله", F.deal, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>`);
+      const ps = String(F.presale ?? "");
+      html += dd("deal", (F.deal ? UI.dealName(F.deal) : "نوع معامله") + (ps === "1" ? "، پیش‌فروش" : ""), F.deal || ps, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>
+        <div class="dd__label" style="margin-top:12px">پیش‌فروش</div><div class="dd__grid">${[["", "همه"], ["1", "فقط پیش‌فروش"], ["0", "بدون پیش‌فروش"]].map(([v, n]) => `<button type="button" class="chip ${ps === v ? "is-on" : ""}" data-pick="presale" data-val="${v}">${n}</button>`).join("")}</div>
+        <p class="small muted" style="margin-top:8px">پیش‌فروش با قیمت پیش‌فروش‌های دیگر و قیمت واحد نوساز آمادهٔ همان محله سنجیده می‌شود، با در نظر گرفتن زمان تا تحویل.</p>`);
       html += dd("kinds", kinds.length ? kinds.map(UI.kindName).join("، ") : "نوع ملک", kinds.length, `<div class="dd__grid">${PROPERTY_TYPES.map((t) => `<button type="button" class="chip ${kinds.includes(t.id) ? "is-on" : ""}" data-toggle="kinds" data-val="${t.id}">${t.name}</button>`).join("")}</div>`);
       const rent = F.deal === "rent";
       const presets = rent ? [[5e8, "تا ۵۰۰ میلیون"], [1e9, "تا ۱ میلیارد"], [2e9, "تا ۲ میلیارد"], [5e9, "تا ۵ میلیارد"]]
@@ -794,14 +797,14 @@ const App = (() => {
           if (t.dataset.pick) {
             $$(`[data-pick="${t.dataset.pick}"]`, panel).forEach((x) => x.classList.toggle("is-on", x === t));
             pending[t.dataset.pick] = t.dataset.val;
-            if (d.dataset.dd === "deal") set({ deal: t.dataset.val });
+            if (d.dataset.dd === "deal") set(t.dataset.pick === "presale" ? { presale: t.dataset.val, ...(t.dataset.val === "1" ? { deal: "sale" } : {}) } : { deal: t.dataset.val });
             if (d.dataset.dd === "settle") set({ settle: t.dataset.val, district: "" });
             if (d.dataset.dd === "fresh") set({ fresh: t.dataset.val });
             return;
           }
           if (t.dataset.toggle) { t.classList.toggle("is-on"); return; }
           if (t.dataset.clear) {
-            set({ city: { city: "", province: "", district: "" }, deal: { deal: "" }, kinds: { kinds: "" }, price: { min: "", max: "", depMax: "", rentMax: "" }, district: { district: "" }, settle: { settle: "" }, fresh: { fresh: "" }, rooms: { rooms: "" }, age: { ageMax: "", yearMin: "", yearMax: "" }, more: { areaMin: "", areaMax: "", amenities: "" } }[t.dataset.clear]);
+            set({ city: { city: "", province: "", district: "" }, deal: { deal: "", presale: "" }, kinds: { kinds: "" }, price: { min: "", max: "", depMax: "", rentMax: "" }, district: { district: "" }, settle: { settle: "" }, fresh: { fresh: "" }, rooms: { rooms: "" }, age: { ageMax: "", yearMin: "", yearMax: "" }, more: { areaMin: "", areaMax: "", amenities: "" } }[t.dataset.clear]);
             return;
           }
           if (t.dataset.apply) {
@@ -865,6 +868,7 @@ const App = (() => {
       if (F.yearMax) t.push(["yearMax", "ساخت تا " + faY(F.yearMax)]);
       if (F.fresh) t.push(["fresh", "درج در " + fa(F.fresh) + " روز اخیر"]);
       if (F.settle) t.push(["settle", F.settle === "rural" ? "روستایی" : "شهری"]);
+      if (String(F.presale ?? "") !== "") t.push(["presale", F.presale === "1" ? "فقط پیش‌فروش" : "بدون پیش‌فروش"]);
       if (F.opp) t.push(["opp", "فقط فرصت‌ها"]);
       if (F.sus) t.push(["sus", "با آگهی‌های مشکوک"]);
       (F.amenities || "").split(",").filter(Boolean).forEach((a) => t.push(["amenities:" + a, AMENITIES.find((x) => x.id === a)?.name || a]));
@@ -907,7 +911,7 @@ const App = (() => {
       drawMap(r.points, true);
     }
     async function relaxHints(id) {
-      const names = { fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
+      const names = { presale: "با و بدون پیش‌فروش", fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
       const opts = [];
       for (const k of Object.keys(names).filter((k) => F[k])) {
         const f = { ...F }; delete f[k];
@@ -1016,6 +1020,12 @@ const App = (() => {
     const expM = meM && !v.approx ? meM / (1 + v.delta) : null;
     const row = (k, val, sub = "") => `<div class="pid__row"><span>${k}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     let html = "";
+    const ps = ex.presale;
+    if (ps) {
+      const tparts = [ps.months != null && (ps.months_assumed ? `زمان تحویل در آگهی نیامده؛ ${fa(ps.months)} ماه فرض شد` : `حدود ${fa(ps.months)} ماه تا تحویل`), ps.progress != null && `پیشرفت ساخت ${fa(Math.round(ps.progress * 100))}٪`, ps.installments && "فروش قسطی"].filter(Boolean);
+      html += row("پیش‌فروش", tparts.join("، ") || "مشخصات تحویل در آگهی نیامده", "مرجع: همین واحد اگر نوساز و آماده بود در همین محله، منهای تخفیف معمول پیش‌فروش (برآورد از آگهی‌های پیش‌فروش) برای زمان باقی‌مانده تا تحویل");
+      if (!l.locked && ps.new_ppm) html += row("قیمت واحد نوساز و آماده در این محله", "متری " + money(ps.new_ppm), `نسبت معمول پیش‌فروش: ${ps.ratio >= 0 ? "+" : "−"}${pct(ps.ratio)} از ${fa(ps.n)} آگهی پیش‌فروش ${esc(ps.scope)}`);
+    }
     if (ex.district_median) html += row(`میانهٔ قیمت هر متر در ${esc(l.district || "این محله")}، به نرخ امروز`, "متری " + money(ex.district_median), `از ${fa(ex.district_raw_n)} آگهی معتبر همین محله${ex.sellers ? ` و ${fa(ex.sellers)} فروشندهٔ مستقل` : ""}؛ آگهی‌های تازه‌تر وزن بیشتری دارند و چند آگهی از یک فروشنده یا با متن یکسان روی هم یک رأی حساب می‌شوند${ex.trend ? ` و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ ${ex.trend > 0 ? "+" : "−"}${pct(ex.trend)} به امروز آورده شده` : ""}`);
     if (expM) html += row("قیمت مورد انتظار برای همین خانه", "متری " + money(expM), l.area && l.deal !== "daily" ? `برای ${fa(l.area)} متر حدود ${money(expM * l.area)} تومان` : "");
     else if (v.approx) html += row("قیمت مورد انتظار برای همین خانه", `<span class="blur">متری ۰۰ میلیون</span>`, "با اشتراک");

@@ -172,7 +172,7 @@ const UI = (() => {
     return `<article class="card${l.label === "gold" ? " card--gold" : ""}" data-id="${esc(l.id)}">
       <div class="card__media">${media(l)}
         ${scoreBadge(l)}
-        <div class="card__badges">${typePill(l)}${multiPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
+        <div class="card__badges">${typePill(l)}${l.presale ? '<span class="pill pill--presale">پیش‌فروش</span>' : ""}${multiPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>
       </div>
       <div class="card__body">

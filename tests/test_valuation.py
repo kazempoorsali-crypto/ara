@@ -77,19 +77,34 @@ add("old", title="آپارتمان ۱۰۰ متری", price=round(fair_ref * 0.7 
 add("rare1", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref * 0.6 / 1e6) * 1e6)
 add("rare2", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref / 1e6) * 1e6)
 
+# پیش‌فروش: بازار جدا با فرمول خودش؛ ۱۰ پیش‌فروش حدود ۱۸٪ زیر «همین واحد نوساز و آماده»، تحویل ۱۲ ماه دیگر
+new_ref = 60e6 * math.exp(0.08 + 0.06) * 100
+for i in range(10):
+    add(f"ps{i}", title="پیش فروش آپارتمان ۱۰۰ متری", year=None,
+        description=f"آسانسور دارد. پارکینگ دارد. تحویل ۱۲ ماه دیگر. واحد {i + 1}", price=round(new_ref * 0.82 * math.exp(rnd.gauss(0, 0.03)) / 1e6) * 1e6)
+add("psdeal", title="پیش فروش آپارتمان ۱۰۰ متری", year=None, description="آسانسور دارد. پارکینگ دارد. تحویل ۱۲ ماه دیگر. فوری",
+    price=round(new_ref * 0.60 / 1e6) * 1e6)
 info = valuation.recompute(store)
 print("   ", {k: info[k] for k in ("listings", "excluded", "ranked", "seconds")})
 get = store.get
 check("zero_typo" in get("zero")["flags"], "قیمت ده‌برابر: «اشتباه صفر»")
 check(any(f in get("low")["flags"] for f in ("outlier_low", "zero_typo_low")) and get("low")["label"] == "sus", "قیمت بسیار پایین: پرت و «مشکوک»")
-check("presale" in get("presale")["flags"], "پیش‌فروش کنار گذاشته شد")
+check("presale" not in get("presale")["flags"] and get("presale")["explain"]["presale"], "پیش‌فروش با فرمول خودش سنجیده شد، نه کنار گذاشته")
+pi = get("ps3")["explain"]["presale"]
+check(pi["months"] == 12 and not pi["months_assumed"] and -0.24 < pi["ratio"] < -0.12, f"نسبت پیش‌فروش به آماده از داده: {pi['ratio']:.0%} (واقعی −۱۸٪)، {pi['months']} ماه تا تحویل")
+check(abs(pi["new_ppm"] / (new_ref / 100) - 1) < 0.12, f"مرجع نوساز و آماده: {pi['new_ppm'] / (new_ref / 100):.2f}× مقدار واقعی")
+check(get("ps3")["label"] in ("fair", "high"), f"پیش‌فروش هم‌قیمت بازار پیش‌فروش: {get('ps3')['label']}")
+check(get("psdeal")["label"] in ("gold", "good"), f"پیش‌فروش ۲۷٪ ارزان‌تر از هم‌گروه‌ها: {get('psdeal')['label']} ({get('psdeal')['discount']:.0%})")
+psr = store.search({"presale": "1", "limit": 100})["items"]
+nps = store.search({"presale": "0", "limit": 500})["items"]
+check(psr and all(x["presale"] for x in psr) and not any(x["presale"] for x in nps), f"فیلتر پیش‌فروش: {len(psr)} آگهی پیش‌فروش، بقیه جدا")
 check("placeholder" in get("token")["flags"], "قیمت نمادین کنار گذاشته شد")
 d = get("deal")
 check(d["excluded"] == 0 and 0.15 < d["discount"] < 0.30, f"آگهی ارزان: {d['discount']:.0%} زیر قیمت منصفانه (واقعی ۲۲٪)")
 check(d["label"] in ("gold", "good"), f"برچسب آگهی ارزان: {d['label']}")
 check(d["explain"]["rank"] == 1 and d["score"] >= 65, f"امتیاز فرصت در محله: {d['score']} (رتبه {d['explain']['rank']} از {d['explain']['rank_n']})")
 check("فروشنده عجله دارد" in d["explain"]["ctx"], "نشانهٔ متنی «فروشنده عجله دارد»")
-check(get("presale")["label"] == "excluded", "پیش‌فروش: برچسب «کنار رفت»")
+check(get("presale")["label"] in ("fair", "high"), f"پیش‌فروش به قیمت واحد آماده: {get('presale')['label']} (نه فرصت)")
 p = get("pricey")
 check(p["label"] == "high" and p["score"] <= 64, f"برچسب آگهی گران: {p['label']}، امتیاز {p['score']}")
 check(-0.32 < p["discount"] < -0.18, f"آگهی گران: {-p['discount']:.0%} بالای قیمت منصفانه (واقعی ۲۵٪)")

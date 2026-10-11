@@ -86,6 +86,7 @@ p { margin: 0; }
 .pill--daily { background: var(--daily); color: #fff; }
 .pill--car { background: var(--sea); color: #fff; }
 .pill--drop { background: var(--narenj-soft); color: var(--narenj-2); }
+.pill--presale { background: #e8eefc; color: #2f4ea8; }
 .pill--feat { background: var(--gold); color: #fff; }
 .pill--demo { background: var(--sunk); color: var(--muted); border: 1px dashed var(--line-2); }
 .pill--glass { background: rgba(255,253,249,.92); color: #13201c; }
