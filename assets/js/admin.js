@@ -1,4 +1,4 @@
-/* پنل مدیریت فرصت‌یاب — فقط روی سرور کار می‌کند */
+/* پنل مدیریت فرصت ملک — فقط روی سرور کار می‌کند */
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -458,9 +458,9 @@
         <label class="field"><span data-only="payamak">کد الگو (bodyId)</span><span data-only="kavenegar">نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}"></label>
         <label class="field"><span data-only="payamak">کد الگوی پیامک فعال‌سازی (اختیاری)</span><span data-only="kavenegar">نام قالب پیامک فعال‌سازی (اختیاری)</span><input class="input input--ltr" name="notify_template" value="${esc(sm.notify_template || "")}"></label>
       </div>
-      <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت‌یاب برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
+      <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت ملک برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (فقط روی همین رایانه، هرگز از اینترنت)</label>
-      <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت‌یاب: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
+      <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت ملک: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
       <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
     const showSms = () => $$("#bf [data-only]").forEach((el) => { el.hidden = el.dataset.only !== $("#bf [name=provider]").value; });

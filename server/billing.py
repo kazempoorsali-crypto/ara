@@ -234,7 +234,7 @@ class Billing:
             host = "sandbox.zarinpal.com" if c["sandbox"] else "payment.zarinpal.com"
             r = _http_json("POST", f"https://{host}/pg/v4/payment/request.json",
                            {"merchant_id": c["merchant_id"], "amount": rial, "callback_url": cb,
-                            "description": f"اشتراک {plan['name']} فرصت‌یاب", "metadata": {"mobile": phone}})
+                            "description": f"اشتراک {plan['name']} فرصت ملک", "metadata": {"mobile": phone}})
             auth = (r.get("data") or {}).get("authority")
             if not auth:
                 self.store.x("UPDATE payments SET status='failed', note=? WHERE id=?", (json.dumps(r, ensure_ascii=False)[:300], pid))

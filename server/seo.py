@@ -691,7 +691,7 @@ def render(template: str, p: dict, version_tag: str) -> str:
     """index.html را با سربرگ و محتوای ازپیش‌ساخته برای همین نشانی پر می‌کند."""
     head = (f'<link rel="canonical" href="{ESC(p["canonical"])}" />\n'
             f'  <meta property="og:type" content="{"article" if p.get("kind") == "content" else "website"}" />\n  <meta property="og:locale" content="fa_IR" />\n'
-            f'  <meta property="og:site_name" content="فرصت‌یاب" />\n'
+            f'  <meta property="og:site_name" content="فرصت ملک" />\n'
             f'  <meta property="og:title" content="{ESC(p["title"])}" />\n  <meta property="og:description" content="{ESC(p["desc"])}" />\n'
             f'  <meta property="og:url" content="{ESC(p["canonical"])}" />\n'
             f'  <meta property="og:image" content="{ESC(p.get("image") or p["canonical"].split("/", 3)[0] + "//" + p["canonical"].split("/", 3)[2] + "/assets/img/og.png")}" />\n'

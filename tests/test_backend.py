@@ -1,4 +1,4 @@
-"""آزمون یکپارچه: سرور فرصت‌یاب + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
+"""آزمون یکپارچه: سرور فرصت ملک + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
 import json, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "server"))
@@ -115,9 +115,9 @@ def run(mode):
         check(call("/api/admin/state").get("status") == 401, f"[{mode}] پنل بدون ورود بسته است")
         tok = call("/api/admin/setup", {"password": "secret123"})["token"]
         check(call("/api/admin/login", {"password": "bad"}).get("status") == 403, f"[{mode}] رمز نادرست رد شد")
-        call("/api/admin/settings", {"site": {"name": "فرصت‌یاب"}, "billing": {"weekly_price": 200000, "monthly_price": 600000, "test_mode": True, "free_preview": 0}}, tok)
+        call("/api/admin/settings", {"site": {"name": "فرصت ملک"}, "billing": {"weekly_price": 200000, "monthly_price": 600000, "test_mode": True, "free_preview": 0}}, tok)
         cfg = call("/api/config")
-        check(cfg["site"]["name"] == "فرصت‌یاب" and len(cfg["plans"]) == 2 and cfg["payable"], f"[{mode}] تنظیمات و طرح‌های اشتراک")
+        check(cfg["site"]["name"] == "فرصت ملک" and len(cfg["plans"]) == 2 and cfg["payable"], f"[{mode}] تنظیمات و طرح‌های اشتراک")
         r = call("/api/admin/ingest", {"enabled": True, "mode": "mcp_only" if mode == "mcp" else mode, "mcp_url": "http://127.0.0.1:8799/mcp", "hourly_limit": 1200,
                                          "cities": ["rasht", "sari"], "categories": ["real-estate"], "detail_ratio": 1}, tok)
         check(r["ok"], f"[{mode}] پیکربندی دریافت")

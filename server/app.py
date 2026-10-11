@@ -1,4 +1,4 @@
-"""سرور فرصت‌یاب: صفحات سایت، API آگهی‌ها و ارزش‌گذاری، عضویت و اشتراک، پنل مدیریت و دریافت تدریجی از دیوار.
+"""سرور فرصت ملک: صفحات سایت، API آگهی‌ها و ارزش‌گذاری، عضویت و اشتراک، پنل مدیریت و دریافت تدریجی از دیوار.
 
 اجرا:  python server/app.py            (پیش‌فرض http://127.0.0.1:8000)
        python server/app.py --port 9000 --host 0.0.0.0 --no-browser
@@ -37,7 +37,7 @@ from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
-DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
+DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -168,6 +168,10 @@ class App:
         self.support = Support(self.store, self.billing, data_dir)
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
+        # نام قدیمی سایت که در پنل ذخیره شده بود ← «فرصت ملک» (نیم‌فاصلهٔ نام قبلی در برخی دستگاه‌ها مربع دیده می‌شد)
+        site = self.store.get_setting("site") or {}
+        if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
+            self.store.set_setting("site", {**site, "name": "فرصت ملک"})
 
     def regions(self):
         """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
@@ -913,7 +917,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="سرور فرصت‌یاب")
+    ap = argparse.ArgumentParser(description="سرور فرصت ملک")
     ap.add_argument("--host", default=os.environ.get("ARA_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int, default=int(os.environ.get("ARA_PORT", "8000")))
     ap.add_argument("--data", default=os.environ.get("ARA_DATA", str(ROOT / "data")))
@@ -925,7 +929,7 @@ def main():
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)
-    print(f"  فرصت‌یاب روشن شد:    {url}")
+    print(f"  فرصت ملک روشن شد:    {url}")
     print(f"  پنل مدیریت:          {url}/admin.html")
     print("  برای خاموش کردن، این پنجره را ببندید یا Ctrl+C بزنید.")
     print("=" * 56, flush=True)
