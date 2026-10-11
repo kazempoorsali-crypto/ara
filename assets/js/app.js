@@ -9,6 +9,7 @@ const App = (() => {
 
   /* ---------- راه‌اندازی ---------- */
   async function boot() {
+    depthFX();
     applyTheme(store.get("theme_v2", "light"));
     const info = await DataLayer.init();
     cfg = info.config;
@@ -274,15 +275,64 @@ const App = (() => {
       <div class="funnel funnel--mini">${R.funnel.map((f) => `<div class="funnel__row funnel__row--${f.k}"><span>${esc(f.label)}</span><span class="funnel__track"><i style="width:${Math.max(1, (f.n / Math.max(1, R.funnel[0].n)) * 100)}%"></i></span><b>${fa(f.n)}</b></div>`).join("")}</div></div>`;
   }
 
+  /* شهر ایزومتریک سه‌بعدی (SVG ساخته‌شده در مرورگر، بدون کتابخانه)؛ یک ساختمان نارنجی = «زیر قیمت محله» */
   function heroArt() {
-    return `<svg viewBox="0 0 1440 220" preserveAspectRatio="none">
-      <path d="M0 120 L110 70 L210 104 L330 46 L470 112 L600 60 L760 118 L880 64 L1010 108 L1150 52 L1300 100 L1440 70 V220 H0Z" fill="var(--line)" opacity=".7"/>
-      <path d="M0 150 Q120 116 240 140 T480 136 T720 148 T960 128 T1200 146 T1440 132 V220 H0Z" fill="var(--forest)" opacity=".18"/>
-      <g fill="var(--forest)" opacity=".35"><path d="M70 150 l14-46 14 46z M108 154 l18-58 18 58z M1268 148 l14-48 14 48z M1306 154 l18-60 18 60z M1350 150 l12-40 12 40z"/></g>
-      <path d="M0 172 Q360 158 720 170 T1440 166 V220 H0Z" fill="var(--sea)" opacity=".28"/>
-      <path d="M0 190 Q60 184 120 190 T240 190 T360 190 T480 190 T600 190 T720 190 T840 190 T960 190 T1080 190 T1200 190 T1320 190 T1440 190" stroke="var(--sea)" stroke-opacity=".45" stroke-width="1.5" fill="none"/>
-      <path d="M0 205 Q360 196 720 204 T1440 200 V220 H0Z" fill="var(--sea)" opacity=".35"/>
-    </svg>`;
+    const C = Math.cos(Math.PI / 6), S = 0.5, u = 26;
+    const P = (x, y, z) => `${((x - y) * C * u).toFixed(1)},${((x + y) * S * u - z * u).toFixed(1)}`;
+    const box = (x, y, w, d, h, cls) => {
+      const top = [P(x, y, h), P(x + w, y, h), P(x + w, y + d, h), P(x, y + d, h)];
+      const left = [P(x, y + d, h), P(x + w, y + d, h), P(x + w, y + d, 0), P(x, y + d, 0)];
+      const right = [P(x + w, y, h), P(x + w, y + d, h), P(x + w, y + d, 0), P(x + w, y, 0)];
+      let win = "";
+      for (let k = 0.6; k < h - 0.3; k += 0.7) win += `<path d="M${P(x + 0.2, y + d, k)} L${P(x + w - 0.2, y + d, k)}" class="iso__win"/>`;
+      return `<g class="iso__b ${cls || ""}"><path d="M${left.join(" L")}Z" class="iso__l"/><path d="M${right.join(" L")}Z" class="iso__r"/><path d="M${top.join(" L")}Z" class="iso__t"/>${win}</g>`;
+    };
+    const lots = [];
+    let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    for (let gx = 0; gx < 9; gx++) for (let gy = 0; gy < 4; gy++) {
+      if (rnd() < 0.18) continue;
+      lots.push({ x: gx * 2.2, y: gy * 2.2, w: 1.4 + rnd() * 0.4, d: 1.4 + rnd() * 0.4, h: 0.8 + rnd() * (gy === 0 ? 1.6 : 3.2) });
+    }
+    const dist = (l) => Math.abs(l.x - 11) + Math.abs(l.y - 6.6);
+    const hot = lots.reduce((b, l, k) => (dist(l) < dist(lots[b]) ? k : b), 0);
+    lots[hot].h = 4.6; lots[hot].hot = true;
+    lots.sort((a, b) => (a.x + a.y) - (b.x + b.y));  // ترتیب رسم: دور به نزدیک
+    const body = lots.map((l) => box(l.x, l.y, l.w, l.d, l.h, l.hot ? "iso__b--hot" : "")).join("");
+    const h = lots.find((q) => q.hot), pin = P(h.x + h.w / 2, h.y + h.d / 2, h.h + 0.9).split(",");
+    return `<div class="iso" aria-hidden="true"><div class="iso__floor"></div>
+      <svg class="iso__city" viewBox="-200 -150 820 530" preserveAspectRatio="xMidYMax meet">
+        <ellipse cx="210" cy="300" rx="380" ry="90" class="iso__shadow"/>${body}
+        <g class="iso__pin" transform="translate(${pin[0]} ${pin[1]})"><rect x="-80" y="-44" width="160" height="40" rx="20"/><text x="0" y="-18" text-anchor="middle">زیر قیمت محله</text><path d="M-6 -4 L0 6 L6 -4Z"/></g>
+      </svg></div>`;
+  }
+
+  /* عمق و سه‌بعدی: کج شدن کارت با نشانگر و نور دنبال‌کننده؛ فقط دستگاه دارای نشانگر و بدون «کاهش حرکت» */
+  function depthFX() {
+    if (!matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, last = null, ev = null;
+    const SEL = ".card:not(.card--lock), .board, .plan, .tilt";
+    const reset = (el) => { el.style.removeProperty("--rx"); el.style.removeProperty("--ry"); el.classList.remove("is-tilt"); };
+    document.addEventListener("pointermove", (e) => {
+      ev = e;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = ev.target.closest && ev.target.closest(SEL);
+        if (last && last !== el) reset(last);
+        last = el;
+        const hero = ev.target.closest && ev.target.closest(".hero");
+        if (hero) { const r = hero.getBoundingClientRect(); hero.style.setProperty("--px", ((ev.clientX - r.left) / r.width - 0.5).toFixed(3)); hero.style.setProperty("--py", ((ev.clientY - r.top) / r.height - 0.5).toFixed(3)); }
+        if (!el) return;
+        const r = el.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
+        const k = el.classList.contains("board") ? 5 : 7;
+        el.classList.add("is-tilt");
+        el.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+        el.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+        el.style.setProperty("--rx", ((0.5 - y) * k).toFixed(2) + "deg");
+        el.style.setProperty("--ry", ((x - 0.5) * k).toFixed(2) + "deg");
+      });
+    }, { passive: true });
+    document.addEventListener("pointerleave", () => last && reset(last));
   }
 
   function provinceColumns(st) {
@@ -1829,60 +1879,14 @@ const App = (() => {
           obs.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+    }, { threshold: 0, rootMargin: "0px 0px -30px 0px" });
 
-    document.querySelectorAll(".card, .block, .section, .strip > div, .trust__item, .how__card, .hero__grid > *").forEach((elem) => {
+    document.querySelectorAll(".card, .block, .section, .strip > div, .trust__item, .how__card, .hero__grid > div").forEach((elem) => {
       if (!elem.classList.contains("reveal-on-scroll")) {
         elem.classList.add("reveal-on-scroll");
         obs.observe(elem);
       }
     });
-  }
-
-  function initCustomCursor() {
-    if (!window.matchMedia || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    if (document.querySelector(".cur-dot")) return;
-
-    const dot = document.createElement("div");
-    dot.className = "cur-dot";
-    const ring = document.createElement("div");
-    ring.className = "cur-ring";
-    document.body.appendChild(dot);
-    document.body.appendChild(ring);
-
-    let mouseX = -100, mouseY = -100;
-    let ringX = -100, ringY = -100;
-    let isHovering = false;
-
-    window.addEventListener("mousemove", (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
-    }, { passive: true });
-
-    document.addEventListener("mousedown", () => ring.classList.add("is-down"));
-    document.addEventListener("mouseup", () => ring.classList.remove("is-down"));
-
-    const checkHover = (e) => {
-      const target = e.target;
-      const interactive = target && target.closest("a, button, [role=button], .card, .atag, .vtab, input, select");
-      if (interactive && !isHovering) {
-        isHovering = true;
-        ring.classList.add("is-hover");
-      } else if (!interactive && isHovering) {
-        isHovering = false;
-        ring.classList.remove("is-hover");
-      }
-    };
-    document.addEventListener("mouseover", checkHover, { passive: true });
-
-    function renderCursor() {
-      ringX += (mouseX - ringX) * 0.18;
-      ringY += (mouseY - ringY) * 0.18;
-      ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
-      requestAnimationFrame(renderCursor);
-    }
-    requestAnimationFrame(renderCursor);
   }
 
   function bindGlobal() {
@@ -1939,7 +1943,6 @@ const App = (() => {
     });
     document.addEventListener("keydown", (e) => { if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); ($("#heroQ") || $("#sqInput"))?.focus(); } });
     ai.bind();
-    initCustomCursor();
   }
 
   document.addEventListener("DOMContentLoaded", boot);
