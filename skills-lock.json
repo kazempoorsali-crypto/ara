@@ -53,7 +53,7 @@
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "skillPath": ".claude/skills/brand/SKILL.md",
-      "computedHash": "c5629242f72a17425456f684467a6fb7fb4a03f1fcfe1474e87aabad78ddae65"
+      "computedHash": "5c99d65bec448b3dda25049f6437a1d8d8777a705a2c597fbe5516dfeeb0a487"
     },
     "brand-guidelines": {
       "source": "anthropics/skills",
