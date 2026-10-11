@@ -186,7 +186,7 @@ const App = (() => {
       const tags = [];
       H.provs.forEach((p) => tags.push({ k: "prov", id: p, label: "استان " + (PROVINCES.find((x) => x.id === p)?.name || p) }));
       H.cities.forEach((c) => tags.push({ k: "city", id: c, label: UI.cityOf(c)?.name || c }));
-      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span><i>✕</i></button>`).join("");
+      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span>${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
     };
 
     $("#hTags")?.addEventListener("click", (e) => {
@@ -595,7 +595,7 @@ const App = (() => {
 
   /* ---------- صفحه جست‌وجو ---------- */
   const searchPage = (() => {
-    let F = {}, page = 0, viewMode = store.get("view", "split"), lastPoints = [], reqId = 0;
+    let F = {}, page = 0, viewMode = store.get("view", "split"), lastPoints = [], reqId = 0, multiPick = false;
     const PER = 24;
     let districts = [];
 
@@ -697,12 +697,12 @@ const App = (() => {
       const cityChips = CITIES.map((c) => `<button type="button" class="chip ${citiesSel.includes(c.id) ? "is-on" : ""}" data-toggle="city" data-val="${c.id}" data-prov="${c.province}">${c.name}</button>`).join("");
 
       let html = dd("city", cityLabel, citiesSel.length || provsSel.length, `
-        <div class="dd__label">استان‌ها (انتخاب همزمان چند استان)</div>
+        <div class="dd__label">استان</div>
         <div class="dd__grid" style="margin-bottom:12px">${provChips}</div>
-        <div class="dd__label">شهرها (انتخاب همزمان چند شهر)</div>
+        <div class="dd__label">شهر</div>
         <input class="input" id="ddCityQ" placeholder="جست‌وجوی شهر..." style="margin-bottom:8px">
-        <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:160px;overflow-y:auto">${cityChips}</div>
-        <p class="small muted" style="margin-top:8px">چند استان یا چند شهر را تیک بزنید؛ فیلترها زیر نوار جست‌وجو قرار می‌گیرند.</p>
+        <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:200px;overflow-y:auto">${cityChips}</div>
+        <label class="dd__multi"><input type="checkbox" id="ddMulti" ${multiPick || citiesSel.length > 1 || provsSel.length > 1 ? "checked" : ""}> انتخاب همزمان چند شهر یا چند استان</label>
       `);
       const dsel = (F.district || "").split(",").filter(Boolean);
       const settle = F.settle || "";
@@ -739,12 +739,13 @@ const App = (() => {
         `<div class="dd__label">متراژ (متر مربع)</div><div class="range"><input class="input" id="ddAMin" inputmode="numeric" placeholder="از" value="${F.areaMin || ""}"><input class="input" id="ddAMax" inputmode="numeric" placeholder="تا" value="${F.areaMax || ""}"></div>
         <div class="dd__label">امکانات</div><div class="dd__grid">${AMENITIES.map((a) => `<button type="button" class="chip ${am.includes(a.id) ? "is-on" : ""}" data-toggle="amenities" data-val="${a.id}">${a.name}</button>`).join("")}</div>`);
       html += `
-        <div class="mode-switcher" style="display:inline-flex;gap:4px;background:var(--sunk);padding:2px 4px;border-radius:999px;border:1px solid var(--line);align-items:center;">
-          <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" style="border:0">🎯 فقط فرصت‌ها</button>
-          <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" style="border:0">📋 همه آگهی‌ها</button>
+        <div class="mode-switcher" role="group" aria-label="نمایش">
+          <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" aria-pressed="${!!F.opp}">${icon("spark", 'width="14"')} فقط فرصت‌ها</button>
+          <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" aria-pressed="${!F.opp}">${icon("list", 'width="14"')} همه آگهی‌ها</button>
         </div>
         <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
+      $("#ddMulti")?.addEventListener("change", (e) => { multiPick = e.target.checked; });
       $("#ddCityQ")?.addEventListener("input", (e) => {
         const q = NLP.toEn(e.target.value.trim().toLowerCase());
         $$("#ddCityGrid button").forEach((b) => {
@@ -772,16 +773,20 @@ const App = (() => {
         panel.addEventListener("click", (e) => {
           e.stopPropagation();
           const t = e.target.closest("button"); if (!t) return;
+          // پیش‌فرض: انتخاب یک شهر یا استان جای قبلی را می‌گیرد؛ با تیک «چند شهر» به فهرست اضافه می‌شود
+          const multi = $("#ddMulti", panel)?.checked;
           if (t.dataset.toggle === "province") {
             const cur = (F.province || "").split(",").filter(Boolean);
-            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
-            set({ province: next.join(",") });
+            const next = multi ? (cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val])
+              : (cur.length === 1 && cur[0] === t.dataset.val ? [] : [t.dataset.val]);
+            set({ province: next.join(","), city: "", district: "" });
             return;
           }
           if (t.dataset.toggle === "city") {
             const cur = (F.city || "").split(",").filter(Boolean);
-            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
-            set({ city: next.join(",") });
+            const next = multi ? (cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val])
+              : (cur.length === 1 && cur[0] === t.dataset.val ? [] : [t.dataset.val]);
+            set({ city: next.join(","), province: "", district: "" });
             return;
           }
           if (t.dataset.prov) { set({ province: t.dataset.prov, city: "", district: "" }); return; }
@@ -864,7 +869,7 @@ const App = (() => {
       (F.amenities || "").split(",").filter(Boolean).forEach((a) => t.push(["amenities:" + a, AMENITIES.find((x) => x.id === a)?.name || a]));
       if (F.ranked) t.push(["ranked", "دارای امتیاز"]);
       if (F.drop) t.push(["drop", "کاهش قیمت"]);
-      $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} <i>✕</i></button>`).join("");
+      $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} ${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
     }
 
     async function update(params) {
@@ -1294,11 +1299,11 @@ const App = (() => {
           <span style="font-size:13px;font-weight:700">${fa(i + 1)} از ${fa(n)}</span>
           <button class="btn btn--line btn--sm" data-d="1" title="تصویر بعدی">بعدی ${icon("arrow")}</button>
           <div style="display:inline-flex;gap:4px;margin-inline:10px;align-items:center">
-            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">＋ زوم</button>
-            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">－ کوچک</button>
+            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
             <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه"><span id="lbZoomVal">${fa(Math.round(zoomLevel * 100))}٪</span></button>
           </div>
-          <button class="btn btn--line btn--sm" data-x title="بستن">✕ بستن</button>
+          <button class="btn btn--line btn--sm" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
         </div>`;
 
       bindEvents();
@@ -1423,20 +1428,20 @@ const App = (() => {
         <div class="map-hud-overlay">
           <div class="map-hud-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${esc(l.title)}</div>
           <div class="map-hud-actions">
-            <button class="btn btn--line btn--sm" id="hudZoomIn" title="بزرگ‌نمایی">＋ زوم</button>
-            <button class="btn btn--line btn--sm" id="hudZoomOut" title="کوچک‌نمایی">－ کوچک</button>
-            <button class="btn btn--line btn--sm" id="hudReset" title="مرکز موقعیت">⌖ مرکز</button>
+            <button class="btn btn--line btn--sm" id="hudZoomIn" title="بزرگ‌نمایی">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+            <button class="btn btn--line btn--sm" id="hudZoomOut" title="کوچک‌نمایی">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
+            <button class="btn btn--line btn--sm" id="hudReset" title="مرکز موقعیت">${icon("target", 'width="15"')} مرکز</button>
           </div>
         </div>
       </div>
       <div class="lightbox__bar">
         <span style="font-size:13.5px;font-weight:700">${esc(l.city_name || (cc && cc.name) || "نقشه موقعیت ملک")}</span>
         <div style="display:inline-flex;gap:6px;align-items:center">
-          <button class="btn btn--line btn--sm" id="barZoomIn">＋ زوم</button>
-          <button class="btn btn--line btn--sm" id="barZoomOut">－ کوچک</button>
-          <button class="btn btn--line btn--sm" id="barReset">⌖ مرکز</button>
+          <button class="btn btn--line btn--sm" id="barZoomIn">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+          <button class="btn btn--line btn--sm" id="barZoomOut">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
+          <button class="btn btn--line btn--sm" id="barReset">${icon("target", 'width="15"')} مرکز</button>
         </div>
-        <button class="btn btn--line btn--sm" id="barClose">✕ بستن</button>
+        <button class="btn btn--line btn--sm" id="barClose">${icon("x", 'width="15"')} بستن</button>
       </div>`;
 
     const close = (rewindHistory = true) => {
@@ -1494,7 +1499,7 @@ const App = (() => {
     view().innerHTML = `<section class="section--tight"><div class="wrap">
       <div class="sec-head"><div><span class="kicker">ذخیره‌شده‌ها</span><h2>آگهی‌ها و جست‌وجوهای من</h2><p>در همین مرورگر نگه داشته می‌شوند.</p></div></div>
       <div class="cards" id="favGrid"></div>
-      <div class="block"><h2>جست‌وجوهای ذخیره‌شده</h2>${searches.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${searches.map((s, i) => `<span style="display:inline-flex;gap:4px"><a class="chip" href="#/s?${esc(s.q)}">${esc(s.title)}</a><button class="chip" data-del="${i}" aria-label="حذف">✕</button></span>`).join("")}</div>` : '<p class="muted">هنوز جست‌وجویی ذخیره نکرده‌اید.</p>'}</div>
+      <div class="block"><h2>جست‌وجوهای ذخیره‌شده</h2>${searches.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${searches.map((s, i) => `<span style="display:inline-flex;gap:4px"><a class="chip" href="#/s?${esc(s.q)}">${esc(s.title)}</a><button class="chip" data-del="${i}" aria-label="حذف">${icon("x", 'width="13"')}</button></span>`).join("")}</div>` : '<p class="muted">هنوز جست‌وجویی ذخیره نکرده‌اید.</p>'}</div>
     </div></section>`;
     $$("[data-del]").forEach((b) => b.addEventListener("click", () => { searches.splice(+b.dataset.del, 1); store.set("searches", searches); savedPage(); }));
     if (!ids.length) { $("#favGrid").innerHTML = `<div class="empty" style="grid-column:1/-1">${icon("heart")}<h3>هنوز آگهی‌ای ذخیره نشده</h3><p>روی قلب هر کارت بزنید تا اینجا بماند.</p><a class="btn btn--ink" href="#/s?sort=score">دیدن فرصت‌ها</a></div>`; return; }
@@ -1667,7 +1672,7 @@ const App = (() => {
   }
   function openReportDialog(id) {
     openDialog(`<div class="dlg__head"><h2>گزارش اشکال در آگهی</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده، قیمتش دروغین است یا دلال است، گزارش دهید تا بررسی و از فهرست فرصت‌ها حذف شود:</p>
+      <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده یا قیمت و عکسش واقعی نیست، گزارش دهید. هیچ آگهی‌ای با گزارش خودکار حذف نمی‌شود؛ وقتی چند کاربر مستقل در زمان‌های مختلف گزارش دهند، آگهی بررسی می‌شود. گزارش کاربران واردشده وزن بیشتری دارد.</p>
       <form class="form-grid" id="flagForm">
         <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="sold" checked> ملک قبلاً فروخته یا اجاره داده شده است</label>
         <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="fake_price"> قیمت واقعی نیست (قیمت دروغین برای جلب تماس)</label>
@@ -1683,17 +1688,15 @@ const App = (() => {
         const btn = $("#flagBtn");
         btn.disabled = true;
         try {
+          let msg = "گزارش شما ثبت شد";
           if (DataLayer.server) {
-            await fetch(`api/listing/${encodeURIComponent(id)}/flag`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ reason })
-            });
+            const r = await DataLayer.flag(id, reason);
+            msg = r.message || msg;
           }
           $("#dlg").close();
-          toast("گزارش شما با موفقیت ثبت شد و بررسی می‌شود");
+          toast(msg);
         } catch (err) {
-          toast("خطا در ارسال گزارش");
+          toast(err.message || "خطا در ارسال گزارش");
         }
         btn.disabled = false;
       });

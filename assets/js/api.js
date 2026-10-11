@@ -313,10 +313,13 @@ const DataLayer = (() => {
     if (!r.ok) throw new Error("فایل پیدا نشد");
     return URL.createObjectURL(await r.blob());
   }
+  async function flag(id, reason) {
+    return json(await fetch(`api/listing/${encodeURIComponent(id)}/flag`, { method: "POST", headers: H(), body: JSON.stringify({ reason }) }));
+  }
   async function startPayment(plan) {
     return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan }) }));
   }
 
-  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, tickets, createTicket, replyTicket, seenTicket, ticketImage,
+  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
     get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, get me() { return me; }, RENT_RATE };
 })();

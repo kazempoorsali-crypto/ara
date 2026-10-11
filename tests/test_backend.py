@@ -56,6 +56,30 @@ check("tehran" not in _ig.expansion()["active"], "پیش از کامل شدن ش
 _st.x("UPDATE feeds SET pages_done=40, has_next=1")
 _ig._exp_checked = 0
 _ig.maybe_expand(_ig.cfg())
+# گزارش تخلف: مقاوم در برابر حذف رقیب
+from flags import Flags  # noqa
+_fl = Flags(_st)
+_st.upsert({"id": "dv-r1", "source": "divar", "token": "r1", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "rasht", "city_name": "رشت", "province": "gilan", "title": "آزمون گزارش", "price": 2e9, "area": 100})
+for _i in range(8):
+    _fl.report("dv-r1", "fake_price", None, f"10.0.0.{_i}")
+check(not _fl.evaluate("dv-r1")["review"], "۸ گزارش مهمان از ۸ IP: آگهی بررسی نمی‌شود")
+check("قبلاً" in _fl.report("dv-r1", "sold", None, "10.0.0.1")["message"], "گزارش تکراری از یک نفر شمرده نمی‌شود")
+for _ph in ("09120000001", "09120000002", "09120000003"):
+    _fl.report("dv-r1", "sold", _ph, "10.1.1.1")
+check(not _fl.evaluate("dv-r1")["review"], "۳ کاربر هم‌زمان (هجوم یک‌باره): هنوز بررسی نمی‌شود")
+_st.x("UPDATE flags SET at=at-50000 WHERE reporter='u:09120000001'")
+check(_fl.evaluate("dv-r1")["review"] and _st.get("dv-r1")["user_review"] == 1 and not _st.get("dv-r1")["hidden"],
+      "گزارش ۳ کاربر مستقل در بیش از ۱۲ ساعت: «در حال بررسی»، ولی حذف نمی‌شود")
+_fl.decide("dv-r1", False)
+check(_st.get("dv-r1")["user_review"] == 0 and _fl._reputation("u:09120000002") < 1, "رد گزارش‌ها: آگهی برمی‌گردد و اعتبار گزارش‌دهندگان کم می‌شود")
+# شهر و استان با هم: شهرِ انتخابی، استانش را محدود می‌کند
+_st.upsert({"id": "dv-c1", "source": "divar", "token": "c1", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "sari", "city_name": "ساری", "province": "mazandaran", "title": "ساری", "price": 2e9, "area": 100})
+_st.upsert({"id": "dv-c2", "source": "divar", "token": "c2", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "fereydunkenar", "city_name": "فریدونکنار", "province": "mazandaran", "title": "فریدونکنار", "price": 2e9, "area": 100})
+_ids = {x["id"] for x in _st.search({"city": "fereydunkenar", "province": "mazandaran"})["items"]}
+check(_ids == {"dv-c2"}, f"شهر + استانِ همان شهر: فقط همان شهر ({_ids})")
 class _Broken:
     def detail(self, token): raise SourceError("پاسخ نامفهوم")
 _ig.source_for = lambda cfg, name: _Broken()

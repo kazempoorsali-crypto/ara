@@ -61,7 +61,8 @@ COLUMNS = ["id", "source", "token", "url", "vertical", "category", "kind", "deal
            "feat", "flags", "excluded", "fair_ppm", "fair_price", "discount", "score", "confidence", "explain", "label", "settlement", "phone", "address", "posted_at"]
 JSON_COLS = {"amenities", "attributes", "images", "feat", "flags", "explain"}
 NEW_COLS = {"feat": "TEXT", "flags": "TEXT", "excluded": "INTEGER DEFAULT 0", "fair_ppm": "REAL", "fair_price": "REAL",
-            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT", "posted_at": "INTEGER"}
+            "discount": "REAL", "score": "REAL", "confidence": "TEXT", "explain": "TEXT", "label": "TEXT", "settlement": "TEXT", "phone": "TEXT", "address": "TEXT", "posted_at": "INTEGER",
+            "user_review": "INTEGER DEFAULT 0"}
 
 
 def primary_price(d: dict) -> float | None:
@@ -219,9 +220,15 @@ class Store:
             args.extend(a)
 
         if f.get("city") and f.get("province"):
+            from catalog import CITY_BY_KEY
             cities = [c.strip() for c in str(f["city"]).split(",") if c.strip()]
-            provinces = [p.strip() for p in str(f["province"]).split(",") if p.strip()]
-            add(f"(city_key IN ({','.join('?' * len(cities))}) OR province IN ({','.join('?' * len(provinces))}))", *cities, *provinces)
+            # استانی که شهری از آن انتخاب شده، با همان شهر محدود می‌شود (نه کل استان)؛ فقط استان‌های بدون شهرِ انتخابی کامل می‌آیند
+            narrowed = {CITY_BY_KEY[c]["province"] for c in cities if c in CITY_BY_KEY}
+            provinces = [p.strip() for p in str(f["province"]).split(",") if p.strip() and p.strip() not in narrowed]
+            if provinces:
+                add(f"(city_key IN ({','.join('?' * len(cities))}) OR province IN ({','.join('?' * len(provinces))}))", *cities, *provinces)
+            else:
+                add(f"city_key IN ({','.join('?' * len(cities))})", *cities)
         elif f.get("city"):
             cities = [c.strip() for c in str(f["city"]).split(",") if c.strip()]
             if len(cities) == 1:

@@ -1480,3 +1480,10 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
 @media (pointer: coarse) {
   .cur-dot, .cur-ring { display: none !important; }
 }
+
+.mode-switcher { display: inline-flex; gap: 4px; background: var(--sunk); padding: 3px; border-radius: 999px; border: 1px solid var(--line); align-items: center; }
+.mode-switcher .chip { border: 0; min-height: 34px; }
+.mode-switcher .chip svg { flex: none; }
+.dd__multi { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.dd__multi input { width: 16px; height: 16px; accent-color: var(--forest); }
+.atag svg { opacity: .6; flex: none; }

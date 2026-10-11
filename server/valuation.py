@@ -357,7 +357,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 l["_x"] = design_row(l.get("feat") or {}, kg)
         members = {}
         for l in items:
-            if usable(l) and l.get("_base") is not None:
+            # آگهی‌ای که کاربران گزارش کرده‌اند و در حال بررسی است، در ساختن قیمت محله برای دیگران شرکت نمی‌کند
+            if usable(l) and l.get("_base") is not None and not l.get("user_review"):
                 members.setdefault((l["city_key"], l["_district"]), []).append(l)
         clean = [l for ls in members.values() for l in ls]
         for l in items:
@@ -563,7 +564,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
                    "age_days": round(l["_age"]), "trend": round(l.get("_b") or 0, 4),
                    "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
-                   "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT],
+                   "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT]
+                              + (["چند کاربر این آگهی را گزارش کرده‌اند؛ در حال بررسی"] if l.get("user_review") else []),
                    "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
         updates.append((round(l["_fair_v"]) if l.get("_fair_v") else None, round(fair) if fair else None,
                         round(d, 4) if d is not None else None, score, conf,

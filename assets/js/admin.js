@@ -48,20 +48,20 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["flags", "گزارش‌های کاربران"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
       <aside class="side">
         <a class="brand" href="./" target="_blank"><svg class="brand__mark" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#fffdf9" fill-opacity=".08"/><path d="M10 31c4.5-3.4 9-3.4 13.5 0s9 3.4 13.5 0" stroke="#7fc7a6" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M14 25l10-10 10 10" stroke="#fffdf9" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="13" r="3.4" fill="#e0531f"/></svg><span class="brand__txt"><b>${esc(S.site.name)}</b><small>پنل مدیریت</small></span></a>
-        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}${k === "support" && S.tickets_unread ? `<span class="badge">${fa(S.tickets_unread)}</span>` : ""}</button>`).join("")}
+        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}${k === "support" && S.tickets_unread ? `<span class="badge">${fa(S.tickets_unread)}</span>` : ""}${k === "flags" && S.flags && S.flags.review ? `<span class="badge">${fa(S.flags.review)}</span>` : ""}</button>`).join("")}
         <div class="side__foot"><a href="./" target="_blank">مشاهده سایت ↗</a><a href="#" id="logout">خروج</a></div>
       </aside>
       <main class="main" id="main"></main>
     </div>`;
     $$(".side [data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; location.hash = tab; load(); }));
     $("#logout").addEventListener("click", (e) => { e.preventDefault(); token = ""; sessionStorage.removeItem("ara-admin"); login(); });
-    ({ dash, ingest, valuation: valuationTab, excluded, users, support, articles, billing, site, security }[tab] || dash)();
+    ({ dash, ingest, valuation: valuationTab, excluded, users, support, flags: flagsTab, articles, billing, site, security }[tab] || dash)();
     clearInterval(timer);
     if (tab === "dash" || tab === "ingest" || tab === "valuation") timer = setInterval(refreshLive, 15000);
   }
@@ -321,6 +321,19 @@
       if (b.id === "expSave") send({ auto: $("#expAuto").checked, threshold: (+$("#expTh").value || 90) / 100, deep_pages: +$("#expDp").value || 30,
         order: [...S.expansion.active.filter((p) => !["gilan", "mazandaran", "golestan"].includes(p)), ...$$("#expOrder li").map((x) => x.dataset.p)] });
     });
+  }
+
+  /* ---------- گزارش‌های کاربران ---------- */
+  async function flagsTab() {
+    const r = await api("admin/flags");
+    main().innerHTML = `<h1>گزارش‌های کاربران</h1>
+      <p class="muted">هیچ آگهی‌ای با گزارش خودکار حذف نمی‌شود. وقتی جمع وزن گزارش‌ها به ۳ برسد، دست‌کم ۳ کاربر واردشدهٔ متفاوت گزارش داده باشند و گزارش‌ها دست‌کم ۱۲ ساعت از هم فاصله داشته باشند، آگهی «در حال بررسی» می‌شود و در قیمت محله شرکت داده نمی‌شود. گزارش مهمان وزن ۰٫۲۵ دارد و گزارش کسی که قبلاً گزارش‌هایش رد شده، وزن کمتری می‌گیرد.</p>
+      <div class="panel">${r.items.length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>آگهی</th><th>گزارش</th><th>کاربر واردشده</th><th>وزن</th><th>بازه</th><th>دلیل‌ها</th><th>وضعیت</th><th></th></tr></thead><tbody>
+        ${r.items.map((f) => `<tr><td><a href="./#/ad/${encodeURIComponent(f.listing_id)}" target="_blank">${esc(f.title || f.listing_id)}</a><br><small class="muted">${esc([f.city_name, f.district].filter(Boolean).join("، "))}</small></td><td>${fa(f.n)}</td><td>${fa(f.users || 0)}</td><td>${fa((+f.w).toFixed(1))}</td><td class="small">${fa(Math.round((f.last - f.first) / 3600))} ساعت</td><td class="small">${Object.entries(f.reasons).map(([k, n]) => `${esc(k)} (${fa(n)})`).join("، ")}</td><td>${f.hidden ? "پنهان" : f.user_review ? '<b class="bad">در حال بررسی</b>' : "زیر آستانه"}</td><td style="white-space:nowrap"><button class="btn btn--ink btn--sm" data-acc="${esc(f.listing_id)}">تأیید و پنهان</button> <button class="btn btn--line btn--sm" data-rej="${esc(f.listing_id)}">رد گزارش‌ها</button></td></tr>`).join("")}
+      </tbody></table></div>` : '<p class="muted">گزارش بازی نیست.</p>'}</div>`;
+    $$("[data-acc],[data-rej]").forEach((b) => b.addEventListener("click", async () => {
+      try { await api("admin/flag-review", { id: b.dataset.acc || b.dataset.rej, accept: !!b.dataset.acc }); toast("ثبت شد"); S = await api("admin/state"); flagsTab(); } catch (err) { toast(err.message); }
+    }));
   }
 
   /* ---------- مقاله‌ها و سئو ---------- */
