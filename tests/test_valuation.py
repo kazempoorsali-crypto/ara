@@ -143,6 +143,37 @@ valuation.recompute(st2)
 after = st2.get("x5")["fair_ppm"]
 check(abs(after / before - 1) < 0.02, f"۸ آگهی قیمتشان را ۵۰٪ بالا بردند؛ قیمت منصفانهٔ همسایه {abs(after / before - 1):.1%} تغییر کرد")
 check(st2.get("x10")["explain"]["raised"] and st2.get("x10")["label"] == "high", "آگهی‌ای که قیمتش را بالا برد «بالاتر از قیمت محله» شد")
+# ---- ضد تبانی: ۱۲ آگهی گران با متن الگوی یکسان (یک دلال) در برابر ۱۰ آگهی واقعی؛ آگهی واقعی «فرصت» نشود
+st3 = Store(Path(tempfile.mkdtemp()) / "t3.db")
+rnd3 = random.Random(5)
+TPL = "مشاور املاک ستاره؛ فروش آپارتمان {a} متری با بهترین امکانات، سند تک برگ، دسترسی عالی به مرکز شهر. تماس بگیرید."
+OWN = ["خانهٔ خودم را به دلیل مهاجرت می‌فروشم، همسایه‌های خوب و آرام", "واحد شمالی آفتابگیر، کابینت تازه عوض شده، نزدیک مدرسه",
+       "ساختمان کم‌واحد، مدیریت خوب، شارژ پایین، پارکینگ اختصاصی", "طبقهٔ دوم، دید باز، کف سرامیک، بدون نیاز به تعمیر",
+       "نزدیک پارک و بازار، مناسب زوج جوان، قیمت توافقی نیست", "نقشهٔ خوب، دو نبش، نورگیر از سه طرف، کمد دیواری",
+       "مالک هستم، بدون واسطه، فقط خریدار واقعی تماس بگیرد", "انباری بزرگ، آیفون تصویری، درب ضد سرقت نصب شده",
+       "کوچهٔ بن‌بست و ساکت، همسایه‌ها قدیمی و محترم، دسترسی خوب", "بازسازی کامل سال گذشته، لوله‌کشی و سیم‌کشی نو"]
+
+
+def add3(i, ppm, desc, area):
+    it = {"id": i, "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
+          "description": desc, "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": "تبانی",
+          "price": round(ppm * area / 1e6) * 1e6, "area": area, "rooms": 2, "year": now_year - 5, "detail_at": 1, "posted_at": int(NOW)}
+    it["feat"] = features.extract(it)
+    st3.upsert(it)
+
+
+P = 60e6
+for i in range(12):
+    a = 90 + i * 3
+    add3(f"dl{i}", P * 1.4 * math.exp(rnd3.gauss(0, 0.02)), TPL.format(a=a), a)
+for i in range(10):
+    add3(f"own{i}", P * math.exp(rnd3.gauss(0, 0.03)), OWN[i], 95 + i * 3)
+valuation.recompute(st3)
+labs = [st3.get(f"own{i}")["label"] for i in range(10)]
+check(not set(labs) & {"gold", "good"}, f"آگهی‌های واقعی در محلهٔ تبانی فرصت نشدند: {labs}")
+bp = st3.get("own3")["explain"]["base_ppm"]
+check(bp and abs(bp / P - 1) < 0.12, f"قیمت محله نزدیک قیمت واقعی ماند ({bp / P:.2f}×) نه قیمت دلال (۱٫۴×)")
+check(st3.get("dl0")["label"] == "high", "آگهی‌های دلال «بالاتر از قیمت محله» شدند")
 # ---- ادعای تبلیغاتی عنوان با برچسب سایت قاطی نشود
 t, cl = features.clean_title("فرصت طلایی!!! آپارتمان ۱۲۰ متری گلسار زیر قیمت", "apartment", 120, "گلسار")
 check(t == "آپارتمان ۱۲۰ متری گلسار" and set(cl) == {"opportunity", "cheap"}, f"عنوان بدون ادعا: «{t}»، ادعاها {cl}")

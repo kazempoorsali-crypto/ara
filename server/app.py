@@ -490,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
                     d["verdict"]["approx"] = True
             ex = d.get("explain") or {}
             if full:
-                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score",
+                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers",
                         "ctx", "caution", "sus", "flags")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
         else:

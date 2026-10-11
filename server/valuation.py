@@ -12,6 +12,9 @@
   ۶. تأیید دوگانه: برآورد هدونیک با «نزدیک‌ترین آگهی‌های مشابه همان محله» مقایسه می‌شود؛ فرصت فقط وقتی که هر دو روش
      فاصلهٔ کافی نشان دهند و فاصله بیرون از عدم‌قطعیت برآورد (پراکندگی محله + خطای خط پایه) باشد
   ۷. مقاوم در برابر قیمت‌سازی: در ساختن قیمت محله، افزایش قیمتِ بعد از درج آگهی نادیده گرفته می‌شود (قیمت اولیه)
+  ۷٫۵. مقاوم در برابر تبانی: آگهی‌های یک فروشنده (همان شماره یا همان متن الگو با اعداد متفاوت) در هر محله روی هم یک رأی
+     دارند (وزن ۱/n)؛ پس چند دلال با ده‌ها آگهی گران قیمت محله را بالا نمی‌برند. قیمت محله دست‌کم از ۳ فروشندهٔ مستقل
+     ساخته می‌شود و تعداد مؤثر نمونه (برای عدم‌قطعیت) هم از همین وزن‌ها می‌آید
   ۸. سنجش دقت: خطای برآورد هر آگهی بدون خودش (MdAPE) برای هر گروه گزارش می‌شود
   ۹. قیمت منصفانه، بازهٔ آن، درصد زیر/بالای قیمت، اطمینان، امتیاز ۰ تا ۱۰۰ و توضیح اثر هر ویژگی
 فقط کتابخانه استاندارد پایتون؛ برای ده‌ها هزار آگهی چند ثانیه طول می‌کشد.
@@ -22,6 +25,7 @@ import bisect
 import heapq
 import json
 import math
+import re
 import statistics
 import time
 
@@ -33,6 +37,8 @@ MIN_DISTRICT = 5       # کمترین آگهی معتبر هم‌نوع در م�
 MAD_Z = 3.5            # آستانه پرت مقاوم
 MIN_MODEL = 60         # کمترین نمونه برای مدل هدونیک
 RIDGE = 2.0
+MIN_SELLERS = 3        # کمترین فروشندهٔ مستقل در محله برای ساختن قیمت محله
+FP_MIN_LEN = 40        # کمترین طول متن (بدون عدد و فاصله) برای شناسایی متن الگوی تکراری
 COMPS_K, COMPS_MIN = 8, 5   # نزدیک‌ترین آگهی‌های مشابه همان محله برای تأیید برآورد
 LN10 = math.log(10)
 
@@ -227,6 +233,32 @@ def _dist(a, b):
     return d
 
 
+_FP_STRIP = re.compile(r"[\s\d۰-۹٠-٩\W_]+")
+
+
+def seller_key(l: dict) -> str:
+    """شناسهٔ فروشنده برای کشف آگهی‌های هم‌منشأ: شمارهٔ تماس، وگرنه متن آگهی بدون عدد و نشانه (متن الگوی دلال)."""
+    ph = re.sub(r"\D", "", str(l.get("phone") or ""))[-10:]
+    if len(ph) >= 8:
+        return "p:" + ph
+    t = _FP_STRIP.sub("", norm(l.get("description") or ""))
+    if len(t) >= FP_MIN_LEN:
+        return "t:" + t[:90]
+    return "i:" + str(l.get("id"))
+
+
+def _seller_weights(items):
+    """وزن ۱/n برای n آگهی یک فروشنده در یک محله؛ مجموع وزن هر فروشنده = ۱."""
+    cnt = {}
+    for l in items:
+        l["_sk"] = seller_key(l)
+        k = (l["city_key"], l["_district"], l["_sk"])
+        cnt[k] = cnt.get(k, 0) + 1
+    for l in items:
+        l["_cf"] = 1.0 / cnt[(l["city_key"], l["_district"], l["_sk"])]
+        l["_wb"] = l["_w"] * l["_cf"]
+
+
 def _mad(vals, med):
     return statistics.median([abs(v - med) for v in vals]) if vals else 0
 
@@ -295,6 +327,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         if v:
             first_pp[r["listing_id"]] = v
     for (prov, kg, deal), items in groups.items():
+        _seller_weights(items)
         # دو دور: خط پایه ← پرت‌یابی ← خط پایه دوباره بدون پرت‌ها
         for _round in range(2):
             clean = [l for l in items if usable(l)]
@@ -305,13 +338,14 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             for l in clean:
                 city_vals.setdefault(l["city_key"], []).append(l["_v"])
                 if l["_district"]:
-                    dist_vals.setdefault((l["city_key"], l["_district"]), []).append((l["_v"], l["_w"]))
+                    dist_vals.setdefault((l["city_key"], l["_district"]), []).append((l["_v"], l["_wb"], l["_sk"]))
             city_med = {ck: _median(v) for ck, v in city_vals.items()}
             for l in items:
                 # قیمت محله فقط از آگهی‌های همان محله؛ هیچ انقباضی به سمت میانهٔ شهر نیست
                 dv = dist_vals.get((l["city_key"], l["_district"])) if l["_district"] else None
                 dn = len(dv) if dv else 0
-                l["_base"] = _wmedian(dv) if dn >= MIN_DISTRICT else None
+                ns = len({t[2] for t in dv}) if dv else 0
+                l["_base"] = _wmedian([(v, w) for v, w, _ in dv]) if dn >= MIN_DISTRICT and ns >= MIN_SELLERS else None
                 l["_dn"], l["_cn"] = dn, len(city_vals.get(l["city_key"], []))
                 l["_cmed"] = city_med.get(l["city_key"], prov_med)
             if _round == 0:
@@ -366,7 +400,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         prov_model, city_models = None, {}
         for _it in range(3):
             # قیمت محله = میانهٔ وزنی «قیمت تعدیل‌شده برای ویژگی‌ها» (نه میانهٔ خام)
-            dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_w"]) for l in ls]) for k, ls in members.items()}
+            dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_wb"]) for l in ls]) for k, ls in members.items()}
             rows_fit = [(l["_x"], l["_vb"] - dbase[(l["city_key"], l["_district"])]) for l in clean]
             prov_model = fit_model(rows_fit, kg) if len(clean) >= MIN_MODEL else None
             by_city = {}
@@ -379,7 +413,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                     continue
                 model = city_models.get(l["city_key"]) or prov_model
                 l["_adj"] = max(-0.6, min(0.6, apply_model(model, l["_x"])[0])) if model else 0.0
-        dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_w"]) for l in ls]) for k, ls in members.items()}
+        dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_wb"]) for l in ls]) for k, ls in members.items()}
         if prov_model:
             models_info.append({"scope": prov, "kind": kg, "deal": deal, "n": prov_model["n"], "r2": round(prov_model["r2"], 3),
                                 "effects": {LABELS.get(k, k): round(b, 4) for k, b in zip(prov_model["feats"], prov_model["beta"])}})
@@ -400,10 +434,13 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 continue
             # بدون خوداثری: قیمت محلهٔ هر آگهی بدون خود آن آگهی
             others = [m for m in ls if m is not l]
-            if len(others) < MIN_DISTRICT - 1:
+            sellers = {m["_sk"] for m in others}
+            l["_sellers"] = len(sellers)
+            if len(others) < MIN_DISTRICT - 1 or len(sellers - {l["_sk"]}) < MIN_SELLERS:
                 l["_base"] = None
                 continue
-            pairs = [(m["_vb"] - m["_adj"], m["_w"]) for m in others]
+            # آگهی‌های هم‌فروشندهٔ خود این آگهی هم در قیمت محله‌اش نمی‌آیند (فروشنده قیمت خودش را تأیید نکند)
+            pairs = [(m["_vb"] - m["_adj"], m["_wb"]) for m in others if m["_sk"] != l["_sk"]]
             is_mem = id(l) in mem_ids
             base = _wmedian(pairs) if is_mem else dbase[key]
             l["_base"] = base
@@ -419,8 +456,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 arr = by_area[key]
                 i = bisect.bisect_left([m.get("area") or 0 for m in arr], l.get("area") or 0)
                 pool = [m for m in arr[max(0, i - 150): i + 150] if m is not l]
-            comps = heapq.nsmallest(COMPS_K, pool, key=lambda m: _dist(l, m))
-            comp = _wmedian([(m["_vb"] - m["_adj"] + adj, 1 / (1 + _dist(l, m))) for m in comps]) if len(comps) >= COMPS_MIN else None
+            comps = heapq.nsmallest(COMPS_K, [m for m in pool if m["_sk"] != l["_sk"]], key=lambda m: _dist(l, m))
+            comp = _wmedian([(m["_vb"] - m["_adj"] + adj, m["_cf"] / (1 + _dist(l, m))) for m in comps]) if len(comps) >= COMPS_MIN else None
             fair_log = hed if comp is None else 0.6 * hed + 0.4 * comp
             l["_comp_v"] = math.exp(comp) if comp is not None else None
             l["_comp_n"] = len(comps) if comp is not None else 0
@@ -561,7 +598,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "fair_high": round(fair * math.exp(l["_unc"])) if fair and l.get("_unc") else None,
                    "comp_n": l.get("_comp_n") or 0, "comp_disc": round(l["_disc_comp"], 3) if l.get("_disc_comp") is not None else None,
                    "raised": bool(first_pp.get(l["id"]) and l.get("pp") and l["pp"] > first_pp[l["id"]] * 1.001),
-                   "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
+                   "sellers": l.get("_sellers"), "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
                    "age_days": round(l["_age"]), "trend": round(l.get("_b") or 0, 4),
                    "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
                    "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT]
