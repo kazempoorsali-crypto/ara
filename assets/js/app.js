@@ -10,6 +10,7 @@ const App = (() => {
   /* ---------- راه‌اندازی ---------- */
   async function boot() {
     depthFX();
+    navSpotlight();
     applyTheme(store.get("theme_v2", "light"));
     const info = await DataLayer.init();
     cfg = info.config;
@@ -95,6 +96,8 @@ const App = (() => {
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
     setTimeout(applyScrollReveals, 100);
+    setTimeout(scrambleScan, 400);
+    $$(".dock a").forEach((a) => a.classList.toggle("is-on", a.dataset.dock === (page || "home") || (a.dataset.dock === "s" && page === "s")));
   }
   const go = (hash) => { location.hash = hash; };
   const toQuery = (f) => new URLSearchParams(Object.entries(f).filter(([, v]) => v !== "" && v != null && v !== 0 && v !== false)).toString();
@@ -144,7 +147,7 @@ const App = (() => {
             <div class="is-hot"><b>${fa(st.deals || 0)}</b><span>فرصت زیر قیمت محله</span></div>
             <div><b>${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
           </div>
-          <p class="sky__hint">برای چرخاندن بکشید؛ روی هر برج بزنید.</p>
+          <p class="sky__hint">بکشید تا بچرخد؛ روی هر برج بزنید. با انتخاب استان یا شهر در جست‌وجو، همین کادر همان‌جا را نشان می‌دهد.</p>
         </aside>
       </div>
     </section>
@@ -201,6 +204,8 @@ const App = (() => {
       H.provs.forEach((p) => tags.push({ k: "prov", id: p, label: "استان " + (PROVINCES.find((x) => x.id === p)?.name || p) }));
       H.cities.forEach((c) => tags.push({ k: "city", id: c, label: UI.cityOf(c)?.name || c }));
       el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span>${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
+      clearTimeout(drawHTags.t);
+      drawHTags.t = setTimeout(() => drawSky(st, { provs: H.provs, cities: H.cities }), 250);  // کادر سه‌بعدی هم‌گام با فیلتر
     };
 
     $("#hTags")?.addEventListener("click", (e) => {
@@ -271,71 +276,90 @@ const App = (() => {
       $("#showGrid").innerHTML = ok.map((l) => UI.card(l)).join("");
     });
   }
-  /* برج‌های سه‌بعدی قیمت محله‌ها: داده‌ی واقعی پرآگهی‌ترین شهر؛ چرخش آرام، کشیدن برای چرخاندن، لمس برای جزئیات */
-  async function drawSky(st) {
-    const svg = $("#skySvg");
-    if (!svg) return;
-    // از سه شهر پرآگهی، شهری که محلهٔ سنجیده‌شدهٔ بیشتری دارد
-    const tops = Object.entries(st.cities || {}).sort((a, b) => b[1].n - a[1].n).slice(0, 3).map(([c]) => c);
-    const reps = await Promise.all(tops.map((c) => DataLayer.market(c, "sale", "apartment").then((r) => ({ c, R: r.report })).catch(() => ({ c, R: null }))));
-    const best = reps.map((x) => ({ ...x, ds: ((x.R && x.R.districts) || []).filter((d) => d.median_ppm) })).sort((a, b) => b.ds.length - a.ds.length)[0] || { ds: [] };
-    const city = best.c, ds = best.ds.slice(0, 36);
+  /* برج‌های سه‌بعدی قیمت محله‌ها: دادهٔ واقعی؛ با فیلتر استان و شهر کادر جست‌وجو هم‌گام می‌شود
+     (یک شهر: محله‌هایش؛ چند شهر یا استان: محله‌های همهٔ شهرهای انتخابی کنار هم) */
+  let skyToken = 0;
+  async function drawSky(st, sel = {}) {
+    const token = ++skyToken;
     if (!$("#skySvg")) return;
-    if (ds.length < 3) { $("#sky").classList.add("is-empty"); svg.innerHTML = `<text x="0" y="0" text-anchor="middle" class="sky__empty">با جمع شدن آگهی کافی، برج‌های قیمت محله‌ها این‌جا ساخته می‌شوند</text>`; return; }
-    $("#skyTitle").textContent = `قیمت محله‌های ${UI.cityOf(city)?.name || ""}، سه‌بعدی`;
-    // چیدمان مارپیچی: گران‌ترین محله در مرکز
-    const sorted = [...ds].sort((a, b) => b.median_ppm - a.median_ppm);
+    const withData = (c) => (st.cities || {})[c] && (st.cities[c].n || 0) > 0;
+    let cities = [...new Set([...(sel.cities || []), ...CITIES.filter((c) => (sel.provs || []).includes(c.province)).map((c) => c.id)])].filter(withData);
+    const picked = cities.length > 0;
+    if (!picked) cities = Object.entries(st.cities || {}).sort((a, b) => b[1].n - a[1].n).slice(0, 3).map(([c]) => c);
+    cities = cities.sort((a, b) => (st.cities[b]?.n || 0) - (st.cities[a]?.n || 0)).slice(0, picked ? 6 : 3);
+    $("#sky").classList.add("is-loading");
+    const reps = await Promise.all(cities.map((c) => DataLayer.market(c, "sale", "apartment").then((r) => ({ c, ds: ((r.report && r.report.districts) || []).filter((d) => d.median_ppm) })).catch(() => ({ c, ds: [] }))));
+    if (token !== skyToken || !$("#skySvg")) return;
+    $("#sky").classList.remove("is-loading");
+    let use = reps.filter((x) => x.ds.length);
+    if (!picked) use = use.sort((a, b) => b.ds.length - a.ds.length).slice(0, 1);
+    const multi = use.length > 1;
+    const ds = use.flatMap((x) => x.ds.map((d) => ({ ...d, city: x.c }))).sort((a, b) => b.n - a.n).slice(0, 40);
+    const names = use.map((x) => UI.cityOf(x.c)?.name || x.c);
+    // گره را تازه می‌سازیم تا شنونده‌ها و حلقهٔ قبلی رها شوند
+    const old = $("#skyStage"), stage = old.cloneNode(false);
+    stage.innerHTML = `<svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg>`;
+    old.replaceWith(stage);
+    const svg = $("#skySvg");
+    if (ds.length < 3) {
+      $("#skyTitle").textContent = picked ? `قیمت محله‌های ${names.join("، ") || "شهرهای انتخابی"}` : "قیمت محله‌ها، سه‌بعدی";
+      svg.innerHTML = `<text x="0" y="0" text-anchor="middle" class="sky__empty">${picked ? "برای شهرهای انتخابی هنوز محلهٔ سنجیده‌شدهٔ کافی نیست" : "با جمع شدن آگهی کافی، برج‌های قیمت محله‌ها این‌جا ساخته می‌شوند"}</text>`;
+      return;
+    }
+    $("#skyTitle").textContent = `قیمت محله‌های ${names.length > 3 ? names.slice(0, 3).join("، ") + " و " + fa(names.length - 3) + " شهر دیگر" : names.join("، ")}، سه‌بعدی`;
+    const sorted = [...ds].sort((a, b) => b.median_ppm - a.median_ppm);   // چیدمان مارپیچی: گران‌ترین در مرکز
     const cells = [], seen = new Set();
     let x = 0, y = 0, dx = 1, dy = 0, run = 1, k = 0;
-    while (cells.length < sorted.length) {
+    while (cells.length < sorted.length && k++ < 400) {
       for (let r = 0; r < 2 && cells.length < sorted.length; r++) {
         for (let q = 0; q < run && cells.length < sorted.length; q++) { const key = x + "," + y; if (!seen.has(key)) { seen.add(key); cells.push([x, y]); } x += dx; y += dy; }
         [dx, dy] = [-dy, dx];
       }
-      run++; if (++k > 200) break;
+      run++;
     }
     const lo = sorted[sorted.length - 1].median_ppm, hi = sorted[0].median_ppm;
-    const T = sorted.map((d, i) => ({ d, x: cells[i][0] * 1.35, y: cells[i][1] * 1.35, h: 0.5 + 3.4 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5), hot: d.opportunities > 0 }));
+    const T = sorted.map((d, i) => ({ d, x: cells[i][0] * 1.35, y: cells[i][1] * 1.35, h: 0.5 + 3.4 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5), hot: d.opportunities > 0, g: 0 }));
     const C = Math.cos(Math.PI / 6), w = 0.95;
-    const ext = Math.max(...T.map((t) => Math.hypot(t.x, t.y))) + 0.8;   // شعاع صحنه؛ اندازه با تعداد محله‌ها تنظیم می‌شود
+    const ext = Math.max(...T.map((t) => Math.hypot(t.x, t.y))) + 0.8;
     const U = Math.min(42, 250 / (ext * 2 * C));
-    let theta = -0.6, drag = null, auto = !matchMedia("(prefers-reduced-motion: reduce)").matches, raf = 0, hover = null;
-    const render = () => {
+    let theta = -0.6, drag = null, hover = null, born = performance.now();
+    const auto = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const render = (now) => {
       const cs = Math.cos(theta), sn = Math.sin(theta);
       const P = (px, py, pz) => { const rx = px * cs - py * sn, ry = px * sn + py * cs; return [(rx - ry) * C * U, (rx + ry) * 0.5 * U - pz * U, rx + ry]; };
-      const items = T.map((t) => {
+      const pts = (arr) => arr.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+      const items = T.map((t, ti) => {
+        // رشد برج‌ها هنگام ورود، پلکانی از مرکز
+        const grow = auto ? Math.min(1, Math.max(0, ((now || born) - born - ti * 35) / 700)) : 1;
+        const h = t.h * (1 - Math.pow(1 - grow, 3));
         const c = [[t.x - w / 2, t.y - w / 2], [t.x + w / 2, t.y - w / 2], [t.x + w / 2, t.y + w / 2], [t.x - w / 2, t.y + w / 2]];
-        const bot = c.map(([a, b]) => P(a, b, 0)), topv = c.map(([a, b]) => P(a, b, t.h));
-        const depth = P(t.x, t.y, 0)[2];
-        // دیواره‌های رو به بیننده: دو ضلعی که عمق بیشتری دارند
+        const bot = c.map(([a, b]) => P(a, b, 0)), topv = c.map(([a, b]) => P(a, b, h));
         const sides = [0, 1, 2, 3].map((i) => ({ i, z: (bot[i][2] + bot[(i + 1) % 4][2]) / 2 })).sort((a, b) => b.z - a.z).slice(0, 2);
-        const pts = (arr) => arr.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
         const walls = sides.map(({ i }, n) => `<polygon class="sky__w${n}" points="${pts([topv[i], topv[(i + 1) % 4], bot[(i + 1) % 4], bot[i]])}"/>`).join("");
-        return { depth, html: `<g class="sky__t${t.hot ? " is-hot" : ""}${hover === t ? " is-on" : ""}" data-i="${T.indexOf(t)}">${walls}<polygon class="sky__top" points="${pts(topv)}"/></g>` };
+        return { depth: P(t.x, t.y, 0)[2], html: `<g class="sky__t${t.hot ? " is-hot" : ""}${hover === t ? " is-on" : ""}" data-i="${ti}">${walls}<polygon class="sky__top" points="${pts(topv)}"/></g>` };
       }).sort((a, b) => a.depth - b.depth);
       svg.innerHTML = `<ellipse class="sky__shadow" cx="0" cy="40" rx="250" ry="90"/>` + items.map((o) => o.html).join("");
     };
-    const loop = () => { if (!$("#skySvg")) return; if (auto && !drag && !document.hidden) { theta += 0.0025; render(); } raf = requestAnimationFrame(loop); };
-    render(); raf = requestAnimationFrame(loop);
-    const stage = $("#skyStage"), tip = $("#skyTip");
+    const loop = (now) => { if (token !== skyToken || !$("#skySvg")) return; if (auto && !drag && !document.hidden) { theta += 0.0025; render(now); } requestAnimationFrame(loop); };
+    render(auto ? born : 0); requestAnimationFrame(loop);
+    const tip = $("#skyTip");
     stage.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, t: theta, moved: false }; stage.setPointerCapture(e.pointerId); });
     stage.addEventListener("pointermove", (e) => {
-      if (drag) { const dxp = e.clientX - drag.x; if (Math.abs(dxp) > 3) drag.moved = true; theta = drag.t - dxp / 160; render(); return; }
+      if (drag) { const dxp = e.clientX - drag.x; if (Math.abs(dxp) > 3) drag.moved = true; theta = drag.t - dxp / 160; render(performance.now()); return; }
       const g = e.target.closest && e.target.closest(".sky__t");
       const t = g ? T[+g.dataset.i] : null;
-      if (t !== hover) { hover = t; render(); }
+      if (t !== hover) { hover = t; render(performance.now()); }
       if (!t) { tip.hidden = true; return; }
       const r = $("#sky").getBoundingClientRect();
       tip.hidden = false;
       tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top - 14) + "px";
-      tip.innerHTML = `<b>${esc(t.d.name)}</b><span>میانهٔ هر متر ${money(t.d.median_ppm)}</span><span>${fa(t.d.n)} آگهی${t.d.opportunities ? "، <em>" + fa(t.d.opportunities) + " فرصت</em>" : ""}</span>`;
+      tip.innerHTML = `<b>${esc(t.d.name)}${multi ? `<small> · ${esc(UI.cityOf(t.d.city)?.name || "")}</small>` : ""}</b><span>میانهٔ هر متر ${money(t.d.median_ppm)}</span><span>${fa(t.d.n)} آگهی${t.d.opportunities ? "، <em>" + fa(t.d.opportunities) + " فرصت</em>" : ""}</span>`;
     });
-    const end = (e) => {
-      if (drag && !drag.moved) { const el = document.elementFromPoint(e.clientX, e.clientY), g = el && el.closest && el.closest(".sky__t"); if (g) go("#/s?" + toQuery({ city, district: T[+g.dataset.i].d.name, sort: "score" })); }
+    stage.addEventListener("pointerup", (e) => {
+      if (drag && !drag.moved) { const el = document.elementFromPoint(e.clientX, e.clientY), g = el && el.closest && el.closest(".sky__t"); if (g) { const d = T[+g.dataset.i].d; go("#/s?" + toQuery({ city: d.city, district: d.name, sort: "score" })); } }
       drag = null;
-    };
-    stage.addEventListener("pointerup", end);
-    stage.addEventListener("pointerleave", () => { hover = null; tip.hidden = true; render(); });
+    });
+    stage.addEventListener("pointerleave", () => { hover = null; tip.hidden = true; render(performance.now()); });
   }
 
   /* بازار در یک نگاه: شهری که بیشترین آگهی معتبر را دارد */
@@ -387,6 +411,40 @@ const App = (() => {
       </svg></div>`;
   }
 
+  /* نوار ناوبری با نورافکن: یک قرص نرم زیر گزینه‌ای که نشانگر رویش است می‌لغزد */
+  function navSpotlight() {
+    const nav = $(".nav");
+    if (!nav || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const spot = document.createElement("span");
+    spot.className = "nav__spot";
+    nav.prepend(spot);
+    const to = (a) => {
+      if (!a) { spot.style.opacity = "0"; return; }
+      const r = a.getBoundingClientRect(), n = nav.getBoundingClientRect();
+      spot.style.opacity = "1";
+      spot.style.transform = `translateX(${r.left - n.left}px)`;
+      spot.style.width = r.width + "px";
+    };
+    nav.addEventListener("pointerover", (e) => { const a = e.target.closest("a"); if (a && !a.classList.contains("nav__more")) to(a); });
+    nav.addEventListener("pointerleave", () => to(null));
+  }
+  /* عددهای آمار با رمزگشایی ارقام ظاهر می‌شوند (یک بار، وقتی دیده شوند) */
+  function scrambleScan() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
+    const DIG = "۰۱۲۳۴۵۶۷۸۹";
+    const io = new IntersectionObserver((es) => es.forEach((en) => {
+      if (!en.isIntersecting) return;
+      io.unobserve(en.target);
+      const el = en.target, final = el.textContent, t0 = performance.now();
+      const tick = (now) => {
+        const p = Math.min(1, (now - t0) / 900);
+        el.textContent = [...final].map((ch, i) => (DIG.includes(ch) && i / final.length > p ? DIG[(Math.random() * 10) | 0] : ch)).join("");
+        if (p < 1) requestAnimationFrame(tick); else el.textContent = final;
+      };
+      requestAnimationFrame(tick);
+    }), { threshold: 0.6 });
+    $$(".sky__kpis b, .strip b, .glance b").forEach((el) => { if (!el.dataset.scr) { el.dataset.scr = "1"; io.observe(el); } });
+  }
   /* عمق و سه‌بعدی: کج شدن کارت با نشانگر و نور دنبال‌کننده؛ فقط دستگاه دارای نشانگر و بدون «کاهش حرکت» */
   function depthFX() {
     if (!matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
