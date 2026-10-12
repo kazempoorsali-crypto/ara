@@ -1922,3 +1922,23 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
 canvas.ribbons { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; opacity: .9; }
 .hero canvas.ribbons { opacity: .55; mix-blend-mode: multiply; }
 [data-theme="dark"] .hero canvas.ribbons { mix-blend-mode: screen; opacity: .7; }
+
+/* الهام از طراحی لوتوس پارسیان: نشان «//»، آشکارسازی مورب تصویرها، پرتوهای نور عمودی */
+.kicker::before { content: ""; width: 14px; height: 12px; flex: none; transform: skewX(-24deg);
+  background: linear-gradient(90deg, var(--gold-lux, #c9a24f) 0 4px, transparent 4px 8px, var(--gold-lux, #c9a24f) 8px 12px); }
+.card.reveal-on-scroll .card__media { clip-path: polygon(38% 0, 62% 0, 62% 100%, 38% 100%); transform: skewX(-8deg); transition: clip-path 1s cubic-bezier(.7,0,.2,1), transform 1s cubic-bezier(.7,0,.2,1); }
+.card.reveal-on-scroll.is-visible .card__media { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: none; }
+.beams { position: absolute; inset: 0; display: flex; justify-content: space-around; pointer-events: none; opacity: .9; }
+.beams i { position: relative; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, rgba(212,180,106,.18), transparent); overflow: hidden; }
+.beams i::after { content: ""; position: absolute; inset-inline: -1px; height: 45%; top: -46%;
+  background: linear-gradient(180deg, transparent, rgba(110,231,170,.9), transparent); box-shadow: 0 0 12px 2px rgba(63,217,154,.55);
+  animation: beam 5.5s cubic-bezier(.5,0,.5,1) infinite; }
+.beams i:nth-child(2n)::after { animation-duration: 7s; animation-delay: -2s; background: linear-gradient(180deg, transparent, rgba(232,200,120,.9), transparent); box-shadow: 0 0 12px 2px rgba(212,180,106,.5); }
+.beams i:nth-child(3n)::after { animation-duration: 8.5s; animation-delay: -4.5s; }
+.beams i:nth-child(5)::after { animation-delay: -1s; }
+@keyframes beam { to { top: 105%; } }
+.consult__box > div:not(.beams) { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .card.reveal-on-scroll .card__media { clip-path: none !important; transform: none !important; }
+  .beams i::after { animation: none; top: 30%; }
+}
