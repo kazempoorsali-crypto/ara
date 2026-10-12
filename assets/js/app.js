@@ -139,7 +139,7 @@ const App = (() => {
           <div class="hero__quick" id="heroQuick">${["آپارتمان زیر قیمت رشت", "ویلای ساحلی نوشهر", "آپارتمان رهن ساری", "زمین سنددار لاهیجان", "ویلا کلاردشت"].map((q) => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
         </div>
         <aside class="sky" id="sky" aria-label="نقشهٔ سه‌بعدی قیمت محله‌ها">
-          <div class="sky__head"><span class="sky__live"><i></i>${DataLayer.samples ? "داده نمونه" : "زنده"}</span><b id="skyTitle">قیمت محله‌ها، سه‌بعدی</b><small>ارتفاع هر برج میانهٔ قیمت هر متر یک محله است؛ برج نارنجی یعنی فرصت زیر قیمت دارد.</small></div>
+          <div class="sky__head"><span class="sky__live"><i></i>${DataLayer.samples ? "داده نمونه" : "زنده"}</span><b id="skyTitle">قیمت محله‌ها، سه‌بعدی</b><small id="skySub">شهرهای دارای آگهی نقطه‌های نورانی‌اند. شهری را در جست‌وجو انتخاب کنید یا روی نقطه‌اش بزنید تا به آن پرواز کنیم؛ ارتفاع هر ستون میانهٔ قیمت هر متر محله است و ستون سبز یعنی فرصت زیر قیمت دارد.</small></div>
           <div class="sky__stage" id="skyStage"><svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg></div>
           <div class="sky__tip" id="skyTip" hidden></div>
           <div class="sky__kpis">
@@ -147,7 +147,7 @@ const App = (() => {
             <div class="is-hot"><b>${fa(st.deals || 0)}</b><span>فرصت زیر قیمت محله</span></div>
             <div><b>${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
           </div>
-          <p class="sky__hint">بکشید تا بچرخد؛ روی هر برج بزنید. با انتخاب استان یا شهر در جست‌وجو، همین کادر همان‌جا را نشان می‌دهد.</p>
+          <p class="sky__hint">بکشید تا بچرخد. با انتخاب یک یا چند شهر یا استان در جست‌وجو، کادر همان‌جا را نشان می‌دهد.</p>
         </aside>
       </div>
     </section>
@@ -178,7 +178,12 @@ const App = (() => {
     <section class="section section--sunk">
       <div class="wrap">
         <div class="sec-head"><div><span class="kicker">راهنمای محلی</span><h2>شهر به شهر، استان به استان</h2><p>تعداد آگهی و میانه قیمت هر متر در هر شهر، از آگهی‌های پاک‌سازی‌شده همین سامانه. استان‌های تازه به‌تدریج اضافه می‌شوند.</p></div><a class="btn btn--line" href="#/market">بازار محله‌ها</a></div>
-        <div class="prov">${provinceColumns(st)}</div>
+        <div class="rail" id="provRail">
+          <button type="button" class="rail__btn rail__btn--prev" data-rail="-1" aria-label="استان‌های قبلی">${icon("arrow")}</button>
+          <div class="prov prov--rail" id="provList">${provinceColumns(st)}</div>
+          <button type="button" class="rail__btn rail__btn--next" data-rail="1" aria-label="استان‌های بعدی">${icon("arrow")}</button>
+        </div>
+        <div class="rail__foot"><button type="button" class="btn btn--line btn--sm" id="provAll" aria-expanded="false">نمایش همهٔ استان‌ها</button></div>
       </div>
     </section>
     ${plansSection()}
@@ -205,7 +210,7 @@ const App = (() => {
       H.cities.forEach((c) => tags.push({ k: "city", id: c, label: UI.cityOf(c)?.name || c }));
       el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span>${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
       clearTimeout(drawHTags.t);
-      drawHTags.t = setTimeout(() => drawSky(st, { provs: H.provs, cities: H.cities }), 250);  // کادر سه‌بعدی هم‌گام با فیلتر
+      drawHTags.t = setTimeout(() => liveSelect(st, { provs: H.provs, cities: H.cities }), 250);  // کادر زنده هم‌گام با فیلتر
     };
 
     $("#hTags")?.addEventListener("click", (e) => {
@@ -265,7 +270,31 @@ const App = (() => {
     };
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
-    drawSky(st);
+    initLive(st);
+    // راهنمای استان‌ها: یک ردیف با پیمایش افقی؛ دکمهٔ «همه» باز و بسته می‌کند
+    const rail = $("#provList");
+    if (rail) {
+      const sync = () => {
+        const max = rail.scrollWidth - rail.clientWidth, x = Math.abs(rail.scrollLeft);
+        $("#provRail").classList.toggle("can-prev", x > 8);
+        $("#provRail").classList.toggle("can-next", x < max - 8);
+      };
+      rail.addEventListener("scroll", sync, { passive: true });
+      requestAnimationFrame(sync);
+      $("#provRail").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-rail]"); if (!b) return;
+        // راست‌به‌چپ: «بعدی» یعنی رفتن به سمت چپ
+        rail.scrollBy({ left: -(+b.dataset.rail) * (rail.clientWidth * 0.85), behavior: "smooth" });
+      });
+      $("#provAll").addEventListener("click", (e) => {
+        const open = rail.classList.toggle("is-open");
+        $("#provRail").classList.toggle("is-open", open);
+        e.currentTarget.setAttribute("aria-expanded", open);
+        e.currentTarget.textContent = open ? "جمع کردن در یک ردیف" : "نمایش همهٔ استان‌ها";
+        requestAnimationFrame(sync);
+      });
+      if (PROVINCES.length <= 3) $("#provAll").parentElement.hidden = rail.scrollWidth <= rail.clientWidth + 4;
+    }
     bindTools();
     bindPlans();
     drawGlance(st);
@@ -276,6 +305,107 @@ const App = (() => {
       $("#showGrid").innerHTML = ok.map((l) => UI.card(l)).join("");
     });
   }
+  /* کادر زنده: کرهٔ زمین واقعی (WebGL) که به شهرهای انتخابی پرواز می‌کند و سپس نقشهٔ واقعی شهر با ستون‌های سه‌بعدی
+     قیمت محله‌ها؛ اگر WebGL یا «کاهش حرکت» مانع باشد، برج‌های سه‌بعدی SVG جایگزین می‌شوند */
+  let live = null;
+  function webglOK() { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; } }
+  async function initLive(st) {
+    if (live && live.globe) { try { live.globe.destroy(); } catch (e) {} }
+    live = null;
+    if (!$("#sky")) return;
+    if (!webglOK() || matchMedia("(prefers-reduced-motion: reduce)").matches) { drawSky(st); return; }
+    const V = (($('script[src*="assets/js/app.js"]') || {}).src || "").split("?v=")[1] || "";
+    try {
+      const mod = await import("/assets/js/globe.js" + (V ? "?v=" + V : ""));
+      if (!$("#sky")) return;
+      const stage = $("#skyStage");
+      stage.innerHTML = `<div class="sky__globe" id="skyGlobe"></div><div class="sky__map" id="skyMap" aria-hidden="true"></div><button type="button" class="sky__back" id="skyBack" hidden>${icon("arrow")} بازگشت به کرهٔ زمین</button>`;
+      stage.classList.add("is-globe");
+      const cities = CITIES.filter((c) => (st.cities || {})[c.id]?.n).map((c) => ({ ...c, n: st.cities[c.id].n }));
+      const L0 = { st, sel: null, map: null, token: 0 };
+      live = L0;
+      L0.globe = await mod.mountGlobe($("#skyGlobe"), {
+        cities, textureUrl: "/assets/vendor/globe/earth-night.jpg",
+        onPick: (c) => liveSelect(st, { cities: [c.id] }),
+        onArrive: () => liveShowMap(L0),
+      });
+      $("#skyTitle").textContent = "بازار ملک ایران، از نگاه ماهواره";
+      $("#skyBack").addEventListener("click", () => liveHome(L0));
+      $("#sky").classList.add("is-ready");
+    } catch (e) {
+      console.warn("globe", e);
+      live = null;
+      $("#skyStage").classList.remove("is-globe");
+      $("#skyStage").innerHTML = `<svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg>`;
+      drawSky(st);
+    }
+  }
+  async function liveSelect(st, sel) {
+    if (!live || !live.globe) { drawSky(st, sel); return; }
+    const L0 = live, token = ++L0.token;
+    const withData = (c) => (st.cities || {})[c] && (st.cities[c].n || 0) > 0;
+    let ids = [...new Set([...(sel.cities || []), ...CITIES.filter((c) => (sel.provs || []).includes(c.province)).map((c) => c.id)])].filter(withData);
+    if (!ids.length) { liveHome(L0); return; }
+    ids = ids.sort((a, b) => (st.cities[b]?.n || 0) - (st.cities[a]?.n || 0)).slice(0, 6);
+    const pts = ids.map((id) => CITIES.find((c) => c.id === id)).filter(Boolean);
+    liveHideMap(L0);
+    const names = pts.map((c) => c.name);
+    $("#skyTitle").textContent = `در حال پرواز به ${names.length > 3 ? names.slice(0, 3).join("، ") + " و …" : names.join("، ")}`;
+    L0.pending = Promise.all(ids.map((c) => DataLayer.market(c, "sale", "apartment").then((r) => ({ c, ds: ((r.report && r.report.districts) || []).filter((d) => d.median_ppm) })).catch(() => ({ c, ds: [] }))));
+    L0.sel = { ids, pts, names, token };
+    L0.globe.focus(pts.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng })), { zoom: pts.length > 1 ? 1.55 : 1.3 });
+  }
+  function liveHideMap(L0) {
+    $("#skyMap")?.classList.remove("is-on");
+    $("#skyBack") && ($("#skyBack").hidden = true);
+  }
+  function liveHome(L0) {
+    liveHideMap(L0);
+    L0.sel = null; L0.token++;
+    L0.globe.home();
+    $("#skyTitle").textContent = "بازار ملک ایران، از نگاه ماهواره";
+  }
+  async function liveShowMap(L0) {
+    const sel = L0.sel;
+    if (!sel || !$("#skyMap")) return;
+    const reps = await L0.pending;
+    if (sel.token !== L0.token || !$("#skyMap")) return;
+    const multi = reps.filter((r) => r.ds.length).length > 1;
+    const ds = reps.flatMap((r) => r.ds.map((d) => ({ ...d, city: r.c }))).sort((a, b) => b.n - a.n).slice(0, 60);
+    $("#skyTitle").textContent = `قیمت محله‌های ${sel.names.length > 3 ? sel.names.slice(0, 3).join("، ") + " و " + fa(sel.names.length - 3) + " شهر دیگر" : sel.names.join("، ")}`;
+    const box = $("#skyMap");
+    if (!L0.map) {
+      L0.map = L.map(box, { zoomControl: false, attributionControl: true, scrollWheelZoom: false, preferCanvas: false });
+      L0.map.attributionControl.setPrefix(false);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 17, attribution: "© OpenStreetMap", className: "sky__tiles" }).addTo(L0.map);
+      L0.layer = L.layerGroup().addTo(L0.map);
+    }
+    L0.layer.clearLayers();
+    // محله‌ای که مختصات ندارد، دور مرکز شهرش روی یک حلقه چیده می‌شود
+    const byCity = {};
+    const lo = Math.min(...ds.map((d) => d.median_ppm)), hi = Math.max(...ds.map((d) => d.median_ppm));
+    const pts = [];
+    ds.forEach((d) => {
+      let lat = d.lat, lng = d.lng;
+      if (!lat || !lng) {
+        const c = CITIES.find((x) => x.id === d.city), k = (byCity[d.city] = (byCity[d.city] || 0) + 1);
+        const a = k * 2.399, r = 0.006 * Math.sqrt(k);   // مارپیچ طلایی
+        lat = c.lat + r * Math.cos(a); lng = c.lng + r * Math.sin(a) * 1.25;
+      }
+      pts.push([lat, lng]);
+      const h = Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5));
+      const icon = L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` });
+      L.marker([lat, lng], { icon, title: d.name })
+        .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>میانهٔ هر متر ${money(d.median_ppm)}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
+        .on("click", () => go("#/s?" + toQuery({ city: d.city, district: d.name, sort: "score" })))
+        .addTo(L0.layer);
+    });
+    if (!ds.length) sel.pts.forEach((c) => pts.push([c.lat, c.lng]));
+    box.classList.add("is-on");
+    $("#skyBack").hidden = false;
+    setTimeout(() => { L0.map.invalidateSize(); if (pts.length) L0.map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }); }, 60);
+  }
+
   /* برج‌های سه‌بعدی قیمت محله‌ها: دادهٔ واقعی؛ با فیلتر استان و شهر کادر جست‌وجو هم‌گام می‌شود
      (یک شهر: محله‌هایش؛ چند شهر یا استان: محله‌های همهٔ شهرهای انتخابی کنار هم) */
   let skyToken = 0;
