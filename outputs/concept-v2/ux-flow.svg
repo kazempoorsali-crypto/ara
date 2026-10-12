@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" direction="rtl">
+<rect width="1200" height="520" fill="#f6f3ee"/>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b8955a"/></marker></defs>
+<text x="1150" y="45" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="28" font-weight="700" fill="#151614">جریان تجربهٔ کاربر (UX Flow)</text>
+<rect x="930" y="80" width="220" height="110" rx="18" fill="#151614"/>
+<text x="1135" y="125" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">ورود به سایت</text>
+<text x="1135" y="160" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">قهرمان: پرسش و پیام برند</text>
+<rect x="660" y="80" width="220" height="110" rx="18" fill="#151614"/>
+<text x="865" y="125" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">انتخاب شهر یا استان</text>
+<text x="865" y="160" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">کرهٔ زنده به شهر پرواز می‌کند</text>
+<rect x="390" y="80" width="220" height="110" rx="18" fill="#151614"/>
+<text x="595" y="125" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">نقشهٔ محله‌ها</text>
+<text x="595" y="160" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">ستون قیمت هر محله</text>
+<rect x="120" y="80" width="220" height="110" rx="18" fill="#151614"/>
+<text x="325" y="125" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">فرصت‌های این شهرها</text>
+<text x="325" y="160" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">نقشهٔ زندهٔ پهن + کارت‌ها</text>
+<rect x="120" y="300" width="220" height="110" rx="18" fill="#151614"/>
+<text x="325" y="345" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">شناسنامهٔ قیمت آگهی</text>
+<text x="325" y="380" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">ارزش تخمینی، فاصله، امتیاز، دلایل</text>
+<rect x="390" y="300" width="220" height="110" rx="18" fill="#151614"/>
+<text x="595" y="345" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">تصمیم</text>
+<text x="595" y="380" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">تماس، ذخیره، مقایسه</text>
+<rect x="660" y="300" width="220" height="110" rx="18" fill="#151614"/>
+<text x="865" y="345" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">اشتراک</text>
+<text x="865" y="380" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">دیدن ارزش دقیق و همهٔ نتایج</text>
+<rect x="930" y="300" width="220" height="110" rx="18" fill="#151614"/>
+<text x="1135" y="345" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="19" font-weight="700" fill="#f6f3ee">مشاوره</text>
+<text x="1135" y="380" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="14" font-weight="400" fill="#bdb6a8">درخواست تحلیل یک ملک مشخص</text>
+<line x1="930" y1="135" x2="880" y2="135" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="660" y1="135" x2="610" y2="135" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="390" y1="135" x2="340" y2="135" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="230" y1="190" x2="230" y2="300" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="340" y1="355" x2="390" y2="355" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="610" y1="355" x2="660" y2="355" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="880" y1="355" x2="930" y2="355" stroke="#b8955a" stroke-width="3" marker-end="url(#ar)"/>
+<text x="1150" y="470" text-anchor="start" font-family="B Nazanin, Vazirmatn, Tahoma" font-size="17" font-weight="400" fill="#44443f">هر گام، یک پرسش کاربر را پاسخ می‌دهد: کجا؟ چند؟ ارزش دارد؟ چه کنم؟</text>
+</svg>
