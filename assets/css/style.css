@@ -1450,8 +1450,8 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   transform: scale(1);
 }
 
-/* ۷. افکت شیشه‌ای (Glassmorphism) */
-#top.is-scrolled {
+/* ۷. افکت شیشه‌ای (Glassmorphism)؛ فقط تم روشن (تم تیره پایین‌تر) */
+:root:not([data-theme="dark"]) #top.is-scrolled {
   background: rgba(243, 245, 242, 0.88) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
