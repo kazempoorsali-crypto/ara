@@ -66,6 +66,8 @@ const UI = (() => {
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/>',
     upload: '<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
+    expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+    shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
   };
   const icon = (n, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n] || ""}</svg>`;
 
