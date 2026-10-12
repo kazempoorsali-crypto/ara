@@ -80,7 +80,7 @@ class Support:
         key = secrets.token_urlsafe(16) if guest else None
         pay = None
         if category == "payment" and image and not guest:
-            pay = self.store.q("SELECT id FROM payments WHERE phone=? AND gateway='card' AND status='pending' ORDER BY created DESC LIMIT 1", (phone,), one=True)
+            pay = self.store.q("SELECT id FROM payments WHERE phone=? AND gateway='card' AND status='pending' ORDER BY created DESC, id DESC LIMIT 1", (phone,), one=True)
         cur = self.store.x("INSERT INTO tickets (phone, guest_key, category, subject, created, updated, payment_id) VALUES (?,?,?,?,?,?,?)",
                            (phone, key, category, body[:80] or "تصویر پیوست", now, now, pay["id"] if pay else None))
         tid = cur.lastrowid

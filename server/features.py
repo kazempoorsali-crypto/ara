@@ -45,6 +45,43 @@ def _yes(attrs: dict, blob: str, attr_keys, rx) -> int | None:
     return 0 if re.match(r"\s*:?\s*(ندارد|نداره|نیست|خیر)", tail) else 1
 
 
+PS_STAGES = [(r"گودبرداری|فونداسیون|پی ?ریزی|مجوز ?ساخت|پروانه ?(?:گرفته|اخذ)", 0.1), (r"اسکلت|سقف ?(?:اول|دوم|سوم)", 0.3),
+             (r"سفت ?کاری", 0.5), (r"نازک ?کاری", 0.75), (r"نما ?کاری|نصب ?نما|مرحله ?نما", 0.85)]
+JMONTHS = {"فروردین": 1, "اردیبهشت": 2, "خرداد": 3, "تیر": 4, "مرداد": 5, "شهریور": 6, "مهر": 7, "آبان": 8, "آذر": 9, "دی": 10, "بهمن": 11, "اسفند": 12}
+
+
+def presale_info(blob: str) -> dict:
+    """پیش‌فروش: درصد پیشرفت ساخت، ماه‌های باقی‌مانده تا تحویل و فروش قسطی، اگر در متن آمده باشد."""
+    out = {}
+    m = re.search(r"(\d{1,3})\s*(?:درصد|٪|%)\s*(?:پیشرفت|ساخته|تکمیل)|پیشرفت\s*(?:فیزیکی|کار|پروژه)?\s*:?\s*(\d{1,3})\s*(?:درصد|٪|%)", blob)
+    if m and 0 < int(m.group(1) or m.group(2)) <= 100:
+        out["ps_progress"] = int(m.group(1) or m.group(2)) / 100
+    else:
+        for rx, p in reversed(PS_STAGES):  # پیشرفته‌ترین مرحلهٔ ذکرشده
+            if re.search(rx, blob):
+                out["ps_progress"] = p
+                break
+    t = time.gmtime()
+    ny, nm = jalali_year_now(), ((t.tm_mon + 8) % 12) + 1  # ماه شمسی تقریبی
+    m = re.search(r"تحویل\s*(?:در|سال|پایان|اواخر|اوایل|نیمه)?\s*(?:(" + "|".join(JMONTHS) + r")\s*(?:ماه)?\s*)?(?:سال\s*)?(14\d\d)", blob)
+    if m and 0 <= int(m.group(2)) - ny <= 6:
+        mon = JMONTHS.get(m.group(1) or "", 6)
+        out["ps_months"] = max(0, (int(m.group(2)) - ny) * 12 + mon - nm)
+    else:
+        m = re.search(r"تحویل\s*(?:در|ظرف|طی)?\s*(\d{1,2}|یک|دو|سه)\s*(ماه|سال)", blob) or re.search(r"(\d{1,2}|یک|دو|سه)\s*(ماه|سال)\s*(?:دیگر|آینده)?\s*تحویل", blob)
+        if m:
+            n = WORD_NUM.get(m.group(1)) or int(m.group(1)) if m.group(1).isdigit() or m.group(1) in WORD_NUM else None
+            if n:
+                out["ps_months"] = n * (12 if m.group(2) == "سال" else 1)
+        elif re.search(r"آماده ?تحویل|تحویل ?فوری|در ?حال ?تحویل", blob):
+            out["ps_months"] = 1
+    if out.get("ps_months") is not None:
+        out["ps_months"] = min(out["ps_months"], 60)
+    if re.search(r"اقساط|قسطی|اقساطی|پرداخت ?مرحله ?ای", blob):
+        out["ps_installments"] = 1
+    return out
+
+
 def extract(item: dict) -> dict:
     attrs = item.get("attributes") or {}
     title = norm(item.get("title"))
@@ -138,6 +175,7 @@ def extract(item: dict) -> dict:
     flags = []
     if re.search(r"پیش ?فروش", blob):
         flags.append("presale")
+        f.update(presale_info(blob))
     if re.search(r"مشارکت(?: در ساخت)?", blob):
         flags.append("partnership")
     if re.search(r"معاوضه|تهاتر", title):

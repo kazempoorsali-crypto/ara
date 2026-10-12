@@ -1,4 +1,4 @@
-/* فرصت‌یاب — مسیریابی و صفحات */
+/* فرصت ملک — مسیریابی و صفحات */
 const App = (() => {
   "use strict";
   const { $, $$, esc, fa, faY, num, store, money, toast, icon, pct } = UI;
@@ -9,6 +9,7 @@ const App = (() => {
 
   /* ---------- راه‌اندازی ---------- */
   async function boot() {
+    depthFX();
     applyTheme(store.get("theme_v2", "light"));
     const info = await DataLayer.init();
     cfg = info.config;
@@ -80,6 +81,17 @@ const App = (() => {
     // متن «دربارهٔ بازار» که سرور برای همین نشانی ساخته، فقط روی همان صفحه دیده می‌شود
     const st = $("#seoText");
     if (st) st.hidden = (st.dataset.hash || "#/").replace(/^#?\/?$/, "#/") !== (location.hash || "#/").replace(/^#?\/?$/, "#/");
+    // متن کامل برای موتورهای جست‌وجو می‌ماند، ولی برای کاربر جمع است تا صفحه شلوغ نشود
+    if (st && !st.dataset.fold) {
+      st.dataset.fold = "1";
+      st.classList.add("seo-text--fold");
+      const btn = document.createElement("button");
+      btn.className = "btn btn--line btn--sm seo-text__more";
+      btn.type = "button";
+      btn.textContent = "ادامهٔ توضیحات";
+      btn.addEventListener("click", () => { const open = st.classList.toggle("is-open"); btn.textContent = open ? "بستن توضیحات" : "ادامهٔ توضیحات"; });
+      st.appendChild(btn);
+    }
     if (page !== lastPath || page === "ad") scrollTo({ top: 0 });
     lastPath = page;
     setTimeout(applyScrollReveals, 100);
@@ -187,7 +199,7 @@ const App = (() => {
       const tags = [];
       H.provs.forEach((p) => tags.push({ k: "prov", id: p, label: "استان " + (PROVINCES.find((x) => x.id === p)?.name || p) }));
       H.cities.forEach((c) => tags.push({ k: "city", id: c, label: UI.cityOf(c)?.name || c }));
-      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span><i>✕</i></button>`).join("");
+      el.innerHTML = tags.map((t) => `<button type="button" class="atag" data-k="${t.k}" data-id="${t.id}"><span>${esc(t.label)}</span>${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
     };
 
     $("#hTags")?.addEventListener("click", (e) => {
@@ -240,7 +252,7 @@ const App = (() => {
     const drawFeed = async () => {
       $("#feed").innerHTML = Array.from({ length: 4 }, () => '<div class="skeleton"></div>').join("");
       const f = { sort: fs, ...(fs === "drop" ? { drop: 1 } : {}), ...(fs === "score" ? { opp: 1 } : fs === "deal" ? { ranked: 1 } : {}) };
-      const r = await DataLayer.search({ ...f, limit: 8 });
+      const r = await DataLayer.search({ ...f, limit: 4 });
       if (!$("#feed")) return;
       $("#feed").innerHTML = r.items.length ? r.items.map((l) => UI.card(l)).join("") : `<div class="empty" style="grid-column:1/-1"><h3>فعلاً موردی نیست</h3><p>با دریافت آگهی‌های بیشتر این بخش پر می‌شود.</p></div>`;
       $("#feedMore").href = "#/s?" + toQuery(f);
@@ -275,15 +287,64 @@ const App = (() => {
       <div class="funnel funnel--mini">${R.funnel.map((f) => `<div class="funnel__row funnel__row--${f.k}"><span>${esc(f.label)}</span><span class="funnel__track"><i style="width:${Math.max(1, (f.n / Math.max(1, R.funnel[0].n)) * 100)}%"></i></span><b>${fa(f.n)}</b></div>`).join("")}</div></div>`;
   }
 
+  /* شهر ایزومتریک سه‌بعدی (SVG ساخته‌شده در مرورگر، بدون کتابخانه)؛ یک ساختمان نارنجی = «زیر قیمت محله» */
   function heroArt() {
-    return `<svg viewBox="0 0 1440 220" preserveAspectRatio="none">
-      <path d="M0 120 L110 70 L210 104 L330 46 L470 112 L600 60 L760 118 L880 64 L1010 108 L1150 52 L1300 100 L1440 70 V220 H0Z" fill="var(--line)" opacity=".7"/>
-      <path d="M0 150 Q120 116 240 140 T480 136 T720 148 T960 128 T1200 146 T1440 132 V220 H0Z" fill="var(--forest)" opacity=".18"/>
-      <g fill="var(--forest)" opacity=".35"><path d="M70 150 l14-46 14 46z M108 154 l18-58 18 58z M1268 148 l14-48 14 48z M1306 154 l18-60 18 60z M1350 150 l12-40 12 40z"/></g>
-      <path d="M0 172 Q360 158 720 170 T1440 166 V220 H0Z" fill="var(--sea)" opacity=".28"/>
-      <path d="M0 190 Q60 184 120 190 T240 190 T360 190 T480 190 T600 190 T720 190 T840 190 T960 190 T1080 190 T1200 190 T1320 190 T1440 190" stroke="var(--sea)" stroke-opacity=".45" stroke-width="1.5" fill="none"/>
-      <path d="M0 205 Q360 196 720 204 T1440 200 V220 H0Z" fill="var(--sea)" opacity=".35"/>
-    </svg>`;
+    const C = Math.cos(Math.PI / 6), S = 0.5, u = 26;
+    const P = (x, y, z) => `${((x - y) * C * u).toFixed(1)},${((x + y) * S * u - z * u).toFixed(1)}`;
+    const box = (x, y, w, d, h, cls) => {
+      const top = [P(x, y, h), P(x + w, y, h), P(x + w, y + d, h), P(x, y + d, h)];
+      const left = [P(x, y + d, h), P(x + w, y + d, h), P(x + w, y + d, 0), P(x, y + d, 0)];
+      const right = [P(x + w, y, h), P(x + w, y + d, h), P(x + w, y + d, 0), P(x + w, y, 0)];
+      let win = "";
+      for (let k = 0.6; k < h - 0.3; k += 0.7) win += `<path d="M${P(x + 0.2, y + d, k)} L${P(x + w - 0.2, y + d, k)}" class="iso__win"/>`;
+      return `<g class="iso__b ${cls || ""}"><path d="M${left.join(" L")}Z" class="iso__l"/><path d="M${right.join(" L")}Z" class="iso__r"/><path d="M${top.join(" L")}Z" class="iso__t"/>${win}</g>`;
+    };
+    const lots = [];
+    let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    for (let gx = 0; gx < 9; gx++) for (let gy = 0; gy < 4; gy++) {
+      if (rnd() < 0.18) continue;
+      lots.push({ x: gx * 2.2, y: gy * 2.2, w: 1.4 + rnd() * 0.4, d: 1.4 + rnd() * 0.4, h: 0.8 + rnd() * (gy === 0 ? 1.6 : 3.2) });
+    }
+    const dist = (l) => Math.abs(l.x - 11) + Math.abs(l.y - 6.6);
+    const hot = lots.reduce((b, l, k) => (dist(l) < dist(lots[b]) ? k : b), 0);
+    lots[hot].h = 4.6; lots[hot].hot = true;
+    lots.sort((a, b) => (a.x + a.y) - (b.x + b.y));  // ترتیب رسم: دور به نزدیک
+    const body = lots.map((l) => box(l.x, l.y, l.w, l.d, l.h, l.hot ? "iso__b--hot" : "")).join("");
+    const h = lots.find((q) => q.hot), pin = P(h.x + h.w / 2, h.y + h.d / 2, h.h + 0.9).split(",");
+    return `<div class="iso" aria-hidden="true"><div class="iso__floor"></div>
+      <svg class="iso__city" viewBox="-200 -150 820 530" preserveAspectRatio="xMidYMax meet">
+        <ellipse cx="210" cy="300" rx="380" ry="90" class="iso__shadow"/>${body}
+        <g class="iso__pin" transform="translate(${pin[0]} ${pin[1]})"><rect x="-80" y="-44" width="160" height="40" rx="20"/><text x="0" y="-18" text-anchor="middle">زیر قیمت محله</text><path d="M-6 -4 L0 6 L6 -4Z"/></g>
+      </svg></div>`;
+  }
+
+  /* عمق و سه‌بعدی: کج شدن کارت با نشانگر و نور دنبال‌کننده؛ فقط دستگاه دارای نشانگر و بدون «کاهش حرکت» */
+  function depthFX() {
+    if (!matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, last = null, ev = null;
+    const SEL = ".card:not(.card--lock), .board, .plan, .tilt";
+    const reset = (el) => { el.style.removeProperty("--rx"); el.style.removeProperty("--ry"); el.classList.remove("is-tilt"); };
+    document.addEventListener("pointermove", (e) => {
+      ev = e;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = ev.target.closest && ev.target.closest(SEL);
+        if (last && last !== el) reset(last);
+        last = el;
+        const hero = ev.target.closest && ev.target.closest(".hero");
+        if (hero) { const r = hero.getBoundingClientRect(); hero.style.setProperty("--px", ((ev.clientX - r.left) / r.width - 0.5).toFixed(3)); hero.style.setProperty("--py", ((ev.clientY - r.top) / r.height - 0.5).toFixed(3)); }
+        if (!el) return;
+        const r = el.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
+        const k = el.classList.contains("board") ? 5 : 7;
+        el.classList.add("is-tilt");
+        el.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+        el.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+        el.style.setProperty("--rx", ((0.5 - y) * k).toFixed(2) + "deg");
+        el.style.setProperty("--ry", ((x - 0.5) * k).toFixed(2) + "deg");
+      });
+    }, { passive: true });
+    document.addEventListener("pointerleave", () => last && reset(last));
   }
 
   function provinceColumns(st) {
@@ -291,10 +352,10 @@ const App = (() => {
     return PROVINCES.map((p) => {
       const cs = CITIES.filter((c) => c.province === p.id).map((c) => ({ c, s: (st.cities || {})[c.id] || { n: 0 } })).sort((a, b) => b.s.n - a.s.n);
       const total = cs.reduce((a, x) => a + x.s.n, 0);
-      return `<div class="prov__col"><h3>${p.name}<small>${fa(total)} آگهی</small></h3>${cs.slice(0, 8).map(({ c, s }) => {
+      return `<div class="prov__col"><h3>${p.name}<small>${fa(total)} آگهی</small></h3>${cs.slice(0, 5).map(({ c, s }) => {
         const ppm = s.ppm && (s.ppm.apartment || s.ppm.villa);
         return `<a class="city-row" href="/melk/${c.id}"><b>${c.name}</b><span class="n">${fa(s.n)}</span><small>${c.tags.join("، ")}${ppm ? `، میانه متری ${money(ppm)}` : ""}</small><span class="bar"><i style="width:${Math.max(3, (s.n / max) * 100)}%"></i></span></a>`;
-      }).join("")}${cs.length > 8 ? `<a class="btn btn--ghost btn--sm" href="#/market" style="margin-top:8px">${fa(cs.length - 8)} شهر دیگر</a>` : ""}</div>`;
+      }).join("")}${cs.length > 5 ? `<a class="btn btn--ghost btn--sm" href="#/market" style="margin-top:8px">${fa(cs.length - 5)} شهر دیگر</a>` : ""}</div>`;
     }).join("");
   }
 
@@ -384,7 +445,8 @@ const App = (() => {
   function faqItems() {
     const name = esc(cfg.site.name), th = cfg.thresholds || {};
     return [
-      ["«قیمت محله» یعنی چه؟", `میانهٔ قیمت هر متر آگهی‌های معتبر همان محله، تعدیل‌شده برای همین خانه: سن بنا، متراژ، طبقه، آسانسور، پارکینگ، انباری، سند و ویژگی‌های دیگر. هیچ آگهی‌ای با میانهٔ کل شهر مقایسه نمی‌شود؛ اگر محله کمتر از ۵ آگهی معتبر هم‌نوع داشته باشد، آگهی «در انتظار داده» می‌ماند و حکمی نمی‌گیرد.`],
+      ["«قیمت محله» یعنی چه؟", `میانهٔ قیمت هر متر آگهی‌های معتبر همان محله، تعدیل‌شده برای همین خانه: سن بنا، متراژ، طبقه، آسانسور، پارکینگ، انباری، سند و ویژگی‌های دیگر. هیچ آگهی‌ای با میانهٔ کل شهر مقایسه نمی‌شود؛ اگر محله کمتر از ۵ آگهی معتبر هم‌نوع یا کمتر از ۳ فروشندهٔ مستقل داشته باشد، آگهی «در انتظار داده» می‌ماند و حکمی نمی‌گیرد.`],
+      ["اگر دلال‌ها در یک محله آگهی گران بگذارند، قیمت محله بالا نمی‌رود؟", `نه به‌سادگی. آگهی‌های یک فروشنده (همان شمارهٔ تماس یا همان متن الگو با عددهای متفاوت) در هر محله روی هم فقط یک رأی دارند، آگهی‌های هم‌فروشندهٔ یک آگهی در قیمت محلهٔ خودش حساب نمی‌شوند، و افزایش قیمت پس از درج نادیده گرفته می‌شود. پس ده‌ها آگهی گران از چند دلال، میانهٔ وزنی محله را جابه‌جا نمی‌کند و آگهی‌های واقعی به اشتباه «فرصت» نمی‌شوند.`],
       ["کدام آگهی «فرصت» است؟", `آگهی‌ای که دست‌کم ${pct(th.opp || 0.15)} زیر قیمت محلهٔ خودش باشد و این فاصله بیرون از پراکندگی عادی قیمت‌های همان محله باشد. «فرصت طلایی» دست‌کم ${pct(th.gold || 0.22)} فاصله دارد. در محله‌ای که قیمت‌ها خیلی پراکنده‌اند، همان فاصله ممکن است «منصفانه» حساب شود.`],
       ["امتیاز ۰ تا ۱۰۰ یعنی چه؟", "رتبهٔ آگهی در محلهٔ خودش: بهترین فرصت هر محله نزدیک ۱۰۰، آگهی هم‌قیمت محله ۵۰ و آگهی‌ای که فرصت نیست حداکثر ۶۴. امتیاز ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل؛ میزان اطمینان و تعداد مقایسه‌ها کنار هر حکم آمده است."],
       ["چرا بعضی آگهی‌ها «مشکوک»اند؟", `آگهی‌ای که بیش از ${pct(th.sus || 0.4)} ارزان‌تر از محلهٔ خودش باشد، یا خیلی ارزان باشد و در متنش آمده باشد عکس‌ها مال این ملک نیست یا چند قیمت داده باشد، یا متن مشکوک داشته باشد (مثل بیعانه پیش از بازدید). این آگهی‌ها امتیاز نمی‌گیرند، در محاسبهٔ قیمت محله نمی‌آیند و فقط برای مشترکان، همراه با دلیل، نشان داده می‌شوند.`],
@@ -596,7 +658,7 @@ const App = (() => {
 
   /* ---------- صفحه جست‌وجو ---------- */
   const searchPage = (() => {
-    let F = {}, page = 0, viewMode = store.get("view", "split"), lastPoints = [], reqId = 0;
+    let F = {}, page = 0, viewMode = store.get("view", "split"), lastPoints = [], reqId = 0, multiPick = false;
     const PER = 24;
     let districts = [];
 
@@ -698,12 +760,12 @@ const App = (() => {
       const cityChips = CITIES.map((c) => `<button type="button" class="chip ${citiesSel.includes(c.id) ? "is-on" : ""}" data-toggle="city" data-val="${c.id}" data-prov="${c.province}">${c.name}</button>`).join("");
 
       let html = dd("city", cityLabel, citiesSel.length || provsSel.length, `
-        <div class="dd__label">استان‌ها (انتخاب همزمان چند استان)</div>
+        <div class="dd__label">استان</div>
         <div class="dd__grid" style="margin-bottom:12px">${provChips}</div>
-        <div class="dd__label">شهرها (انتخاب همزمان چند شهر)</div>
+        <div class="dd__label">شهر</div>
         <input class="input" id="ddCityQ" placeholder="جست‌وجوی شهر..." style="margin-bottom:8px">
-        <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:160px;overflow-y:auto">${cityChips}</div>
-        <p class="small muted" style="margin-top:8px">چند استان یا چند شهر را تیک بزنید؛ فیلترها زیر نوار جست‌وجو قرار می‌گیرند.</p>
+        <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:200px;overflow-y:auto">${cityChips}</div>
+        <label class="dd__multi"><input type="checkbox" id="ddMulti" ${multiPick || citiesSel.length > 1 || provsSel.length > 1 ? "checked" : ""}> انتخاب همزمان چند شهر یا چند استان</label>
       `);
       const dsel = (F.district || "").split(",").filter(Boolean);
       const settle = F.settle || "";
@@ -715,7 +777,10 @@ const App = (() => {
           : `<p class="small muted">اول شهر را انتخاب کن تا فهرست محله‌هایش بیاید.</p>`);
       html += dd("settle", settle === "urban" ? "شهری" : settle === "rural" ? "روستایی" : "شهری / روستایی", settle,
         `<div class="dd__grid">${[["", "همه"], ["urban", "شهری"], ["rural", "روستایی و خارج از محدوده"]].map(([v, n]) => `<button type="button" class="chip ${settle === v ? "is-on" : ""}" data-pick="settle" data-val="${v}">${n}</button>`).join("")}</div><p class="small muted" style="margin-top:8px">از محله و متن آگهی تشخیص داده می‌شود: اشاره به روستا، دهستان یا خارج از محدودهٔ شهر.</p>`);
-      html += dd("deal", F.deal ? UI.dealName(F.deal) : "نوع معامله", F.deal, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>`);
+      const ps = String(F.presale ?? "");
+      html += dd("deal", (F.deal ? UI.dealName(F.deal) : "نوع معامله") + (ps === "1" ? "، پیش‌فروش" : ""), F.deal || ps, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>
+        <div class="dd__label" style="margin-top:12px">پیش‌فروش</div><div class="dd__grid">${[["", "همه"], ["1", "فقط پیش‌فروش"], ["0", "بدون پیش‌فروش"]].map(([v, n]) => `<button type="button" class="chip ${ps === v ? "is-on" : ""}" data-pick="presale" data-val="${v}">${n}</button>`).join("")}</div>
+        <p class="small muted" style="margin-top:8px">پیش‌فروش با قیمت پیش‌فروش‌های دیگر و قیمت واحد نوساز آمادهٔ همان محله سنجیده می‌شود، با در نظر گرفتن زمان تا تحویل.</p>`);
       html += dd("kinds", kinds.length ? kinds.map(UI.kindName).join("، ") : "نوع ملک", kinds.length, `<div class="dd__grid">${PROPERTY_TYPES.map((t) => `<button type="button" class="chip ${kinds.includes(t.id) ? "is-on" : ""}" data-toggle="kinds" data-val="${t.id}">${t.name}</button>`).join("")}</div>`);
       const rent = F.deal === "rent";
       const presets = rent ? [[5e8, "تا ۵۰۰ میلیون"], [1e9, "تا ۱ میلیارد"], [2e9, "تا ۲ میلیارد"], [5e9, "تا ۵ میلیارد"]]
@@ -740,12 +805,13 @@ const App = (() => {
         `<div class="dd__label">متراژ (متر مربع)</div><div class="range"><input class="input" id="ddAMin" inputmode="numeric" placeholder="از" value="${F.areaMin || ""}"><input class="input" id="ddAMax" inputmode="numeric" placeholder="تا" value="${F.areaMax || ""}"></div>
         <div class="dd__label">امکانات</div><div class="dd__grid">${AMENITIES.map((a) => `<button type="button" class="chip ${am.includes(a.id) ? "is-on" : ""}" data-toggle="amenities" data-val="${a.id}">${a.name}</button>`).join("")}</div>`);
       html += `
-        <div class="mode-switcher" style="display:inline-flex;gap:4px;background:var(--sunk);padding:2px 4px;border-radius:999px;border:1px solid var(--line);align-items:center;">
-          <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" style="border:0">🎯 فقط فرصت‌ها</button>
-          <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" style="border:0">📋 همه آگهی‌ها</button>
+        <div class="mode-switcher" role="group" aria-label="نمایش">
+          <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" aria-pressed="${!!F.opp}">${icon("spark", 'width="14"')} فقط فرصت‌ها</button>
+          <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" aria-pressed="${!F.opp}">${icon("list", 'width="14"')} همه آگهی‌ها</button>
         </div>
         <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
+      $("#ddMulti")?.addEventListener("change", (e) => { multiPick = e.target.checked; });
       $("#ddCityQ")?.addEventListener("input", (e) => {
         const q = NLP.toEn(e.target.value.trim().toLowerCase());
         $$("#ddCityGrid button").forEach((b) => {
@@ -773,30 +839,34 @@ const App = (() => {
         panel.addEventListener("click", (e) => {
           e.stopPropagation();
           const t = e.target.closest("button"); if (!t) return;
+          // پیش‌فرض: انتخاب یک شهر یا استان جای قبلی را می‌گیرد؛ با تیک «چند شهر» به فهرست اضافه می‌شود
+          const multi = $("#ddMulti", panel)?.checked;
           if (t.dataset.toggle === "province") {
             const cur = (F.province || "").split(",").filter(Boolean);
-            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
-            set({ province: next.join(",") });
+            const next = multi ? (cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val])
+              : (cur.length === 1 && cur[0] === t.dataset.val ? [] : [t.dataset.val]);
+            set({ province: next.join(","), city: "", district: "" });
             return;
           }
           if (t.dataset.toggle === "city") {
             const cur = (F.city || "").split(",").filter(Boolean);
-            const next = cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val];
-            set({ city: next.join(",") });
+            const next = multi ? (cur.includes(t.dataset.val) ? cur.filter((x) => x !== t.dataset.val) : [...cur, t.dataset.val])
+              : (cur.length === 1 && cur[0] === t.dataset.val ? [] : [t.dataset.val]);
+            set({ city: next.join(","), province: "", district: "" });
             return;
           }
           if (t.dataset.prov) { set({ province: t.dataset.prov, city: "", district: "" }); return; }
           if (t.dataset.pick) {
             $$(`[data-pick="${t.dataset.pick}"]`, panel).forEach((x) => x.classList.toggle("is-on", x === t));
             pending[t.dataset.pick] = t.dataset.val;
-            if (d.dataset.dd === "deal") set({ deal: t.dataset.val });
+            if (d.dataset.dd === "deal") set(t.dataset.pick === "presale" ? { presale: t.dataset.val, ...(t.dataset.val === "1" ? { deal: "sale" } : {}) } : { deal: t.dataset.val });
             if (d.dataset.dd === "settle") set({ settle: t.dataset.val, district: "" });
             if (d.dataset.dd === "fresh") set({ fresh: t.dataset.val });
             return;
           }
           if (t.dataset.toggle) { t.classList.toggle("is-on"); return; }
           if (t.dataset.clear) {
-            set({ city: { city: "", province: "", district: "" }, deal: { deal: "" }, kinds: { kinds: "" }, price: { min: "", max: "", depMax: "", rentMax: "" }, district: { district: "" }, settle: { settle: "" }, fresh: { fresh: "" }, rooms: { rooms: "" }, age: { ageMax: "", yearMin: "", yearMax: "" }, more: { areaMin: "", areaMax: "", amenities: "" } }[t.dataset.clear]);
+            set({ city: { city: "", province: "", district: "" }, deal: { deal: "", presale: "" }, kinds: { kinds: "" }, price: { min: "", max: "", depMax: "", rentMax: "" }, district: { district: "" }, settle: { settle: "" }, fresh: { fresh: "" }, rooms: { rooms: "" }, age: { ageMax: "", yearMin: "", yearMax: "" }, more: { areaMin: "", areaMax: "", amenities: "" } }[t.dataset.clear]);
             return;
           }
           if (t.dataset.apply) {
@@ -860,12 +930,13 @@ const App = (() => {
       if (F.yearMax) t.push(["yearMax", "ساخت تا " + faY(F.yearMax)]);
       if (F.fresh) t.push(["fresh", "درج در " + fa(F.fresh) + " روز اخیر"]);
       if (F.settle) t.push(["settle", F.settle === "rural" ? "روستایی" : "شهری"]);
+      if (String(F.presale ?? "") !== "") t.push(["presale", F.presale === "1" ? "فقط پیش‌فروش" : "بدون پیش‌فروش"]);
       if (F.opp) t.push(["opp", "فقط فرصت‌ها"]);
       if (F.sus) t.push(["sus", "با آگهی‌های مشکوک"]);
       (F.amenities || "").split(",").filter(Boolean).forEach((a) => t.push(["amenities:" + a, AMENITIES.find((x) => x.id === a)?.name || a]));
       if (F.ranked) t.push(["ranked", "دارای امتیاز"]);
       if (F.drop) t.push(["drop", "کاهش قیمت"]);
-      $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} <i>✕</i></button>`).join("");
+      $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} ${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
     }
 
     async function update(params) {
@@ -902,7 +973,7 @@ const App = (() => {
       drawMap(r.points, true);
     }
     async function relaxHints(id) {
-      const names = { fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
+      const names = { presale: "با و بدون پیش‌فروش", fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
       const opts = [];
       for (const k of Object.keys(names).filter((k) => F[k])) {
         const f = { ...F }; delete f[k];
@@ -1011,7 +1082,14 @@ const App = (() => {
     const expM = meM && !v.approx ? meM / (1 + v.delta) : null;
     const row = (k, val, sub = "") => `<div class="pid__row"><span>${k}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     let html = "";
-    if (ex.district_median) html += row(`میانهٔ قیمت هر متر در ${esc(l.district || "این محله")}، به نرخ امروز`, "متری " + money(ex.district_median), `از ${fa(ex.district_raw_n)} آگهی معتبر همین محله؛ آگهی‌های تازه‌تر وزن بیشتری دارند${ex.trend ? ` و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ ${ex.trend > 0 ? "+" : "−"}${pct(ex.trend)} به امروز آورده شده` : ""}`);
+    const ps = ex.presale;
+    if (ps) {
+      const tparts = [ps.months != null && (ps.months_assumed ? `زمان تحویل در آگهی نیامده؛ ${fa(ps.months)} ماه فرض شد` : `حدود ${fa(ps.months)} ماه تا تحویل`), ps.progress != null && `پیشرفت ساخت ${fa(Math.round(ps.progress * 100))}٪`, ps.installments && "فروش قسطی"].filter(Boolean);
+      html += row("پیش‌فروش", tparts.join("، ") || "مشخصات تحویل در آگهی نیامده", "مرجع: همین واحد اگر نوساز و آماده بود در همین محله، منهای تخفیف معمول پیش‌فروش (برآورد از آگهی‌های پیش‌فروش) برای زمان باقی‌مانده تا تحویل");
+      if (!l.locked && ps.new_ppm) html += row("قیمت واحد نوساز و آماده در این محله", "متری " + money(ps.new_ppm), `نسبت معمول پیش‌فروش: ${ps.ratio >= 0 ? "+" : "−"}${pct(ps.ratio)} از ${fa(ps.n)} آگهی پیش‌فروش ${esc(ps.scope)}`);
+    }
+    if (ex.district_median) html += row(`میانهٔ قیمت هر متر در ${esc(l.district || "این محله")}، به نرخ امروز`, "متری " + money(ex.district_median), `از ${fa(ex.district_raw_n)} آگهی معتبر همین محله${ex.sellers ? ` و ${fa(ex.sellers)} فروشندهٔ مستقل` : ""}؛ آگهی‌های تازه‌تر وزن بیشتری دارند و چند آگهی از یک فروشنده یا با متن یکسان روی هم یک رأی حساب می‌شوند${ex.trend ? ` و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ ${ex.trend > 0 ? "+" : "−"}${pct(ex.trend)} به امروز آورده شده` : ""}`);
+    if (ex.spatial) html += row("سازگاری با محله‌های مجاور", `${ex.spatial[1] >= 0 ? "+" : "−"}${pct(ex.spatial[1])} با مجاورها`, `قیمت این محله با محله‌های اطرافش فاصلهٔ غیرعادی دارد و پشتوانهٔ فروشندگان مستقل کافی ندارد؛ ${pct(Math.abs(ex.spatial[0]))} به سمت قیمت مجاورها تعدیل شد${ex.nb_disc != null ? ` و فرصت بودن در برابر قیمت مجاورها هم سنجیده شد` : ""}.`);
     if (expM) html += row("قیمت مورد انتظار برای همین خانه", "متری " + money(expM), l.area && l.deal !== "daily" ? `برای ${fa(l.area)} متر حدود ${money(expM * l.area)} تومان` : "");
     else if (v.approx) html += row("قیمت مورد انتظار برای همین خانه", `<span class="blur">متری ۰۰ میلیون</span>`, "با اشتراک");
     if (!l.locked && ex.comp_n) html += row("تأیید با آگهی‌های مشابه", `${fa(ex.comp_n)} آگهی`, ex.comp_disc != null ? `نزدیک‌ترین آگهی‌های همین محله از نظر متراژ، سن، طبقه و امکانات؛ فاصله از آن‌ها ${ex.comp_disc >= 0 ? pct(ex.comp_disc) + " ارزان‌تر" : pct(ex.comp_disc) + " گران‌تر"}` : "");
@@ -1140,7 +1218,7 @@ const App = (() => {
             <button class="btn btn--line" id="adShare">${icon("share")} اشتراک‌گذاری</button>
             <button class="btn btn--line" id="adReport" style="color:var(--over)">${icon("alert")} گزارش تخلف</button>
           </div>
-          <p class="agent__note">فرصت‌یاب موتور مستقل پالایش و رتبه‌بندی آماری آگهی‌های املاک است. کلیه آگهی‌ها از منابع معتبر عمومی گردآوری و تحلیل می‌شوند و جهت جزئیات و استعلام به سایت اصلی هدایت می‌شوید. فرصت‌یاب مشاور املاک نیست و قیمت محله برآورد آماری است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
+          <p class="agent__note">فرصت ملک موتور مستقل پالایش و رتبه‌بندی آماری آگهی‌های املاک است. کلیه آگهی‌ها از منابع معتبر عمومی گردآوری و تحلیل می‌شوند و جهت جزئیات و استعلام به سایت اصلی هدایت می‌شوید. فرصت ملک مشاور املاک نیست و قیمت محله برآورد آماری است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
         </aside>
       </div>
     </article>
@@ -1272,11 +1350,11 @@ const App = (() => {
           <span style="font-size:13px;font-weight:700">${fa(i + 1)} از ${fa(n)}</span>
           <button class="btn btn--line btn--sm" data-d="1" title="تصویر بعدی">بعدی ${icon("arrow")}</button>
           <div style="display:inline-flex;gap:4px;margin-inline:10px;align-items:center">
-            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">＋ زوم</button>
-            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">－ کوچک</button>
+            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
             <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه"><span id="lbZoomVal">${fa(Math.round(zoomLevel * 100))}٪</span></button>
           </div>
-          <button class="btn btn--line btn--sm" data-x title="بستن">✕ بستن</button>
+          <button class="btn btn--line btn--sm" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
         </div>`;
       bindEvents();
       applyZoomLayout();
@@ -1403,20 +1481,20 @@ const App = (() => {
         <div class="map-hud-overlay">
           <div class="map-hud-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${esc(l.title)}</div>
           <div class="map-hud-actions">
-            <button class="btn btn--line btn--sm" id="hudZoomIn" title="بزرگ‌نمایی">＋ زوم</button>
-            <button class="btn btn--line btn--sm" id="hudZoomOut" title="کوچک‌نمایی">－ کوچک</button>
-            <button class="btn btn--line btn--sm" id="hudReset" title="مرکز موقعیت">⌖ مرکز</button>
+            <button class="btn btn--line btn--sm" id="hudZoomIn" title="بزرگ‌نمایی">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+            <button class="btn btn--line btn--sm" id="hudZoomOut" title="کوچک‌نمایی">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
+            <button class="btn btn--line btn--sm" id="hudReset" title="مرکز موقعیت">${icon("target", 'width="15"')} مرکز</button>
           </div>
         </div>
       </div>
       <div class="lightbox__bar">
         <span style="font-size:13.5px;font-weight:700">${esc(l.city_name || (cc && cc.name) || "نقشه موقعیت ملک")}</span>
         <div style="display:inline-flex;gap:6px;align-items:center">
-          <button class="btn btn--line btn--sm" id="barZoomIn">＋ زوم</button>
-          <button class="btn btn--line btn--sm" id="barZoomOut">－ کوچک</button>
-          <button class="btn btn--line btn--sm" id="barReset">⌖ مرکز</button>
+          <button class="btn btn--line btn--sm" id="barZoomIn">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
+          <button class="btn btn--line btn--sm" id="barZoomOut">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
+          <button class="btn btn--line btn--sm" id="barReset">${icon("target", 'width="15"')} مرکز</button>
         </div>
-        <button class="btn btn--line btn--sm" id="barClose" data-x title="بستن">✕ بستن</button>
+        <button class="btn btn--line btn--sm" id="barClose" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
       </div>`;
 
     const close = (fromPopState = false) => {
@@ -1483,7 +1561,7 @@ const App = (() => {
     view().innerHTML = `<section class="section--tight"><div class="wrap">
       <div class="sec-head"><div><span class="kicker">ذخیره‌شده‌ها</span><h2>آگهی‌ها و جست‌وجوهای من</h2><p>در همین مرورگر نگه داشته می‌شوند.</p></div></div>
       <div class="cards" id="favGrid"></div>
-      <div class="block"><h2>جست‌وجوهای ذخیره‌شده</h2>${searches.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${searches.map((s, i) => `<span style="display:inline-flex;gap:4px"><a class="chip" href="#/s?${esc(s.q)}">${esc(s.title)}</a><button class="chip" data-del="${i}" aria-label="حذف">✕</button></span>`).join("")}</div>` : '<p class="muted">هنوز جست‌وجویی ذخیره نکرده‌اید.</p>'}</div>
+      <div class="block"><h2>جست‌وجوهای ذخیره‌شده</h2>${searches.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${searches.map((s, i) => `<span style="display:inline-flex;gap:4px"><a class="chip" href="#/s?${esc(s.q)}">${esc(s.title)}</a><button class="chip" data-del="${i}" aria-label="حذف">${icon("x", 'width="13"')}</button></span>`).join("")}</div>` : '<p class="muted">هنوز جست‌وجویی ذخیره نکرده‌اید.</p>'}</div>
     </div></section>`;
     $$("[data-del]").forEach((b) => b.addEventListener("click", () => { searches.splice(+b.dataset.del, 1); store.set("searches", searches); savedPage(); }));
     if (!ids.length) { $("#favGrid").innerHTML = `<div class="empty" style="grid-column:1/-1">${icon("heart")}<h3>هنوز آگهی‌ای ذخیره نشده</h3><p>روی قلب هر کارت بزنید تا اینجا بماند.</p><a class="btn btn--ink" href="#/s?sort=score">دیدن فرصت‌ها</a></div>`; return; }
@@ -1598,12 +1676,14 @@ const App = (() => {
       <h2>۱. گردآوری</h2>
       <p>آگهی‌های ملک ${fa(CITIES.length)} شهر از استان‌های ${PROVINCES.map((p) => p.name).join("، ")}، به‌تدریج و با رعایت سقف درخواست، خوانده می‌شوند. صفحهٔ کامل هر آگهی برای استخراج مشخصات خوانده و هر تغییر قیمت ثبت می‌شود. هر آگهی از روی محله و متنش «شهری» یا «روستایی» برچسب می‌خورد.</p>
       <h2>۲. کنار گذاشتن</h2>
-      <p>قیمت نمادین یا توافقی، پیش‌فروش، مشارکت در ساخت، معاوضه، فروش دانگی، هم‌خانه و آگهی تکراری کنار می‌روند. قیمت‌هایی که با محلهٔ خودشان نمی‌خوانند (فاصلهٔ لگاریتمی با معیار MAD بیش از ۳٫۵) یا احتمالاً یک صفر کم یا زیاد دارند، یا قیمت هر متر را به جای قیمت کل نوشته‌اند، «مشکوک» می‌شوند. هیچ‌کدام در محاسبهٔ قیمت محله شرکت داده نمی‌شوند.</p>
+      <p>قیمت نمادین یا توافقی، مشارکت در ساخت، معاوضه، فروش دانگی، هم‌خانه و آگهی تکراری کنار می‌روند. قیمت‌هایی که با محلهٔ خودشان نمی‌خوانند (فاصلهٔ لگاریتمی با معیار MAD بیش از ۳٫۵) یا احتمالاً یک صفر کم یا زیاد دارند، یا قیمت هر متر را به جای قیمت کل نوشته‌اند، «مشکوک» می‌شوند. هیچ‌کدام در محاسبهٔ قیمت محله شرکت داده نمی‌شوند.</p>
       <h2>۳. قیمت محله برای همین خانه</h2>
       <p>قیمت هر متر به متراژ، سن بنا، طبقه، آسانسور، پارکینگ، انباری، سند و ویژگی‌های دیگر بستگی دارد؛ پس میانهٔ خام آگهی‌های یک محله کافی نیست. اگر بیشتر آگهی‌های یک محله نوساز باشند، میانهٔ خام برای یک خانهٔ قدیمی بیش از حد بالاست و آن را به اشتباه «ارزان» نشان می‌دهد. برای همین، اثر هر ویژگی با یک مدل آماری از خود آگهی‌ها برآورد می‌شود (رگرسیون مقاوم که آگهی‌های غیرعادی ضریب‌ها را منحرف نکنند؛ اثر متراژ و سن غیرخطی است و طبقهٔ بالا بدون آسانسور جدا سنجیده می‌شود). «قیمت محله» میانهٔ قیمت‌هایی است که برای ویژگی‌ها تعدیل شده‌اند؛ مدل و قیمت محله چند دور به‌تناوب از نو ساخته می‌شوند تا به هم برسند. قیمت منصفانهٔ هر آگهی یعنی قیمت محله به‌اضافهٔ اثر ویژگی‌های همان خانه. محله‌ای که کمتر از ۵ آگهی معتبر هم‌نوع دارد سنجیده نمی‌شود و هیچ آگهی با میانهٔ شهر مقایسه نمی‌شود.</p>
       <p><b>بدون خوداثری:</b> قیمت محلهٔ هر آگهی بدون خود آن آگهی ساخته می‌شود تا قیمت خودش در معیار سنجش خودش اثر نگذارد.</p>
       <p><b>تأیید دوگانه:</b> علاوه بر مدل، نزدیک‌ترین آگهی‌های مشابه همان محله (از نظر متراژ، سن، طبقه، تعداد خواب، آسانسور و پارکینگ) جداگانه مقایسه می‌شوند. فرصت فقط وقتی اعلام می‌شود که هر دو روش فاصلهٔ کافی نشان دهند و این فاصله از عدم‌قطعیت برآورد (پراکندگی قیمت‌های محله به‌اضافهٔ خطای خود قیمت محله که با تعداد آگهی‌ها کم می‌شود) بزرگ‌تر باشد.</p>
       <p><b>مقاوم در برابر قیمت‌سازی:</b> ${esc(cfg.site.name)} قیمت تعیین نمی‌کند و نباید مبنای قیمت‌گذاری فروشنده شود. در ساختن قیمت محله، افزایش قیمتِ پس از درج آگهی نادیده گرفته می‌شود؛ پس اگر فروشنده‌ای پس از دیدن سایت قیمتش را بالا ببرد، قیمت محله برای بقیه بالا نمی‌رود و خود آن آگهی «بالاتر از قیمت محله» دیده می‌شود. قیمت محله میانه است، نه میانگین، و یک یا چند آگهی نمی‌توانند آن را جابه‌جا کنند. درصد دقیق فاصله و قیمت مورد انتظار فقط برای مشترکان نمایش داده می‌شود و دیگران بازهٔ ۵ درصدی می‌بینند.</p>
+      <p><b>مقاوم در برابر تبانی:</b> اگر چند دلال در یک محله آگهی‌های گران بگذارند تا قیمت محله بالا برود، اثرش خنثی می‌شود: آگهی‌های یک فروشنده (همان شمارهٔ تماس یا همان متن الگو با عددهای متفاوت) در هر محله روی هم فقط یک رأی دارند، قیمت محله دست‌کم از ۳ فروشندهٔ مستقل ساخته می‌شود، قیمت هر محله با محله‌های مجاورش سنجیده می‌شود و فاصلهٔ غیرعادیِ کم‌پشتوانه به سمت آن‌ها برمی‌گردد، آگهی‌های هم‌فروشندهٔ یک آگهی در قیمت محلهٔ خودش و در مقایسه با مشابه‌ها شرکت نمی‌کنند، و تعداد مؤثر نمونه (که عدم‌قطعیت را تعیین می‌کند) هم از همین وزن‌ها می‌آید.</p>
+      <p><b>گزارش کاربران:</b> هیچ آگهی‌ای با گزارش خودکار حذف نمی‌شود. وقتی گزارش‌ها از دست‌کم ۳ کاربر واردشدهٔ متفاوت باشد و در دست‌کم ۱۲ ساعت پخش شده باشد، آگهی «در حال بررسی» می‌شود و تا تصمیم مدیر در قیمت محله شرکت نمی‌کند؛ گزارش مهمان وزن کمتری دارد و گزارش‌دهنده‌ای که گزارش‌هایش رد شده، اعتبار کمتری می‌گیرد.</p>
       <p><b>سنجش دقت:</b> برای هر گروه، قیمت منصفانهٔ هر آگهی بدون خودش برآورد و با قیمت درخواستی‌اش مقایسه می‌شود و میانهٔ این خطا در پنل گزارش می‌شود تا دقت فرمول همیشه قابل وارسی باشد.</p>
       <h2>۴. حکم</h2>
       <p><b>فرصت طلایی</b>: دست‌کم ${pct(th.gold || 0.22)} زیر قیمت محله و بیرون از پراکندگی عادی آن. <b>زیر قیمت بازار</b>: دست‌کم ${pct(th.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی. <b>منصفانه</b>: نزدیک قیمت محله، یا فاصله‌ای که در محله‌های پرپراکندگی هنوز عادی است. <b>بالاتر از بازار</b>: دست‌کم ${pct(th.opp || 0.15)} گران‌تر. <b>مشکوک</b>: بیش از ${pct(th.sus || 0.4)} ارزان‌تر، یا دست‌کم ${pct(th.sus_flagged || 0.25)} ارزان‌تر همراه با «عکس‌ها مال این ملک نیست» یا چند قیمت در متن، یا ارزان با متن مشکوک.</p>
@@ -1611,7 +1691,9 @@ const App = (() => {
       <p>امتیاز رتبهٔ آگهی در محلهٔ خودش است: فرصت‌ها بین ۶۵ تا ۱۰۰، بر پایهٔ رتبه در میان فرصت‌های همان محله و عمق فاصله؛ آگهی هم‌قیمت محله ۵۰ و آگهی‌ای که فرصت نیست حداکثر ۶۴. اطمینان «بالا» یعنی دست‌کم ۱۵ آگهی مقایسه در همان محله و مشخصات کافی؛ «متوسط» یعنی ۸ تا ۱۴ آگهی و «کم» یعنی ۵ تا ۷ آگهی در محله.</p>
       <h2>۶. زمان آگهی</h2>
       <p>قیمت هر آگهی قیمت روزی است که درج شده؛ آگهی دو ماه پیش ممکن است دیگر با بازار امروز نخواند. برای همین سه کار انجام می‌شود: آگهی‌های قدیمی‌تر از ${fa(th.max_age_days || 90)} روز در قیمت محله شرکت داده نمی‌شوند؛ در میانهٔ محله آگهی‌های تازه‌تر وزن بیشتری دارند (وزن هر آگهی هر ${fa(th.half_life_days || 45)} روز نصف می‌شود)؛ و روند ماهانهٔ قیمت از خود آگهی‌ها برآورد می‌شود و قیمت آگهی‌های قدیمی‌تر با آن به نرخ امروز آورده می‌شود. اطمینان حکم آگهی‌ای که بیش از ۳۰ روز از درجش گذشته یک درجه پایین می‌آید.</p>
-      <h2>۷. نشانه‌های متن</h2>
+      <h2>۷. پیش‌فروش</h2>
+      <p>پیش‌فروش بازار جداست و با آگهی‌های آماده قاطی نمی‌شود. مرجع هر پیش‌فروش، قیمت منصفانهٔ «همین واحد اگر نوساز و آماده بود» در همان محله است. سپس نسبت معمول قیمت پیش‌فروش به آماده از خود آگهی‌های پیش‌فروش برآورد می‌شود و هرچه زمان تحویل دورتر باشد تخفیف بیشتری دارد (زمان تحویل از متن آگهی خوانده می‌شود: تاریخ تحویل، چند ماه تا تحویل، یا مرحله و درصد پیشرفت ساخت). اگر محله دست‌کم ۵ پیش‌فروش از ۳ فروشنده داشته باشد، نسبت از همان محله می‌آید وگرنه از استان. عدم‌قطعیت پیش‌فروش بیشتر است و آستانهٔ فرصتش ${pct(th.presale_extra ?? 0.05)} سخت‌تر.</p>
+      <h2>۸. نشانه‌های متن</h2>
       <p>متن هر آگهی برای «شاید دلیل ارزانی» (فروشندهٔ عجول، معاوضه، آگهی خود مالک، قیمت سازنده، کوچهٔ باریک یا بافت فرسوده، واحد جدا در خانهٔ حیاط‌دار) و «پیش از خرید استعلام کن» (سند قول‌نامه‌ای یا وکالتی، زمین وقفی، سند یا پایان‌کار ناقص، نوع سند نامشخص، مستأجر، رهن یا وام) خوانده می‌شود.</p>
       <h2>محدودیت‌ها</h2>
       <p>قیمت‌های آگهی‌ها قیمت پیشنهادی‌اند، نه قیمت معامله‌شده. تشخیص نشانه‌ها و شهری یا روستایی بودن از روی متن است و ممکن است خطا کند. در محله‌های کم‌آگهی اطمینان پایین‌تر است و همین روی هر آگهی نشان داده می‌شود.</p>
@@ -1656,7 +1738,7 @@ const App = (() => {
   }
   function openReportDialog(id) {
     openDialog(`<div class="dlg__head"><h2>گزارش اشکال در آگهی</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده، قیمتش دروغین است یا دلال است، گزارش دهید تا بررسی و از فهرست فرصت‌ها حذف شود:</p>
+      <p class="muted" style="margin-bottom:14px">اگر این آگهی فروخته شده یا قیمت و عکسش واقعی نیست، گزارش دهید. هیچ آگهی‌ای با گزارش خودکار حذف نمی‌شود؛ وقتی چند کاربر مستقل در زمان‌های مختلف گزارش دهند، آگهی بررسی می‌شود. گزارش کاربران واردشده وزن بیشتری دارد.</p>
       <form class="form-grid" id="flagForm">
         <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="sold" checked> ملک قبلاً فروخته یا اجاره داده شده است</label>
         <label class="field" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="flagReason" value="fake_price"> قیمت واقعی نیست (قیمت دروغین برای جلب تماس)</label>
@@ -1672,17 +1754,15 @@ const App = (() => {
         const btn = $("#flagBtn");
         btn.disabled = true;
         try {
+          let msg = "گزارش شما ثبت شد";
           if (DataLayer.server) {
-            await fetch(`api/listing/${encodeURIComponent(id)}/flag`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ reason })
-            });
+            const r = await DataLayer.flag(id, reason);
+            msg = r.message || msg;
           }
           $("#dlg").close();
-          toast("گزارش شما با موفقیت ثبت شد و بررسی می‌شود");
+          toast(msg);
         } catch (err) {
-          toast("خطا در ارسال گزارش");
+          toast(err.message || "خطا در ارسال گزارش");
         }
         btn.disabled = false;
       });
@@ -1800,16 +1880,15 @@ const App = (() => {
           obs.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+    }, { threshold: 0, rootMargin: "0px 0px -30px 0px" });
 
-    document.querySelectorAll(".card, .block, .section, .strip > div, .trust__item, .how__card, .hero__grid > *").forEach((elem) => {
+    document.querySelectorAll(".card, .block, .section, .strip > div, .trust__item, .how__card, .hero__grid > div").forEach((elem) => {
       if (!elem.classList.contains("reveal-on-scroll")) {
         elem.classList.add("reveal-on-scroll");
         obs.observe(elem);
       }
     });
   }
-
 
   function bindGlobal() {
     const top = document.querySelector(".top");

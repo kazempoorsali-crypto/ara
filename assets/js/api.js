@@ -1,10 +1,10 @@
-/* لایه داده فرصت‌یاب: اگر سرور در دسترس باشد از API آن می‌خواند،
+/* لایه داده فرصت ملک: اگر سرور در دسترس باشد از API آن می‌خواند،
    وگرنه (پیش‌نمایش آنلاین یا باز کردن مستقیم فایل) با آگهی‌های نمونه و ارزش‌گذاری ساده کار می‌کند. */
 const DataLayer = (() => {
   const RENT_RATE = 0.03;
   const DEFAULT_CONFIG = {
     mode: "preview",
-    site: { name: "فرصت‌یاب", tagline: "ملک زیر قیمت، محله به محله", about: "", email: "" },
+    site: { name: "فرصت ملک", tagline: "ملک زیر قیمت، محله به محله", about: "", email: "" },
     display: { show_samples: true },
     plans: [], payable: false, free_preview: 3, free_results: 10, sms_live: false, owner: {},
     thresholds: { opp: 0.15, gold: 0.22, sus: 0.4 },
@@ -113,6 +113,8 @@ const DataLayer = (() => {
       if (ds && !ds.includes((l.district || "").replace(/[\s‌]/g, ""))) return false;
       if (f.deal && l.deal !== f.deal) return false;
       if (f.settle && l.settlement !== f.settle) return false;
+      if (f.presale === "1" && !l.presale) return false;
+      if (f.presale === "0" && l.presale) return false;
       if (f.fresh && !((l.posted_at || l.first_seen) >= Date.now() / 1000 - +f.fresh * 86400)) return false;
       if (f.kinds && !f.kinds.split(",").includes(l.kind)) return false;
       if (f.min && !(l.pp >= +f.min)) return false;
@@ -313,10 +315,13 @@ const DataLayer = (() => {
     if (!r.ok) throw new Error("فایل پیدا نشد");
     return URL.createObjectURL(await r.blob());
   }
+  async function flag(id, reason) {
+    return json(await fetch(`api/listing/${encodeURIComponent(id)}/flag`, { method: "POST", headers: H(), body: JSON.stringify({ reason }) }));
+  }
   async function startPayment(plan) {
     return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan }) }));
   }
 
-  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, tickets, createTicket, replyTicket, seenTicket, ticketImage,
+  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
     get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, get me() { return me; }, RENT_RATE };
 })();

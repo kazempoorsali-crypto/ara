@@ -1,4 +1,4 @@
-"""آزمون یکپارچه: سرور فرصت‌یاب + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
+"""آزمون یکپارچه: سرور فرصت ملک + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
 import json, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "server"))
@@ -56,6 +56,30 @@ check("tehran" not in _ig.expansion()["active"], "پیش از کامل شدن ش
 _st.x("UPDATE feeds SET pages_done=40, has_next=1")
 _ig._exp_checked = 0
 _ig.maybe_expand(_ig.cfg())
+# گزارش تخلف: مقاوم در برابر حذف رقیب
+from flags import Flags  # noqa
+_fl = Flags(_st)
+_st.upsert({"id": "dv-r1", "source": "divar", "token": "r1", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "rasht", "city_name": "رشت", "province": "gilan", "title": "آزمون گزارش", "price": 2e9, "area": 100})
+for _i in range(8):
+    _fl.report("dv-r1", "fake_price", None, f"10.0.0.{_i}")
+check(not _fl.evaluate("dv-r1")["review"], "۸ گزارش مهمان از ۸ IP: آگهی بررسی نمی‌شود")
+check("قبلاً" in _fl.report("dv-r1", "sold", None, "10.0.0.1")["message"], "گزارش تکراری از یک نفر شمرده نمی‌شود")
+for _ph in ("09120000001", "09120000002", "09120000003"):
+    _fl.report("dv-r1", "sold", _ph, "10.1.1.1")
+check(not _fl.evaluate("dv-r1")["review"], "۳ کاربر هم‌زمان (هجوم یک‌باره): هنوز بررسی نمی‌شود")
+_st.x("UPDATE flags SET at=at-50000 WHERE reporter='u:09120000001'")
+check(_fl.evaluate("dv-r1")["review"] and _st.get("dv-r1")["user_review"] == 1 and not _st.get("dv-r1")["hidden"],
+      "گزارش ۳ کاربر مستقل در بیش از ۱۲ ساعت: «در حال بررسی»، ولی حذف نمی‌شود")
+_fl.decide("dv-r1", False)
+check(_st.get("dv-r1")["user_review"] == 0 and _fl._reputation("u:09120000002") < 1, "رد گزارش‌ها: آگهی برمی‌گردد و اعتبار گزارش‌دهندگان کم می‌شود")
+# شهر و استان با هم: شهرِ انتخابی، استانش را محدود می‌کند
+_st.upsert({"id": "dv-c1", "source": "divar", "token": "c1", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "sari", "city_name": "ساری", "province": "mazandaran", "title": "ساری", "price": 2e9, "area": 100})
+_st.upsert({"id": "dv-c2", "source": "divar", "token": "c2", "vertical": "estate", "kind": "apartment", "deal": "sale",
+            "city_key": "fereydunkenar", "city_name": "فریدونکنار", "province": "mazandaran", "title": "فریدونکنار", "price": 2e9, "area": 100})
+_ids = {x["id"] for x in _st.search({"city": "fereydunkenar", "province": "mazandaran"})["items"]}
+check(_ids == {"dv-c2"}, f"شهر + استانِ همان شهر: فقط همان شهر ({_ids})")
 class _Broken:
     def detail(self, token): raise SourceError("پاسخ نامفهوم")
 _ig.source_for = lambda cfg, name: _Broken()
@@ -91,9 +115,9 @@ def run(mode):
         check(call("/api/admin/state").get("status") == 401, f"[{mode}] پنل بدون ورود بسته است")
         tok = call("/api/admin/setup", {"password": "secret123"})["token"]
         check(call("/api/admin/login", {"password": "bad"}).get("status") == 403, f"[{mode}] رمز نادرست رد شد")
-        call("/api/admin/settings", {"site": {"name": "فرصت‌یاب"}, "billing": {"weekly_price": 200000, "monthly_price": 600000, "test_mode": True, "free_preview": 0}}, tok)
+        call("/api/admin/settings", {"site": {"name": "فرصت ملک"}, "billing": {"weekly_price": 200000, "monthly_price": 600000, "test_mode": True, "free_preview": 0}}, tok)
         cfg = call("/api/config")
-        check(cfg["site"]["name"] == "فرصت‌یاب" and len(cfg["plans"]) == 2 and cfg["payable"], f"[{mode}] تنظیمات و طرح‌های اشتراک")
+        check(cfg["site"]["name"] == "فرصت ملک" and len(cfg["plans"]) == 2 and cfg["payable"], f"[{mode}] تنظیمات و طرح‌های اشتراک")
         r = call("/api/admin/ingest", {"enabled": True, "mode": "mcp_only" if mode == "mcp" else mode, "mcp_url": "http://127.0.0.1:8799/mcp", "hourly_limit": 1200,
                                          "cities": ["rasht", "sari"], "categories": ["real-estate"], "detail_ratio": 1}, tok)
         check(r["ok"], f"[{mode}] پیکربندی دریافت")
@@ -169,6 +193,17 @@ def run(mode):
         check('id="seoText"' in ch and "دربارهٔ بازار ملک رشت" in ch and "Place" in ch, f"[{mode}] متن «دربارهٔ بازار» و داده‌های ساخت‌یافتهٔ مکان")
         gs, gh = raw("/rahnama/kharid-melk")
         check(gs == 200 and "<h1>چک‌لیست خرید ملک" in gh and '"Article"' in gh, f"[{mode}] صفحهٔ راهنمای ثابت")
+        rb = raw("/robots.txt")[1]
+        check("User-agent: GPTBot" in rb and "User-agent: ClaudeBot" in rb and "AhrefsBot" in rb and "/llms.txt" in rb, f"[{mode}] robots: دستیارهای هوش مصنوعی مجاز، خزندهٔ پربار بسته")
+        ls_, lt = raw("/llms.txt")
+        lf = raw("/llms-full.txt")[1]
+        check(ls_ == 200 and lt.startswith("# ") and "/method" in lt and "/melk/" in lt and "| شهر |" in lf and "قیمت پیشنهادی" in lf, f"[{mode}] llms.txt و llms-full.txt")
+        ms, mh2 = raw("/method")
+        check(ms == 200 and "TechArticle" in mh2 and "تبانی" in mh2 and 'class="seo-answer"' in mh2, f"[{mode}] صفحهٔ روش ارزش‌گذاری برای خزنده")
+        check(raw("/about")[0] == 200 and "AboutPage" in raw("/about")[1] and raw("/rahnama/pish-forosh")[0] == 200, f"[{mode}] دربارهٔ ما و راهنمای پیش‌فروش")
+        check('"Dataset"' in ch and "seo-answer" in ch and "speakable" in ch.lower() or '"Dataset"' not in ch and "میانهٔ قیمت هر متر" not in ch, f"[{mode}] Dataset و پاسخ کوتاه صفحهٔ شهر")
+        hs, hh = raw("/")
+        check('"FAQPage"' in hh and "pish-forosh" in hh, f"[{mode}] پرسش‌های پرتکرار صفحهٔ اصلی")
         check(raw("/manifest.webmanifest")[0] == 200 and raw("/assets/img/og.png")[0] == 200, f"[{mode}] manifest و تصویر اشتراک‌گذاری")
         ar = call("/api/admin/article", {"title": "راهنمای خرید آپارتمان در رشت", "summary": "آزمون", "city_key": "rasht",
                                          "body": "## بخش اول\nاین یک متن آزمایشی برای مقاله است که باید بیش از پنجاه نویسه داشته باشد.\n- مورد [رشت](/melk/rasht)"}, tok)

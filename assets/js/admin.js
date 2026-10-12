@@ -1,4 +1,4 @@
-/* پنل مدیریت فرصت‌یاب — فقط روی سرور کار می‌کند */
+/* پنل مدیریت فرصت ملک — فقط روی سرور کار می‌کند */
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -48,20 +48,20 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["flags", "گزارش‌های کاربران"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
       <aside class="side">
         <a class="brand" href="./" target="_blank"><svg class="brand__mark" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#fffdf9" fill-opacity=".08"/><path d="M10 31c4.5-3.4 9-3.4 13.5 0s9 3.4 13.5 0" stroke="#7fc7a6" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M14 25l10-10 10 10" stroke="#fffdf9" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="13" r="3.4" fill="#e0531f"/></svg><span class="brand__txt"><b>${esc(S.site.name)}</b><small>پنل مدیریت</small></span></a>
-        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}${k === "support" && S.tickets_unread ? `<span class="badge">${fa(S.tickets_unread)}</span>` : ""}</button>`).join("")}
+        ${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "is-on" : ""}">${n}${k === "excluded" && S.stats.excluded ? `<span class="badge">${fa(S.stats.excluded)}</span>` : ""}${k === "support" && S.tickets_unread ? `<span class="badge">${fa(S.tickets_unread)}</span>` : ""}${k === "flags" && S.flags && S.flags.review ? `<span class="badge">${fa(S.flags.review)}</span>` : ""}</button>`).join("")}
         <div class="side__foot"><a href="./" target="_blank">مشاهده سایت ↗</a><a href="#" id="logout">خروج</a></div>
       </aside>
       <main class="main" id="main"></main>
     </div>`;
     $$(".side [data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; location.hash = tab; load(); }));
     $("#logout").addEventListener("click", (e) => { e.preventDefault(); token = ""; sessionStorage.removeItem("ara-admin"); login(); });
-    ({ dash, ingest, valuation: valuationTab, excluded, users, support, articles, billing, site, security }[tab] || dash)();
+    ({ dash, ingest, valuation: valuationTab, excluded, users, support, flags: flagsTab, articles, billing, site, security }[tab] || dash)();
     clearInterval(timer);
     if (tab === "dash" || tab === "ingest" || tab === "valuation") timer = setInterval(refreshLive, 15000);
   }
@@ -217,7 +217,7 @@
       <div class="kpis">${[["gold", "فرصت طلایی"], ["good", "زیر قیمت بازار"], ["fair", "منصفانه"], ["high", "بالاتر از بازار"], ["pending", "در انتظار داده (محلهٔ کم‌آگهی)"], ["sus", "مشکوک"], ["excluded", "کنار رفت"]].map(([k, n]) => `<div><b>${fa(lb[k] || 0)}</b><span>${n}</span></div>`).join("")}</div>
       <div class="panel"><h2>آستانه‌های حکم <button class="btn btn--line btn--sm" id="revalue">محاسبه دوباره اکنون</button></h2>
         <form id="wf" class="grid2">
-          ${[["opp", "فرصت: دست‌کم چند درصد زیر قیمت محله", 100], ["gold", "فرصت طلایی: دست‌کم چند درصد", 100], ["sus", "مشکوک: بیش از چند درصد ارزان‌تر", 100], ["sus_flagged", "مشکوک همراه با نشانهٔ متنی: بیش از چند درصد", 100], ["disp_k", "ضریب پراکندگی محله (۱ = یک انحراف معیار مقاوم)", 1], ["max_age_days", "آگهی قدیمی‌تر از چند روز کنار برود", 1], ["half_life_days", "نیمه‌عمر وزن آگهی (روز)", 1], ["trend_fixed", "روند ماهانهٔ قیمت ٪ (خالی = برآورد خودکار از داده)", 100]].map(([k, n, m]) => `<label class="field"><span>${n}</span><input class="input" type="number" step="${k === "disp_k" ? "0.1" : k === "trend_fixed" ? "0.1" : "1"}" ${k === "trend_fixed" ? "" : 'min="0"'} name="${k}" data-m="${m}" value="${th[k] == null ? "" : +(th[k] * m).toFixed(2)}"></label>`).join("")}
+          ${[["opp", "فرصت: دست‌کم چند درصد زیر قیمت محله", 100], ["gold", "فرصت طلایی: دست‌کم چند درصد", 100], ["sus", "مشکوک: بیش از چند درصد ارزان‌تر", 100], ["sus_flagged", "مشکوک همراه با نشانهٔ متنی: بیش از چند درصد", 100], ["disp_k", "ضریب پراکندگی محله (۱ = یک انحراف معیار مقاوم)", 1], ["max_age_days", "آگهی قدیمی‌تر از چند روز کنار برود", 1], ["half_life_days", "نیمه‌عمر وزن آگهی (روز)", 1], ["trend_fixed", "روند ماهانهٔ قیمت ٪ (خالی = برآورد خودکار از داده)", 100], ["presale_monthly", "پیش‌فروش: تخفیف ماهانه تا تحویل ٪ (وقتی دادهٔ کافی برای برآورد نیست)", 100], ["presale_default_months", "پیش‌فروش: ماه تا تحویل وقتی آگهی چیزی نگفته", 1], ["presale_extra", "پیش‌فروش: سخت‌گیری اضافه در آستانهٔ فرصت (واحد درصد)", 100], ["spatial_tol", "فاصلهٔ مجاز قیمت محله با محله‌های مجاور ٪ (لگاریتمی)", 100]].map(([k, n, m]) => `<label class="field"><span>${n}</span><input class="input" type="number" step="${["disp_k", "trend_fixed", "presale_monthly"].includes(k) ? "0.1" : "1"}" ${k === "trend_fixed" ? "" : 'min="0"'} name="${k}" data-m="${m}" value="${th[k] == null ? "" : +(th[k] * m).toFixed(2)}"></label>`).join("")}
           <div><button class="btn btn--hot">ذخیره آستانه‌ها</button></div>
         </form>
         <p class="hint">قیمت محله فقط از آگهی‌های همان محله ساخته می‌شود (دست‌کم ۵ آگهی معتبر هم‌نوع) و هرگز با میانهٔ شهر جایگزین نمی‌شود. پیش‌فرض: ۱۵، ۲۲، ۴۰، ۲۵ و ۱. برای زمان: آگهی‌های قدیمی‌تر از ۹۰ روز کنار می‌روند، وزن هر آگهی هر ۴۵ روز نصف می‌شود و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ برآوردشده به نرخ امروز آورده می‌شود.</p></div>
@@ -227,6 +227,11 @@
         </tbody></table></div>` : '<p class="muted">پس از اولین محاسبه با دادهٔ کافی نمایش داده می‌شود.</p>'}
         <p class="hint">برای هر آگهی، قیمت محله بدون خود آن آگهی ساخته و قیمت منصفانه‌اش با قیمت درخواستی مقایسه می‌شود. «میانهٔ خطا» یعنی نیمی از آگهی‌ها کمتر از این درصد با برآورد فاصله دارند. این خطا شامل تفاوت واقعی قیمت‌ها هم هست، پس عدد کوچک‌تر = فرمول دقیق‌تر.</p>
         ${v.raised ? `<p class="hint"><b>پایش اثر سایت بر قیمت‌ها:</b> ${fa(v.raised.all)} آگهی فعال پس از درج قیمتشان را بالا برده‌اند${v.raised.was_opp ? `، از جمله ${fa(v.raised.was_opp)} آگهی که پیش‌تر «فرصت» بودند` : ""}. افزایش قیمت پس از درج در ساختن قیمت محله نادیده گرفته می‌شود تا هیچ فروشنده‌ای نتواند قیمت محله را بالا بکشد.</p>` : ""}</div>
+      <div class="panel"><h2>محله‌های ناسازگار با مجاورها (احتمال تبانی یا دادهٔ کم)</h2>
+        ${(v.spatial || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>شهر</th><th>محله</th><th>نوع</th><th>معامله</th><th>فاصله با مجاورها</th><th>فروشندهٔ مستقل</th><th>تعدیل اعمال‌شده</th></tr></thead><tbody>
+          ${v.spatial.map((a) => `<tr><td>${esc(cityName(a.city))}</td><td>${esc(a.district)}</td><td>${KG[a.kind] || a.kind}</td><td>${DEAL[a.deal] || a.deal}</td><td>${a.gap >= 0 ? "+" : "−"}${fa(Math.round(Math.abs(a.gap) * 100))}٪</td><td>${fa(a.sellers)}</td><td><b>${a.shift >= 0 ? "+" : "−"}${fa(Math.round(Math.abs(a.shift) * 100))}٪</b></td></tr>`).join("")}
+        </tbody></table></div>` : '<p class="muted">محله‌ای با فاصلهٔ غیرعادی از مجاورهایش پیدا نشد.</p>'}
+        <p class="hint">قیمت هر محله با محله‌های مجاور (تا ۴ کیلومتر) یا، اگر مختصات نباشد، با بقیهٔ محله‌های شهر مقایسه می‌شود. مازاد فاصله به نسبت کم بودن فروشندگان مستقل به سمت مجاورها برمی‌گردد؛ در این محله‌ها فرصت فقط وقتی اعلام می‌شود که در برابر قیمت مجاورها هم برقرار باشد.</p></div>
       <div class="panel"><h2>روند ماهانهٔ قیمت (برای به‌روز کردن قیمت آگهی‌های قدیمی‌تر)</h2>
         ${(v.trends || []).length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>استان</th><th>نوع</th><th>معامله</th><th>روند ماهانه</th><th>نمونه</th><th>منبع</th></tr></thead><tbody>
           ${v.trends.map((t) => `<tr><td>${esc(cityName(t.scope))}</td><td>${KG[t.kind] || t.kind}</td><td>${DEAL[t.deal] || t.deal}</td><td>${t.monthly >= 0 ? "+" : "−"}${fa(Math.abs(t.monthly * 100).toFixed(1))}٪</td><td>${fa(t.n)}</td><td class="small">${esc(t.source)}</td></tr>`).join("")}
@@ -321,6 +326,19 @@
       if (b.id === "expSave") send({ auto: $("#expAuto").checked, threshold: (+$("#expTh").value || 90) / 100, deep_pages: +$("#expDp").value || 30,
         order: [...S.expansion.active.filter((p) => !["gilan", "mazandaran", "golestan"].includes(p)), ...$$("#expOrder li").map((x) => x.dataset.p)] });
     });
+  }
+
+  /* ---------- گزارش‌های کاربران ---------- */
+  async function flagsTab() {
+    const r = await api("admin/flags");
+    main().innerHTML = `<h1>گزارش‌های کاربران</h1>
+      <p class="muted">هیچ آگهی‌ای با گزارش خودکار حذف نمی‌شود. وقتی جمع وزن گزارش‌ها به ۳ برسد، دست‌کم ۳ کاربر واردشدهٔ متفاوت گزارش داده باشند و گزارش‌ها دست‌کم ۱۲ ساعت از هم فاصله داشته باشند، آگهی «در حال بررسی» می‌شود و در قیمت محله شرکت داده نمی‌شود. گزارش مهمان وزن ۰٫۲۵ دارد و گزارش کسی که قبلاً گزارش‌هایش رد شده، وزن کمتری می‌گیرد.</p>
+      <div class="panel">${r.items.length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>آگهی</th><th>گزارش</th><th>کاربر واردشده</th><th>وزن</th><th>بازه</th><th>دلیل‌ها</th><th>وضعیت</th><th></th></tr></thead><tbody>
+        ${r.items.map((f) => `<tr><td><a href="./#/ad/${encodeURIComponent(f.listing_id)}" target="_blank">${esc(f.title || f.listing_id)}</a><br><small class="muted">${esc([f.city_name, f.district].filter(Boolean).join("، "))}</small></td><td>${fa(f.n)}</td><td>${fa(f.users || 0)}</td><td>${fa((+f.w).toFixed(1))}</td><td class="small">${fa(Math.round((f.last - f.first) / 3600))} ساعت</td><td class="small">${Object.entries(f.reasons).map(([k, n]) => `${esc(k)} (${fa(n)})`).join("، ")}</td><td>${f.hidden ? "پنهان" : f.user_review ? '<b class="bad">در حال بررسی</b>' : "زیر آستانه"}</td><td style="white-space:nowrap"><button class="btn btn--ink btn--sm" data-acc="${esc(f.listing_id)}">تأیید و پنهان</button> <button class="btn btn--line btn--sm" data-rej="${esc(f.listing_id)}">رد گزارش‌ها</button></td></tr>`).join("")}
+      </tbody></table></div>` : '<p class="muted">گزارش بازی نیست.</p>'}</div>`;
+    $$("[data-acc],[data-rej]").forEach((b) => b.addEventListener("click", async () => {
+      try { await api("admin/flag-review", { id: b.dataset.acc || b.dataset.rej, accept: !!b.dataset.acc }); toast("ثبت شد"); S = await api("admin/state"); flagsTab(); } catch (err) { toast(err.message); }
+    }));
   }
 
   /* ---------- مقاله‌ها و سئو ---------- */
@@ -445,9 +463,9 @@
         <label class="field"><span data-only="payamak">کد الگو (bodyId)</span><span data-only="kavenegar">نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}"></label>
         <label class="field"><span data-only="payamak">کد الگوی پیامک فعال‌سازی (اختیاری)</span><span data-only="kavenegar">نام قالب پیامک فعال‌سازی (اختیاری)</span><input class="input input--ltr" name="notify_template" value="${esc(sm.notify_template || "")}"></label>
       </div>
-      <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت‌یاب برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
+      <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت ملک برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (فقط روی همین رایانه، هرگز از اینترنت)</label>
-      <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت‌یاب: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
+      <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت ملک: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
       <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
     const showSms = () => $$("#bf [data-only]").forEach((el) => { el.hidden = el.dataset.only !== $("#bf [name=provider]").value; });

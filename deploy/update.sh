@@ -2,6 +2,8 @@
 # به‌روزرسانی برنامه از گیت‌هاب بدون از دست رفتن داده‌ها (داده‌ها در /var/lib/forsatyab است).
 set -euo pipefail
 cd /opt/forsatyab
+# اگر کسی با root دستور git زده باشد، فایل‌های .git مال root می‌شوند و pull با «insufficient permission» شکست می‌خورد
+chown -R forsatyab:forsatyab /opt/forsatyab
 sudo -u forsatyab git pull --ff-only
 systemctl restart forsatyab
 # یک‌بار: پیکربندی تازهٔ Caddy (تغییر مسیر www به نشانی اصلی، فشرده‌سازی بهتر)؛ اگر نامعتبر بود، نسخهٔ قبلی برمی‌گردد

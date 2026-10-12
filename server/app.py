@@ -1,4 +1,4 @@
-"""سرور فرصت‌یاب: صفحات سایت، API آگهی‌ها و ارزش‌گذاری، عضویت و اشتراک، پنل مدیریت و دریافت تدریجی از دیوار.
+"""سرور فرصت ملک: صفحات سایت، API آگهی‌ها و ارزش‌گذاری، عضویت و اشتراک، پنل مدیریت و دریافت تدریجی از دیوار.
 
 اجرا:  python server/app.py            (پیش‌فرض http://127.0.0.1:8000)
        python server/app.py --port 9000 --host 0.0.0.0 --no-browser
@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE))
 import catalog  # noqa: E402
 from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from support import DEFAULT_SUPPORT, Support  # noqa: E402
+from flags import Flags  # noqa: E402
 import seo  # noqa: E402
 from features import clean_title  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
@@ -36,7 +37,7 @@ from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
-DEFAULT_SITE = {"name": "فرصت‌یاب", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
+DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -53,7 +54,72 @@ def hash_pw(pw: str, salt: str) -> str:
 
 
 TICKET_IPS: dict = {}
+
+
+class RateLimiter:
+    """محدودیت درخواست هر IP در پنجرهٔ لغزان یک‌دقیقه‌ای (در حافظه)؛ جلوی ربات‌ها و حمله‌های ساده را می‌گیرد."""
+    def __init__(self):
+        self.hits: dict = {}
+        self.lock = threading.Lock()
+        self.last_gc = time.time()
+
+    def allow(self, key: str, limit: int, window: int = 60) -> bool:
+        now = time.time()
+        with self.lock:
+            q = [t for t in self.hits.get(key, ()) if t > now - window]
+            ok = len(q) < limit
+            if ok:
+                q.append(now)
+            self.hits[key] = q
+            if now - self.last_gc > 300:  # پاک‌سازی دوره‌ای تا حافظه پر نشود
+                self.hits = {k: v for k, v in self.hits.items() if v and v[-1] > now - 3600}
+                self.last_gc = now
+            return ok
+
+
+LIMITER = RateLimiter()
+# سقف هر IP در دقیقه: خواندن API، نوشتن، عکس، صفحه‌ها
+LIMITS = {"api": 240, "post": 40, "img": 300, "page": 120}
+OTP_PER_IP_HOUR = 6          # درخواست کد ورود از هر IP در ساعت (جلوی پیامک‌بمباران و هزینهٔ پیامک)
+OTP_GLOBAL_DAY = int(os.environ.get("ARA_OTP_DAILY_CAP", "500"))
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    # اسکریپت و اتصال فقط از خود سایت؛ کاشی نقشه و عکس از https
+    "Content-Security-Policy": ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+                                "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; "
+                                "frame-ancestors 'self'; base-uri 'self'; form-action 'self' https:; object-src 'none'"),
+}
+
+
+class BoundedServer(ThreadingHTTPServer):
+    """حداکثر ۶۴ اتصال هم‌زمان؛ اتصال اضافه فوراً بسته می‌شود تا سرور با هجوم درخواست از کار نیفتد."""
+    daemon_threads = True
+    request_queue_size = 128
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.slots = threading.BoundedSemaphore(64)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            try:
+                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nRetry-After: 5\r\nConnection: close\r\n\r\n")
+            except OSError:
+                pass
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
 SITEMAP: dict = {}
+LLMS: dict = {}
 
 
 def _version() -> str:
@@ -100,7 +166,12 @@ class App:
         self.ingest.migrate()
         self.billing = Billing(self.store)
         self.support = Support(self.store, self.billing, data_dir)
+        self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
+        # نام قدیمی سایت که در پنل ذخیره شده بود ← «فرصت ملک» (نیم‌فاصلهٔ نام قبلی در برخی دستگاه‌ها مربع دیده می‌شد)
+        site = self.store.get_setting("site") or {}
+        if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
+            self.store.set_setting("site", {**site, "name": "فرصت ملک"})
 
     def regions(self):
         """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
@@ -133,7 +204,27 @@ class App:
 
 class Handler(BaseHTTPRequestHandler):
     app: App = None
-    server_version = "Forsatyab/1.0"
+    server_version = "Forsatyab"
+    sys_version = ""
+    timeout = 20  # اتصال کُند یا نیمه‌کاره (حملهٔ slowloris) پس از ۲۰ ثانیه بسته می‌شود
+
+    def end_headers(self):
+        for k, v in SECURITY_HEADERS.items():
+            self.send_header(k, v)
+        super().end_headers()
+
+    def limited(self, kind: str) -> bool:
+        """اگر سقف درخواست این IP پر شده باشد، پاسخ ۴۲۹ می‌فرستد و True برمی‌گرداند (درخواست‌های خود همین رایانه آزادند)."""
+        if self.is_local() or LIMITER.allow(f"{kind}:{self.client_ip()}", LIMITS[kind]):
+            return False
+        body = json.dumps({"error": "تعداد درخواست زیاد است؛ کمی بعد دوباره امتحان کنید"}, ensure_ascii=False).encode()
+        self.send_response(429)
+        self.send_header("content-type", "application/json; charset=utf-8")
+        self.send_header("retry-after", "30")
+        self.send_header("content-length", str(len(body)))
+        super().end_headers()
+        self.wfile.write(body)
+        return True
 
     def log_message(self, fmt, *args):
         if os.environ.get("ARA_DEBUG"):
@@ -155,8 +246,11 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def body(self) -> dict:
-        n = int(self.headers.get("content-length") or 0)
-        if n > 8_000_000:
+        try:
+            n = int(self.headers.get("content-length") or 0)
+        except ValueError:
+            raise ValueError("درخواست نامعتبر است")
+        if n < 0 or n > 8_000_000:
             raise ValueError("درخواست بیش از حد بزرگ است")
         raw = self.rfile.read(n) if n else b""
         if "application/x-www-form-urlencoded" in (self.headers.get("content-type") or ""):
@@ -212,8 +306,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def client_ip(self) -> str:
         """نشانی واقعی کاربر؛ پشت وب‌سرور (Caddy/Nginx) از سرآیند X-Forwarded-For."""
-        fwd = (self.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-        return fwd or self.client_address[0]
+        # فقط وقتی درخواست از وب‌سرور محلی (Caddy) آمده، به سرآیند اعتماد می‌شود؛ و آخرین نشانی (که خود Caddy
+        # افزوده) برداشته می‌شود، نه اولی که کاربر می‌تواند جعل کند و با آن محدودیت‌ها را دور بزند
+        peer = self.client_address[0]
+        if peer not in ("127.0.0.1", "::1"):
+            return peer
+        hops = [h.strip() for h in (self.headers.get("x-forwarded-for") or "").split(",") if h.strip()]
+        return hops[-1] if hops else peer
 
     def is_local(self) -> bool:
         """درخواست از خود همین رایانه است، نه از اینترنت (پشت وب‌سرور همیشه X-Forwarded-For دارد)."""
@@ -235,11 +334,22 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/pay/callback":
                 return self.pay_callback(qs)
             if url.path == "/img":
+                if self.limited("img"):
+                    return None
                 return self.image_proxy(qs.get("u") or "")
             if url.path.startswith("/api/"):
+                if not url.path.startswith("/api/admin/") and self.limited("api"):
+                    return None
                 return self.api_get(url.path, qs)
+            if not url.path.startswith("/assets/") and self.limited("page"):
+                return None
             if url.path == "/robots.txt":
                 return self.send_text(seo.robots(self.base_url()), "text/plain; charset=utf-8")
+            if url.path in ("/llms.txt", "/llms-full.txt"):
+                key = (self.base_url(), url.path)
+                if LLMS.get(key, (0,))[0] < time.time() - 1800:
+                    LLMS[key] = (time.time(), seo.llms(self.app, self.base_url(), full=url.path == "/llms-full.txt"))
+                return self.send_text(LLMS[key][1], "text/markdown; charset=utf-8")
             if url.path == "/sitemap.xml":
                 key = self.base_url()
                 if SITEMAP.get("key") != key or time.time() - SITEMAP.get("at", 0) > 600:
@@ -261,6 +371,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         url = urllib.parse.urlsplit(self.path)
+        if self.limited("post"):
+            return None
         try:
             data = self.body()
             if url.path == "/pay/callback":
@@ -296,6 +408,20 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    @staticmethod
+    def prune_imgcache(cache, cap=1_500_000_000):
+        """کش عکس از ۱٫۵ گیگابایت بیشتر نشود (قدیمی‌ترها پاک می‌شوند)؛ هر ۲۰۰ ذخیره یک بار بررسی می‌شود."""
+        Handler._img_writes = getattr(Handler, "_img_writes", 0) + 1
+        if Handler._img_writes % 200:
+            return
+        files = sorted((f for f in cache.iterdir() if f.is_file()), key=lambda f: f.stat().st_mtime)
+        total = sum(f.stat().st_size for f in files)
+        for f in files:
+            if total <= cap:
+                break
+            total -= f.stat().st_size
+            f.unlink(missing_ok=True)
+
     def image_proxy(self, u):
         """عکس آگهی از طریق همین سرور، با کش روی دیسک؛ فقط از میزبان‌های عکس دیوار و شیپور."""
         import hashlib as _h
@@ -314,10 +440,18 @@ class Handler(BaseHTTPRequestHandler):
             for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
                 try:
                     with _opener(proxy).open(req, timeout=15) as r:
+                        final = (urllib.parse.urlsplit(r.geturl()).hostname or "").lower()
+                        if not re.search(r"(^|\.)(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)$", final):
+                            break  # تغییر مسیر به میزبان دیگر (جلوگیری از سوءاستفاده برای دسترسی به نشانی‌های داخلی)
                         data = r.read(6_000_000)
                     break
                 except Exception:  # noqa: BLE001
                     continue
+            # فقط عکس واقعی (JPEG، PNG، WebP، GIF) ذخیره و نمایش داده می‌شود
+            if data and not (data[:3] == b"\xff\xd8\xff" or data[:4] == b"\x89PNG" or data[8:12] == b"WEBP" or data[:4] == b"GIF8"):
+                data = None
+            if data:
+                self.prune_imgcache(cache)
             if not data:
                 self.send_response(502)
                 self.end_headers()
@@ -360,14 +494,17 @@ class Handler(BaseHTTPRequestHandler):
             if isinstance(d.get("verdict"), dict):
                 d["verdict"].pop("fair", None)
                 d["verdict"].pop("fair_ppm", None)
+                d["verdict"].pop("estimated_profit", None)  # قیمت درخواستی + سود = قیمت منصفانه؛ فقط برای مشترکان
                 if d["verdict"].get("delta") is not None:
                     d["verdict"]["delta"] = -band5(-d["verdict"]["delta"])
                     d["verdict"]["approx"] = True
             ex = d.get("explain") or {}
             if full:
-                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n",
+                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial",
                         "ctx", "caution", "sus", "flags")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
+                if ex.get("presale"):  # مشخصات پیش‌فروش بله، مرجع قیمت و نسبت (که قیمت منصفانه را لو می‌دهد) نه
+                    d["explain"]["presale"] = {k: ex["presale"].get(k) for k in ("months", "months_assumed", "progress", "installments")}
         else:
             d.pop("token", None)
             disp = {**DEFAULT_DISPLAY, **(self.app.store.get_setting("display") or {})}
@@ -495,22 +632,14 @@ class Handler(BaseHTTPRequestHandler):
         a = self.app
         m_flag = re.fullmatch(r"/api/listing/([\w-]+)/flag", path)
         if m_flag:
-            listing_id = m_flag.group(1)
-            reason = (data or {}).get("reason", "fake_price")
-            flags = a.store.get_setting("user_flags") or {}
-            listing_flags = flags.get(listing_id, [])
-            listing_flags.append({"reason": reason, "ip": self.client_ip(), "at": time.time()})
-            flags[listing_id] = listing_flags
-            a.store.set_setting("user_flags", flags)
-            if len(set(f.get("ip") for f in listing_flags)) >= 3:
-                d = a.store.get(listing_id)
-                if d:
-                    d["label"] = "sus"
-                    d["sus_reason"] = "گزارش مکرر کاربران مبنی بر عدم اصالت یا فروش ملک"
-                    a.store.put(d)
-            return self.send_json({"ok": True, "message": "گزارش ثبت شد"})
+            u = self.user()
+            return self.send_json(a.flags.report(m_flag.group(1), (data or {}).get("reason") or "", u["phone"] if u else None, self.client_ip()))
 
         if path == "/api/auth/otp":
+            if not LIMITER.allow("otp:" + self.client_ip(), OTP_PER_IP_HOUR, 3600):
+                return self.send_json({"error": "درخواست کد زیاد بود؛ یک ساعت دیگر دوباره امتحان کنید"}, 429)
+            if not LIMITER.allow("otp:global", OTP_GLOBAL_DAY, 86400):
+                return self.send_json({"error": "سقف روزانهٔ ارسال پیامک پر شده است؛ فردا دوباره امتحان کنید"}, 429)
             return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local()))
         if path == "/api/auth/verify":
             return self.send_json(a.billing.verify_otp(data.get("phone"), data.get("code")))
@@ -604,7 +733,7 @@ class Handler(BaseHTTPRequestHandler):
                             "all_provinces": catalog.PROVINCES},
                 "expansion": a.ingest.expansion(), "province_progress": a.ingest.province_progress(),
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
-                "tickets_unread": a.support.unread_admin(), "sms_last_notify": s.get_setting("sms_last_notify"),
+                "tickets_unread": a.support.unread_admin(), "flags": a.flags.counts(), "sms_last_notify": s.get_setting("sms_last_notify"),
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
                 "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
@@ -637,6 +766,8 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/admin/ticket-img/(\d+)", path)
         if m:
             return self.send_upload(a.data_dir / "tickets" / f"{int(m.group(1))}.img")
+        if path == "/api/admin/flags":
+            return self.send_json({"items": a.flags.queue(), "counts": a.flags.counts()})
         if path == "/api/admin/articles":
             return self.send_json({"items": seo.articles_list(s, 500, all_=True)})
         if path == "/api/admin/tickets":
@@ -666,7 +797,8 @@ class Handler(BaseHTTPRequestHandler):
                     new.pop("api_key", None)
                 s.set_setting("sms", {**cur, **new})
             if isinstance(data.get("thresholds"), dict):
-                bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10)}
+                bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10),
+                          "presale_monthly": (0.0, 0.04), "presale_default_months": (1, 60), "presale_extra": (0.0, 0.3), "spatial_tol": (0.05, 1.0)}
                 t = {}
                 for k, v in data["thresholds"].items():
                     if k not in DEFAULT_THRESHOLDS:
@@ -733,6 +865,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/review":
             a.billing.review(data.get("id"), bool(data.get("approve")))
             return self.send_json({"ok": True})
+        if path == "/api/admin/flag-review":
+            a.flags.decide(str(data.get("id") or ""), bool(data.get("accept")))
+            threading.Thread(target=a.ingest.run_valuation, daemon=True).start()
+            return self.send_json({"ok": True})
         if path == "/api/admin/article":
             slug = seo.slugify(data.get("slug") or data.get("title") or "")
             if data.get("delete"):
@@ -781,7 +917,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="سرور فرصت‌یاب")
+    ap = argparse.ArgumentParser(description="سرور فرصت ملک")
     ap.add_argument("--host", default=os.environ.get("ARA_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int, default=int(os.environ.get("ARA_PORT", "8000")))
     ap.add_argument("--data", default=os.environ.get("ARA_DATA", str(ROOT / "data")))
@@ -790,10 +926,10 @@ def main():
 
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
-    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)
-    print(f"  فرصت‌یاب روشن شد:    {url}")
+    print(f"  فرصت ملک روشن شد:    {url}")
     print(f"  پنل مدیریت:          {url}/admin.html")
     print("  برای خاموش کردن، این پنجره را ببندید یا Ctrl+C بزنید.")
     print("=" * 56, flush=True)

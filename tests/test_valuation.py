@@ -77,19 +77,34 @@ add("old", title="آپارتمان ۱۰۰ متری", price=round(fair_ref * 0.7 
 add("rare1", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref * 0.6 / 1e6) * 1e6)
 add("rare2", title="آپارتمان ۱۰۰ متری", district="محله‌ای کم‌آگهی", price=round(fair_ref / 1e6) * 1e6)
 
+# پیش‌فروش: بازار جدا با فرمول خودش؛ ۱۰ پیش‌فروش حدود ۱۸٪ زیر «همین واحد نوساز و آماده»، تحویل ۱۲ ماه دیگر
+new_ref = 60e6 * math.exp(0.08 + 0.06) * 100
+for i in range(10):
+    add(f"ps{i}", title="پیش فروش آپارتمان ۱۰۰ متری", year=None,
+        description=f"آسانسور دارد. پارکینگ دارد. تحویل ۱۲ ماه دیگر. واحد {i + 1}", price=round(new_ref * 0.82 * math.exp(rnd.gauss(0, 0.03)) / 1e6) * 1e6)
+add("psdeal", title="پیش فروش آپارتمان ۱۰۰ متری", year=None, description="آسانسور دارد. پارکینگ دارد. تحویل ۱۲ ماه دیگر. فوری",
+    price=round(new_ref * 0.60 / 1e6) * 1e6)
 info = valuation.recompute(store)
 print("   ", {k: info[k] for k in ("listings", "excluded", "ranked", "seconds")})
 get = store.get
 check("zero_typo" in get("zero")["flags"], "قیمت ده‌برابر: «اشتباه صفر»")
 check(any(f in get("low")["flags"] for f in ("outlier_low", "zero_typo_low")) and get("low")["label"] == "sus", "قیمت بسیار پایین: پرت و «مشکوک»")
-check("presale" in get("presale")["flags"], "پیش‌فروش کنار گذاشته شد")
+check("presale" not in get("presale")["flags"] and get("presale")["explain"]["presale"], "پیش‌فروش با فرمول خودش سنجیده شد، نه کنار گذاشته")
+pi = get("ps3")["explain"]["presale"]
+check(pi["months"] == 12 and not pi["months_assumed"] and -0.24 < pi["ratio"] < -0.12, f"نسبت پیش‌فروش به آماده از داده: {pi['ratio']:.0%} (واقعی −۱۸٪)، {pi['months']} ماه تا تحویل")
+check(abs(pi["new_ppm"] / (new_ref / 100) - 1) < 0.12, f"مرجع نوساز و آماده: {pi['new_ppm'] / (new_ref / 100):.2f}× مقدار واقعی")
+check(get("ps3")["label"] in ("fair", "high"), f"پیش‌فروش هم‌قیمت بازار پیش‌فروش: {get('ps3')['label']}")
+check(get("psdeal")["label"] in ("gold", "good"), f"پیش‌فروش ۲۷٪ ارزان‌تر از هم‌گروه‌ها: {get('psdeal')['label']} ({get('psdeal')['discount']:.0%})")
+psr = store.search({"presale": "1", "limit": 100})["items"]
+nps = store.search({"presale": "0", "limit": 500})["items"]
+check(psr and all(x["presale"] for x in psr) and not any(x["presale"] for x in nps), f"فیلتر پیش‌فروش: {len(psr)} آگهی پیش‌فروش، بقیه جدا")
 check("placeholder" in get("token")["flags"], "قیمت نمادین کنار گذاشته شد")
 d = get("deal")
 check(d["excluded"] == 0 and 0.15 < d["discount"] < 0.30, f"آگهی ارزان: {d['discount']:.0%} زیر قیمت منصفانه (واقعی ۲۲٪)")
 check(d["label"] in ("gold", "good"), f"برچسب آگهی ارزان: {d['label']}")
 check(d["explain"]["rank"] == 1 and d["score"] >= 65, f"امتیاز فرصت در محله: {d['score']} (رتبه {d['explain']['rank']} از {d['explain']['rank_n']})")
 check("فروشنده عجله دارد" in d["explain"]["ctx"], "نشانهٔ متنی «فروشنده عجله دارد»")
-check(get("presale")["label"] == "excluded", "پیش‌فروش: برچسب «کنار رفت»")
+check(get("presale")["label"] in ("fair", "high"), f"پیش‌فروش به قیمت واحد آماده: {get('presale')['label']} (نه فرصت)")
 p = get("pricey")
 check(p["label"] == "high" and p["score"] <= 64, f"برچسب آگهی گران: {p['label']}، امتیاز {p['score']}")
 check(-0.32 < p["discount"] < -0.18, f"آگهی گران: {-p['discount']:.0%} بالای قیمت منصفانه (واقعی ۲۵٪)")
@@ -143,6 +158,72 @@ valuation.recompute(st2)
 after = st2.get("x5")["fair_ppm"]
 check(abs(after / before - 1) < 0.02, f"۸ آگهی قیمتشان را ۵۰٪ بالا بردند؛ قیمت منصفانهٔ همسایه {abs(after / before - 1):.1%} تغییر کرد")
 check(st2.get("x10")["explain"]["raised"] and st2.get("x10")["label"] == "high", "آگهی‌ای که قیمتش را بالا برد «بالاتر از قیمت محله» شد")
+# ---- ضد تبانی: ۱۲ آگهی گران با متن الگوی یکسان (یک دلال) در برابر ۱۰ آگهی واقعی؛ آگهی واقعی «فرصت» نشود
+st3 = Store(Path(tempfile.mkdtemp()) / "t3.db")
+rnd3 = random.Random(5)
+TPL = "مشاور املاک ستاره؛ فروش آپارتمان {a} متری با بهترین امکانات، سند تک برگ، دسترسی عالی به مرکز شهر. تماس بگیرید."
+OWN = ["خانهٔ خودم را به دلیل مهاجرت می‌فروشم، همسایه‌های خوب و آرام", "واحد شمالی آفتابگیر، کابینت تازه عوض شده، نزدیک مدرسه",
+       "ساختمان کم‌واحد، مدیریت خوب، شارژ پایین، پارکینگ اختصاصی", "طبقهٔ دوم، دید باز، کف سرامیک، بدون نیاز به تعمیر",
+       "نزدیک پارک و بازار، مناسب زوج جوان، قیمت توافقی نیست", "نقشهٔ خوب، دو نبش، نورگیر از سه طرف، کمد دیواری",
+       "مالک هستم، بدون واسطه، فقط خریدار واقعی تماس بگیرد", "انباری بزرگ، آیفون تصویری، درب ضد سرقت نصب شده",
+       "کوچهٔ بن‌بست و ساکت، همسایه‌ها قدیمی و محترم، دسترسی خوب", "بازسازی کامل سال گذشته، لوله‌کشی و سیم‌کشی نو"]
+
+
+def add3(i, ppm, desc, area):
+    it = {"id": i, "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
+          "description": desc, "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": "تبانی",
+          "price": round(ppm * area / 1e6) * 1e6, "area": area, "rooms": 2, "year": now_year - 5, "detail_at": 1, "posted_at": int(NOW)}
+    it["feat"] = features.extract(it)
+    st3.upsert(it)
+
+
+P = 60e6
+for i in range(12):
+    a = 90 + i * 3
+    add3(f"dl{i}", P * 1.4 * math.exp(rnd3.gauss(0, 0.02)), TPL.format(a=a), a)
+for i in range(10):
+    add3(f"own{i}", P * math.exp(rnd3.gauss(0, 0.03)), OWN[i], 95 + i * 3)
+valuation.recompute(st3)
+labs = [st3.get(f"own{i}")["label"] for i in range(10)]
+check(not set(labs) & {"gold", "good"}, f"آگهی‌های واقعی در محلهٔ تبانی فرصت نشدند: {labs}")
+bp = st3.get("own3")["explain"]["base_ppm"]
+check(bp and abs(bp / P - 1) < 0.12, f"قیمت محله نزدیک قیمت واقعی ماند ({bp / P:.2f}×) نه قیمت دلال (۱٫۴×)")
+check(st3.get("dl0")["label"] == "high", "آگهی‌های دلال «بالاتر از قیمت محله» شدند")
+# ---- سازگاری مکانی: محله‌ای که ۵ فروشندهٔ هماهنگ قیمتش را ۷۰٪ بالاتر از همهٔ مجاورها برده‌اند
+st4 = Store(Path(tempfile.mkdtemp()) / "t4.db")
+rnd4 = random.Random(11)
+WORDS = ["آفتابگیر", "دسترسی عالی", "نزدیک پارک", "کوچه آرام", "همسایه خوب", "بازسازی شده", "کابینت نو", "دید باز", "نورگیر", "مدیریت خوب",
+         "شارژ کم", "نزدیک مدرسه", "مترو نزدیک", "بالکن بزرگ", "کف سرامیک", "کمد دیواری"]
+
+
+def add4(i, dist, lat, lng, ppm, area=100):
+    desc = "، ".join(rnd4.sample(WORDS, 6)) + f"، کد {i}، آسانسور دارد، پارکینگ دارد، فروش فوری با شرایط مناسب"
+    it = {"id": i, "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
+          "description": desc, "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": dist, "lat": lat + rnd4.gauss(0, 0.001),
+          "lng": lng + rnd4.gauss(0, 0.001), "price": round(ppm * area * math.exp(rnd4.gauss(0, 0.10) if not i.endswith(("honest", "deal")) else 0) / 1e6) * 1e6, "area": area, "rooms": 2,
+          "year": now_year - 5, "detail_at": 1, "posted_at": int(NOW)}
+    it["feat"] = features.extract(it)
+    st4.upsert(it)
+
+
+near = {"الف": (37.280, 49.580), "ب": (37.290, 49.590), "ج": (37.275, 49.600), "د": (37.295, 49.575)}
+for d, (la, ln) in near.items():
+    for i in range(12):
+        add4(f"{d}{i}", d, la, ln, P, 90 + i * 3)
+for i in range(5):  # محلهٔ «ه» وسط مجاورها: ۵ فروشنده با قیمت ۱٫۷ برابر
+    add4(f"pump{i}", "ه", 37.285, 49.588, P * 1.7, 95 + i * 4)
+add4("honest", "ه", 37.285, 49.588, P, 100)
+for i in range(20):  # محلهٔ «و» گران واقعی: ۲۰ فروشندهٔ مستقل با ۱٫۶ برابر و یک فرصت واقعی
+    add4(f"lux{i}", "و", 37.300, 49.600, P * 1.6, 90 + i * 2)
+add4("luxdeal", "و", 37.300, 49.600, P * 1.6 * 0.80, 100)
+info4 = valuation.recompute(st4)
+h = st4.get("honest")
+check(h["label"] not in ("gold", "good"), f"آگهی واقعی در محلهٔ دست‌کاری‌شده فرصت نشد: {h['label']} (فاصله با محله {h['discount']:.0%}، با مجاورها {h['explain']['nb_disc']})")
+check(any(a["district"] == "ه" for a in info4["spatial"]), f"محلهٔ ناسازگار با مجاورها در پنل گزارش شد: {[(a['district'], a['gap'], a['shift']) for a in info4['spatial']]}")
+ld = st4.get("luxdeal")
+check(ld["label"] in ("gold", "good"), f"فرصت واقعی در محلهٔ گران پرفروشنده حفظ شد: {ld['label']} ({ld['discount']:.0%})")
+lx = st4.get("lux3")["explain"]
+check(not lx.get("spatial") or abs(lx["spatial"][0]) < 0.05, f"محلهٔ گران واقعی تقریباً دست نخورد: {lx.get('spatial')}")
 # ---- ادعای تبلیغاتی عنوان با برچسب سایت قاطی نشود
 t, cl = features.clean_title("فرصت طلایی!!! آپارتمان ۱۲۰ متری گلسار زیر قیمت", "apartment", 120, "گلسار")
 check(t == "آپارتمان ۱۲۰ متری گلسار" and set(cl) == {"opportunity", "cheap"}, f"عنوان بدون ادعا: «{t}»، ادعاها {cl}")
