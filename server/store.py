@@ -275,7 +275,7 @@ class Store:
         if f.get("opp"):
             where.append("label IN ('gold','good')")
         if f.get("label"):
-            ls = [x for x in f["label"].split(",") if x in ("gold", "good", "fair", "high", "sus", "pending")]
+            ls = [x for x in f["label"].split(",") if x in ("gold", "good", "fair", "high", "over", "sus", "pending")]
             if ls:
                 add(f"label IN ({','.join('?' * len(ls))})", *ls)
         for a in [a for a in (f.get("amenities") or "").split(",") if a]:

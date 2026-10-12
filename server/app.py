@@ -799,7 +799,7 @@ class Handler(BaseHTTPRequestHandler):
                 s.set_setting("sms", {**cur, **new})
             if isinstance(data.get("thresholds"), dict):
                 bounds = {"max_age_days": (7, 730), "half_life_days": (7, 365), "trend_fixed": (-0.05, 0.10),
-                          "presale_monthly": (0.0, 0.04), "presale_default_months": (1, 60), "presale_extra": (0.0, 0.3), "spatial_tol": (0.05, 1.0), "opp": (0.05, 0.4), "gold": (0.08, 0.5), "sus": (0.25, 0.6), "sus_flagged": (0.15, 0.6)}
+                          "presale_monthly": (0.0, 0.04), "presale_default_months": (1, 60), "presale_extra": (0.0, 0.3), "spatial_tol": (0.05, 1.0), "opp": (0.05, 0.4), "gold": (0.08, 0.5), "sus": (0.25, 0.6), "sus_flagged": (0.15, 0.6), "over": (0.2, 1.0)}
                 t = {}
                 for k, v in data["thresholds"].items():
                     if k not in DEFAULT_THRESHOLDS:

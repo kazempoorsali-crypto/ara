@@ -123,7 +123,8 @@ const UI = (() => {
     return money(p.price) + (p.deal === "daily" ? "/شب" : "");
   }
   const pct = (d) => fa(Math.abs(Math.round(d * 100))) + "٪";
-  const LABELS = { gold: "فرصت طلایی", good: "زیر قیمت بازار", fair: "منصفانه", high: "بالاتر از بازار", sus: "قیمت مشکوک", pending: "در انتظار داده" };
+  // مقیاس پنج‌سطحی: قیمت غیرمنطقی، بالاتر از ارزش واقعی، قیمت متعادل، فرصت مناسب، فرصت طلایی (+ مشکوک و در انتظار داده)
+  const LABELS = { gold: "فرصت طلایی", good: "فرصت مناسب", fair: "قیمت متعادل", high: "بالاتر از ارزش واقعی", over: "قیمت غیرمنطقی", sus: "قیمت مشکوک", pending: "در انتظار داده" };
   const CONF = { high: "اطمینان بالا", medium: "اطمینان متوسط", low: "اطمینان کم" };
   const labelPill = (v) => (v && v.label ? `<span class="lab lab--${v.label}">${LABELS[v.label] || ""}</span>` : "");
   // برای غیرمشترکان درصد دقیق نمی‌آید، فقط بازهٔ ۵ درصدی (مثلاً «۲۵ تا ۳۰٪»)
@@ -325,5 +326,5 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc };
 })();
