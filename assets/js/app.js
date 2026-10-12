@@ -233,6 +233,7 @@ const App = (() => {
     </section>
     <section class="section consult">
       <div class="wrap consult__box">
+        <div class="beams" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         <div><span class="kicker">درخواست مشاوره</span><h2>برای یک تصمیم مشخص کمک می‌خواهید؟</h2><p>هدف‌تان را بگویید: سکونت، سرمایه‌گذاری یا اجاره‌داری. آگهی یا محلهٔ موردنظر را بفرستید تا تحلیلش را با شما مرور کنیم.</p></div>
         <div class="consult__act"><a class="btn btn--gold btn--lg" href="#/support">ثبت درخواست مشاوره</a><a class="btn btn--line btn--lg" href="#/tools">ارزیابی سریع یک ملک</a></div>
       </div>
