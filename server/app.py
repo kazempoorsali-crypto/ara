@@ -37,7 +37,7 @@ from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
-DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ملک زیر قیمت، محله به محله", "about": "", "email": ""}
+DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ارزش واقعی ملک، محله به محله", "about": "", "email": ""}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -79,7 +79,13 @@ class RateLimiter:
 
 LIMITER = RateLimiter()
 # سقف هر IP در دقیقه: خواندن API، نوشتن، عکس، صفحه‌ها
-LIMITS = {"api": 240, "post": 40, "img": 300, "page": 120}
+LIMITS = {"api": 240, "post": 40, "img": 300, "page": 120, "tile": 1200}
+# کاشی‌های نقشه از طریق سرور خود سایت با کش دائمی روی دیسک: بدون کلید، و در قطع اینترنت بین‌الملل
+# هر ناحیه‌ای که یک بار دیده شده باز هم نمایش داده می‌شود
+TILE_SOURCES = {
+    "osm": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "sat": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+}
 OTP_PER_IP_HOUR = 6          # درخواست کد ورود از هر IP در ساعت (جلوی پیامک‌بمباران و هزینهٔ پیامک)
 OTP_GLOBAL_DAY = int(os.environ.get("ARA_OTP_DAILY_CAP", "500"))
 SECURITY_HEADERS = {
@@ -172,6 +178,9 @@ class App:
         site = self.store.get_setting("site") or {}
         if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
             self.store.set_setting("site", {**site, "name": "فرصت ملک"})
+        site = self.store.get_setting("site") or {}
+        if (site.get("tagline") or "").strip() in ("ملک زیر قیمت، محله به محله",):  # شعار قدیمی ← شعار تازه
+            self.store.set_setting("site", {**site, "tagline": "ارزش واقعی ملک، محله به محله"})
 
     def regions(self):
         """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
@@ -334,6 +343,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/pay/callback":
                 return self.pay_callback(qs)
+            m = re.fullmatch(r"/tiles/(osm|sat)/(\d{1,2})/(\d{1,7})/(\d{1,7})\.png", url.path)
+            if m:
+                if self.limited("tile"):
+                    return None
+                return self.tile_proxy(m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4)))
             if url.path == "/img":
                 if self.limited("img"):
                     return None
@@ -422,6 +436,49 @@ class Handler(BaseHTTPRequestHandler):
                 break
             total -= f.stat().st_size
             f.unlink(missing_ok=True)
+
+    def tile_proxy(self, style, z, x, y):
+        if z > 19 or x >= 2 ** z or y >= 2 ** z:
+            self.send_response(404); self.end_headers(); return None
+        f = self.app.data_dir / "tilecache" / style / str(z) / str(x) / f"{y}.img"
+        if not f.is_file():
+            from divar_client import NET, _opener, _system_proxies
+            u = TILE_SOURCES[style].format(z=z, x=x, y=y)
+            req = urllib.request.Request(u, headers={"user-agent": "forsatmelk.ir tile cache (+https://forsatmelk.ir)", "referer": "https://forsatmelk.ir/"})
+            data = None
+            for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
+                try:
+                    with _opener(proxy).open(req, timeout=12) as r:
+                        data = r.read(2_000_000)
+                    break
+                except Exception:  # noqa: BLE001
+                    continue
+            if not data or not (data[:3] == b"\xff\xd8\xff" or data[:4] == b"\x89PNG"):
+                self.send_response(404); self.send_header("cache-control", "no-store"); self.end_headers(); return None
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(data)
+            Handler._tile_writes = getattr(Handler, "_tile_writes", 0) + 1
+            if Handler._tile_writes % 2000 == 0:
+                threading.Thread(target=self.prune_tiles, args=(self.app.data_dir / "tilecache",), daemon=True).start()
+        data = f.read_bytes()
+        self.send_response(200)
+        self.send_header("content-type", "image/png" if data[:4] == b"\x89PNG" else "image/jpeg")
+        self.send_header("content-length", str(len(data)))
+        self.send_header("cache-control", "public, max-age=2592000")
+        self.end_headers()
+        self.wfile.write(data)
+        return None
+
+    @staticmethod
+    def prune_tiles(root, cap=4_000_000_000):
+        """کش نقشه از ۴ گیگابایت بیشتر نشود؛ کاشی‌هایی که دیرتر دیده شده‌اند پاک می‌شوند."""
+        files = sorted((p for p in root.rglob("*.img")), key=lambda p: p.stat().st_mtime)
+        total = sum(p.stat().st_size for p in files)
+        for p in files:
+            if total <= cap:
+                break
+            total -= p.stat().st_size
+            p.unlink(missing_ok=True)
 
     def image_proxy(self, u):
         """عکس آگهی از طریق همین سرور، با کش روی دیسک؛ فقط از میزبان‌های عکس دیوار و شیپور."""

@@ -129,7 +129,7 @@ const UI = (() => {
   const labelPill = (v) => (v && v.label ? `<span class="lab lab--${v.label}">${LABELS[v.label] || ""}</span>` : "");
   // برای غیرمشترکان درصد دقیق نمی‌آید، فقط بازهٔ ۵ درصدی (مثلاً «۲۵ تا ۳۰٪»)
   const gapPct = (v) => (v.approx ? (Math.abs(v.delta) < 0.05 ? "کمتر از ۵٪" : `${fa(Math.round(Math.abs(v.delta) * 100))} تا ${fa(Math.round(Math.abs(v.delta) * 100) + 5)}٪`) : pct(v.delta));
-  const gapText = (v) => (!v ? "" : v.approx && Math.abs(v.delta) < 0.05 ? "نزدیک قیمت محله" : v.delta < -0.005 ? `${gapPct(v)} زیر قیمت محله` : v.delta > 0.005 ? `${gapPct(v)} بالاتر از قیمت محله` : "هم‌قیمت محله");
+  const gapText = (v) => (!v ? "" : v.approx && Math.abs(v.delta) < 0.05 ? "نزدیک برآورد بازار" : v.delta < -0.005 ? `${gapPct(v)} فاصله با برآورد بازار` : v.delta > 0.005 ? `${gapPct(v)} بالاتر از برآورد بازار` : "هم‌سطح برآورد بازار");
   // سازگاری با فراخوانی‌های قبلی: برچسب + فاصله
   const dealPill = (v) => (v ? `${labelPill(v)} <span class="gap gap--${v.delta < 0 ? "below" : "above"}">${gapText(v)}</span>` : "");
   const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
@@ -214,6 +214,9 @@ const UI = (() => {
   }
 
   /* ---------- نقشه ---------- */
+  // کاشی‌های نقشه از سرور خود سایت (کش دائمی؛ در قطع اینترنت بین‌الملل هم ناحیه‌های دیده‌شده باز می‌شوند)
+  const tileUrl = (style) => (DataLayer.server ? `/tiles/${style}/{z}/{x}/{y}.png`
+    : style === "sat" ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" : "https://tile.openstreetmap.org/{z}/{x}/{y}.png");
   function makeMap(el, opts = {}) {
     if (!window.L) { el.innerHTML = '<p class="muted" style="padding:40px;text-align:center">نقشه در دسترس نیست.</p>'; return null; }
     // چرخ موس و کشیدن تک‌انگشتی صفحه را پیمایش می‌کنند، نه نقشه را؛ بزرگ‌نمایی با Ctrl + چرخ، دکمه‌های + و − یا دو انگشت
@@ -242,7 +245,7 @@ const UI = (() => {
       el.addEventListener("touchend", (e) => { if (!e.touches.length) map.dragging.disable(); }, { passive: true });
     }
     let errs = 0;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" })
+    L.tileLayer(tileUrl("osm"), { maxZoom: 19, attribution: "© OpenStreetMap" })
       .on("tileerror", () => { if (++errs === 4) el.classList.add("no-tiles"); }).addTo(map);
     return map;
   }
@@ -326,5 +329,5 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc };
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl };
 })();
