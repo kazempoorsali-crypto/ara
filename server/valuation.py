@@ -706,19 +706,30 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         cn, dn = l.get("_cn", 0), l.get("_dn", 0)
         feat = l.get("feat") or {}
         filled = sum(1 for k in FEATURE_SETS[l["_kg"]] if design_row(feat, l["_kg"]).get(k) is not None) / len(FEATURE_SETS[l["_kg"]])
+        ask = l.get("price") if l["deal"] == "daily" else l.get("pp")   # قیمت درخواستی همین آگهی
+        sig = feat.get("sus") or []
         conf, score = None, None
         if label in ("gold", "good", "fair", "high"):
             conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 8 else "low"
             if l["_age"] > 30:  # قیمت آگهی قدیمی‌تر ممکن است دیگر معتبر نباشد
                 conf = {"high": "medium", "medium": "low", "low": "low"}[conf]
+            if label == "gold" and conf == "low":  # فرصت طلایی با اطمینان کم اعلام نمی‌شود
+                label = l["_label"] = "good"
             if label in ("gold", "good"):
                 p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]
-                depth = max(0.0, min(1.0, (d - th["opp"]) / max(0.01, th["sus"] - th["opp"])))
+                # عمق فاصله تا ۳۰٪ امتیاز می‌گیرد؛ نزدیک آستانهٔ «مشکوک» دوباره کم می‌شود (ارزانیِ بیش از حد باورپذیر نیست)
+                peak = min(0.30, th["sus"] - 0.02)
+                depth = max(0.0, min(1.0, (d - th["opp"]) / max(0.01, peak - th["opp"])))
+                if d > peak:
+                    depth *= max(0.4, 1 - (d - peak) / max(0.01, th["sus"] - peak) * 0.6)
+                depth *= {"high": 1.0, "medium": 0.9, "low": 0.75}[conf]
                 score = round(65 + 35 * (0.5 * p_rank + 0.5 * depth), 1)
             else:
                 score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
         # سود تخمینی خرید به تومان و شاخص اعتبار (فاز ۱ و ۲)
-        profit = max(0, round(fair - ask)) if fair and ask and fair > ask else 0
+        # محافظه‌کارانه: کران پایین قیمت منصفانه منهای قیمت درخواستی، فقط برای فرصت‌ها
+        fair_lo = fair * math.exp(-(l.get("_unc") or 0.15)) if fair else None
+        profit = max(0, round(fair_lo - ask)) if label in ("gold", "good") and fair_lo and ask and fair_lo > ask else 0
         t_score = 85
         if "cheap_flagged" in flags or "too_cheap" in flags:
             t_score -= 25

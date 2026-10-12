@@ -104,6 +104,9 @@ check(d["excluded"] == 0 and 0.15 < d["discount"] < 0.30, f"آگهی ارزان:
 check(d["label"] in ("gold", "good"), f"برچسب آگهی ارزان: {d['label']}")
 check(d["explain"]["rank"] == 1 and d["score"] >= 65, f"امتیاز فرصت در محله: {d['score']} (رتبه {d['explain']['rank']} از {d['explain']['rank_n']})")
 check("فروشنده عجله دارد" in d["explain"]["ctx"], "نشانهٔ متنی «فروشنده عجله دارد»")
+bad = [(x["id"], x["explain"]["estimated_profit"], x["pp"]) for x in store.search({"limit": 1000, "include_excluded": 1})["items"]
+       if (x.get("explain") or {}).get("estimated_profit") and (x["explain"]["estimated_profit"] >= x["pp"] * 0.7 or x["label"] not in ("gold", "good"))]
+check(not bad, f"سود تخمینی هر آگهی از قیمت خودش و فقط برای فرصت‌ها (نه از آگهی دیگر): {bad[:3]}")
 check(get("presale")["label"] in ("fair", "high"), f"پیش‌فروش به قیمت واحد آماده: {get('presale')['label']} (نه فرصت)")
 p = get("pricey")
 check(p["label"] == "high" and p["score"] <= 64, f"برچسب آگهی گران: {p['label']}، امتیاز {p['score']}")
