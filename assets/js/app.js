@@ -163,8 +163,11 @@ const App = (() => {
     </section>
     <section class="scene" id="pinScene" aria-label="فرصت ملک در یک نگاه">
       <div class="scene__stage">
-        <div class="scene__floor" aria-hidden="true"></div>
-        <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 14 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path d="M10 27l14-14 14 14"/><path class="w" d="M8 35c5.3-3.8 10.6-3.8 16 0s10.7 3.8 16 0"/></svg>`).join("")}</div><i class="scene__ring"></i></div>
+        <div class="scene__pic scene__pic--house" aria-hidden="true"><img class="sk" src="/assets/img/scene/house-sketch.jpg" alt="" decoding="async"><img class="ph" src="/assets/img/scene/house.jpg" alt="" decoding="async"></div>
+        <div class="scene__pic scene__pic--living" aria-hidden="true"><img class="sk" src="/assets/img/scene/living-sketch.jpg" alt="" loading="lazy" decoding="async"><img class="ph" src="/assets/img/scene/living.jpg" alt="" loading="lazy" decoding="async"></div>
+        <div class="scene__shade" aria-hidden="true"></div>
+        <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 12 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path class="r" d="M10 25l13-13 13 13"/><path class="w" d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0"/><circle cx="39" cy="10" r="4.2"/></svg>`).join("")}</div></div>
+        <p class="scene__hint" aria-hidden="true">نشانگر را روی طرح بکشید تا خود ملک پیدا شود</p>
         <div class="scene__step" data-step="0"><b>${fa(st.total || 0)}</b><span>آگهی که قیمتش را با محلهٔ خودش سنجیده‌ایم</span></div>
         <div class="scene__step scene__step--end" data-step="1"><b>${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده با فاصلهٔ معنادار از برآورد بازار</span></div>
         <div class="scene__step" data-step="2"><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر زیر پوشش، محله به محله</span></div>
@@ -354,7 +357,7 @@ const App = (() => {
       if (PROVINCES.length <= 3) $("#provAll").parentElement.hidden = rail.scrollWidth <= rail.clientWidth + 4;
     }
     drawSample();
-    if (window.Ribbons) { Ribbons.mount($(".solution")); Ribbons.mount($(".hero"), { count: 3, alpha: 0.35 }); Ribbons.mount($(".scene__stage"), { count: 4, alpha: 0.4 }); }
+    if (window.Ribbons) { Ribbons.mount($(".solution")); Ribbons.mount($(".hero"), { count: 3, alpha: 0.35 }); }
     scrollScenes();
     bindPlans();
     drawGlance(st);
@@ -785,7 +788,13 @@ const App = (() => {
         if (r.bottom < -vh || r.top > vh * 2) return;
         const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
         const steps = $$(".scene__step", sec), n = steps.length, k = Math.min(n - 1, Math.floor(p * n));
+        const cl = (x) => Math.min(1, Math.max(0, x));
         sec.style.setProperty("--p", p.toFixed(4));
+        // نما: طرح خطی خانه، با اسکرول از راست به عکس واقعی تبدیل می‌شود؛ سپس فضای داخلی
+        sec.style.setProperty("--w1", (cl((p - 0.06) / 0.38) * 130).toFixed(1) + "%");
+        sec.style.setProperty("--liv", cl((p - 0.68) / 0.08).toFixed(3));
+        sec.style.setProperty("--w2", (cl((p - 0.76) / 0.2) * 130).toFixed(1) + "%");
+        sec.style.setProperty("--logo", (1 - cl((p - 0.07) / 0.13)).toFixed(3));
         steps.forEach((s, i) => s.classList.toggle("is-on", i === k));
         $$(".scene__dots i", sec).forEach((d, i) => d.classList.toggle("is-on", i === k));
       });
@@ -798,6 +807,15 @@ const App = (() => {
       });
     };
     scrollScenes.tick = tick;
+    // نورافکن نشانگر: زیر نشانگر، عکس واقعی از دل طرح خطی پیدا می‌شود
+    document.addEventListener("pointermove", (e) => {
+      const st = e.target.closest && e.target.closest(".scene__stage");
+      $$(".scene__stage.is-hover").forEach((x) => x !== st && x.classList.remove("is-hover"));
+      if (!st) return;
+      const r = st.getBoundingClientRect();
+      st.style.setProperty("--mx", (e.clientX - r.left).toFixed(0) + "px"); st.style.setProperty("--my", (e.clientY - r.top).toFixed(0) + "px");
+      st.classList.add("is-hover");
+    }, { passive: true });
     addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
     addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); });
     tick();
