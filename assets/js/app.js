@@ -161,10 +161,21 @@ const App = (() => {
         <div><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی از ${fa(CITIES.length)}</span></div>
       </div>
     </section>
+    <section class="scene" id="pinScene" aria-label="فرصت ملک در یک نگاه">
+      <div class="scene__stage">
+        <div class="scene__floor" aria-hidden="true"></div>
+        <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 14 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path d="M10 27l14-14 14 14"/><path class="w" d="M8 35c5.3-3.8 10.6-3.8 16 0s10.7 3.8 16 0"/></svg>`).join("")}</div><i class="scene__ring"></i></div>
+        <div class="scene__step" data-step="0"><b>${fa(st.total || 0)}</b><span>آگهی که قیمتش را با محلهٔ خودش سنجیده‌ایم</span></div>
+        <div class="scene__step scene__step--end" data-step="1"><b>${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده با فاصلهٔ معنادار از برآورد بازار</span></div>
+        <div class="scene__step" data-step="2"><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر زیر پوشش، محله به محله</span></div>
+        <div class="scene__step scene__step--why" data-step="3"><h2>چرا فرصت ملک؟</h2><p>قیمت آگهی، پیشنهاد فروشنده است، نه ارزش بازار. ما هر آگهی را با محلهٔ خودش، سن بنا، متراژ و امکانات می‌سنجیم، اثر تبانی و قیمت‌سازی را کنار می‌گذاریم و دلیل هر عدد را نشان می‌دهیم.</p></div>
+        <div class="scene__dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div>
+    </section>
     <section class="section story">
       <div class="wrap story__grid">
         <div class="story__q"><span class="kicker">مشکل بازار</span><h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
-          <p>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس مردم است.</p></div>
+          <p data-scrub>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس مردم است.</p></div>
         <ol class="story__list">
           <li><b>قیمت مالک</b><span>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</span></li>
           <li><b>قیمت مشاور</b><span>ممکن است زیر اثر شرایط معامله و کمیسیون باشد.</span></li>
@@ -176,7 +187,7 @@ const App = (() => {
     <section class="section section--ink solution">
       <div class="wrap solution__grid">
         <div><span class="kicker">راه‌حل فرصت ملک</span><h2>لایهٔ هوشمند تحلیل،<br>پیش از خرید.</h2>
-          <p>ما جایگزین مشاور املاک نیستیم. همان کاری را برای ملک می‌کنیم که کارشناس خودرو پیش از خرید ماشین یا تحلیلگر پیش از سرمایه‌گذاری می‌کند: ارزش واقعی را از دادهٔ بازار می‌سازیم و فاصلهٔ قیمت را شفاف نشان می‌دهیم.</p>
+          <p data-scrub>ما جایگزین مشاور املاک نیستیم. همان کاری را برای ملک می‌کنیم که کارشناس خودرو پیش از خرید ماشین یا تحلیلگر پیش از سرمایه‌گذاری می‌کند: ارزش واقعی را از دادهٔ بازار می‌سازیم و فاصلهٔ قیمت را شفاف نشان می‌دهیم.</p>
           <a class="btn btn--gold" href="#/method">روش ارزش‌گذاری</a></div>
         <div class="analysis" id="sample"><div class="skeleton" style="height:320px"></div></div>
       </div>
@@ -316,7 +327,8 @@ const App = (() => {
     };
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
-    initLive(st);
+    // انتخاب شهر روی کره، فیلتر شهر جست‌وجو را هم پر می‌کند
+    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; drawHTags(); } });
     // راهنمای استان‌ها: یک ردیف با پیمایش افقی؛ دکمهٔ «همه» باز و بسته می‌کند
     const rail = $("#provList");
     if (rail) {
@@ -342,7 +354,8 @@ const App = (() => {
       if (PROVINCES.length <= 3) $("#provAll").parentElement.hidden = rail.scrollWidth <= rail.clientWidth + 4;
     }
     drawSample();
-    if (window.Ribbons) { Ribbons.mount($(".solution")); Ribbons.mount($(".hero"), { count: 3, alpha: 0.35 }); }
+    if (window.Ribbons) { Ribbons.mount($(".solution")); Ribbons.mount($(".hero"), { count: 3, alpha: 0.35 }); Ribbons.mount($(".scene__stage"), { count: 4, alpha: 0.4 }); }
+    scrollScenes();
     bindPlans();
     drawGlance(st);
     DataLayer.search({ opp: 1, photo: 1, limit: 16, sort: "score" }).then((r) => {
@@ -379,14 +392,20 @@ const App = (() => {
       stage.innerHTML = `<div class="sky__globe" id="skyGlobe"></div>
         <div class="sky__map" id="skyMap" aria-hidden="true"></div>
         <div class="sky__bar" id="skyBar" hidden></div>
-        <button type="button" class="sky__back" id="skyBack" hidden>${icon("arrow")} کرهٔ زمین</button>`;
+        <button type="button" class="sky__back" id="skyBack" hidden>${icon("arrow")} کرهٔ زمین</button>
+        <button type="button" class="sky__full" id="skyFull" title="نمایش تمام صفحه" aria-label="نمایش تمام صفحه">${icon("expand")}</button>`;
       stage.classList.add("is-globe");
+      skyFullInit();
       const cities = CITIES.filter((c) => (st.cities || {})[c.id]?.n).map((c) => ({ ...c, n: st.cities[c.id].n }));
       const L0 = { st, mode, opts, sel: null, map: null, token: 0, listings: [] };
       live = L0;
       L0.globe = await mod.mountGlobe($("#skyGlobe"), {
         cities, day: !dark(), textureUrl: dark() ? "/assets/vendor/globe/earth-night.jpg" : "/assets/vendor/globe/earth-day.jpg",
-        onPick: (c) => (opts.onCities ? opts.onCities([c.id]) : liveSelect(st, { cities: [c.id] })),
+        // بار اول: شهر انتخاب و فیلتر می‌شود و نقشه‌اش همین‌جا باز می‌شود؛ زدن دوباره روی همان شهر: صفحهٔ فرصت‌های آن شهر
+        onPick: (c) => {
+          if (L0.sel && L0.sel.ids.length === 1 && L0.sel.ids[0] === c.id) return liveOpenCity(L0, c.id);
+          return opts.onCities ? opts.onCities([c.id]) : liveSelect(st, { cities: [c.id] });
+        },
         onArrive: () => liveShowMap(L0),
       });
       $("#skyBack").addEventListener("click", () => liveHome(L0));
@@ -399,6 +418,43 @@ const App = (() => {
       $("#skyStage").classList.remove("is-globe");
       $("#skyStage").innerHTML = `<svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg>`;
       drawSky(st, opts.sel || {});
+    }
+  }
+  /* نقشهٔ تمام صفحه: با دکمهٔ بزرگ‌نمایی باز می‌شود؛ با دکمهٔ کوچک‌نمایی، Esc یا دکمهٔ «بازگشت» مرورگر جمع می‌شود.
+     انتخاب یک آگهی یا محله در حالت تمام صفحه، اول نقشه را جمع می‌کند و بعد صفحه را با همان مورد باز می‌کند. */
+  const skyFS = { on: false, pushed: false, after: null };
+  function skyFullSet(on) {
+    const sky = $("#sky"), b = $("#skyFull");
+    skyFS.on = on;
+    document.documentElement.classList.toggle("sky-fs", on);
+    if (sky) sky.classList.toggle("is-full", on);
+    if (b) { b.innerHTML = icon(on ? "shrink" : "expand"); b.title = on ? "کوچک‌نمایی و بازگشت" : "نمایش تمام صفحه"; b.setAttribute("aria-label", b.title); }
+    setTimeout(() => { if (live && live.map) live.map.invalidateSize(); }, 80);
+  }
+  function skyFullExit(after) {
+    if (!skyFS.on) { after && after(); return; }
+    if (skyFS.pushed) { skyFS.after = after || null; history.back(); return; }
+    skyFullSet(false); after && after();
+  }
+  // اجرای یک ناوبری؛ اگر نقشه تمام صفحه است اول جمع می‌شود
+  const skyGo = (fn) => skyFullExit(fn);
+  function skyFullInit() {
+    const b = $("#skyFull");
+    if (!b) return;
+    b.addEventListener("click", () => {
+      if (skyFS.on) return skyFullExit();
+      history.pushState({ skyFull: 1 }, "", location.href); skyFS.pushed = true;
+      skyFullSet(true);
+    });
+    if (!skyFullInit.bound) {
+      skyFullInit.bound = true;
+      window.addEventListener("popstate", () => {
+        if (!skyFS.on) return;
+        skyFS.pushed = false; skyFullSet(false);
+        const fn = skyFS.after; skyFS.after = null; fn && setTimeout(fn, 0);
+      });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && skyFS.on) skyFullExit(); });
+      window.addEventListener("hashchange", () => { if (skyFS.on && !skyFS.pushed) skyFullSet(false); });
     }
   }
   async function liveSelect(st, sel) {
@@ -415,6 +471,12 @@ const App = (() => {
     if (mapOpen && L0.map) { liveShowMap(L0); return; }
     $("#skyTitle").textContent = liveTitle(names, "در حال پرواز به ");
     L0.globe.focus(pts.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng })), { zoom: pts.length > 1 ? 1.55 : 1.3 });
+  }
+  function liveOpenCity(L0, id) {
+    skyGo(() => {
+      if (L0.mode === "search") { const r = $("#focusBox") || $("#grid"); r && r.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      go("#/s?" + toQuery({ city: id, sort: "score", opp: 1 }));
+    });
   }
   function liveHideMap() {
     $("#skyMap")?.classList.remove("is-on");
@@ -439,10 +501,11 @@ const App = (() => {
     L0.listings.forEach((l) => {
       const img = (l.images && l.images[0]) || l.image;
       const v = l.verdict || {}, d = v.delta != null ? -v.delta : null;
-      const html = `<div class="adpin${["gold", "good"].includes(l.label) ? " is-hot" : ""}">${img ? `<img src="${esc(UI.imgUrl(img))}" alt="" onerror="this.parentNode.classList.add('noimg')">` : ""}<i>${icon("home")}</i>${d != null && d > 0.005 ? `<b>${fa(Math.round(d * 100))}٪</b>` : ""}</div>`;
+      const picked = L0.opts.query && L0.opts.query.pick === l.id;
+      const html = `<div class="adpin${["gold", "good"].includes(l.label) ? " is-hot" : ""}${picked ? " is-picked" : ""}">${img ? `<img src="${esc(UI.imgUrl(img))}" alt="" onerror="this.parentNode.classList.add('noimg')">` : ""}<i>${icon("home")}</i>${d != null && d > 0.005 ? `<b>${fa(Math.round(d * 100))}٪</b>` : ""}</div>`;
       L.marker([l.lat, l.lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html }), zIndexOffset: 500 })
         .bindTooltip(`<b>${esc(UI.tt(l.title))}</b><br>${l.pp ? money(l.pp) + " تومان" : ""}${d != null && d > 0.005 ? "، " + fa(Math.round(d * 100)) + "٪ فاصله با برآورد بازار" : ""}`, { direction: "top", offset: [0, -46], className: "sky__tt" })
-        .on("click", () => go("#/ad/" + encodeURIComponent(l.id)))
+        .on("click", () => skyGo(() => (L0.opts.onPick ? L0.opts.onPick(l.id) : go("#/ad/" + encodeURIComponent(l.id)))))
         .addTo(L0.adLayer);
     });
   }
@@ -471,7 +534,7 @@ const App = (() => {
     // محله‌ای که مختصات ندارد، دور مرکز شهرش روی مارپیچ طلایی چیده می‌شود
     const byCity = {}, bounds = {};
     const lo = Math.min(...ds.map((d) => d.median_ppm)), hi = Math.max(...ds.map((d) => d.median_ppm));
-    const all = [];
+    const all = [], posOf = {};
     ds.forEach((d) => {
       let lat = d.lat, lng = d.lng;
       if (!lat || !lng) {
@@ -479,17 +542,26 @@ const App = (() => {
         const a = k * 2.399, r = 0.006 * Math.sqrt(k);
         lat = c.lat + r * Math.cos(a); lng = c.lng + r * Math.sin(a) * 1.25;
       }
-      all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]);
+      all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
+      const q = L0.opts.query || {}, isSel = q.district && String(q.district).split(",").includes(d.name) && (!q.dcity || q.dcity === d.city);
       const h = Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5));
-      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
+      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
         .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>میانهٔ هر متر ${money(d.median_ppm)}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
-        .on("click", () => {
-          if (L0.mode === "search") go("#/s?" + toQuery({ ...(L0.opts.query || {}), city: d.city, district: d.name, sort: "score" }));
-          else go("#/s?" + toQuery({ city: sel.ids.join(","), sort: "score", opp: 1 }));   // همهٔ شهرهای انتخابی با هم
-        })
+        .on("click", () => skyGo(() => {
+          // محلهٔ انتخابی اول می‌آید و دکمهٔ «فرصت‌های بیشتر» همهٔ شهرهای انتخابی را باز می‌کند
+          const base = L0.mode === "search" ? { ...(L0.opts.query || {}) } : { sort: "score" };
+          delete base.pick; delete base.page;
+          go("#/s?" + toQuery({ ...base, city: sel.ids.join(","), province: "", district: d.name, dcity: d.city, focus: 1 }));
+        }))
         .addTo(L0.layer);
     });
     sel.pts.forEach((c) => { if (!bounds[c.id]) { bounds[c.id] = [[c.lat, c.lng]]; all.push([c.lat, c.lng]); } });
+    // برچسب هر شهر روی نقشه: زدن روی آن، فرصت‌های همان شهر را باز می‌کند
+    sel.pts.forEach((c) => {
+      const n = reps.find((r) => r.c === c.id)?.ds.reduce((a, d) => a + (d.opportunities || 0), 0) || 0;
+      L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<button type="button" class="citytag">${esc(c.name)}${n ? `<small>${fa(n)} فرصت</small>` : ""}${icon("arrow")}</button>` }), zIndexOffset: 800, title: "فرصت‌های " + c.name })
+        .on("click", () => liveOpenCity(L0, c.id)).addTo(L0.layer);
+    });
     // نوار بالای نقشه: پرش بین شهرها، «همه»، لایهٔ ماهواره، و رفتن به فرصت‌ها
     const bar = $("#skyBar");
     bar.innerHTML = (sel.pts.length > 1 ? `<button type="button" data-fly="*" class="is-on">همه</button>` : "") + sel.pts.map((c) => `<button type="button" data-fly="${c.id}">${esc(c.name)}</button>`).join("")
@@ -512,7 +584,14 @@ const App = (() => {
     box.classList.add("is-on");
     $("#skyBack").hidden = false;
     if (L0.listings.length) drawLiveListings(L0);
-    setTimeout(() => { L0.map.invalidateSize(); if (all.length) L0.map.fitBounds(all, { padding: [50, 50], maxZoom: 14 }); }, 60);
+    setTimeout(() => {
+      L0.map.invalidateSize();
+      const q = L0.opts.query || {}, pk = q.pick && L0.listings.find((l) => l.id === q.pick);
+      const dk = q.district && Object.keys(posOf).find((k) => k.split("|")[1] === String(q.district).split(",")[0] && (!q.dcity || k.split("|")[0] === q.dcity));
+      if (pk) L0.map.setView([pk.lat, pk.lng], 15);
+      else if (dk) L0.map.setView(posOf[dk], 14);
+      else if (all.length) L0.map.fitBounds(all, { padding: [50, 50], maxZoom: 14 });
+    }, 60);
   }
 
   /* برج‌های سه‌بعدی قیمت محله‌ها: دادهٔ واقعی؛ با فیلتر استان و شهر کادر جست‌وجو هم‌گام می‌شود
@@ -685,6 +764,44 @@ const App = (() => {
     $$(".sky__kpis b, .strip b, .glance b").forEach((el) => { if (!el.dataset.scr) { el.dataset.scr = "1"; io.observe(el); } });
   }
   /* عمق و سه‌بعدی: کج شدن کارت با نشانگر و نور دنبال‌کننده؛ فقط دستگاه دارای نشانگر و بدون «کاهش حرکت» */
+  /* صحنه‌های وابسته به اسکرول (الهام از سایت‌های سینمایی): صحنهٔ ثابتی که با اسکرول عوض می‌شود،
+     و متنی که واژه به واژه با اسکرول پررنگ می‌شود. با «کاهش حرکت» همه‌چیز ساکن و کامل دیده می‌شود. */
+  function scrollScenes() {
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $$("[data-scrub]").forEach((el) => {
+      if (el.dataset.scrubbed) return;
+      el.dataset.scrubbed = "1";
+      el.innerHTML = el.textContent.trim().split(/\s+/).map((w) => `<span>${esc(w)}</span>`).join(" ");
+    });
+    if (reduced) { $$(".scene").forEach((p) => p.classList.add("is-static")); return; }
+    if (scrollScenes.bound) { scrollScenes.tick(); return; }
+    scrollScenes.bound = true;
+    let raf = 0;
+    const tick = () => {
+      raf = 0;
+      const vh = innerHeight;
+      $$(".scene").forEach((sec) => {
+        const r = sec.getBoundingClientRect();
+        if (r.bottom < -vh || r.top > vh * 2) return;
+        const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
+        const steps = $$(".scene__step", sec), n = steps.length, k = Math.min(n - 1, Math.floor(p * n));
+        sec.style.setProperty("--p", p.toFixed(4));
+        steps.forEach((s, i) => s.classList.toggle("is-on", i === k));
+        $$(".scene__dots i", sec).forEach((d, i) => d.classList.toggle("is-on", i === k));
+      });
+      $$("[data-scrub]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > vh) return;
+        const p = Math.min(1, Math.max(0, (vh * 0.85 - r.top) / (vh * 0.55)));
+        const ws = el.children, lit = Math.round(p * ws.length);
+        for (let i = 0; i < ws.length; i++) ws[i].classList.toggle("is-lit", i < lit);
+      });
+    };
+    scrollScenes.tick = tick;
+    addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
+    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); });
+    tick();
+  }
   function depthFX() {
     if (!matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0, last = null, ev = null;
@@ -819,6 +936,7 @@ const App = (() => {
       ["آگهی‌های قدیمی چطور حساب می‌شوند؟", `قیمت هر آگهی قیمت روز درج آن است. آگهی‌های قدیمی‌تر از ${fa(th.max_age_days || 90)} روز در قیمت محله نمی‌آیند، آگهی‌های تازه‌تر وزن بیشتری دارند و قیمت آگهی‌های قدیمی‌تر با روند ماهانهٔ بازار، که از خود آگهی‌ها برآورد می‌شود، به نرخ امروز آورده می‌شود. زمان درج هر آگهی روی کارت آن آمده است.`],
       ["شهری و روستایی را چطور تشخیص می‌دهید؟", "از نام محله و متن آگهی: اشاره به روستا، دهستان، ییلاق یا خارج از محدودهٔ شهر، آگهی را «روستایی» می‌کند. این تشخیص خودکار است و ممکن است گاهی اشتباه کند."],
       ["داده‌ها از کجاست و چقدر تازه است؟", `از آگهی‌های عمومی سایت‌های آگهی در ${fa(CITIES.length)} شهر از استان‌های ${PROVINCES.map((p) => p.name).join("، ")} که به‌تدریج و شبانه‌روزی خوانده می‌شوند؛ استان‌های دیگر هم یکی‌یکی اضافه می‌شوند. ${name} مستقل است و وابسته به هیچ سایت آگهی نیست.${cfg.updated ? " آخرین به‌روزرسانی: " + UI.ago(cfg.updated) + "." : ""}`],
+      ["چطور ملک ارزان یا زیر قیمت بازار پیدا کنم؟", `ملک ارزان یعنی ارزان‌تر از ملک‌های مشابه همان محله، نه فقط قیمت کل پایین. شهر را انتخاب کنید، «فقط فرصت‌ها» را بزنید و بر اساس «بهترین فرصت» یا «بیشترین کاهش قیمت» مرتب کنید؛ آگهی‌های بیش از حد ارزان «مشکوک» علامت می‌خورند. <a href="/rahnama/melk-arzan">راهنمای پیدا کردن ملک زیر قیمت بازار</a>`],
       ["آیا این قیمت کارشناسی است؟", `نه. قیمت‌های آگهی‌ها قیمت پیشنهادی فروشنده‌اند، نه قیمت معامله‌شده؛ «فرصت» یعنی ارزان‌تر از آگهی‌های مشابه همان محله. ${name} مشاور املاک نیست و خانه‌ها را ندیده است؛ پیش از هر معامله ملک را ببینید و سند، پایان‌کار و بدهی را استعلام کنید.`],
       ["اشتراک چه چیزی را باز می‌کند و چطور پرداخت کنم؟", `بدون اشتراک ${fa(cfg.free_results || 10)} نتیجهٔ اول هر جست‌وجو را می‌بینید. اشتراک همهٔ نتیجه‌ها، آگهی‌های مشکوک با دلیل و پیوند مستقیم آگهی اصلی را باز می‌کند. ورود با کد پیامکی است، اشتراک بلافاصله پس از پرداخت فعال می‌شود و تمدید خودکار ندارد.`],
     ];
@@ -1083,7 +1201,7 @@ const App = (() => {
             <div class="sky__tip" id="skyTip" hidden></div>
           </aside>
         </div></section>
-        <div class="wrap">
+        <div class="wrap"><div id="focusBox"></div>
           <div class="split" id="split">
             <div class="results"><div class="cards" id="grid"></div><div class="pager" id="pager"></div></div>
             <div class="mapbox"><div id="map"></div></div>
@@ -1359,9 +1477,10 @@ const App = (() => {
       wide.hidden = !(sel.cities.length || sel.provs.length);
       liveCities();
       if (wide.hidden) return;
-      const onCities = (ids) => set({ city: ids.join(","), province: "", district: "" });
-      if (!live || live.mode !== "search" || !$("#skyGlobe")) initLive(DataLayer.stats, { mode: "search", sel, onCities, query: F });
-      else if (changed) { live.opts.query = F; liveSelect(DataLayer.stats, sel); }
+      const onCities = (ids) => set({ city: ids.join(","), province: "", district: "", dcity: "", focus: "", pick: "" });
+      const onPick = (id) => set({ pick: id });
+      if (!live || live.mode !== "search" || !$("#skyGlobe")) initLive(DataLayer.stats, { mode: "search", sel, onCities, onPick, query: F });
+      else { live.opts.query = F; if (changed) liveSelect(DataLayer.stats, sel); }
     }
     async function update(params) {
       const cityChanged = params.city !== F.city || params.deal !== F.deal || params.province !== F.province;
@@ -1385,8 +1504,11 @@ const App = (() => {
       $("#sort").innerHTML = sorts.map(([v, n]) => `<option value="${v}" ${(F.sort || "score") === v ? "selected" : ""}>${n}</option>`).join("");
       $("#grid").innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton"></div>').join("");
       const id = ++reqId;
-      const r = await DataLayer.search({ ...F, limit: PER, offset: page * PER });
+      const { pick, focus, dcity, ...Q } = F;
+      const [r, picked] = await Promise.all([DataLayer.search({ ...Q, limit: PER, offset: page * PER }), pick ? DataLayer.get(pick).catch(() => null) : null]);
       if (id !== reqId || !$("#grid")) return;
+      focusBox(picked);
+      if (picked) r.items = r.items.filter((l) => l.id !== picked.id);
       $("#sTitle").innerHTML = `${esc(titleOf())}<small>${fa(r.total)} آگهی</small>`;
       document.title = `${titleOf()} | ${cfg.site.name}`;
       $("#grid").innerHTML = r.items.length || r.locked_more ? r.items.map((l) => UI.card(l)).join("") + (r.locked_more ? UI.lockCard(r.locked_more) : "")
@@ -1397,6 +1519,39 @@ const App = (() => {
       lastPoints = r.points;
       drawMap(r.points, true);
       liveListings(r.items);
+    }
+    // بالای فهرست: آگهی انتخاب‌شده روی نقشه، یا محلهٔ انتخاب‌شده، و دکمهٔ فرصت‌های بیشتر
+    function focusBox(picked) {
+      const box = $("#focusBox"); if (!box) return;
+      const cities = String(F.city || "").split(",").filter(Boolean).map((c) => UI.cityOf(c)?.name || c);
+      const where = cities.length ? cities.join(" و ") : "همهٔ شهرها";
+      const moreQ = { ...F, district: "", dcity: "", focus: "", pick: "", opp: 1 };
+      let html = "";
+      if (picked) {
+        const v = picked.verdict || {}, specs = UI.specs(picked);
+        html = `<section class="picked" id="pickedBox">
+          <div class="picked__head"><span class="kicker">ملکی که روی نقشه انتخاب کردید</span><button type="button" class="btn btn--ghost btn--sm" data-unpick>${icon("x", 'width="14"')} بستن</button></div>
+          <div class="picked__body">${UI.card(picked)}
+            <div class="picked__side">
+              <h2>${UI.tt(picked.title)}</h2>
+              <p class="muted">${esc([UI.cityOf(picked.city_key)?.name, picked.district].filter(Boolean).join("، "))}</p>
+              <div class="picked__price">${UI.priceHTML(picked)}</div>
+              ${v.label ? `<p>${UI.dealPill(v)}</p>` : ""}
+              ${picked.deal === "sale" && picked.ppm && v.delta != null && !v.approx ? UI.priceBar(picked.ppm, picked.ppm / (1 + v.delta)) : ""}
+              <div class="card__specs">${specs.map((x) => `<span>${esc(x)}</span>`).join("")}</div>
+              <div class="picked__act"><a class="btn btn--gold" href="#/ad/${encodeURIComponent(picked.id)}">شناسنامهٔ کامل قیمت ${icon("arrow")}</a>
+                <a class="btn btn--line" href="#/s?${toQuery(moreQ)}">فرصت‌های بیشتر در ${esc(where)}</a></div>
+            </div>
+          </div>
+          <h3 class="picked__more">آگهی‌های دیگر</h3>
+        </section>`;
+      } else if (F.focus && F.district) {
+        html = `<div class="focusbar"><div><span class="kicker">محلهٔ انتخابی روی نقشه</span><b>${esc(String(F.district).split(",").join("، "))}${F.dcity ? "، " + esc(UI.cityOf(F.dcity)?.name || "") : ""}</b><small>آگهی‌های این محله به ترتیب امتیاز فرصت</small></div>
+          <a class="btn btn--gold" href="#/s?${toQuery(moreQ)}">فرصت‌های بیشتر در ${esc(where)} ${icon("arrow")}</a></div>`;
+      }
+      box.innerHTML = html;
+      const un = box.querySelector("[data-unpick]"); if (un) un.onclick = () => set({ pick: "" });
+      if (picked) requestAnimationFrame(() => box.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
     }
     async function relaxHints(id) {
       const names = { presale: "با و بدون پیش‌فروش", fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };

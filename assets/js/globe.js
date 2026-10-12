@@ -67,6 +67,11 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
     return s;
   });
   const rings = [];
+  // نام شهرها هنگام نزدیک شدن (بزرگ‌نمایی با چرخ موس یا دو انگشت)
+  const labels = document.createElement("div");
+  labels.className = "globe__labels"; host.appendChild(labels);
+  const labEls = marks.map((m) => { const e = document.createElement("span"); e.textContent = m.userData.c.name; labels.appendChild(e); return e; });
+  const MIN_D = 1.24, MAX_D = 3.4;
 
   let dist = 3.1, dir = vec(30, 53).normalize(), auto = true, anim = null, drag = null, raf = 0, visible = true;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -95,6 +100,36 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
     marks.forEach((m) => { if (m.userData.on) m.scale.setScalar(m.userData.size * 1.6 * pulse); });
     place();
     renderer.render(scene, camera);
+    drawLabels();
+  };
+  const tmp = new THREE.Vector3();
+  // مختصات صفحهٔ هر نقطهٔ شهر، فقط اگر رو به بیننده باشد
+  const screenOf = (m) => {
+    if (m.position.clone().normalize().dot(camera.position.clone().normalize()) < 0.15) return null;
+    tmp.copy(m.position).project(camera);
+    const w = host.clientWidth, h = host.clientHeight, x = (tmp.x + 1) / 2 * w, y = (1 - tmp.y) / 2 * h;
+    return x < 4 || y < 4 || x > w - 4 || y > h - 4 ? null : { x, y };
+  };
+  let labT = 0;
+  function drawLabels() {
+    const show = dist < 2.35;
+    labels.classList.toggle("is-on", show);
+    if (!show) return;
+    const now = performance.now(); if (now - labT < 50) return; labT = now;
+    const placed = [];
+    marks.map((m, i) => ({ m, i, p: screenOf(m) })).sort((a, b) => (b.m.userData.c.n || 0) - (a.m.userData.c.n || 0)).forEach(({ i, p }) => {
+      const e = labEls[i];
+      // نام‌ها روی هم نیفتند
+      if (!p || placed.some((q) => Math.abs(q.x - p.x) < 70 && Math.abs(q.y - p.y) < 18)) { e.style.display = "none"; return; }
+      placed.push(p); e.style.display = ""; e.style.transform = `translate(${p.x.toFixed(1)}px, ${(p.y - 12).toFixed(1)}px) translate(-50%, -100%)`;
+    });
+  }
+  // نزدیک‌ترین نقطهٔ شهر به نشانگر (تا ۱۸ پیکسل)
+  const nearest = (cx, cy) => {
+    const r = el.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
+    let best = null, bd = 18 * 18;
+    marks.forEach((m) => { const p = screenOf(m); if (!p) return; const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = m; } });
+    return best;
   };
   raf = requestAnimationFrame(tick);
 
@@ -102,10 +137,10 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   const el = renderer.domElement, ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, moved: false }; el.setPointerCapture(e.pointerId); });
   el.addEventListener("pointermove", (e) => {
-    if (!drag) return;
+    if (!drag) { const m = nearest(e.clientX, e.clientY); el.style.cursor = m ? "pointer" : ""; el.title = m ? m.userData.c.name + " — برای انتخاب بزنید" : ""; return; }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
-    const sp = 0.005 * (dist - 0.9);
+    const sp = 0.005 * (dist - 1.02);
     dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * sp);
     const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize();
     const nd = dir.clone().applyAxisAngle(side, -dy * sp);
@@ -115,12 +150,30 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   el.addEventListener("pointerup", (e) => {
     const moved = drag && drag.moved; drag = null;
     if (moved || !onPick) return;
-    const r = el.getBoundingClientRect();
-    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(marks)[0];
-    if (hit) onPick(hit.object.userData.c);
+    const m = nearest(e.clientX, e.clientY);
+    if (m) onPick(m.userData.c);
   });
+  // بزرگ‌نمایی با چرخ موس؛ در مرز بزرگ‌نمایی، اسکرول صفحه آزاد می‌ماند
+  el.addEventListener("wheel", (e) => {
+    const nd = Math.min(MAX_D, Math.max(MIN_D, dist * Math.exp(e.deltaY * 0.0012)));
+    if (Math.abs(nd - dist) < 1e-4) return;
+    e.preventDefault(); anim = null; auto = false;
+    // بزرگ‌نمایی به سمت نقطهٔ زیر نشانگر
+    if (nd < dist) {
+      const r = el.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObject(earth)[0];
+      if (hit) dir = dir.clone().lerp(hit.point.clone().normalize(), Math.min(0.5, (dist - nd) / (dist - 1) * 0.9)).normalize();
+    }
+    dist = nd;
+  }, { passive: false });
+  // دو انگشت روی موبایل
+  const touches = new Map(); let pinch0 = 0, dist0 = 0;
+  el.addEventListener("pointerdown", (e) => { if (e.pointerType === "touch") touches.set(e.pointerId, e); if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); dist0 = dist; drag = null; } });
+  el.addEventListener("pointermove", (e) => { if (!touches.has(e.pointerId)) return; touches.set(e.pointerId, e); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()]; dist = Math.min(MAX_D, Math.max(MIN_D, dist0 * pinch0 / Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)))); auto = false; } });
+  const tEnd = (e) => { touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0; };
+  el.addEventListener("pointerup", tEnd); el.addEventListener("pointercancel", tEnd);
 
   return {
     focus(points, { zoom = 1.32 } = {}) {
@@ -142,7 +195,7 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
     },
     destroy() {
       cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
-      renderer.dispose(); el.remove();
+      renderer.dispose(); el.remove(); labels.remove();
     },
   };
 }
