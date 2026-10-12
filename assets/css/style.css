@@ -1582,7 +1582,7 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
   box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 40px 90px -40px rgba(10,20,16,.75), 0 0 0 1px rgba(255,255,255,.05);
   transform: perspective(1400px) rotateY(calc(-6deg + var(--ry, 0deg))) rotateX(calc(2deg + var(--rx, 0deg))); transition: transform .6s var(--ease); }
 .sky::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(60% 50% at 50% 70%, rgba(224,83,31,.18), transparent 70%),
+  background: radial-gradient(60% 50% at 50% 70%, rgba(60,200,140,.16), transparent 70%),
               linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 100% 28px; -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 80%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 80%, transparent); }
 .sky::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
   background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 0%), rgba(255,255,255,.08), transparent 45%); }
@@ -1598,19 +1598,19 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
 .sky__shadow { fill: rgba(0,0,0,.35); filter: blur(22px); }
 .sky__t polygon { stroke: rgba(255,255,255,.07); stroke-width: .8; stroke-linejoin: round; transition: fill .25s; }
 .sky__top { fill: #3c5a4f; } .sky__w0 { fill: #243a32; } .sky__w1 { fill: #1a2c26; }
-.sky__t.is-hot .sky__top { fill: #ff9a6a; } .sky__t.is-hot .sky__w0 { fill: #e0531f; } .sky__t.is-hot .sky__w1 { fill: #b13d10; }
-.sky__t.is-hot { filter: drop-shadow(0 0 10px rgba(255,120,60,.45)); }
+.sky__t.is-hot .sky__top { fill: #8ef0bf; } .sky__t.is-hot .sky__w0 { fill: #2fbf7d; } .sky__t.is-hot .sky__w1 { fill: #1c8a58; }
+.sky__t.is-hot { filter: drop-shadow(0 0 10px rgba(80,220,150,.45)); }
 .sky__t.is-on .sky__top { fill: #f2b72f; } .sky__t.is-on .sky__w0 { fill: #c8901a; } .sky__t.is-on .sky__w1 { fill: #9a6c10; }
 .sky__t { cursor: pointer; }
 .sky__empty { fill: rgba(244,239,230,.6); font: 600 14px Vazirmatn, Tahoma, sans-serif; }
 .sky__tip { position: absolute; z-index: 5; transform: translate(-50%, -100%); pointer-events: none; display: grid; gap: 2px; min-width: 150px;
   padding: 10px 12px; border-radius: 14px; background: rgba(250,247,240,.96); color: #12211d; font-size: 12.5px; box-shadow: 0 18px 40px -16px rgba(0,0,0,.5); }
-.sky__tip b { font-size: 14px; } .sky__tip em { font-style: normal; color: var(--narenj); font-weight: 800; }
+.sky__tip b { font-size: 14px; } .sky__tip em { font-style: normal; color: #17784a; font-weight: 800; }
 .sky__kpis { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .sky__kpis div { padding: 10px 12px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .sky__kpis b { display: block; font-size: 22px; font-weight: 900; line-height: 1.2; }
 .sky__kpis span { font-size: 11.5px; color: rgba(244,239,230,.6); }
-.sky__kpis .is-hot b { color: #ff9a6a; }
+.sky__kpis .is-hot b { color: #6fe3a8; }
 .sky__hint { margin: 10px 0 0; font-size: 11.5px; color: rgba(244,239,230,.45); text-align: center; }
 
 /* تیتر: ورود نرم سطرها و درخشش آرام روی «زیر قیمت» */
@@ -1707,3 +1707,58 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
   .hero::after, .btn--hot::before, .lab--gold::after { animation: none !important; }
 }
 @media (max-width: 720px) { body.has-mcta .dock { display: none; } }
+
+/* ================================================================
+   کرهٔ زمین واقعی و نقشهٔ شهر در کادر زنده
+   ================================================================ */
+.sky__stage.is-globe { cursor: grab; height: 360px; margin: 6px -22px 0; }
+.sky__stage.is-globe:active { cursor: grabbing; }
+.sky__globe { position: absolute; inset: 0; }
+.sky__globe canvas { width: 100% !important; height: 100% !important; display: block; animation: globeIn 1.6s var(--ease) both; }
+@keyframes globeIn { from { opacity: 0; transform: scale(.86); filter: blur(6px); } }
+.sky__map { position: absolute; inset: 8px 14px; border-radius: 22px; overflow: hidden; opacity: 0; transform: scale(1.08); pointer-events: none;
+  transition: opacity .7s var(--ease), transform .9s var(--ease); background: #0b1411; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 20px 50px -20px rgba(0,0,0,.7); }
+.sky__map.is-on { opacity: 1; transform: none; pointer-events: auto; }
+.sky__map .leaflet-container, .sky__map.leaflet-container { background: #0b1411; font-family: inherit; }
+.sky__tiles { filter: invert(1) hue-rotate(180deg) brightness(.78) contrast(.92) saturate(.35); }
+.sky__map .leaflet-control-attribution { background: rgba(11,20,17,.6); color: rgba(255,255,255,.5); font-size: 9px; }
+.sky__map .leaflet-control-attribution a { color: rgba(255,255,255,.65); }
+.sky__back { position: absolute; z-index: 600; top: 18px; inset-inline-start: 26px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #f4efe6; background: rgba(11,20,17,.72);
+  border: 1px solid rgba(255,255,255,.12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.sky__back svg { width: 14px; height: 14px; transform: scaleX(-1); }
+.sky.is-ready .sky__hint::before { content: ""; }
+
+/* ستون سه‌بعدی هر محله روی نقشه */
+.col { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); display: grid; justify-items: center; pointer-events: auto; cursor: pointer;
+  animation: colUp .8s var(--ease) both; transform-origin: bottom center; }
+.col i { position: relative; display: block; width: 14px; height: var(--h); border-radius: 3px 3px 1px 1px;
+  background: linear-gradient(90deg, #6b8a7f 0 50%, #4a6459 50% 100%); box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 6px 14px -4px rgba(0,0,0,.6); }
+.col i::before { content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 8px; border-radius: 50%; background: #9db8ad; }
+.col i::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 26px; height: 8px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,.45); filter: blur(3px); z-index: -1; }
+.col.is-hot i { background: linear-gradient(90deg, #4fe0a0 0 50%, #22a86b 50% 100%); box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 0 18px rgba(80,230,160,.55); }
+.col.is-hot i::before { background: #b8ffd9; }
+.col span { margin-top: 6px; font-size: 10.5px; font-weight: 700; color: #f4efe6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.9); opacity: .85; }
+.col:hover i { filter: brightness(1.25); }
+@keyframes colUp { from { opacity: 0; transform: translate(-50%, -100%) scaleY(.1); } }
+.leaflet-tooltip.sky__tt { background: rgba(250,247,240,.97); color: #12211d; border: 0; border-radius: 12px; padding: 8px 10px; font: 600 12px Vazirmatn, Tahoma, sans-serif; line-height: 1.8; box-shadow: 0 14px 30px -12px rgba(0,0,0,.6); }
+@media (max-width: 860px) { .sky__stage.is-globe { height: 300px; margin: 6px -22px 0; } }
+.sky__back[hidden] { display: none; }
+
+/* راهنمای استان‌ها: یک ردیف با پیمایش افقی و دکمه‌های فلش؛ با «نمایش همه» شبکه می‌شود */
+.rail { position: relative; }
+.prov--rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, calc((100% - 44px) / 3)); grid-template-columns: none;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 4px 2px 10px; overscroll-behavior-x: contain; }
+.prov--rail::-webkit-scrollbar { display: none; }
+.prov--rail > .prov__col { scroll-snap-align: start; }
+.prov--rail.is-open { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); overflow: visible; }
+.rail__btn { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-2); color: var(--ink); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.rail__btn svg { width: 18px; height: 18px; }
+.rail__btn--prev { inset-inline-start: -14px; } .rail__btn--prev svg { transform: scaleX(-1); }
+.rail__btn--next { inset-inline-end: -14px; }
+.rail.can-prev .rail__btn--prev, .rail.can-next .rail__btn--next { opacity: 1; pointer-events: auto; }
+.rail.is-open .rail__btn { display: none; }
+.rail__btn:hover { transform: scale(1.06); }
+.rail__foot { display: flex; justify-content: center; margin-top: 14px; }
+@media (max-width: 720px) { .prov--rail { grid-auto-columns: 84%; } .rail__btn { display: none; } }

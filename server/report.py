@@ -52,7 +52,7 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
     if key in _cache:
         return _cache[key]
     q = store.q("""SELECT id, kind, district, pp, area, rooms, year, ppm, amenities, feat, label, discount, score, excluded,
-                          first_seen, deposit, rent FROM listings
+                          first_seen, deposit, rent, lat, lng FROM listings
                    WHERE status='active' AND hidden=0 AND vertical='estate' AND city_key=? AND deal=?""", (city, deal))
     allrows = [store.row_to_dict(r) for r in q if kind_group(r["kind"]) == kind]
     now = int(time.time())
@@ -91,6 +91,9 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
         el = [r for r in rs if (r.get("feat") or {}).get("elevator") is not None]
         districts.append({
             "name": d, "n": len(rs), "median_ppm": ppm, "median_price": _med([r["pp"] for r in rs]),
+            # مرکز تقریبی محله برای نقشه (میانهٔ مختصات آگهی‌ها)
+            "lat": _med([r["lat"] for r in rs if r.get("lat")]) if sum(1 for r in rs if r.get("lat")) >= 2 else None,
+            "lng": _med([r["lng"] for r in rs if r.get("lng")]) if sum(1 for r in rs if r.get("lng")) >= 2 else None,
             "median_area": _med([r["area"] for r in rs]), "opportunities": sum(1 for r in rs if r["label"] in OPP),
             "gold": sum(1 for r in rs if r["label"] == "gold"), "scored": sum(1 for r in rs if r["score"] is not None),
             "elevator_share": (sum(1 for r in el if (r.get("feat") or {}).get("elevator")) / len(el)) if el else None,
