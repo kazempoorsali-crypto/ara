@@ -61,7 +61,7 @@ DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.2
                       "max_age_days": 90, "half_life_days": 45, "trend_fixed": None,
                       # پیش‌فروش: تخفیف ماهانهٔ پیش‌فرض تا تحویل وقتی دادهٔ کافی برای برآورد شیب نیست، ماه‌های فرضی وقتی متن چیزی نگفته،
                       # و سخت‌گیری اضافه در آستانهٔ فرصت
-                      "spatial_tol": 0.25, "presale_monthly": 0.01, "presale_default_months": 18, "presale_extra": 0.05}
+                      "spatial_tol": 0.25, "over": 0.30, "presale_monthly": 0.01, "presale_default_months": 18, "presale_extra": 0.05}
 MIN_TREND_N = 80          # کمترین آگهی پاک برای برآورد روند قیمت از داده
 TREND_CLIP = (-0.03, 0.08)  # بازهٔ مجاز روند ماهانهٔ لگاریتمی
 SUS_FLAGS = {"outlier_low", "too_cheap", "cheap_flagged", "scam_text", "ppm_as_total", "zero_typo_low"}
@@ -686,7 +686,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             agree = (dc is None or dc >= th["opp"] * 0.5) and (l.get("_disc_nb") is None or l["_disc_nb"] >= th["opp"] * 0.5)
             ok = outside and agree and (not l["_presale"] or d >= th["opp"] + float(th.get("presale_extra") or 0))
             l["_label"] = ("gold" if d >= th["gold"] and ok else "good" if d >= th["opp"] and ok
-                           else "high" if d <= -th["opp"] else "fair")
+                           else "over" if d <= -float(th.get("over") or 0.30) else "high" if d <= -th["opp"] else "fair")
             l["_wide"] = d >= th["opp"] and not ok
             l["_disagree"] = d >= th["opp"] and outside and not agree
     opp_cells = {}
@@ -709,7 +709,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         ask = l.get("price") if l["deal"] == "daily" else l.get("pp")   # قیمت درخواستی همین آگهی
         sig = feat.get("sus") or []
         conf, score = None, None
-        if label in ("gold", "good", "fair", "high"):
+        if label in ("gold", "good", "fair", "high", "over"):
             conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 8 else "low"
             if l["_age"] > 30:  # قیمت آگهی قدیمی‌تر ممکن است دیگر معتبر نباشد
                 conf = {"high": "medium", "medium": "low", "low": "low"}[conf]
@@ -775,7 +775,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
         store.db.commit()
     info = {"at": int(time.time()), "listings": len(rows), "excluded": sum(1 for u in updates if u[6]),
             "ranked": sum(1 for u in updates if u[3] is not None),
-            "labels": {k: sum(1 for u in updates if u[8] == k) for k in ("gold", "good", "fair", "high", "pending", "sus", "excluded")},
+            "labels": {k: sum(1 for u in updates if u[8] == k) for k in ("gold", "good", "fair", "high", "over", "pending", "sus", "excluded")},
             "thresholds": th, "trends": trends, "spatial": sorted(anomalies, key=lambda a: -abs(a["shift"]))[:100], "models": models_info, "accuracy": accuracy,
             # پایش اثر سایت بر قیمت‌ها: آگهی‌هایی که پس از درج قیمتشان را بالا برده‌اند
             "raised": {"all": sum(1 for l in rows if first_pp.get(l["id"]) and l.get("pp") and l["pp"] > first_pp[l["id"]] * 1.001),

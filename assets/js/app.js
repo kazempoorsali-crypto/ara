@@ -72,6 +72,7 @@ const App = (() => {
       searchPage.render(params);
     } else if (page === "ad" && arg) adPage(decodeURIComponent(arg));
     else if (page === "saved") savedPage();
+    else if (page === "tools") toolsPage();
     else if (page === "market") { $('[data-nav="market"]').classList.add("is-on"); marketPage(params); }
     else if (page === "method") { $('[data-nav="method"]').classList.add("is-on"); methodPage(); }
     else if (page === "account") accountPage(params);
@@ -113,9 +114,10 @@ const App = (() => {
     <section class="hero">
       <div class="wrap hero__grid">
         <div>
-          <span class="kicker">ملک زیر قیمت، محله به محله</span>
-          <h1>ملکی که <span class="accent">زیر قیمت</span> است،<br>پیش از بقیه پیدا کن.</h1>
-          <p class="hero__lead">همهٔ آگهی‌های ملک ${fa(CITIES.length)} شهر در ${fa(PROVINCES.length)} استان را می‌خوانیم و هر کدام را فقط با <b>محلهٔ خودش</b> می‌سنجیم، با همان سن بنا، متراژ، طبقه، آسانسور، پارکینگ و سند. فرصت یعنی دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر قیمت محله و بیرون از پراکندگی عادی آن؛ قیمت‌های مشکوک و اشتباه جدا می‌شوند.</p>
+          <span class="kicker">تحلیل هوشمند ارزش ملک</span>
+          <h1>هر ملک یک قیمت دارد؛<br>ما <span class="accent">ارزش واقعی</span> آن را پیدا می‌کنیم.</h1>
+          <p class="hero__lead"><b>آیا این ملک واقعاً ارزش خرید دارد؟</b> پیش از یک تصمیم چندمیلیاردی، قیمت هر آگهی را با محلهٔ خودش، سن بنا، متراژ، طبقه و امکانات می‌سنجیم و نشان می‌دهیم کجا فرصت است و کجا گران.</p>
+          <div class="hero__cta"><a class="btn btn--gold btn--lg" href="#/tools">ارزیابی یک ملک</a><a class="btn btn--line btn--lg" href="#/s?sort=score&opp=1">مشاهدهٔ فرصت‌های بازار ${icon("arrow")}</a></div>
           <form class="search-card" id="heroForm" autocomplete="off">
             <div class="search-card__tabs">
               <div class="search-card__deals" id="heroDeals" style="margin-inline-start:0">
@@ -159,10 +161,42 @@ const App = (() => {
         <div><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی از ${fa(CITIES.length)}</span></div>
       </div>
     </section>
+    <section class="section story">
+      <div class="wrap story__grid">
+        <div class="story__q"><span class="kicker">مشکل بازار</span><h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
+          <p>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس مردم است.</p></div>
+        <ol class="story__list">
+          <li><b>قیمت مالک</b><span>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</span></li>
+          <li><b>قیمت مشاور</b><span>ممکن است زیر اثر شرایط معامله و کمیسیون باشد.</span></li>
+          <li><b>قیمت آگهی‌ها</b><span>قیمت پیشنهادی است، نه ارزش بازار؛ گاهی چند دلال هماهنگ آن را بالا می‌برند.</span></li>
+          <li><b>مقایسهٔ دستی</b><span>بدون در نظر گرفتن سن بنا، طبقه، متراژ و امکانات، مقایسه گمراه‌کننده است.</span></li>
+        </ol>
+      </div>
+    </section>
+    <section class="section section--ink solution">
+      <div class="wrap solution__grid">
+        <div><span class="kicker">راه‌حل فرصت ملک</span><h2>لایهٔ هوشمند تحلیل،<br>پیش از خرید.</h2>
+          <p>ما جایگزین مشاور املاک نیستیم. همان کاری را برای ملک می‌کنیم که کارشناس خودرو پیش از خرید ماشین یا تحلیلگر پیش از سرمایه‌گذاری می‌کند: ارزش واقعی را از دادهٔ بازار می‌سازیم و فاصلهٔ قیمت را شفاف نشان می‌دهیم.</p>
+          <a class="btn btn--gold" href="#/method">روش ارزش‌گذاری</a></div>
+        <div class="analysis" id="sample"><div class="skeleton" style="height:320px"></div></div>
+      </div>
+    </section>
+    <section class="section scale-sec">
+      <div class="wrap">
+        <div class="sec-head"><div><span class="kicker">امتیاز فرصت ملک</span><h2>هر آگهی، یک حکم روشن</h2><p>امتیاز ۰ تا ۱۰۰ از قیمت محله، متراژ، سن بنا، امکانات، آگهی‌های مشابه، روند قیمت و قاعده‌های ضد تبانی و ضد اشتباه ساخته می‌شود.</p></div></div>
+        <div class="scale5">
+          <div class="s5 s5--over"><i></i><b>قیمت غیرمنطقی</b><span>دست‌کم ${pct(cfg.thresholds?.over || 0.3)} بالاتر از ارزش، یا ارزانیِ باورنکردنی</span></div>
+          <div class="s5 s5--high"><i></i><b>بالاتر از ارزش واقعی</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} گران‌تر از محله</span></div>
+          <div class="s5 s5--fair"><i></i><b>قیمت متعادل</b><span>نزدیک قیمت محله</span></div>
+          <div class="s5 s5--good"><i></i><b>فرصت مناسب</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} زیر ارزش</span></div>
+          <div class="s5 s5--gold"><i></i><b>فرصت طلایی</b><span>دست‌کم ${pct(cfg.thresholds?.gold || 0.22)} زیر ارزش، با اطمینان کافی</span></div>
+        </div>
+      </div>
+    </section>
     <section class="section">
       <div class="wrap">
         <div class="sec-head">
-          <div><span class="kicker">رادار فرصت</span><h2>بهترین فرصت‌ها، همین حالا</h2><p>امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است: بهترین فرصت هر محله ۱۰۰، آگهی هم‌قیمت محله ۵۰ و آگهی‌ای که فرصت نیست حداکثر ۶۴.</p></div>
+          <div><span class="kicker">فرصت‌های طلایی بازار</span><h2>املاکی که کمتر از ارزش واقعی قیمت‌گذاری شده‌اند</h2><p>امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است: بهترین فرصت هر محله ۱۰۰، آگهی هم‌قیمت محله ۵۰ و آگهی‌ای که فرصت نیست حداکثر ۶۴.</p></div>
           <div class="seg" id="feedS"><button class="is-on" data-s="score">بهترین فرصت</button><button data-s="deal">بیشترین فاصله</button><button data-s="new">تازه‌ترین</button><button data-s="drop">کاهش قیمت</button></div>
         </div>
         <div class="cards" id="feed"></div>
@@ -186,14 +220,25 @@ const App = (() => {
         <div class="rail__foot"><button type="button" class="btn btn--line btn--sm" id="provAll" aria-expanded="false">نمایش همهٔ استان‌ها</button></div>
       </div>
     </section>
-    ${plansSection()}
-    <section class="section section--sunk"><div class="wrap faq-wrap"><div class="sec-head"><div><span class="kicker">پرسش‌ها و پاسخ‌ها</span><h2>پیش از اشتراک بدانید</h2></div><a class="btn btn--line" href="#/faq">همهٔ پرسش‌ها</a></div>${faqHTML(5)}</div></section>
-    <section class="section" id="tools">
-      <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">ابزارها</span><h2>پیش از تصمیم، حساب کن</h2></div></div>
-        <div class="tools">${toolsHTML()}</div>
+    <section class="section trust">
+      <div class="wrap trust__grid">
+        <div><span class="kicker">چرا به عددها اعتماد کنیم؟</span><h2>شفاف، مستقل، قابل وارسی</h2></div>
+        <div class="trust__items">
+          <div><b>بدون کمیسیون و بدون فروش</b><span>رتبهٔ آگهی‌ها خریدنی نیست و هیچ انسانی امتیاز را دستی تغییر نمی‌دهد.</span></div>
+          <div><b>هر عدد، دلیلش را دارد</b><span>برای هر آگهی شناسنامهٔ قیمت، اثر هر ویژگی و تعداد آگهی‌های مقایسه نشان داده می‌شود.</span></div>
+          <div><b>ضد تبانی و ضد قیمت‌سازی</b><span>آگهی‌های یک فروشنده یک رأی دارند، قیمت محله با محله‌های مجاور سنجیده می‌شود و افزایش قیمت پس از درج اثری ندارد.</span></div>
+          <div><b>دقت سنجیده‌شده</b><span>خطای برآورد هر آگهی بدون خود آن اندازه‌گیری و در روش ارزش‌گذاری گزارش می‌شود.</span></div>
+        </div>
       </div>
-    </section>`;
+    </section>
+    <section class="section consult">
+      <div class="wrap consult__box">
+        <div><span class="kicker">درخواست مشاوره</span><h2>برای یک تصمیم مشخص کمک می‌خواهید؟</h2><p>هدف‌تان را بگویید: سکونت، سرمایه‌گذاری یا اجاره‌داری. آگهی یا محلهٔ موردنظر را بفرستید تا تحلیلش را با شما مرور کنیم.</p></div>
+        <div class="consult__act"><a class="btn btn--gold btn--lg" href="#/support">ثبت درخواست مشاوره</a><a class="btn btn--line btn--lg" href="#/tools">ارزیابی سریع یک ملک</a></div>
+      </div>
+    </section>
+    ${plansSection()}
+    <section class="section section--sunk"><div class="wrap faq-wrap"><div class="sec-head"><div><span class="kicker">پرسش‌ها و پاسخ‌ها</span><h2>پیش از اشتراک بدانید</h2></div><a class="btn btn--line" href="#/faq">همهٔ پرسش‌ها</a></div>${faqHTML(5)}</div></section>`;
 
     $("#heroDeals").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; deal = b.dataset.d; $$("#heroDeals button").forEach((x) => x.classList.toggle("is-on", x === b)); });
     $("#heroQ").addEventListener("input", (e) => {
@@ -295,7 +340,7 @@ const App = (() => {
       });
       if (PROVINCES.length <= 3) $("#provAll").parentElement.hidden = rail.scrollWidth <= rail.clientWidth + 4;
     }
-    bindTools();
+    drawSample();
     bindPlans();
     drawGlance(st);
     DataLayer.search({ opp: 1, photo: 1, limit: 16, sort: "score" }).then((r) => {
@@ -907,6 +952,34 @@ const App = (() => {
   }
 
   /* ---------- ابزارها ---------- */
+  function toolsPage() {
+    view().innerHTML = `<section class="section"><div class="wrap">
+      <div class="sec-head"><div><span class="kicker">ارزیابی یک ملک</span><h1>پیش از تصمیم، حساب کن</h1><p>ارزش تقریبی ملک را در محلهٔ خودش ببینید، قسط وام را حساب کنید و رهن و اجاره را به هم تبدیل کنید. برای ارزیابی دقیق یک آگهی مشخص، آن را در فرصت‌ها پیدا کنید و شناسنامهٔ قیمتش را ببینید.</p></div></div>
+      <div class="tools">${toolsHTML()}</div></div></section>`;
+    bindTools();
+  }
+  /* نمونهٔ تحلیل ارزش: بهترین فرصت واقعی همین حالا، با حکم پنج‌سطحی و امتیاز */
+  async function drawSample() {
+    const r = await DataLayer.search({ sort: "score", opp: 1, limit: 1 }).catch(() => ({ items: [] }));
+    const box = $("#sample");
+    if (!box) return;
+    const l = r.items[0];
+    if (!l) { box.innerHTML = `<div class="analysis__empty">با جمع شدن آگهی کافی، نمونهٔ تحلیل یک فرصت واقعی این‌جا نمایش داده می‌شود.</div>`; return; }
+    const v = l.verdict || {}, ask = l.deal === "daily" ? l.price : l.pp;
+    const fair = !v.approx && v.fair ? v.fair : null;
+    const sc = Math.max(0, Math.min(100, Math.round(l.score || 0)));
+    const a = Math.PI * (1 - sc / 100), nx = 100 + 78 * Math.cos(a), ny = 100 - 78 * Math.sin(a);
+    box.innerHTML = `<div class="analysis__head"><span class="kicker">نمونهٔ تحلیل، از دادهٔ همین امروز</span><b>${esc(UI.tt(l.title))}</b><small>${esc([l.city_name || UI.cityOf(l.city_key)?.name, l.district].filter(Boolean).join("، "))}</small></div>
+      <div class="analysis__rows">
+        <div><span>قیمت پیشنهادی</span><b>${ask ? money(ask) + " تومان" : "—"}</b></div>
+        <div><span>ارزش تخمینی بازار</span><b>${fair ? money(fair) + " تومان" : `<em class="blur">۰۰ میلیارد</em> <small>با اشتراک</small>`}</b></div>
+        <div><span>نتیجه</span><b>${UI.labelPill(v)} <small class="analysis__gap">${UI.gapText(v)}</small></b></div>
+      </div>
+      <div class="analysis__score"><svg viewBox="0 0 200 116" aria-hidden="true"><defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#bf3a2b"/><stop offset=".35" stop-color="#c97a1f"/><stop offset=".55" stop-color="#b9b29a"/><stop offset=".8" stop-color="#3ccf8e"/><stop offset="1" stop-color="#d4b46a"/></linearGradient></defs>
+        <path d="M22 100a78 78 0 01156 0" fill="none" stroke="url(#gg)" stroke-width="12" stroke-linecap="round"/><line x1="100" y1="100" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="100" cy="100" r="6" fill="currentColor"/></svg>
+        <div><b>${fa(sc)}</b><span>امتیاز فرصت از ۱۰۰</span></div></div>
+      <a class="btn btn--line btn--block" href="#/ad/${encodeURIComponent(l.id)}">دیدن شناسنامهٔ کامل قیمت ${icon("arrow")}</a>`;
+  }
   function toolsHTML() {
     return `
       <div class="tool tool--wide"><h3>تخمین ارزش ملک در محلهٔ خودش</h3><p>میانه و بازهٔ معمول قیمت هر متر آگهی‌های فروش همان محله، به نرخ امروز</p>
@@ -1414,7 +1487,7 @@ const App = (() => {
     const c = l.claims || [];
     if (!c.length) return "";
     const said = c.includes("opportunity") ? "«فرصت» یا «فرصت طلایی»" : c.includes("cheap") ? "«زیر قیمت» یا «ارزان»" : "با صفت‌هایی مثل «استثنایی» و «بی‌نظیر»";
-    const ours = !v ? "هنوز سنجیده نشده است" : v.label === "gold" || v.label === "good" ? "در سنجش ما هم زیر قیمت محله است" : v.label === "high" ? "در سنجش ما بالاتر از قیمت محله است" : v.label === "sus" ? "در سنجش ما قیمتش مشکوک است" : "در سنجش ما هم‌قیمت محله است، نه فرصت";
+    const ours = !v ? "هنوز سنجیده نشده است" : v.label === "gold" || v.label === "good" ? "در سنجش ما هم زیر قیمت محله است" : v.label === "high" || v.label === "over" ? "در سنجش ما بالاتر از قیمت محله است" : v.label === "sus" ? "در سنجش ما قیمتش مشکوک است" : "در سنجش ما هم‌قیمت محله است، نه فرصت";
     return `<p class="small note-soft">${icon("info", 'width="16"')} آگهی‌دهنده این ملک را ${said} معرفی کرده؛ ${ours}. برچسب‌های ${esc(cfg.site.name)} فقط از مقایسه با آگهی‌های مشابه همان محله می‌آیند، نه از متن آگهی.${l.title_raw ? ` عنوان اصلی آگهی: «${UI.tt(l.title_raw)}»` : ""}</p>`;
   }
   /* نشانی تقریبی و راه تماس: فقط برای مشترکان؛ نمایش شماره به تصمیم مدیر در پنل */

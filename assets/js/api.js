@@ -71,7 +71,7 @@ const DataLayer = (() => {
         district_raw_n: raw.length, ctx: CTX.filter(([rx]) => rx.test(text)).map(([, t]) => t), caution: CAU.filter(([rx]) => rx.test(text)).map(([, t]) => t), sus: [], flags: [] };
       const out = -r >= TH.disp_k * sig, dd = l.discount;
       if (dd >= TH.sus || (Math.abs(r) / sig > 3.5 * 1.4826 && dd > 0)) { l.label = "sus"; l.excluded = 1; l.explain.flags = [dd >= TH.sus ? "بیش از حد ارزان‌تر از قیمت محله؛ باورپذیر نیست" : "قیمت به‌طور غیرعادی پایین"]; return; }
-      l.label = dd >= TH.gold && out ? "gold" : dd >= TH.opp && out ? "good" : dd <= -TH.opp ? "high" : "fair";
+      l.label = dd >= TH.gold && out ? "gold" : dd >= TH.opp && out ? "good" : dd <= -0.30 ? "over" : dd <= -TH.opp ? "high" : "fair";
       l.explain.wide = dd >= TH.opp && !out;
       l.confidence = d.length >= 15 ? "high" : d.length >= 8 ? "medium" : "low";
       if (!["gold", "good"].includes(l.label)) l.score = Math.round(Math.max(0, Math.min(64, 50 + (dd / TH.opp) * 14)));

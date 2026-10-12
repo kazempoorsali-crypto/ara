@@ -160,7 +160,7 @@ for k in range(8):
 valuation.recompute(st2)
 after = st2.get("x5")["fair_ppm"]
 check(abs(after / before - 1) < 0.02, f"۸ آگهی قیمتشان را ۵۰٪ بالا بردند؛ قیمت منصفانهٔ همسایه {abs(after / before - 1):.1%} تغییر کرد")
-check(st2.get("x10")["explain"]["raised"] and st2.get("x10")["label"] == "high", "آگهی‌ای که قیمتش را بالا برد «بالاتر از قیمت محله» شد")
+check(st2.get("x10")["explain"]["raised"] and st2.get("x10")["label"] == "over", "آگهی‌ای که قیمتش را ۵۰٪ بالا برد «قیمت غیرمنطقی» شد (مقیاس پنج‌سطحی)")
 # ---- ضد تبانی: ۱۲ آگهی گران با متن الگوی یکسان (یک دلال) در برابر ۱۰ آگهی واقعی؛ آگهی واقعی «فرصت» نشود
 st3 = Store(Path(tempfile.mkdtemp()) / "t3.db")
 rnd3 = random.Random(5)
@@ -191,7 +191,7 @@ labs = [st3.get(f"own{i}")["label"] for i in range(10)]
 check(not set(labs) & {"gold", "good"}, f"آگهی‌های واقعی در محلهٔ تبانی فرصت نشدند: {labs}")
 bp = st3.get("own3")["explain"]["base_ppm"]
 check(bp and abs(bp / P - 1) < 0.12, f"قیمت محله نزدیک قیمت واقعی ماند ({bp / P:.2f}×) نه قیمت دلال (۱٫۴×)")
-check(st3.get("dl0")["label"] == "high", "آگهی‌های دلال «بالاتر از قیمت محله» شدند")
+check(st3.get("dl0")["label"] in ("high", "over"), f"آگهی‌های دلال بالاتر از ارزش واقعی شدند: {st3.get('dl0')['label']}")
 # ---- سازگاری مکانی: محله‌ای که ۵ فروشندهٔ هماهنگ قیمتش را ۷۰٪ بالاتر از همهٔ مجاورها برده‌اند
 st4 = Store(Path(tempfile.mkdtemp()) / "t4.db")
 rnd4 = random.Random(11)
