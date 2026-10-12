@@ -272,7 +272,8 @@ class Handler(BaseHTTPRequestHandler):
     def versioned(data: bytes) -> bytes:
         """هر نسخهٔ تازه، فایل‌های تازه را از مرورگر می‌خواهد (شکستن کش)."""
         tag = re.sub(r"\W", "", VERSION.split("|")[0])
-        return re.sub(rb'((?:src|href)="assets/[^"?]+\.(?:js|css))"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
+        # نسخهٔ دستی (?v=...) هم با نسخهٔ واقعی جایگزین می‌شود تا هیچ فایلی در کش مرورگر نماند
+        return re.sub(rb'((?:src|href)="assets/[^"?]+\.(?:js|css))(?:\?v=[^"]*)?"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
 
     def send_text(self, text: str, ctype: str, status=200, cache="public, max-age=600"):
         body = text.encode()

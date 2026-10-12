@@ -1,5 +1,6 @@
 """آزمون یکپارچه: سرور فرصت ملک + شبیه‌ساز دیوار (MCP و مستقیم). اجرا: python tests/test_backend.py"""
-import json, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
+import json
+import re, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "server"))
 import catalog  # noqa
@@ -184,6 +185,9 @@ def run(mode):
             except urllib.error.HTTPError as e: return e.code, e.read().decode()
         sm = raw("/sitemap.xml")[1]
         check("/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
+        hs0, hh0 = raw("/")
+        vs = re.findall(r'assets/(?:css|js)/[a-z]+\.(?:css|js)\?v=([^"]+)"', hh0)
+        check(len(vs) >= 6 and len(set(vs)) == 1 and not vs[0].startswith("20261009"), f"[{mode}] همهٔ فایل‌های css و js با نسخهٔ واقعی (شکستن کش): {sorted(set(vs))}")
         cs, ch = raw("/melk/rasht")
         check(cs == 200 and "<title>قیمت روز ملک در رشت" in ch and 'rel="canonical"' in ch and 'src="/assets/js/app.js' in ch and "/ad/" in ch, f"[{mode}] صفحهٔ سئوی شهر رشت")
         aid = sm.split("/ad/")[1].split("<")[0]
