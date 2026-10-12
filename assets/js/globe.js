@@ -27,7 +27,7 @@ function dotTexture(color, ring = false) {
   return t;
 }
 
-export async function mountGlobe(host, { cities = [], textureUrl, onPick, onArrive } = {}) {
+export async function mountGlobe(host, { cities = [], textureUrl, day = false, onPick, onArrive } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -38,13 +38,13 @@ export async function mountGlobe(host, { cities = [], textureUrl, onPick, onArri
   const tex = await new THREE.TextureLoader().loadAsync(textureUrl);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.25, 1.2, 1.1) }));
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), new THREE.MeshBasicMaterial({ map: tex, color: day ? new THREE.Color(1.05, 1.05, 1.05) : new THREE.Color(1.25, 1.2, 1.1) }));
   scene.add(earth);
 
   // هالهٔ جو: درخشش لبه با سایه‌زن فرنل، به رنگ سبز برند
   const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12, 96, 96), new THREE.ShaderMaterial({
     side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
-    uniforms: { c: { value: new THREE.Color("#4fd39a") } },
+    uniforms: { c: { value: new THREE.Color(day ? "#8fd0ff" : "#4fd39a") } },
     vertexShader: "varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
     fragmentShader: "uniform vec3 c; varying vec3 vN; void main(){ float i = pow(0.62 - dot(vN, vec3(0.,0.,1.)), 3.2); gl_FragColor = vec4(c, 1.0) * i * 1.6; }",
   }));
@@ -53,12 +53,12 @@ export async function mountGlobe(host, { cities = [], textureUrl, onPick, onArri
   const rim = new THREE.Mesh(new THREE.SphereGeometry(1.002, 96, 96), new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
     vertexShader: "varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
-    fragmentShader: "varying vec3 vN; void main(){ float f = pow(1.0 - max(dot(vN, vec3(0.,0.,1.)),0.), 2.5); gl_FragColor = vec4(0.35,0.85,0.65,1.0) * f * 0.35; }",
+    fragmentShader: "varying vec3 vN; void main(){ float f = pow(1.0 - max(dot(vN, vec3(0.,0.,1.)),0.), 2.5); gl_FragColor = vec4(" + (day ? "0.55,0.8,1.0" : "0.35,0.85,0.65") + ",1.0) * f * " + (day ? "0.45" : "0.35") + "; }",
   }));
   scene.add(rim);
 
   // نقطه‌های شهر
-  const dotT = dotTexture("rgba(120,240,180,1)"), ringT = dotTexture("rgba(120,240,180,1)", true);
+  const dotT = dotTexture(day ? "rgba(255,190,70,1)" : "rgba(120,240,180,1)"), ringT = dotTexture(day ? "rgba(255,190,70,1)" : "rgba(120,240,180,1)", true);
   const marks = cities.map((c) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     const size = 0.022 + 0.03 * Math.min(1, Math.sqrt((c.n || 1) / 300));

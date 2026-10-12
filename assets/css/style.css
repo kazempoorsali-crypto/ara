@@ -877,7 +877,6 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 /* دکمهٔ دستیار در صفحهٔ آگهی و جست‌وجو جمع‌وجور و دور از دکمه‌های اصلی */
 body[data-page="ad"] .ai-fab, body[data-page="s"] .ai-fab { padding: 0; width: 52px; min-height: 52px; justify-content: center; }
 body[data-page="ad"] .ai-fab b, body[data-page="s"] .ai-fab b, body[data-page="ad"] .ai-fab span, body[data-page="s"] .ai-fab span { display: none; }
-@media (min-width: 861px) { body[data-page="ad"] .ai-fab { inset-inline-end: auto; inset-inline-start: 22px; } }
 /* تمرکز صفحه‌کلید واضح و یکدست */
 :where(a, button, input, select, textarea, summary):focus-visible { outline: 2.5px solid var(--forest); outline-offset: 2px; border-radius: 10px; }
 
@@ -1874,3 +1873,52 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
   .scale5 { grid-template-columns: repeat(2, 1fr); } .s5--gold { grid-column: span 2; }
   .trust__items { grid-template-columns: 1fr; }
 }
+.ai-fab { inset-inline-start: auto !important; inset-inline-end: 22px; }  /* دستیار همیشه پایین سمت چپ (در راست‌به‌چپ = انتهای سطر) */
+/* فهرست «افزودن شهر» روی همه‌چیز؛ کادر پهن بریده نمی‌شود و فقط خود صحنه گرد و بریده است */
+.sky--wide { overflow: visible; }
+.sky--wide::before, .sky--wide::after { border-radius: inherit; }
+.sky--wide .sky__stage { overflow: hidden; border-radius: 22px; margin-inline: 0; }
+.sky--wide .sky__cities { z-index: 900; }
+.sky--wide .sky__cities .cb__panel { z-index: 901; }
+.adpin img + i { display: none; }
+.adpin.noimg img { display: none; } .adpin.noimg img + i { display: grid; }
+
+/* کادر زنده در تم روشن: همه‌چیز روشن (کرهٔ روز، نقشهٔ روشن) */
+:root:not([data-theme="dark"]) .sky { color: var(--ink); background: radial-gradient(120% 90% at 70% 0%, #ffffff 0%, #f7f3ec 50%, #ece5d9 100%);
+  box-shadow: 0 1px 0 #fff inset, 0 40px 90px -45px rgba(60,48,30,.35), 0 0 0 1px rgba(20,21,19,.07); }
+:root:not([data-theme="dark"]) .sky::before { background: radial-gradient(60% 50% at 50% 70%, rgba(184,149,90,.14), transparent 70%), linear-gradient(rgba(20,21,19,.04) 1px, transparent 1px) 0 0 / 100% 28px; }
+:root:not([data-theme="dark"]) .sky::after { background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 0%), rgba(255,255,255,.6), transparent 45%); }
+:root:not([data-theme="dark"]) .sky__head small, :root:not([data-theme="dark"]) .sky__hint { color: var(--muted); }
+:root:not([data-theme="dark"]) .sky__live { color: #17784a; }
+:root:not([data-theme="dark"]) .sky__kpis div { background: rgba(255,255,255,.7); border-color: var(--line); }
+:root:not([data-theme="dark"]) .sky__kpis span { color: var(--muted); }
+:root:not([data-theme="dark"]) .sky__kpis .is-hot b { color: #17784a; }
+:root:not([data-theme="dark"]) .sky__map, :root:not([data-theme="dark"]) .sky__map.leaflet-container { background: #e9e4da; box-shadow: 0 0 0 1px var(--line), 0 20px 50px -24px rgba(60,48,30,.35); }
+:root:not([data-theme="dark"]) .sky__tiles { filter: saturate(.85) contrast(.98); }
+:root:not([data-theme="dark"]) .sky__bar button, :root:not([data-theme="dark"]) .sky__back { background: rgba(255,255,255,.86); color: var(--ink); border-color: var(--line); }
+:root:not([data-theme="dark"]) .sky__bar button.is-on { background: var(--charcoal); color: #f6f3ee; }
+:root:not([data-theme="dark"]) .sky__sep { background: var(--line-2); }
+:root:not([data-theme="dark"]) .sky__map .leaflet-control-zoom a { background: rgba(255,255,255,.9); color: var(--ink); border-color: var(--line); }
+:root:not([data-theme="dark"]) .sky__map .leaflet-control-attribution { background: rgba(255,255,255,.7); color: var(--muted); }
+:root:not([data-theme="dark"]) .col span { color: #151614; text-shadow: 0 1px 2px #fff, 0 0 6px #fff; }
+:root:not([data-theme="dark"]) .col i { background: linear-gradient(90deg, #8a8478 0 50%, #6d685e 50% 100%); }
+:root:not([data-theme="dark"]) .col i::before { background: #b9b3a6; }
+:root:not([data-theme="dark"]) .col.is-hot i { background: linear-gradient(90deg, #2fbf7d 0 50%, #1c8a58 50% 100%); }
+:root:not([data-theme="dark"]) .col.is-hot i::before { background: #8ef0bf; }
+:root:not([data-theme="dark"]) .sky__cities .atag { background: #fff; color: var(--ink); border-color: var(--line); }
+:root:not([data-theme="dark"]) .sky__add .input { background: #fff; color: var(--ink); border-color: var(--line); }
+:root:not([data-theme="dark"]) .sky__empty { fill: var(--muted); }
+:root:not([data-theme="dark"]) .sky__top { fill: #d9d2c4; } :root:not([data-theme="dark"]) .sky__w0 { fill: #bdb4a3; } :root:not([data-theme="dark"]) .sky__w1 { fill: #a49b8a; }
+:root:not([data-theme="dark"]) .sky__shadow { fill: rgba(60,48,30,.18); }
+/* نمودار میله‌ای کوچک در پاسخ دستیار */
+.abars { display: grid; gap: 6px; margin: 10px 0; }
+.abars > div { display: grid; grid-template-columns: minmax(70px, 34%) 1fr auto; align-items: center; gap: 8px; font-size: 12.5px; }
+.abars span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.abars i { display: block; height: 8px; width: var(--w); border-radius: 99px; background: linear-gradient(90deg, var(--gold-lux), #3ccf8e); }
+.abars b { font-weight: 700; white-space: nowrap; font-size: 12px; }
+
+/* نوارهای نورانی سینمایی */
+.solution, .hero { position: relative; isolation: isolate; }
+canvas.ribbons { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; opacity: .9; }
+.hero canvas.ribbons { opacity: .55; mix-blend-mode: multiply; }
+[data-theme="dark"] .hero canvas.ribbons { mix-blend-mode: screen; opacity: .7; }
