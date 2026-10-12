@@ -189,6 +189,41 @@ check(not set(labs) & {"gold", "good"}, f"آگهی‌های واقعی در مح
 bp = st3.get("own3")["explain"]["base_ppm"]
 check(bp and abs(bp / P - 1) < 0.12, f"قیمت محله نزدیک قیمت واقعی ماند ({bp / P:.2f}×) نه قیمت دلال (۱٫۴×)")
 check(st3.get("dl0")["label"] == "high", "آگهی‌های دلال «بالاتر از قیمت محله» شدند")
+# ---- سازگاری مکانی: محله‌ای که ۵ فروشندهٔ هماهنگ قیمتش را ۷۰٪ بالاتر از همهٔ مجاورها برده‌اند
+st4 = Store(Path(tempfile.mkdtemp()) / "t4.db")
+rnd4 = random.Random(11)
+WORDS = ["آفتابگیر", "دسترسی عالی", "نزدیک پارک", "کوچه آرام", "همسایه خوب", "بازسازی شده", "کابینت نو", "دید باز", "نورگیر", "مدیریت خوب",
+         "شارژ کم", "نزدیک مدرسه", "مترو نزدیک", "بالکن بزرگ", "کف سرامیک", "کمد دیواری"]
+
+
+def add4(i, dist, lat, lng, ppm, area=100):
+    desc = "، ".join(rnd4.sample(WORDS, 6)) + f"، کد {i}، آسانسور دارد، پارکینگ دارد، فروش فوری با شرایط مناسب"
+    it = {"id": i, "source": "test", "vertical": "estate", "kind": "apartment", "deal": "sale", "title": f"آپارتمان {area} متری",
+          "description": desc, "city_key": "rasht", "city_name": "رشت", "province": "gilan", "district": dist, "lat": lat + rnd4.gauss(0, 0.001),
+          "lng": lng + rnd4.gauss(0, 0.001), "price": round(ppm * area * math.exp(rnd4.gauss(0, 0.10) if not i.endswith(("honest", "deal")) else 0) / 1e6) * 1e6, "area": area, "rooms": 2,
+          "year": now_year - 5, "detail_at": 1, "posted_at": int(NOW)}
+    it["feat"] = features.extract(it)
+    st4.upsert(it)
+
+
+near = {"الف": (37.280, 49.580), "ب": (37.290, 49.590), "ج": (37.275, 49.600), "د": (37.295, 49.575)}
+for d, (la, ln) in near.items():
+    for i in range(12):
+        add4(f"{d}{i}", d, la, ln, P, 90 + i * 3)
+for i in range(5):  # محلهٔ «ه» وسط مجاورها: ۵ فروشنده با قیمت ۱٫۷ برابر
+    add4(f"pump{i}", "ه", 37.285, 49.588, P * 1.7, 95 + i * 4)
+add4("honest", "ه", 37.285, 49.588, P, 100)
+for i in range(20):  # محلهٔ «و» گران واقعی: ۲۰ فروشندهٔ مستقل با ۱٫۶ برابر و یک فرصت واقعی
+    add4(f"lux{i}", "و", 37.300, 49.600, P * 1.6, 90 + i * 2)
+add4("luxdeal", "و", 37.300, 49.600, P * 1.6 * 0.80, 100)
+info4 = valuation.recompute(st4)
+h = st4.get("honest")
+check(h["label"] not in ("gold", "good"), f"آگهی واقعی در محلهٔ دست‌کاری‌شده فرصت نشد: {h['label']} (فاصله با محله {h['discount']:.0%}، با مجاورها {h['explain']['nb_disc']})")
+check(any(a["district"] == "ه" for a in info4["spatial"]), f"محلهٔ ناسازگار با مجاورها در پنل گزارش شد: {[(a['district'], a['gap'], a['shift']) for a in info4['spatial']]}")
+ld = st4.get("luxdeal")
+check(ld["label"] in ("gold", "good"), f"فرصت واقعی در محلهٔ گران پرفروشنده حفظ شد: {ld['label']} ({ld['discount']:.0%})")
+lx = st4.get("lux3")["explain"]
+check(not lx.get("spatial") or abs(lx["spatial"][0]) < 0.05, f"محلهٔ گران واقعی تقریباً دست نخورد: {lx.get('spatial')}")
 # ---- ادعای تبلیغاتی عنوان با برچسب سایت قاطی نشود
 t, cl = features.clean_title("فرصت طلایی!!! آپارتمان ۱۲۰ متری گلسار زیر قیمت", "apartment", 120, "گلسار")
 check(t == "آپارتمان ۱۲۰ متری گلسار" and set(cl) == {"opportunity", "cheap"}, f"عنوان بدون ادعا: «{t}»، ادعاها {cl}")

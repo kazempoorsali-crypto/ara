@@ -1568,3 +1568,8 @@ html[dir="rtl"] .board { transform-origin: 30% 50%; }
 }
 :root[data-theme="dark"] #top.is-scrolled { background: color-mix(in srgb, var(--paper) 86%, transparent) !important; border-bottom-color: var(--line) !important; }
 .iso__pin text { fill: var(--paper); }
+/* متن سئو: جمع‌شده با محوشدگی، با دکمهٔ ادامه */
+.seo-text--fold { position: relative; padding-bottom: 28px; }
+.seo-text--fold > .wrap { max-height: 210px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); transition: max-height .5s var(--ease); }
+.seo-text--fold.is-open > .wrap { max-height: none; -webkit-mask-image: none; mask-image: none; }
+.seo-text__more { display: flex; margin: 6px auto 0; }

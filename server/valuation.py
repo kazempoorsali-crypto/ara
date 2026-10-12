@@ -15,6 +15,10 @@
   ۷٫۵. مقاوم در برابر تبانی: آگهی‌های یک فروشنده (همان شماره یا همان متن الگو با اعداد متفاوت) در هر محله روی هم یک رأی
      دارند (وزن ۱/n)؛ پس چند دلال با ده‌ها آگهی گران قیمت محله را بالا نمی‌برند. قیمت محله دست‌کم از ۳ فروشندهٔ مستقل
      ساخته می‌شود و تعداد مؤثر نمونه (برای عدم‌قطعیت) هم از همین وزن‌ها می‌آید
+  ۷٫۵٫۱. سازگاری مکانی: قیمت محله با محله‌های مجاور (فاصلهٔ جغرافیایی تا ۴ کیلومتر) و سطح شهر سنجیده می‌شود. فاصلهٔ بیش از
+     حد مجاز (پیش‌فرض ۲۵٪ لگاریتمی) فقط به اندازهٔ پشتوانه‌اش پذیرفته می‌شود: هرچه فروشندهٔ مستقل کمتری آن را بسازند،
+     مازاد بیشتری به سمت مجاورها برمی‌گردد (اعتبار n²/(n²+K²)). محلهٔ گران واقعی با فروشندگان مستقل زیاد تقریباً دست نمی‌خورد،
+     ولی محله‌ای که چند فروشندهٔ هماهنگ قیمتش را بالا برده‌اند، به قیمت مجاورها نزدیک می‌شود و در پنل گزارش می‌شود
   ۷٫۶. پیش‌فروش، بازار جدا با فرمول خودش: مرجع = قیمت منصفانهٔ «همین واحد اگر نوساز و آماده بود» در همان محله (مدل هدونیک
      با سن صفر + مقایسه با نوسازهای مشابه)؛ نسبت قیمت پیش‌فروش به آماده از خود آگهی‌های پیش‌فروش برآورد می‌شود
      (ln نسبت = a + b × ماه‌های باقی‌مانده تا تحویل؛ ماه‌ها از تاریخ تحویل یا درصد پیشرفت متن). اگر محله دست‌کم ۵ پیش‌فروش
@@ -44,6 +48,7 @@ RIDGE = 2.0
 MIN_SELLERS = 3        # کمترین فروشندهٔ مستقل در محله برای ساختن قیمت محله
 FP_MIN_LEN = 40        # کمترین طول متن (بدون عدد و فاصله) برای شناسایی متن الگوی تکراری
 COMPS_K, COMPS_MIN = 8, 5
+SPATIAL_KM, SPATIAL_NB, SPATIAL_K, SPATIAL_SUSPECT = 4.0, 6, 8, 10   # شعاع و تعداد محلهٔ مجاور، و ثابت اعتبار (فروشندهٔ مستقل)
 PS_KINDS = ("apartment", "villa", "commercial")  # پیش‌فروش این گروه‌ها با فرمول خودش سنجیده می‌شود
 PS_MIN_N, PS_MIN_SLOPE_N = 8, 12   # کمترین آگهی پیش‌فروش برای برآورد نسبت، و برای برآورد شیب زمانی از داده
 PS_RATIO_CLIP, PS_SLOPE_CLIP = (-0.45, 0.10), (-0.03, 0.0)   # نزدیک‌ترین آگهی‌های مشابه همان محله برای تأیید برآورد
@@ -56,7 +61,7 @@ DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.2
                       "max_age_days": 90, "half_life_days": 45, "trend_fixed": None,
                       # پیش‌فروش: تخفیف ماهانهٔ پیش‌فرض تا تحویل وقتی دادهٔ کافی برای برآورد شیب نیست، ماه‌های فرضی وقتی متن چیزی نگفته،
                       # و سخت‌گیری اضافه در آستانهٔ فرصت
-                      "presale_monthly": 0.01, "presale_default_months": 18, "presale_extra": 0.05}
+                      "spatial_tol": 0.25, "presale_monthly": 0.01, "presale_default_months": 18, "presale_extra": 0.05}
 MIN_TREND_N = 80          # کمترین آگهی پاک برای برآورد روند قیمت از داده
 TREND_CLIP = (-0.03, 0.08)  # بازهٔ مجاز روند ماهانهٔ لگاریتمی
 SUS_FLAGS = {"outlier_low", "too_cheap", "cheap_flagged", "scam_text", "ppm_as_total", "zero_typo_low"}
@@ -273,6 +278,54 @@ def _mad(vals, med):
     return statistics.median([abs(v - med) for v in vals]) if vals else 0
 
 
+def _km(a, b):
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 12742 * math.asin(math.sqrt(min(1.0, h)))
+
+
+def _spatial(members, dbase, tol):
+    """تعدیل مکانی قیمت محله: مازاد فاصله با مجاورها (بیش از tol) به نسبت کم‌پشتوانه بودن به سمت مجاورها برمی‌گردد.
+    خروجی: {کلید محله: (جابه‌جایی لگاریتمی، مرجع مجاور، تعداد فروشندهٔ مستقل، فاصلهٔ خام)}"""
+    info = {}
+    for k, ls in members.items():
+        pts = [(l["lat"], l["lng"]) for l in ls if l.get("lat") and l.get("lng")]
+        sellers = len({l["_sk"] for l in ls})
+        info[k] = {"c": (statistics.median(p[0] for p in pts), statistics.median(p[1] for p in pts)) if len(pts) >= 3 else None, "n": sellers}
+    city_ref = {}
+    for (ck, _), v in dbase.items():
+        city_ref.setdefault(ck, []).append(v)
+    out = {}
+    for k, base in dbase.items():
+        me = info[k]
+        if base is None:
+            continue
+        nb = []
+        if me["c"]:
+            for k2, b2 in dbase.items():
+                if k2 == k or b2 is None or not info[k2]["c"]:
+                    continue
+                d = _km(me["c"], info[k2]["c"])
+                if d <= SPATIAL_KM:
+                    nb.append((d, b2, info[k2]["n"]))
+            nb = sorted(nb)[:SPATIAL_NB]
+        if len(nb) >= 2:
+            ref = _wmedian([(b2, n2 / (1 + d)) for d, b2, n2 in nb])
+        else:  # مختصات کافی نیست: مقایسه با میانهٔ محله‌های همان شهر (اگر دست‌کم ۳ محلهٔ دیگر باشد)
+            others = [v for (ck, d2), v in dbase.items() if ck == k[0] and (ck, d2) != k and v is not None]
+            if len(others) < 3:
+                continue
+            ref = statistics.median(others)
+            tol_k = tol * 2  # سطح شهر ناهمگن‌تر از مجاورهاست؛ حد مجاز دو برابر
+        gap = base - ref
+        t = tol if len(nb) >= 2 else tol_k
+        excess = gap - max(-t, min(t, gap))
+        if excess:
+            cred = me["n"] ** 2 / (me["n"] ** 2 + SPATIAL_K ** 2)  # کم‌فروشنده: پشتوانهٔ کم؛ پرفروشنده: تقریباً کامل
+            out[k] = (-(1 - cred) * excess, ref, me["n"], gap)
+    return out
+
+
 def _theil_sen(pts):
     sl = sorted((r2 - r1) / (t2 - t1) for i, (t1, r1) in enumerate(pts) for t2, r2 in pts[i + 1:i + 60] if abs(t2 - t1) >= 3)
     return sl[len(sl) // 2] if sl else None
@@ -391,6 +444,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
     models_info = []
     trends = []
     accuracy = []
+    anomalies = []  # محله‌هایی که قیمتشان با مجاورها نمی‌خواند (احتمال تبانی یا دادهٔ کم)
     # قیمت اولیهٔ هر آگهی (نخستین ردیف تاریخچه) برای خنثی کردن افزایش قیمت پس از درج
     first_pp = {}
     deal_of = {l["id"]: l["deal"] for l in rows}
@@ -437,7 +491,9 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                         if abs(z) > MAD_Z:
                             if typo:
                                 l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
-                            else:
+                            elif z > 0 or l["_v"] - l["_cmed"] < -0.10:
+                                # پرت پایین فقط اگر از سطح شهر هم پایین‌تر باشد؛ آگهی هم‌قیمت شهر در محله‌ای که قیمتش (شاید با تبانی)
+                                # بالا رفته، «مشکوک» نمی‌شود و با قاعدهٔ سازگاری مکانی سنجیده می‌شود
                                 l["_flags"].append("outlier_high" if z > 0 else "outlier_low")
                     else:
                         # محلهٔ کم‌آگهی: فقط خطای آشکار ورود داده (۱۰ یا ۱۰۰ برابر) پاک‌سازی می‌شود، بدون سنجش فرصت
@@ -490,6 +546,11 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 model = city_models.get(l["city_key"]) or prov_model
                 l["_adj"] = max(-0.6, min(0.6, apply_model(model, l["_x"])[0])) if model else 0.0
         dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_wb"]) for l in ls]) for k, ls in members.items()}
+        spatial = _spatial(members, dbase, float(th.get("spatial_tol") or 0.25))
+        for (ck, dk), (off, ref, ns, gap) in spatial.items():
+            if abs(off) >= 0.03:
+                anomalies.append({"city": ck, "district": next(iter(disp.get(dk, {dk: 0}))), "kind": kg, "deal": deal, "gap": round(math.exp(gap) - 1, 3),
+                                  "shift": round(math.exp(off) - 1, 3), "sellers": ns})
         if prov_model:
             models_info.append({"scope": prov, "kind": kg, "deal": deal, "n": prov_model["n"], "r2": round(prov_model["r2"], 3),
                                 "effects": {LABELS.get(k, k): round(b, 4) for k, b in zip(prov_model["feats"], prov_model["beta"])}})
@@ -519,6 +580,11 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             pairs = [(m["_vb"] - m["_adj"], m["_wb"]) for m in others if m["_sk"] != l["_sk"]]
             is_mem = id(l) in mem_ids
             base = _wmedian(pairs) if is_mem else dbase[key]
+            sp = spatial.get(key)
+            if sp:  # تعدیل مکانی: محلهٔ ناسازگار با مجاورها و کم‌پشتوانه
+                base += sp[0]
+                l["_spatial"] = (round(math.exp(sp[0]) - 1, 3), round(math.exp(sp[3]) - 1, 3))
+                l["_nbref"] = sp[1] if sp[2] < SPATIAL_SUSPECT else None
             l["_base"] = base
             sw, sw2 = sum(w for _, w in pairs), sum(w * w for _, w in pairs)
             l["_neff"] = (sw * sw / sw2) if sw2 else len(pairs)
@@ -536,6 +602,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                                     key=(lambda m: _dist({**l, "feat": {**(l.get("feat") or {}), "age": 0}}, m)) if l["_presale"] else (lambda m: _dist(l, m)))
             comp = _wmedian([(m["_vb"] - m["_adj"] + adj, m["_cf"] / (1 + _dist(l, m))) for m in comps]) if len(comps) >= COMPS_MIN else None
             fair_log = hed if comp is None else 0.6 * hed + 0.4 * comp
+            if l.get("_nbref") is not None:  # محلهٔ مشکوک: فرصت باید در برابر قیمت مجاورها هم برقرار باشد
+                l["_disc_nb"] = 1 - math.exp(l["_vraw"] - (l["_nbref"] + adj))
             l["_comp_v"] = math.exp(comp) if comp is not None else None
             l["_comp_n"] = len(comps) if comp is not None else 0
             fair_v = math.exp(fair_log)
@@ -615,7 +683,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             # و برآورد مقایسه‌ای نزدیک‌ترین آگهی‌های مشابه هم دست‌کم نیمی از آستانهٔ فرصت را تأیید کند
             outside = -(l.get("_r") or 0) >= th["disp_k"] * (l.get("_unc") or l.get("_sigma") or 0.15)
             dc = l.get("_disc_comp")
-            agree = dc is None or dc >= th["opp"] * 0.5
+            agree = (dc is None or dc >= th["opp"] * 0.5) and (l.get("_disc_nb") is None or l["_disc_nb"] >= th["opp"] * 0.5)
             ok = outside and agree and (not l["_presale"] or d >= th["opp"] + float(th.get("presale_extra") or 0))
             l["_label"] = ("gold" if d >= th["gold"] and ok else "good" if d >= th["opp"] and ok
                            else "high" if d <= -th["opp"] else "fair")
@@ -676,7 +744,8 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "fair_high": round(fair * math.exp(l["_unc"])) if fair and l.get("_unc") else None,
                    "comp_n": l.get("_comp_n") or 0, "comp_disc": round(l["_disc_comp"], 3) if l.get("_disc_comp") is not None else None,
                    "raised": bool(first_pp.get(l["id"]) and l.get("pp") and l["pp"] > first_pp[l["id"]] * 1.001),
-                   "sellers": l.get("_sellers"), "presale": l.get("_ps"), "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
+                   "sellers": l.get("_sellers"), "spatial": l.get("_spatial"),
+                   "nb_disc": round(l["_disc_nb"], 3) if l.get("_disc_nb") is not None else None, "presale": l.get("_ps"), "rank": l.get("_rank"), "rank_n": l.get("_rank_n"),
                    "age_days": round(l["_age"]), "trend": round(l.get("_b") or 0, 4),
                    "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
                    "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT]
@@ -696,7 +765,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
     info = {"at": int(time.time()), "listings": len(rows), "excluded": sum(1 for u in updates if u[6]),
             "ranked": sum(1 for u in updates if u[3] is not None),
             "labels": {k: sum(1 for u in updates if u[8] == k) for k in ("gold", "good", "fair", "high", "pending", "sus", "excluded")},
-            "thresholds": th, "trends": trends, "models": models_info, "accuracy": accuracy,
+            "thresholds": th, "trends": trends, "spatial": sorted(anomalies, key=lambda a: -abs(a["shift"]))[:100], "models": models_info, "accuracy": accuracy,
             # پایش اثر سایت بر قیمت‌ها: آگهی‌هایی که پس از درج قیمتشان را بالا برده‌اند
             "raised": {"all": sum(1 for l in rows if first_pp.get(l["id"]) and l.get("pp") and l["pp"] > first_pp[l["id"]] * 1.001),
                        "was_opp": sum(1 for l in rows if l.get("label") in ("gold", "good") and first_pp.get(l["id"]) and l.get("pp")
