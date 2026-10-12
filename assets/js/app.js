@@ -58,6 +58,7 @@ const App = (() => {
   }
   let lastPath = null;
   function route() {
+    document.querySelectorAll(".lightbox").forEach((m) => m.remove());
     const { path, params } = parseHash();
     const [page, arg] = path.split("/");
     document.body.dataset.page = page || "home";
@@ -1230,66 +1231,48 @@ const App = (() => {
 
   /* ---------- بزرگ‌نمایی تصویر (لایت‌باکس با اسکرول کامل و مدیریت دکمه بازگشت) ---------- */
   function lightbox(l, i) {
+    // بستن هر لایت‌باکس یا مدال باز قبلی جهت جلوگیری از تداخل
+    document.querySelectorAll(".lightbox").forEach((node) => node.remove());
+
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [null, null, null, null, null];
     const n = imgs.length;
     let zoomLevel = 1;
-    let modalOpen = true;
-    let hasZoomHistory = false;
+    let isClosed = false;
 
-    // ثبت در تاریخچه برای دکمه بازگشت مرورگر و موبایل (مشکل ۲)
-    history.pushState({ modal: "lightbox", adId: l.id, zoom: 1, idx: i }, "", location.hash);
+    // ثبت در تاریخچه مرورگر برای کارکرد دکمه بازگشت فیزیکی موبایل و مرورگر
+    history.pushState({ modal: "lightbox", t: Date.now() }, "", location.hash);
 
     const el = document.createElement("div");
     el.className = "lightbox";
 
-    const close = (rewindHistory = true) => {
-      if (!modalOpen) return;
-      modalOpen = false;
+    const close = (fromPopState = false) => {
+      if (isClosed) return;
+      isClosed = true;
+
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("keydown", onKeyDown);
 
-      if (rewindHistory) {
-        const steps = hasZoomHistory ? 2 : 1;
-        hasZoomHistory = false;
-        history.go(-steps);
-      }
+      // حذف فوری و قطعی از صفحه بدون تاخیر تا صفحه مسدود نماند
+      el.remove();
 
-      el.classList.add("is-closing");
-      setTimeout(() => el.remove(), 200);
-    };
-
-    // مدیریت رویداد دکمه بازگشت مرورگر و موبایل (مشکل ۲)
-    const onPopState = (e) => {
-      if (!modalOpen) return;
-      // اگر در حالت زوم بودیم، دکمه بازگشت ابتدا زوم را ریست می‌کند
-      if (zoomLevel > 1) {
-        hasZoomHistory = false;
-        setZoom(1, false);
-        return;
-      }
-      // در اندازه عادی، لایت‌باکس بسته شده و کاربر به صفحه برمی‌گردد
-      modalOpen = false;
-      close(false);
-    };
-    window.addEventListener("popstate", onPopState);
-
-    const setZoom = (targetZoom, syncHistory = true) => {
-      const clamped = Math.max(1, Math.min(4, +(targetZoom).toFixed(2)));
-      if (clamped === zoomLevel) return;
-
-      const prevZoom = zoomLevel;
-      zoomLevel = clamped;
-
-      if (syncHistory) {
-        if (prevZoom === 1 && zoomLevel > 1 && !hasZoomHistory) {
-          hasZoomHistory = true;
-          history.pushState({ modal: "lightbox", adId: l.id, zoom: zoomLevel, idx: i }, "", location.hash);
-        } else if (prevZoom > 1 && zoomLevel === 1 && hasZoomHistory) {
-          hasZoomHistory = false;
+      // اگر کاربر دستی دکمه بستن، پس‌زمینه یا اسکیپ را زد، یک گام تاریخچه عقب برگردد
+      if (!fromPopState) {
+        if (history.state && history.state.modal === "lightbox") {
           history.back();
         }
       }
+    };
 
+    // اگر کاربر دکمه Back مرورگر یا دکمه برگشت گوشی را زد، لایت‌باکس فوراً بسته می‌شود
+    const onPopState = () => {
+      close(true);
+    };
+    window.addEventListener("popstate", onPopState);
+
+    const setZoom = (targetZoom) => {
+      const clamped = Math.max(1, Math.min(4, +(targetZoom).toFixed(2)));
+      if (clamped === zoomLevel) return;
+      zoomLevel = clamped;
       applyZoomLayout();
     };
 
@@ -1299,7 +1282,6 @@ const App = (() => {
       const canvas = el.querySelector("#lbCanvas");
       const zoomVal = el.querySelector("#lbZoomVal");
       if (zoomVal) zoomVal.textContent = fa(Math.round(zoomLevel * 100)) + "٪";
-
       if (!vp || !stage || !canvas) return;
 
       if (zoomLevel <= 1) {
@@ -1312,23 +1294,20 @@ const App = (() => {
         if (imgEl) {
           imgEl.style.width = "";
           imgEl.style.height = "";
-          imgEl.style.maxWidth = "90vw";
-          imgEl.style.maxHeight = "calc(100vh - 140px)";
+          imgEl.style.maxWidth = "92vw";
+          imgEl.style.maxHeight = "calc(100vh - 130px)";
         }
         vp.scrollTo({ left: 0, top: 0, behavior: "smooth" });
       } else {
         vp.style.cursor = "grab";
-        // ابعاد مبنای صفحه برای محاسبه اسکیل فیزیکی محتوا جهت پدیدار شدن اسکرول‌بار واقعی
         const baseW = Math.min(window.innerWidth * 0.9, 1080);
         const baseH = Math.min(window.innerHeight - 140, 720);
         const scaledW = Math.round(baseW * zoomLevel);
         const scaledH = Math.round(baseH * zoomLevel);
-
         stage.style.width = scaledW + "px";
         stage.style.height = scaledH + "px";
         canvas.style.minWidth = (scaledW + 60) + "px";
         canvas.style.minHeight = (scaledH + 60) + "px";
-
         const imgEl = stage.querySelector("img, svg");
         if (imgEl) {
           imgEl.style.width = "100%";
@@ -1336,8 +1315,6 @@ const App = (() => {
           imgEl.style.maxWidth = "none";
           imgEl.style.maxHeight = "none";
         }
-
-        // تمرکز هوشمند روی مرکز تصویر پس از زوم
         setTimeout(() => {
           const targetX = Math.max(0, (vp.scrollWidth - vp.clientWidth) / 2);
           const targetY = Math.max(0, (vp.scrollHeight - vp.clientHeight) / 2);
@@ -1348,6 +1325,7 @@ const App = (() => {
 
     const draw = () => {
       el.innerHTML = `
+        <button class="lightbox__top-close" data-x aria-label="بستن" title="بستن (Esc)">✕</button>
         <div class="lightbox__viewport" id="lbVp">
           <div class="lightbox__canvas" id="lbCanvas">
             <div class="lightbox__stage" id="lbStage">
@@ -1366,7 +1344,6 @@ const App = (() => {
           </div>
           <button class="btn btn--line btn--sm" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
         </div>`;
-
       bindEvents();
       applyZoomLayout();
     };
@@ -1375,7 +1352,6 @@ const App = (() => {
       const vp = el.querySelector("#lbVp");
       if (!vp) return;
 
-      // پیمایش و کشیدن تصویر با ماوس (Drag / Pan)
       let isDragging = false;
       let startX, startY, startScrollX, startScrollY;
 
@@ -1405,9 +1381,9 @@ const App = (() => {
         vp.scrollTop = startScrollY - dy;
       });
 
-      // بزرگ‌نمایی دو انگشتی (Pinch to zoom) روی موبایل
       let touchDistanceStart = 0;
       let touchZoomStart = 1;
+
       vp.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
           const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -1430,11 +1406,10 @@ const App = (() => {
 
     const onKeyDown = (e) => {
       const vp = el.querySelector("#lbVp");
-      if (e.key === "Escape") { close(); e.preventDefault(); return; }
+      if (e.key === "Escape") { close(false); e.preventDefault(); return; }
       if (e.key === "+" || e.key === "=") { setZoom(zoomLevel + 0.35); e.preventDefault(); return; }
       if (e.key === "-") { setZoom(zoomLevel - 0.35); e.preventDefault(); return; }
 
-      // اسکرول با کلیدهای جهت‌نما در حالت زوم (مشکل ۱)
       if (zoomLevel > 1 && vp) {
         if (e.key === "ArrowUp") { vp.scrollBy({ top: -80, behavior: "smooth" }); e.preventDefault(); }
         else if (e.key === "ArrowDown") { vp.scrollBy({ top: 80, behavior: "smooth" }); e.preventDefault(); }
@@ -1448,7 +1423,9 @@ const App = (() => {
 
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (b?.dataset.d) {
+      if (e.target.closest("[data-x]")) {
+        close(false);
+      } else if (b?.dataset.d) {
         i = (i + +b.dataset.d + n) % n;
         zoomLevel = 1;
         draw();
@@ -1458,8 +1435,8 @@ const App = (() => {
         setZoom(zoomLevel - 0.4);
       } else if (b?.dataset.zoom === "reset") {
         setZoom(1);
-      } else if (b?.hasAttribute("data-x") || e.target.id === "lbVp" || e.target.id === "lbCanvas") {
-        close();
+      } else if (e.target.id === "lbVp" || e.target.id === "lbCanvas") {
+        close(false);
       } else if (e.target.closest("#lbStage")) {
         setZoom(zoomLevel === 1 ? 2.2 : 1);
       }
@@ -1478,13 +1455,16 @@ const App = (() => {
 
   /* ---------- مدال نقشه تعاملی با کنترل کامل زوم، اسکرول و دکمه بازگشت ---------- */
   function openMapModal(l, pos, cc) {
-    let modalOpen = true;
-    history.pushState({ modal: "map", adId: l.id }, "", location.hash);
+    document.querySelectorAll(".lightbox").forEach((node) => node.remove());
+
+    let isClosed = false;
+    history.pushState({ modal: "map", t: Date.now() }, "", location.hash);
 
     const el = document.createElement("div");
     el.className = "lightbox lightbox--map";
     el.innerHTML = `
-      <div class="lightbox__viewport" style="display:flex;flex-direction:column;height:calc(100vh - 76px);width:100vw;position:relative;overflow:hidden;padding:0">
+      <button class="lightbox__top-close" data-x aria-label="بستن" title="بستن (Esc)">✕</button>
+      <div class="lightbox__viewport" style="display:flex;flex-direction:column;flex:1 1 auto;width:100%;position:relative;overflow:hidden;padding:0">
         <div id="fullMapModal" style="width:100%;height:100%"></div>
         <div class="map-hud-overlay">
           <div class="map-hud-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${esc(l.title)}</div>
@@ -1502,29 +1482,33 @@ const App = (() => {
           <button class="btn btn--line btn--sm" id="barZoomOut">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
           <button class="btn btn--line btn--sm" id="barReset">${icon("target", 'width="15"')} مرکز</button>
         </div>
-        <button class="btn btn--line btn--sm" id="barClose">${icon("x", 'width="15"')} بستن</button>
+        <button class="btn btn--line btn--sm" id="barClose" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
       </div>`;
 
-    const close = (rewindHistory = true) => {
-      if (!modalOpen) return;
-      modalOpen = false;
+    const close = (fromPopState = false) => {
+      if (isClosed) return;
+      isClosed = true;
+
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("keydown", onKeyDown);
-      if (rewindHistory) history.back();
-      el.classList.add("is-closing");
-      setTimeout(() => el.remove(), 200);
+
+      el.remove();
+
+      if (!fromPopState) {
+        if (history.state && history.state.modal === "map") {
+          history.back();
+        }
+      }
     };
 
     const onPopState = () => {
-      if (!modalOpen) return;
-      modalOpen = false;
-      close(false);
+      close(true);
     };
     window.addEventListener("popstate", onPopState);
 
     let map = null;
     const onKeyDown = (e) => {
-      if (e.key === "Escape") { close(); e.preventDefault(); return; }
+      if (e.key === "Escape") { close(false); e.preventDefault(); return; }
       if (!map) return;
       if (e.key === "ArrowUp") { map.panBy([0, -80]); e.preventDefault(); }
       else if (e.key === "ArrowDown") { map.panBy([0, 80]); e.preventDefault(); }
@@ -1533,8 +1517,14 @@ const App = (() => {
       else if (e.key === "+" || e.key === "=") { map.zoomIn(); e.preventDefault(); }
       else if (e.key === "-") { map.zoomOut(); e.preventDefault(); }
     };
-    document.addEventListener("keydown", onKeyDown);
 
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-x]")) {
+        close(false);
+      }
+    });
+
+    document.addEventListener("keydown", onKeyDown);
     document.body.appendChild(el);
 
     const mapEl = el.querySelector("#fullMapModal");
@@ -1550,7 +1540,6 @@ const App = (() => {
     el.querySelector("#barZoomIn")?.addEventListener("click", () => map?.zoomIn());
     el.querySelector("#barZoomOut")?.addEventListener("click", () => map?.zoomOut());
     el.querySelector("#barReset")?.addEventListener("click", () => map?.setView(pos, l.latlng_exact ? 15 : 13));
-    el.querySelector("#barClose")?.addEventListener("click", () => close());
   }
 
   /* ---------- ذخیره‌شده‌ها ---------- */
