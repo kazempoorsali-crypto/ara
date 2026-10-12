@@ -325,5 +325,5 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap };
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc };
 })();
