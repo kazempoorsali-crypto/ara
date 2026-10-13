@@ -338,7 +338,9 @@ const App = (() => {
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
     // انتخاب شهر روی کره، فیلتر شهر جست‌وجو را هم پر می‌کند
-    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; if (!ids.length) hCity.set(null); drawHTags(); } });
+    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; if (!ids.length) hCity.set(null); else if (ids.length === 1) hCity.set(ids[0]); drawHTags(); },
+      // محله‌های روشن در فهرست زیر نقشه = فیلتر محلهٔ جست‌وجو
+      onDistricts: (names) => { H.dist = names.join(","); H.dq = ""; hDist.set(names.length === 1 ? names[0] : null); } });
     // راهنمای استان‌ها: یک ردیف با پیمایش افقی؛ دکمهٔ «همه» باز و بسته می‌کند
     const rail = $("#provList");
     if (rail) {
@@ -499,6 +501,20 @@ const App = (() => {
     if ($("#skyBack")) $("#skyBack").hidden = true;
     if ($("#skyBar")) $("#skyBar").hidden = true;
   }
+  // پس از خروج از شهر، دکمهٔ همان شهر (روشن) روی کره می‌ماند؛ زدن دوباره، فیلتر را برمی‌گرداند و نقشه روی شهر متمرکز می‌شود
+  function liveRecent(L0) {
+    const bar = $("#skyBar"), ids = L0.recent || [];
+    if (!bar || !ids.length) return;
+    bar.innerHTML = ids.map((id) => `<button type="button" data-re="${id}" title="بازگشت به ${esc(UI.cityOf(id)?.name || id)}">${esc(UI.cityOf(id)?.name || id)}</button>`).join("");
+    bar.hidden = false;
+    bar.onclick = (e) => {
+      const b = e.target.closest("[data-re]"); if (!b) return;
+      const pick = L0.recent.length > 1 ? [b.dataset.re] : L0.recent.slice();
+      L0.recent = null;
+      if (L0.mode === "home" && L0.opts.onCities) L0.opts.onCities(pick);
+      else liveSelect(L0.st, { cities: pick });
+    };
+  }
   function liveHome(L0) {
     liveHideMap();
     L0.sel = null; L0.token++;
@@ -552,14 +568,19 @@ const App = (() => {
     const pv = ds.map((d) => d.median_ppm).filter(Boolean);
     const lo = pv.length ? Math.min(...pv) : 0, hi = pv.length ? Math.max(...pv) : 0;
     const all = [], posOf = {}, unplaced = [];
+    L0.cols = {};
+    // محله‌های روشن (انتخاب با فهرست پایین نقشه): در صفحهٔ فرصت‌ها از فیلتر محله خوانده می‌شود
+    if (L0.mode === "search") L0.dsel = new Set(String((L0.opts.query || {}).district || "").split(",").filter(Boolean));
+    else if (!L0.dsel || L0.dselFor !== sel.ids.join(",")) L0.dsel = new Set();
+    L0.dselFor = sel.ids.join(",");
     ds.forEach((d) => {
       // محله‌ای که مکانش معلوم نیست روی نقشه گذاشته نمی‌شود (قبلاً دور مرکز شهر چیده می‌شد و روستاهای دور را داخل شهر نشان می‌داد)
       const lat = d.lat, lng = d.lng;
       if (!lat || !lng) { unplaced.push(d); return; }
       all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
-      const q = L0.opts.query || {}, isSel = q.district && String(q.district).split(",").includes(d.name) && (!q.dcity || q.dcity === d.city);
+      const isSel = L0.dsel.has(d.name), isDim = L0.dsel.size > 0 && !isSel;
       const h = d.median_ppm ? Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5)) : 12;
-      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${d.low || !d.median_ppm ? " is-low" : ""}${d.rural ? " is-rural" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
+      const mk = L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${isDim ? " is-dim" : ""}${d.low || !d.median_ppm ? " is-low" : ""}${d.rural ? " is-rural" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
         .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>${d.median_ppm ? "میانهٔ هر متر " + money(d.median_ppm) + (d.ppm_kind === "mixed" ? " (آپارتمان و ویلا)" : "") : "قیمت هر متر: دادهٔ کافی نیست"}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}${d.rural ? "<br><small>روستا یا ناحیهٔ خارج از شهر</small>" : d.approx && d.lat ? "<br><small>مکان تقریبی محله</small>" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
         .on("click", () => skyGo(() => {
           // محلهٔ انتخابی اول می‌آید و دکمهٔ «فرصت‌های بیشتر» همهٔ شهرهای انتخابی را باز می‌کند
@@ -568,6 +589,7 @@ const App = (() => {
           go("#/s?" + toQuery({ ...base, city: sel.ids.join(","), province: "", district: d.name, dcity: d.city, focus: 1 }));
         }))
         .addTo(L0.layer);
+      L0.cols[d.name] = mk;
     });
     sel.pts.forEach((c) => { if (!bounds[c.id]) { bounds[c.id] = [[c.lat, c.lng]]; all.push([c.lat, c.lng]); } });
     // برچسب هر شهر روی نقشه: زدن روی آن، فرصت‌های همان شهر را باز می‌کند
@@ -588,9 +610,10 @@ const App = (() => {
       if (f && f.dataset.fly !== "*" && f.classList.contains("is-on")) {
         const rest = sel.ids.filter((id) => id !== f.dataset.fly);
         f.classList.remove("is-on");
-        if (L0.mode === "home" && L0.opts.onCities) { L0.opts.onCities(rest); if (!rest.length) liveHome(L0); return; }
+        L0.recent = sel.ids.slice();
+        if (L0.mode === "home" && L0.opts.onCities) { L0.opts.onCities(rest); if (!rest.length) { liveHome(L0); liveRecent(L0); } return; }
         if (rest.length && L0.opts.onCities) { L0.opts.onCities(rest); return; }
-        liveHome(L0); return;
+        liveHome(L0); liveRecent(L0); return;
       }
       if (f) {
         $$("[data-fly]", bar).forEach((b) => b.classList.toggle("is-on", b === f));
@@ -604,21 +627,35 @@ const App = (() => {
         else L0.map.removeLayer(L0.base.sat);
       }
     };
-    // محله‌هایی که مکان دقیقشان هنوز معلوم نیست: فهرست زیر نقشه (نه جای حدسی روی نقشه)؛ با زدن، آگهی‌هایشان باز می‌شود
+    // فهرست همهٔ محله‌های شهر زیر نقشه: هر نام یک کلید روشن/خاموش است؛ محلهٔ روشن ستونش برجسته می‌شود
+    // و فرصت‌هایش در فهرست صفحه می‌آید. محله‌ای که هنوز مکان دقیق ندارد علامت «بی‌مکان» دارد.
     let more = $("#skyMore");
     if (!more) { more = document.createElement("div"); more.id = "skyMore"; more.className = "sky__more"; box.parentNode.appendChild(more); }
-    unplaced.sort((a, b) => (b.opportunities || 0) - (a.opportunities || 0) || b.n - a.n);
-    more.hidden = !unplaced.length;
-    more.innerHTML = unplaced.length ? `<span>محله‌های دیگر${multi ? "" : " " + esc(sel.pts[0].name)}:</span>` + unplaced.slice(0, 60).map((d, i) => `<button type="button" data-um="${i}" class="${d.opportunities ? "is-hot" : ""}${d.rural ? " is-rural" : ""}">${esc(d.name)}<small>${fa(d.n)}${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}</small></button>`).join("") : "";
-    more.onclick = (e) => {
-      const b = e.target.closest("[data-um]"); if (!b) return;
-      const d = unplaced[+b.dataset.um];
-      skyGo(() => {
-        const base = L0.mode === "search" ? { ...(L0.opts.query || {}) } : { sort: "score" };
-        delete base.pick; delete base.page;
-        go("#/s?" + toQuery({ ...base, city: sel.ids.join(","), province: "", district: d.name, dcity: d.city, focus: 1 }));
-      });
+    const chips = ds.slice().sort((a, b) => (b.opportunities || 0) - (a.opportunities || 0) || b.n - a.n).slice(0, 200);
+    more.hidden = !chips.length;
+    more.innerHTML = chips.length ? `<span class="sky__more-h">محله‌های ${multi ? "این شهرها" : esc(sel.pts[0].name)} <small>${fa(chips.length)}</small></span><div class="sky__more-list" id="skyMoreList">` + chips.map((d, i) => `<button type="button" data-um="${i}" aria-pressed="false" class="${d.opportunities ? "is-hot" : ""}${d.rural ? " is-rural" : ""}${d.lat ? "" : " is-nopin"}" title="${d.lat ? "روشن/خاموش کردن این محله" : "مکان دقیق این محله هنوز روی نقشه معلوم نیست؛ با روشن کردن، آگهی‌هایش در فهرست می‌آید"}">${esc(d.name)}<small>${fa(d.n)}${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}</small></button>`).join("") + `</div><button type="button" class="sky__more-x" id="skyMoreX" title="نمایش همه یا جمع کردن">${icon("down", 'width="16"')}</button>` : "";
+    const paintSel = () => {
+      const on = L0.dsel;
+      $$("[data-um]", more).forEach((b) => { const v = on.has(chips[+b.dataset.um].name); b.classList.toggle("is-on", v); b.setAttribute("aria-pressed", v); });
+      Object.entries(L0.cols || {}).forEach(([name, mk]) => { const el = mk.getElement() && mk.getElement().querySelector(".col"); if (el) { el.classList.toggle("is-sel", on.has(name)); el.classList.toggle("is-dim", on.size > 0 && !on.has(name)); } });
     };
+    paintSel();
+    more.onclick = (e) => {
+      if (e.target.closest("#skyMoreX")) { more.classList.toggle("is-open"); return; }
+      const b = e.target.closest("[data-um]"); if (!b) return;
+      const d = chips[+b.dataset.um];
+      L0.dsel.has(d.name) ? L0.dsel.delete(d.name) : L0.dsel.add(d.name);
+      paintSel();
+      const names = [...L0.dsel];
+      if (L0.opts.onDistricts) L0.opts.onDistricts(names, sel.ids);
+      // روی نقشه به محلهٔ تازه‌روشن برو
+      if (L0.dsel.has(d.name) && L0.cols[d.name]) L0.map.flyTo(L0.cols[d.name].getLatLng(), Math.max(L0.map.getZoom(), 14), { duration: 0.8 });
+      const go_ = $(".sky__go", $("#skyBar"));
+      if (go_) go_.href = "#/s?" + toQuery({ city: sel.ids.join(","), sort: "score", opp: names.length ? "" : 1, district: names.join(",") });
+    };
+    // چرخ موس روی فهرست: پیمایش افقی
+    const ml = $("#skyMoreList");
+    if (ml) ml.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !more.classList.contains("is-open")) { ml.scrollLeft -= e.deltaY; e.preventDefault(); } }, { passive: false });
     box.classList.add("is-on");
     $("#skyBack").hidden = false;
     if (L0.listings.length) drawLiveListings(L0);
@@ -1679,7 +1716,8 @@ const App = (() => {
       if (wide.hidden) return;
       const onCities = (ids) => set({ city: ids.join(","), province: "", district: "", dcity: "", focus: "", pick: "" });
       const onPick = (id) => set({ pick: id });
-      if (!live || live.mode !== "search" || !$("#skyGlobe")) initLive(DataLayer.stats, { mode: "search", sel, onCities, onPick, query: F });
+      const onDistricts = (names) => set({ district: names.join(","), dcity: "", focus: names.length ? 1 : "", pick: "", dq: "" });
+      if (!live || live.mode !== "search" || !$("#skyGlobe")) initLive(DataLayer.stats, { mode: "search", sel, onCities, onPick, onDistricts, query: F });
       else { live.opts.query = F; if (changed) liveSelect(DataLayer.stats, sel); }
     }
     async function update(params) {

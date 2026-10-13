@@ -163,7 +163,7 @@ def run(mode):
         # دورهٔ رایگان ۱۰ روزه برای ثبت‌نام تازه (پیش‌فرض روشن)
         ot = call("/api/auth/otp", {"phone": "09123334444"})
         vt = call("/api/auth/verify", {"phone": "09123334444", "code": ot["dev_code"]})
-        check(vt["user"]["active"] and vt["user"]["trial"] and vt["user"]["days_left"] == 10 and vt.get("trial_days") == 10, f"[{mode}] ثبت‌نام تازه: ۱۰ روز دسترسی کامل رایگان")
+        check(vt["user"]["active"] and vt["user"]["trial"] and vt["user"]["days_left"] == 3 and vt.get("trial_days") == 3, f"[{mode}] ثبت‌نام تازه: ۳ روز دسترسی کامل رایگان (پیش‌فرض)")
         call("/api/admin/settings", {"billing": {"trial_enabled": False}}, tok)
         check(call("/api/config")["trial_days"] == 0, f"[{mode}] دورهٔ رایگان خاموش شد")
         o = call("/api/auth/otp", {"phone": "۰۹۱۲۱۲۳۴۵۶۷"})

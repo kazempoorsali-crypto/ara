@@ -240,6 +240,7 @@ def geocode_once(store, limit=40, pause=1.2) -> int:
     geo = store.get_setting("geo_cache") or {}
     rural = rural_districts(store)
     found = 0
+    stats = {**{"found": 0, "notfound": 0, "errors": 0, "last_error": ""}, **(store.get_setting("geo_stats") or {})}
     for city, district in todo:
         c = catalog.CITY_BY_KEY.get(city)
         k = f"{city}|{district}"
@@ -248,22 +249,75 @@ def geocode_once(store, limit=40, pause=1.2) -> int:
             continue
         r_ = 0.32 if k in rural else 0.065   # روستا: کل شهرستان؛ محلهٔ شهری: فقط محدودهٔ شهر
         vb = f'{c["lng"] - r_ * 1.2},{c["lat"] + r_},{c["lng"] + r_ * 1.2},{c["lat"] - r_}'
+        box = (c["lng"] - r_ * 1.2, c["lat"] - r_, c["lng"] + r_ * 1.2, c["lat"] + r_)
+        ll, neterr = None, True
         for name in dict.fromkeys([norm(district), " ".join(tokens(district))]):
-            q = urllib.parse.urlencode({"q": f'{name}، {c["name"]}', "format": "json", "limit": 1, "countrycodes": "ir",
-                                        "viewbox": vb, "bounded": 1, "accept-language": "fa"})
-            req = urllib.request.Request("https://nominatim.openstreetmap.org/search?" + q,
-                                         headers={"user-agent": "forsatmelk.ir district geocoder (+https://forsatmelk.ir)"})
-            try:
-                with _opener(NET["proxy"]).open(req, timeout=10) as resp:
-                    res = json.loads(resp.read(200_000) or b"[]")
-            except Exception:  # noqa: BLE001
-                res = []
-                # خطای شبکه با «پیدا نشد» فرق دارد: فردا دوباره امتحان شود، نه ۳۰ روز بعد
-                geo[k]["at"] = int(time.time()) - 29 * 86400
-            time.sleep(pause)
-            if res:
-                geo[k]["ll"] = [round(float(res[0]["lat"]), 5), round(float(res[0]["lon"]), 5)]
-                found += 1
+            ll, err = _nominatim(name, c["name"], vb)
+            neterr = neterr and err
+            if not ll and err:   # Nominatim در دسترس نیست: Photon (همان دادهٔ OpenStreetMap)
+                ll, err2 = _photon(f'{name} {c["name"]}', box)
+                neterr = err and err2
+            if ll:
                 break
+        if ll:
+            geo[k]["ll"] = ll
+            found += 1
+            stats["found"] += 1
+        elif neterr:
+            # خطای شبکه با «پیدا نشد» فرق دارد: فردا دوباره امتحان شود، نه ۳۰ روز بعد
+            geo[k]["at"] = int(time.time()) - 29 * 86400
+            stats["errors"] += 1
+        else:
+            stats["notfound"] += 1
+        time.sleep(pause)
+    stats["at"] = int(time.time())
+    if _LAST_ERR["msg"]:
+        stats["last_error"] = _LAST_ERR["msg"]
+    store.set_setting("geo_stats", stats)
     store.set_setting("geo_cache", geo)
     return found
+
+
+_LAST_ERR = {"msg": ""}
+
+
+def _get_json(url, timeout=10):
+    import json
+    import urllib.request
+    from divar_client import NET, _opener
+    req = urllib.request.Request(url, headers={"user-agent": "forsatmelk.ir district geocoder (+https://forsatmelk.ir)", "accept-language": "fa"})
+    with _opener(NET["proxy"]).open(req, timeout=timeout) as resp:
+        return json.loads(resp.read(300_000) or b"null")
+
+
+def _nominatim(name, city_name, vb):
+    """(مختصات یا None، خطای شبکه؟)؛ اول نام محله به‌تنهایی درون کادر شهر، بعد همراه نام شهر."""
+    import urllib.parse
+    err = True
+    for q in (name, f"{name}, {city_name}"):
+        url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+            {"q": q, "format": "json", "limit": 1, "countrycodes": "ir", "viewbox": vb, "bounded": 1, "accept-language": "fa"})
+        try:
+            res = _get_json(url) or []
+            err = False
+        except Exception as e:  # noqa: BLE001
+            _LAST_ERR["msg"] = f"Nominatim: {str(e)[:120]}"
+            return None, True
+        if res:
+            return [round(float(res[0]["lat"]), 5), round(float(res[0]["lon"]), 5)], False
+    return None, err
+
+
+def _photon(q, box):
+    import urllib.parse
+    url = "https://photon.komoot.io/api/?" + urllib.parse.urlencode({"q": q, "limit": 1, "bbox": ",".join(f"{v:.4f}" for v in box)})
+    try:
+        res = _get_json(url) or {}
+    except Exception as e:  # noqa: BLE001
+        _LAST_ERR["msg"] += f" | Photon: {str(e)[:120]}"
+        return None, True
+    f = (res.get("features") or [])
+    if f:
+        lng, lat = f[0]["geometry"]["coordinates"][:2]
+        return [round(float(lat), 5), round(float(lng), 5)], False
+    return None, False

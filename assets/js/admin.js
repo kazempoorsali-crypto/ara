@@ -102,6 +102,8 @@
       </div>
       <div class="panel"><h2>وضعیت دریافت <button class="btn btn--line btn--sm" data-go="ingest">تنظیمات دریافت</button></h2>${statusLine()}
         <p class="hint">با سقف ${fa(cfg.hourly_limit)} درخواست در ساعت، هر ${fa(Math.round(3600 / cfg.hourly_limit))} ثانیه یک درخواست به دیوار ارسال می‌شود. هر درخواست فهرست تا ۲۴ تا ۳۰ آگهی خلاصه، و هر درخواست جزئیات یک آگهی کامل (عکس‌ها، متراژ، توضیحات) می‌آورد.</p></div>
+      <div class="panel"><h2>مکان محله‌ها روی نقشه</h2>${(() => { const g = S.geo || {}, st = g.stats || {}; return `<p>${g.centers || 0} محله از ${g.districts || 0} محلهٔ دارای آگهی مکان دارند (از آگهی‌های دارای مختصات دقیق یا از روی نام در OpenStreetMap).</p>
+        <p class="hint">مکان‌یابی خودکار در پس‌زمینه: ${st.found || 0} پیدا شد، ${st.notfound || 0} پیدا نشد، ${st.errors || 0} خطای شبکه${st.at ? "؛ آخرین اجرا " + when(st.at) : "؛ هنوز اجرا نشده"}.${st.errors && !st.found ? ' <b class="bad">سرور به OpenStreetMap دسترسی ندارد؛ تنظیم پروکسی خروجی را در «دریافت آگهی‌ها» بررسی کنید.</b>' : ""}${st.last_error ? `<br>آخرین خطا: <span class="bad" dir="ltr">${esc(st.last_error)}</span>` : ""}</p>`; })()}</div>
       <div class="panel"><h2>آخرین رویدادها</h2><div class="tbl-scroll"><table class="tbl"><thead><tr><th>زمان</th><th>نوع</th><th>نتیجه</th><th>شرح</th></tr></thead><tbody>
         ${S.log.slice(0, 20).map((r) => `<tr><td>${when(r.at)}</td><td>${{ search: "فهرست", detail: "جزئیات", test: "آزمون", discover: "کشف شناسه", sms: "پیامک" }[r.kind] || r.kind}</td><td class="${r.ok ? "ok" : "bad"}">${r.ok ? "موفق" : "خطا"}</td><td>${esc(r.note)}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">هنوز درخواستی ارسال نشده است.</td></tr>'}
       </tbody></table></div></div>`;
@@ -427,7 +429,7 @@
         <label class="field"><span>مدت هفتگی (روز)</span><input class="input" name="weekly_days" type="number" min="1" value="${b.weekly_days}"></label>
         <label class="field"><span>اشتراک ماهانه</span><input class="input" name="monthly_price" type="number" min="0" value="${b.monthly_price || ""}"></label>
         <label class="field"><span>مدت ماهانه (روز)</span><input class="input" name="monthly_days" type="number" min="1" value="${b.monthly_days}"></label>
-        <label class="field"><span>طول دورهٔ رایگان ثبت‌نام (روز)</span><input class="input" name="trial_days" type="number" min="1" max="365" value="${b.trial_days || 10}"></label>
+        <label class="field"><span>طول دورهٔ رایگان ثبت‌نام (روز؛ ۰ = بدون دورهٔ رایگان)</span><input class="input" name="trial_days" type="number" min="0" max="365" value="${b.trial_days ?? 3}"></label>
         <label class="switch" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="trial_enabled" ${b.trial_enabled ? "checked" : ""}><i></i>دورهٔ رایگان: هر کس تازه ثبت‌نام کند، همهٔ امکانات برایش باز است</label>
         <label class="field"><span>تعداد نتیجهٔ رایگان هر جست‌وجو (بدون اشتراک)</span><input class="input" name="free_results" type="number" min="0" max="100" value="${b.free_results}"></label>
         <label class="field"><span>تعداد فرصت برتر رایگان با جزئیات کامل</span><input class="input" name="free_preview" type="number" min="0" max="50" value="${b.free_preview}"></label>
@@ -502,7 +504,7 @@
       const f = e.target;
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
-          free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked, trial_days: +f.trial_days.value || 10,
+          free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked && +f.trial_days.value > 0, trial_days: f.trial_days.value === "" ? 3 : Math.max(0, +f.trial_days.value),
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
