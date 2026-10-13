@@ -66,7 +66,7 @@ const App = (() => {
     $$("[data-nav]").forEach((a) => a.classList.remove("is-on"));
     document.body.classList.remove("has-mcta");
     if (page === "s") {
-      const key = params.opp || params.ranked ? "top" : "estate-" + (params.deal || "sale");
+      const key = params.opp || params.ranked ? "top" : String(params.presale) === "1" ? "estate-presale" : "estate-" + (params.deal || "sale");
       $(`[data-nav="${key}"]`)?.classList.add("is-on");
       if (lastPath === "s") { searchPage.update(params); return; }
       searchPage.render(params);
@@ -121,7 +121,7 @@ const App = (() => {
           <form class="search-card" id="heroForm" autocomplete="off">
             <div class="search-card__tabs">
               <div class="search-card__deals" id="heroDeals" style="margin-inline-start:0">
-                <button type="button" class="is-on" data-d="">همه</button><button type="button" data-d="sale">خرید</button><button type="button" data-d="rent">رهن و اجاره</button><button type="button" data-d="daily">روزانه</button>
+                <button type="button" class="is-on" data-d="">همه</button><button type="button" data-d="sale">خرید</button><button type="button" data-d="presale">پیش‌فروش</button><button type="button" data-d="rent">رهن و اجاره</button><button type="button" data-d="daily">روزانه</button>
               </div>
             </div>
             <div class="loc-row" aria-label="انتخاب محدوده">
@@ -163,11 +163,11 @@ const App = (() => {
     </section>
     <section class="scene" id="pinScene" aria-label="فرصت ملک در یک نگاه">
       <div class="scene__stage">
-        <div class="scene__pic scene__pic--house" aria-hidden="true"><img class="sk" src="/assets/img/scene/house-sketch.jpg" alt="" decoding="async"><img class="ph" src="/assets/img/scene/house.jpg" alt="" decoding="async"></div>
-        <div class="scene__pic scene__pic--living" aria-hidden="true"><img class="sk" src="/assets/img/scene/living-sketch.jpg" alt="" loading="lazy" decoding="async"><img class="ph" src="/assets/img/scene/living.jpg" alt="" loading="lazy" decoding="async"></div>
+        <div class="scene__pic scene__pic--house" aria-hidden="true"><img class="dim" src="/assets/img/scene/house-dim.jpg" alt="" decoding="async"><img class="ph" src="/assets/img/scene/house-1280.jpg" srcset="/assets/img/scene/house-1280.jpg 1280w, /assets/img/scene/house.jpg 2400w" sizes="100vw" alt="" decoding="async"><i class="scene__sweep"></i></div>
+        <div class="scene__pic scene__pic--living" aria-hidden="true"><img class="dim" src="/assets/img/scene/living-dim.jpg" alt="" loading="lazy" decoding="async"><img class="ph" src="/assets/img/scene/living-1280.jpg" srcset="/assets/img/scene/living-1280.jpg 1280w, /assets/img/scene/living.jpg 2400w" sizes="100vw" alt="" loading="lazy" decoding="async"><i class="scene__sweep"></i></div>
         <div class="scene__shade" aria-hidden="true"></div>
         <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 12 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path class="r" d="M10 25l13-13 13 13"/><path class="w" d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0"/><circle cx="39" cy="10" r="4.2"/></svg>`).join("")}</div></div>
-        <p class="scene__hint" aria-hidden="true">نشانگر را روی طرح بکشید تا خود ملک پیدا شود</p>
+        <p class="scene__hint" aria-hidden="true">اسکرول کنید تا چراغ‌ها روشن شوند؛ نشانگر را روی تصویر بکشید</p>
         <div class="scene__step" data-step="0"><b>${fa(st.total || 0)}</b><span>آگهی که قیمتش را با محلهٔ خودش سنجیده‌ایم</span></div>
         <div class="scene__step scene__step--end" data-step="1"><b>${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده با فاصلهٔ معنادار از برآورد بازار</span></div>
         <div class="scene__step" data-step="2"><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر زیر پوشش، محله به محله</span></div>
@@ -178,7 +178,7 @@ const App = (() => {
     <section class="section story">
       <div class="wrap story__grid">
         <div class="story__q"><span class="kicker">مشکل بازار</span><h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
-          <p data-scrub>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس مردم است.</p></div>
+          <p data-scrub>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی، کمتر در دسترس مردم است.</p></div>
         <ol class="story__list">
           <li><b>قیمت مالک</b><span>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</span></li>
           <li><b>قیمت مشاور</b><span>ممکن است زیر اثر شرایط معامله و کمیسیون باشد.</span></li>
@@ -283,7 +283,8 @@ const App = (() => {
     $("#heroForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const v = $("#heroQ").value.trim();
-      const f = v ? NLP.parseQuery(v, deal ? { deal } : {}).filters : (deal ? { deal } : {});
+      const dl = deal === "presale" ? { deal: "sale", presale: 1 } : deal ? { deal } : {};
+      const f = v ? { ...NLP.parseQuery(v, dl).filters, ...(deal === "presale" ? dl : {}) } : dl;
       if (H.provs.length) f.province = H.provs.join(",");
       if (H.cities.length) f.city = H.cities.join(",");
       if (H.dist) f.district = H.dist;
@@ -299,7 +300,7 @@ const App = (() => {
         if (!id) return;
         if (!H.cities.includes(id)) { H.cities.push(id); drawHTags(); }
         H.dist = "";
-        const r = await DataLayer.districts(id, deal === "sale" || deal === "" ? "sale" : deal).catch(() => ({ items: [] }));
+        const r = await DataLayer.districts(id, ["sale", "", "presale"].includes(deal) ? "sale" : deal).catch(() => ({ items: [] }));
         hDist.setItems(r.items.map((x) => ({ id: x.name, label: x.name, hint: fa(x.n) + " آگهی" })), null);
         if ($("#hDist input")) $("#hDist input").placeholder = r.items.length ? "همهٔ محله‌ها" : "محله‌ها";
       } });
@@ -796,9 +797,11 @@ const App = (() => {
         const cl = (x) => Math.min(1, Math.max(0, x));
         sec.style.setProperty("--p", p.toFixed(4));
         // نما: طرح خطی خانه، با اسکرول از راست به عکس واقعی تبدیل می‌شود؛ سپس فضای داخلی
-        sec.style.setProperty("--w1", (cl((p - 0.06) / 0.38) * 130).toFixed(1) + "%");
+        sec.style.setProperty("--w1", (cl((p - 0.05) / 0.4) * 140).toFixed(1) + "%");
+        sec.style.setProperty("--s1", cl((p - 0.05) / 0.4).toFixed(3));
+        sec.style.setProperty("--s2", cl((p - 0.76) / 0.2).toFixed(3));
         sec.style.setProperty("--liv", cl((p - 0.68) / 0.08).toFixed(3));
-        sec.style.setProperty("--w2", (cl((p - 0.76) / 0.2) * 130).toFixed(1) + "%");
+        sec.style.setProperty("--w2", (cl((p - 0.76) / 0.2) * 140).toFixed(1) + "%");
         sec.style.setProperty("--logo", (1 - cl((p - 0.07) / 0.13)).toFixed(3));
         steps.forEach((s, i) => s.classList.toggle("is-on", i === k));
         $$(".scene__dots i", sec).forEach((d, i) => d.classList.toggle("is-on", i === k));
@@ -1275,6 +1278,7 @@ const App = (() => {
         where = provs.length === 1 ? `در استان ${UI.provOf(provs[0])?.name || provs[0]}` : `در استان‌های ${provs.map((p) => UI.provOf(p)?.name || p).join(" و ")}`;
       }
       const kinds = (F.kinds || "").split(",").filter(Boolean).map(UI.kindName).join(" و ") || "ملک";
+      if (String(F.presale) === "1") return `${F.ranked || F.opp ? "فرصت‌های " : ""}پیش‌فروش ${kinds} ${where}`;
       return `${F.ranked || F.opp ? "فرصت‌های " : ""}${kinds}${F.deal ? " برای " + UI.dealName(F.deal) : ""} ${where}`;
     }
 
@@ -1322,7 +1326,10 @@ const App = (() => {
       html += dd("settle", settle === "urban" ? "شهری" : settle === "rural" ? "روستایی" : "شهری / روستایی", settle,
         `<div class="dd__grid">${[["", "همه"], ["urban", "شهری"], ["rural", "روستایی و خارج از محدوده"]].map(([v, n]) => `<button type="button" class="chip ${settle === v ? "is-on" : ""}" data-pick="settle" data-val="${v}">${n}</button>`).join("")}</div><p class="small muted" style="margin-top:8px">از محله و متن آگهی تشخیص داده می‌شود: اشاره به روستا، دهستان یا خارج از محدودهٔ شهر.</p>`);
       const ps = String(F.presale ?? "");
-      html += dd("deal", (F.deal ? UI.dealName(F.deal) : "نوع معامله") + (ps === "1" ? "، پیش‌فروش" : ""), F.deal || ps, `<div class="dd__grid">${[{ id: "", name: "همه" }, ...DEAL_TYPES].map((d) => `<button type="button" class="chip ${(F.deal || "") === d.id ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>
+      // پیش‌فروش گزینهٔ جداگانهٔ نوع معامله است (فروش + فقط پیش‌فروش) و با فرمول خودش سنجیده می‌شود
+      const dealOn = (id) => (id === "presale" ? ps === "1" : id === "sale" ? F.deal === "sale" && ps !== "1" : (F.deal || "") === id);
+      const dealOpts = [{ id: "", name: "همه" }, ...DEAL_TYPES.flatMap((d) => (d.id === "sale" ? [d, { id: "presale", name: "پیش‌فروش" }] : [d]))];
+      html += dd("deal", ps === "1" ? "پیش‌فروش" : F.deal ? UI.dealName(F.deal) : "نوع معامله", F.deal || ps, `<div class="dd__grid">${dealOpts.map((d) => `<button type="button" class="chip ${dealOn(d.id) ? "is-on" : ""}" data-pick="deal" data-val="${d.id}">${d.name}</button>`).join("")}</div>
         <div class="dd__label" style="margin-top:12px">پیش‌فروش</div><div class="dd__grid">${[["", "همه"], ["1", "فقط پیش‌فروش"], ["0", "بدون پیش‌فروش"]].map(([v, n]) => `<button type="button" class="chip ${ps === v ? "is-on" : ""}" data-pick="presale" data-val="${v}">${n}</button>`).join("")}</div>
         <p class="small muted" style="margin-top:8px">پیش‌فروش با قیمت پیش‌فروش‌های دیگر و قیمت واحد نوساز آمادهٔ همان محله سنجیده می‌شود، با در نظر گرفتن زمان تا تحویل.</p>`);
       html += dd("kinds", kinds.length ? kinds.map(UI.kindName).join("، ") : "نوع ملک", kinds.length, `<div class="dd__grid">${PROPERTY_TYPES.map((t) => `<button type="button" class="chip ${kinds.includes(t.id) ? "is-on" : ""}" data-toggle="kinds" data-val="${t.id}">${t.name}</button>`).join("")}</div>`);
@@ -1403,7 +1410,8 @@ const App = (() => {
           if (t.dataset.pick) {
             $$(`[data-pick="${t.dataset.pick}"]`, panel).forEach((x) => x.classList.toggle("is-on", x === t));
             pending[t.dataset.pick] = t.dataset.val;
-            if (d.dataset.dd === "deal") set(t.dataset.pick === "presale" ? { presale: t.dataset.val, ...(t.dataset.val === "1" ? { deal: "sale" } : {}) } : { deal: t.dataset.val });
+            if (d.dataset.dd === "deal") set(t.dataset.pick === "presale" ? { presale: t.dataset.val, ...(t.dataset.val === "1" ? { deal: "sale" } : {}) }
+              : t.dataset.val === "presale" ? { deal: "sale", presale: "1" } : { deal: t.dataset.val, presale: "" });
             if (d.dataset.dd === "settle") set({ settle: t.dataset.val, district: "" });
             if (d.dataset.dd === "fresh") set({ fresh: t.dataset.val });
             return;

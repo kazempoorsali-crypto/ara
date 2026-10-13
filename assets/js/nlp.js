@@ -57,6 +57,7 @@ const NLP = (() => {
       else if (/اجاره|رهن|کرایه/.test(q)) f.deal = "rent";
       else if (/خرید|بخرم|فروش|فروشی|سرمایه گذاری/.test(q)) f.deal = "sale";
       if (f.deal) tags.push(DEAL_TYPES.find((d) => d.id === f.deal).name);
+      if (/پیش ?[‌]?فروش|پیشفروش/.test(q)) { f.deal = "sale"; f.presale = 1; tags.push("پیش‌فروش"); }
       const kinds = TYPE_WORDS.filter(([, re]) => re.test(q)).map(([id]) => id);
       if (kinds.length) { f.kinds = kinds.join(","); kinds.forEach((k) => tags.push(PROPERTY_TYPES.find((t) => t.id === k).name)); }
       const am = AMEN_WORDS.filter(([, re]) => re.test(q)).map(([id]) => id);
