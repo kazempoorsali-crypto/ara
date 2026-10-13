@@ -190,6 +190,9 @@ def place_listings(store) -> dict:
     return {"centers": len(centers), "placed": len(upd)}
 
 
+import threading as _th
+GEO_PRIORITY: set = set()     # شهرهایی که کسی همین حالا نقشه‌شان را دیده؛ مکان‌یابی محله‌هایشان جلو می‌افتد
+GEO_WAKE = _th.Event()
 GEO_V = 2   # نسخهٔ قاعدهٔ مکان‌یابی؛ با تغییرش جست‌وجوهای قبلی دوباره انجام می‌شود
 
 
@@ -210,8 +213,10 @@ def missing_geo(store, limit=40):
     geo = store.get_setting("geo_cache") or {}
     now = time.time()
     out = []
-    for r in store.q("""SELECT city_key, district, COUNT(*) n FROM listings WHERE vertical='estate' AND status='active'
-                        AND district IS NOT NULL AND district != '' GROUP BY city_key, district ORDER BY n DESC"""):
+    rows = store.q("""SELECT city_key, district, COUNT(*) n FROM listings WHERE vertical='estate' AND status='active'
+                        AND district IS NOT NULL AND district != '' GROUP BY city_key, district ORDER BY n DESC""")
+    rows = sorted(rows, key=lambda r: r["city_key"] not in GEO_PRIORITY)
+    for r in rows:
         k = f'{r["city_key"]}|{r["district"]}'
         if k in centers or (k in geo and geo[k].get("v") == GEO_V and now - geo[k].get("at", 0) < 30 * 86400):
             continue
@@ -253,6 +258,8 @@ def geocode_once(store, limit=40, pause=1.2) -> int:
                     res = json.loads(resp.read(200_000) or b"[]")
             except Exception:  # noqa: BLE001
                 res = []
+                # خطای شبکه با «پیدا نشد» فرق دارد: فردا دوباره امتحان شود، نه ۳۰ روز بعد
+                geo[k]["at"] = int(time.time()) - 29 * 86400
             time.sleep(pause)
             if res:
                 geo[k]["ll"] = [round(float(res[0]["lat"]), 5), round(float(res[0]["lon"]), 5)]

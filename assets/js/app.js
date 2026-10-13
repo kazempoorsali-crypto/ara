@@ -338,7 +338,7 @@ const App = (() => {
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
     // انتخاب شهر روی کره، فیلتر شهر جست‌وجو را هم پر می‌کند
-    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; drawHTags(); } });
+    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; if (!ids.length) hCity.set(null); drawHTags(); } });
     // راهنمای استان‌ها: یک ردیف با پیمایش افقی؛ دکمهٔ «همه» باز و بسته می‌کند
     const rail = $("#provList");
     if (rail) {
@@ -495,6 +495,7 @@ const App = (() => {
   }
   function liveHideMap() {
     $("#skyMap")?.classList.remove("is-on");
+    if ($("#skyMore")) $("#skyMore").hidden = true;
     if ($("#skyBack")) $("#skyBack").hidden = true;
     if ($("#skyBar")) $("#skyBar").hidden = true;
   }
@@ -550,11 +551,11 @@ const App = (() => {
     const byCity = {}, bounds = {};
     const pv = ds.map((d) => d.median_ppm).filter(Boolean);
     const lo = pv.length ? Math.min(...pv) : 0, hi = pv.length ? Math.max(...pv) : 0;
-    const all = [], posOf = {};
+    const all = [], posOf = {}, unplaced = [];
     ds.forEach((d) => {
       // محله‌ای که مکانش معلوم نیست روی نقشه گذاشته نمی‌شود (قبلاً دور مرکز شهر چیده می‌شد و روستاهای دور را داخل شهر نشان می‌داد)
       const lat = d.lat, lng = d.lng;
-      if (!lat || !lng) return;
+      if (!lat || !lng) { unplaced.push(d); return; }
       all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
       const q = L0.opts.query || {}, isSel = q.district && String(q.district).split(",").includes(d.name) && (!q.dcity || q.dcity === d.city);
       const h = d.median_ppm ? Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5)) : 12;
@@ -577,12 +578,20 @@ const App = (() => {
     });
     // نوار بالای نقشه: پرش بین شهرها، «همه»، لایهٔ ماهواره، و رفتن به فرصت‌ها
     const bar = $("#skyBar");
-    bar.innerHTML = (sel.pts.length > 1 ? `<button type="button" data-fly="*" class="is-on">همه</button>` : "") + sel.pts.map((c) => `<button type="button" data-fly="${c.id}">${esc(c.name)}</button>`).join("")
+    bar.innerHTML = (sel.pts.length > 1 ? `<button type="button" data-fly="*" class="is-on">همه</button>` : "") + sel.pts.map((c) => `<button type="button" data-fly="${c.id}"${sel.pts.length === 1 ? ' class="is-on"' : ""} title="بار اول: رفتن به ${esc(c.name)}؛ بار دوم: خروج و بازگشت به کرهٔ زمین">${esc(c.name)}</button>`).join("")
       + `<span class="sky__sep"></span><button type="button" data-layer="sat" title="نمای ماهواره‌ای">ماهواره</button>`
       + (L0.mode === "home" ? `<a class="sky__go" href="#/s?${toQuery({ city: sel.ids.join(","), sort: "score", opp: 1 })}">فرصت‌های ${sel.pts.length > 1 ? "این شهرها" : esc(sel.pts[0].name)} ${icon("arrow")}</a>` : "");
     bar.hidden = false;
     bar.onclick = (e) => {
       const f = e.target.closest("[data-fly]"), ly = e.target.closest("[data-layer]");
+      // زدن دوباره روی شهری که روشن است: خروج از آن شهر (صفحهٔ اصلی: از فیلتر هم برداشته می‌شود) و بازگشت به کره یا شهرهای دیگر
+      if (f && f.dataset.fly !== "*" && f.classList.contains("is-on")) {
+        const rest = sel.ids.filter((id) => id !== f.dataset.fly);
+        f.classList.remove("is-on");
+        if (L0.mode === "home" && L0.opts.onCities) { L0.opts.onCities(rest); if (!rest.length) liveHome(L0); return; }
+        if (rest.length && L0.opts.onCities) { L0.opts.onCities(rest); return; }
+        liveHome(L0); return;
+      }
       if (f) {
         $$("[data-fly]", bar).forEach((b) => b.classList.toggle("is-on", b === f));
         const b = f.dataset.fly === "*" ? all : bounds[f.dataset.fly];
@@ -594,6 +603,21 @@ const App = (() => {
         if (on) L0.base.sat.addTo(L0.map).bringToFront();
         else L0.map.removeLayer(L0.base.sat);
       }
+    };
+    // محله‌هایی که مکان دقیقشان هنوز معلوم نیست: فهرست زیر نقشه (نه جای حدسی روی نقشه)؛ با زدن، آگهی‌هایشان باز می‌شود
+    let more = $("#skyMore");
+    if (!more) { more = document.createElement("div"); more.id = "skyMore"; more.className = "sky__more"; box.parentNode.appendChild(more); }
+    unplaced.sort((a, b) => (b.opportunities || 0) - (a.opportunities || 0) || b.n - a.n);
+    more.hidden = !unplaced.length;
+    more.innerHTML = unplaced.length ? `<span>محله‌های دیگر${multi ? "" : " " + esc(sel.pts[0].name)}:</span>` + unplaced.slice(0, 60).map((d, i) => `<button type="button" data-um="${i}" class="${d.opportunities ? "is-hot" : ""}${d.rural ? " is-rural" : ""}">${esc(d.name)}<small>${fa(d.n)}${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}</small></button>`).join("") : "";
+    more.onclick = (e) => {
+      const b = e.target.closest("[data-um]"); if (!b) return;
+      const d = unplaced[+b.dataset.um];
+      skyGo(() => {
+        const base = L0.mode === "search" ? { ...(L0.opts.query || {}) } : { sort: "score" };
+        delete base.pick; delete base.page;
+        go("#/s?" + toQuery({ ...base, city: sel.ids.join(","), province: "", district: d.name, dcity: d.city, focus: 1 }));
+      });
     };
     box.classList.add("is-on");
     $("#skyBack").hidden = false;
