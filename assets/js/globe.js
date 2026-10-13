@@ -77,7 +77,10 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const resize = () => {
     const w = host.clientWidth || 1, h = host.clientHeight || 1;
-    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    // در کادر عمودی (موبایل) زاویهٔ دید عمودی بیشتر می‌شود تا کره در عرض جا شود
+    camera.fov = camera.aspect < 1 ? Math.min(70, 2 * Math.atan(Math.tan(16 * D) / camera.aspect) / D) : 32;
+    camera.updateProjectionMatrix();
   };
   resize();
   const ro = new ResizeObserver(resize); ro.observe(host);
@@ -193,6 +196,8 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
       marks.forEach((m) => { m.userData.on = false; m.scale.setScalar(m.userData.size); });
       anim = { from: dir.clone(), to: vec(30, 53).normalize(), d0: dist, d1: 3.1, t0: performance.now(), ms: reduced ? 1 : 1400, cb: () => { auto = true; } };
     },
+    // پس از جابه‌جایی کادر (تمام صفحه) اندازه و نمایش دوباره سنجیده شود
+    refresh() { visible = true; resize(); },
     destroy() {
       cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
       renderer.dispose(); el.remove(); labels.remove();

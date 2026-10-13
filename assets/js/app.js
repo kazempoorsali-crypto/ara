@@ -430,9 +430,13 @@ const App = (() => {
     const sky = $("#sky"), b = $("#skyFull");
     skyFS.on = on;
     document.documentElement.classList.toggle("sky-fs", on);
+    // کادر در حالت تمام صفحه به body منتقل می‌شود تا هیچ والدِ دارای transform (انیمیشن ورود، کج‌شدن) آن را در خودش حبس نکند
+    if (sky && on && !skyFS.ph) { skyFS.ph = document.createComment("sky"); sky.before(skyFS.ph); document.body.appendChild(sky); }
+    if (sky && !on && skyFS.ph) { if (skyFS.ph.isConnected) skyFS.ph.replaceWith(sky); else sky.remove(); skyFS.ph = null; }
     if (sky) sky.classList.toggle("is-full", on);
     if (b) { b.innerHTML = icon(on ? "shrink" : "expand"); b.title = on ? "کوچک‌نمایی و بازگشت" : "نمایش تمام صفحه"; b.setAttribute("aria-label", b.title); }
-    setTimeout(() => { if (live && live.map) live.map.invalidateSize(); }, 80);
+    const fix = () => { if (live && live.map) live.map.invalidateSize(); if (live && live.globe && live.globe.refresh) live.globe.refresh(); };
+    setTimeout(fix, 80); setTimeout(fix, 400);
   }
   function skyFullExit(after) {
     if (!skyFS.on) { after && after(); return; }
@@ -528,7 +532,7 @@ const App = (() => {
       // نقشه از سرور خود سایت (بدون کلید و مقاوم در قطع اینترنت بین‌الملل): اوپن‌استریت‌مپ با برچسب فارسی؛
       // در تم تیره با فیلتر تیره؛ لایهٔ ماهواره‌ای اسری
       const dark = L.tileLayer(UI.tileUrl("osm"), { maxZoom: 19, attribution: "© OpenStreetMap", className: "sky__tiles" });
-      const sat = L.tileLayer(UI.tileUrl("sat"), { maxZoom: 19, attribution: "© Esri" });
+      const sat = L.tileLayer(UI.tileUrl("sat"), { maxZoom: 19, maxNativeZoom: 18, attribution: "تصویر ماهواره‌ای", keepBuffer: 1, updateWhenIdle: true });
       dark.addTo(L0.map);
       L0.base = { dark, sat, osm: dark };
       L0.layer = L.layerGroup().addTo(L0.map);
@@ -580,8 +584,9 @@ const App = (() => {
       }
       if (ly) {
         const on = ly.classList.toggle("is-on");
-        if (on) { L0.map.removeLayer(L0.base.dark); L0.base.sat.addTo(L0.map); }
-        else { L0.map.removeLayer(L0.base.sat); L0.base.dark.addTo(L0.map); }
+        // نقشهٔ خیابان زیر لایهٔ ماهواره می‌ماند: اگر کاشی ماهواره دیر برسد یا نرسد، صفحه خاکستری نمی‌شود
+        if (on) L0.base.sat.addTo(L0.map).bringToFront();
+        else L0.map.removeLayer(L0.base.sat);
       }
     };
     box.classList.add("is-on");

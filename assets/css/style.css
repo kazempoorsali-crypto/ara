@@ -1948,7 +1948,7 @@ canvas.ribbons { position: absolute; inset: 0; width: 100%; height: 100%; pointe
   background: rgba(20,22,20,.72); color: #fff; border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(8px); cursor: pointer; transition: transform .2s; }
 .sky__full:hover { transform: scale(1.06); } .sky__full svg { width: 20px; height: 20px; }
 html.sky-fs, html.sky-fs body { overflow: hidden; }
-.sky.is-full { position: fixed !important; inset: 0 !important; z-index: 5000 !important; margin: 0 !important; border-radius: 0 !important; transform: none !important;
+.sky.is-full { position: fixed !important; inset: 0 !important; z-index: 2147483000 !important; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important; gap: 6px; margin: 0 !important; border-radius: 0 !important; transform: none !important;
   display: flex !important; flex-direction: column; max-width: none !important; width: 100vw !important; height: 100vh !important; height: 100dvh !important; }
 .sky.is-full .sky__head small, .sky.is-full .sky__kpis, .sky.is-full .sky__foot { display: none; }
 .sky.is-full .sky__stage { flex: 1; margin: 0 !important; height: auto !important; min-height: 0; aspect-ratio: auto !important; border-radius: 0 !important; }
@@ -2028,3 +2028,50 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .citytag small { font-weight: 700; color: #7be0b0; } .citytag svg { width: 14px; height: 14px; }
 .citytag:hover { background: var(--gold-lux, #c9a24f); color: #141513; } .citytag:hover small { color: #141513; }
 @media (hover: none) { .scene__hint { display: none; } }
+
+/* تمام صفحه: نوار بالای کادر فشرده می‌شود (نه پنهان) تا نقشه بیشترین جا را بگیرد */
+.sky.is-full .sky__head { display: flex !important; padding: 2px 4px 0 !important; min-height: 0; gap: 6px; flex-direction: row; align-items: center; flex-wrap: wrap; }
+.sky.is-full .sky__head b { font-size: 13.5px !important; line-height: 1.4; }
+.sky.is-full .sky__live { font-size: 10.5px; padding: 1px 6px; }
+.sky.is-full .sky__cities { margin: 0 !important; gap: 4px; font-size: 12px; }
+.sky.is-full .sky__cities .atag { padding: 2px 8px; font-size: 11.5px; }
+.sky.is-full .sky__cities input { height: 30px; font-size: 12px; padding-block: 2px; }
+.sky.is-full .sky__stage { border-radius: 14px !important; }
+.sky.is-full .sky__bar button, .sky.is-full .sky__bar a, .sky.is-full .sky__back { font-size: 11.5px !important; padding: 5px 10px !important; }
+.sky.is-full .sky__tip, .sky.is-full .sky__hint { display: none !important; }
+/* انیمیشن ورود پس از نمایش هیچ transform یا will-change باقی نگذارد */
+.reveal-on-scroll.is-visible { transform: none; will-change: auto; }
+/* عددهای کادرها وسط‌چین */
+.sky__kpis > div { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.sky__kpis span { line-height: 1.6; }
+.brand__txt b { white-space: nowrap; }
+@media (max-width: 720px) {
+  .strip > div { text-align: center; }
+  .sky__kpis span { font-size: 11.5px; }
+}
+/* گوشی افقی یا صفحهٔ کوتاه: نوار بالا و ابزارها فشرده می‌شوند تا محتوای اصلی جا داشته باشد */
+@media (max-height: 540px) and (orientation: landscape) {
+  .top__in { height: 46px; gap: 14px; }
+  .brand__mark { width: 30px; height: 30px; }
+  .brand__txt b { font-size: 15px; } .brand__txt small { display: none; }
+  .top .btn, .top .icon-btn, .top button { min-height: 34px; height: 34px; padding-block: 0; font-size: 12.5px; }
+  .sbar { position: static; padding: 8px 0 6px; }
+  .sbar h1 { font-size: 16px; }
+  .dock { bottom: 6px !important; } .dock a { padding: 4px 2px 3px !important; font-size: 0 !important; } .dock a svg { width: 19px; height: 19px; }
+  .ai-fab { min-height: 42px !important; width: 42px; padding: 0 !important; justify-content: center; bottom: 10px; }
+  .ai-fab span, .ai-fab b { display: none; }
+  .sky__stage.is-globe, .sky--wide .sky__stage, .sky--wide .sky__stage.is-globe { height: 78vh !important; }
+  .scene__step b { font-size: 48px; } .scene__step--why h2 { font-size: 34px; } .scene__step--why p { font-size: 13px; line-height: 1.8; }
+  .scene__step, .scene__step--end, .scene__step--why { bottom: 10% !important; top: auto !important; max-width: 60vw !important; }
+  .scene__mark { width: 26vmin; top: 36%; }
+}
+/* گوشی‌های باریک: سربرگ در عرض صفحه جا شود و نام سایت دو خط نشود */
+@media (max-width: 420px) {
+  .top__in { gap: 10px; }
+  .top__act { gap: 2px; }
+  .top__act .icon-btn { width: 38px; height: 38px; }
+  .top__act .btn--ink { min-height: 38px; height: 38px; padding-inline: 10px; }
+  .brand { gap: 8px; } .brand__mark { width: 36px; height: 36px; }
+  .brand__txt b { font-size: 17px; } .brand__txt small { font-size: 10px; }
+}
+@media (max-width: 350px) { .brand__txt small { display: none; } .top__act .icon-btn:not(.menu-btn) { width: 34px; } }
