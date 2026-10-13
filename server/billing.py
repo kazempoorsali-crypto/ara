@@ -26,7 +26,10 @@ DEFAULT_BILLING = {
     "card_step": 1000, "card_span": 100,
     # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
     "trial_enabled": True, "trial_days": 10,
+    # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
+    "pay_methods": [],
 }
+PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان بله)"), ("zarinpal", "درگاه زرین‌پال"), ("card", "کارت‌به‌کارت")]
 # provider: kavenegar (کلید API + نام قالب Verify) یا payamak (پنل پیامک هاست‌ایران / ملی پیامک:
 # نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
 DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True,
@@ -84,6 +87,7 @@ def _http_json(method, url, body=None, headers=None, timeout=20):
 class Billing:
     def __init__(self, store):
         self.store = store
+        self.bale = None   # در App مقداردهی می‌شود
 
     def cfg(self):
         return {**DEFAULT_BILLING, **(self.store.get_setting("billing") or {})}
@@ -127,13 +131,47 @@ class Billing:
                 out.append({"id": key, "name": name, "price": price, "days": int(c.get(f"{key}_days") or 7)})
         return out
 
+    def enabled_methods(self):
+        c = self.cfg()
+        on = list(c.get("pay_methods") or [])
+        if not on and c.get("gateway"):   # تنظیم قدیمی: یک درگاه
+            on = [c["gateway"]]
+        return on
+
+    def method_ready(self, m) -> bool:
+        c = self.cfg()
+        if m not in self.enabled_methods():
+            return False
+        if m == "bale":
+            return bool(self.bale and self.bale.pay_ready())
+        if m in ("zarinpal", "idpay"):
+            return bool(c["merchant_id"])
+        if m == "card":
+            return len(c["card_number"].replace("-", "").replace(" ", "")) == 16
+        return False
+
+    def methods_public(self):
+        return [{"id": m, "name": n, "ready": self.method_ready(m)} for m, n in PAY_METHODS]
+
+    def login_channels(self, local=False):
+        s = self.sms_cfg()
+        return [{"id": "sms", "name": "پیامک", "ready": self.sms_live() or bool(s["dev_mode"] and local)},
+                {"id": "bale", "name": "پیام‌رسان بله", "ready": bool(self.bale and self.bale.otp_ready())}]
+
     def payable(self):
         c = self.cfg()
-        return bool(self.plans()) and (c["test_mode"] or (c["gateway"] in ("zarinpal", "idpay") and c["merchant_id"])
-                                       or (c["gateway"] == "card" and len(c["card_number"].replace("-", "").replace(" ", "")) == 16))
+        return bool(self.plans()) and (c["test_mode"] or any(self.method_ready(m) for m, _ in PAY_METHODS)
+                                       or (c["gateway"] == "idpay" and c["merchant_id"]))
 
     # ---------------------------------------------------------- OTP
-    def send_otp(self, phone_raw: str, local: bool = True) -> dict:
+    def fresh_code(self, phone) -> str:
+        now = int(time.time())
+        code = f"{secrets.randbelow(90000) + 10000}"
+        self.store.x("INSERT OR REPLACE INTO otps(phone, code_hash, expires, attempts, sent_at) VALUES(?,?,?,?,?)",
+                     (phone, _hash(code, phone), now + OTP_TTL, 0, now))
+        return code
+
+    def send_otp(self, phone_raw: str, local: bool = True, channel: str = "sms") -> dict:
         phone = norm_phone(phone_raw)
         if not phone:
             raise ValueError("شماره موبایل معتبر نیست")
@@ -141,9 +179,16 @@ class Billing:
         row = self.store.q("SELECT * FROM otps WHERE phone=?", (phone,), one=True)
         if row and now - (row["sent_at"] or 0) < OTP_RESEND:
             raise ValueError(f"کد قبلی هنوز معتبر است؛ {OTP_RESEND - (now - row['sent_at'])} ثانیه دیگر دوباره امتحان کنید")
-        code = f"{secrets.randbelow(90000) + 10000}"
-        self.store.x("INSERT OR REPLACE INTO otps(phone, code_hash, expires, attempts, sent_at) VALUES(?,?,?,?,?)",
-                     (phone, _hash(code, phone), now + OTP_TTL, 0, now))
+        if channel == "bale":
+            if not (self.bale and self.bale.otp_ready()):
+                raise ValueError("دریافت کد در بله فعلاً فعال نیست")
+            code = self.fresh_code(phone)
+            r = self.bale.start_otp(phone, code)
+            self.store.log_request("sms", True, f"کد ورود در بله برای {phone[:4]}***{phone[-3:]}" + ("" if r["sent"] else " (پیوند ربات)"))
+            return {"ok": True, "phone": phone, "channel": "bale", **r}
+        if not self.sms_live() and not (self.sms_cfg()["dev_mode"] and local):
+            raise ValueError("دریافت کد با پیامک فعلاً فعال نیست؛ «پیام‌رسان بله» را انتخاب کنید" if self.bale and self.bale.otp_ready() else "ورود موقتاً در دسترس نیست")
+        code = self.fresh_code(phone)
         s = self.sms_cfg()
         if self.sms_live():
             ok, r = self._send_code(s, phone, code)
@@ -205,17 +250,34 @@ class Billing:
         now = int(time.time())
         r = self.store.q("SELECT sub_until FROM users WHERE phone=?", (phone,), one=True)
         start = max(now, (r["sub_until"] or 0) if r else 0)
-        self.store.x("UPDATE users SET sub_until=?, plan=? WHERE phone=?", (start + days * 86400, plan_id, phone))
+        until = start + days * 86400
+        self.store.x("UPDATE users SET sub_until=?, plan=? WHERE phone=?", (until, plan_id, phone))
         if pay_id:
             self.store.x("UPDATE payments SET status='paid', paid_at=?, ref_id=? WHERE id=?", (now, ref, pay_id))
         if notify:
             self.notify_active(phone, days)
+            if self.bale:   # رسید فوری در بله (اگر کاربر ربات را آغاز کرده باشد)
+                pay = self.store.q("SELECT amount, id FROM payments WHERE id=?", (pay_id,), one=True) if pay_id else None
+                try:
+                    self.bale.notify_paid(phone, plan["name"] if plan else plan_id, days, until, pay["amount"] if pay else 0, pay["id"] if pay else 0)
+                except Exception:  # noqa: BLE001
+                    pass
 
-    def start(self, phone, plan_id, callback_url, local: bool = True) -> dict:
+    def start(self, phone, plan_id, callback_url, local: bool = True, method: str | None = None) -> dict:
         plan = next((p for p in self.plans() if p["id"] == plan_id), None)
         if not plan:
             raise ValueError("این طرح اشتراک فعال نیست")
         c = {**self.cfg()}
+        if not c["test_mode"]:
+            ready = [m for m, _ in PAY_METHODS if self.method_ready(m)]
+            if method and method not in ready:
+                raise ValueError("این روش پرداخت فعلاً فعال نیست؛ روش دیگری را انتخاب کنید")
+            m = method or (ready[0] if ready else c["gateway"])
+            if m == "bale":
+                pid = self.store.x("INSERT INTO payments(phone, plan, amount, gateway, created) VALUES(?,?,?,?,?)",
+                                   (phone, plan_id, plan["price"], "bale", int(time.time()))).lastrowid
+                return {"ok": True, "bale": self.bale.start_pay(pid), "payment_id": pid}
+            c["gateway"] = m
         if c["test_mode"] and not local:  # پرداخت آزمایشی فقط روی همین رایانه
             c["test_mode"] = False
         now = int(time.time())
@@ -225,7 +287,7 @@ class Billing:
         if c["test_mode"]:
             self.activate(phone, plan_id, pid, "TEST", notify=False)
             self.store.x("UPDATE payments SET note='حالت آزمایشی؛ پولی دریافت نشد' WHERE id=?", (pid,))
-            return {"ok": True, "activated": True, "test": True}
+            return {"ok": True, "activated": True, "test": True, "payment_id": pid}
         if c["gateway"] == "card":
             return self._card_start(pid, plan)
         rial = plan["price"] * 10
@@ -351,3 +413,16 @@ class Billing:
         else:
             self.store.x("UPDATE payments SET status='failed' WHERE id=?", (pid,))
         return ok
+
+    # ---------------------------------------------------------- invoice
+    def invoice(self, phone, pid) -> dict:
+        """فاکتور یک پرداخت برای صاحبش (صفحهٔ «پرداخت موفق»)."""
+        pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=?", (int(pid or 0), phone), one=True)
+        if not pay:
+            raise ValueError("پرداخت پیدا نشد")
+        plan = next((p for p in self.plans() if p["id"] == pay["plan"]), None)
+        u = self.user(phone) or {}
+        names = {"bale": "بله‌پی", "zarinpal": "زرین‌پال", "idpay": "آیدی‌پی", "card": "کارت‌به‌کارت", "test": "آزمایشی"}
+        return {"id": pay["id"], "status": pay["status"], "plan": plan["name"] if plan else pay["plan"], "days": plan["days"] if plan else None,
+                "amount": pay["amount"], "gateway": names.get(pay["gateway"], pay["gateway"]), "ref": pay["ref_id"],
+                "created": pay["created"], "paid_at": pay["paid_at"], "sub_until": u.get("sub_until"), "phone": phone[:4] + "***" + phone[-3:]}

@@ -179,6 +179,9 @@ class App:
         self.ingest = Ingestor(self.store)
         self.ingest.migrate()
         self.billing = Billing(self.store)
+        from bale import Bale
+        self.bale = Bale(self.store, self.billing)
+        self.billing.bale = self.bale
         self.support = Support(self.store, self.billing, data_dir)
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
@@ -198,7 +201,7 @@ class App:
                 "cities": [{"id": c["key"], "name": c["name"], "province": c["province"], "lat": c["lat"], "lng": c["lng"], "tags": []}
                            for c in catalog.CITIES if c["province"] in act]}
 
-    def public_config(self):
+    def public_config(self, local=False):
         s, b = self.store, self.billing
         return {
             "mode": "server",
@@ -213,6 +216,8 @@ class App:
             "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
             "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
             "sms_live": b.sms_live(),
+            # روش‌های ورود و پرداخت: همه نمایش داده می‌شوند؛ آماده‌نشده‌ها «فعلاً فعال نیست»
+            "login_channels": b.login_channels(local), "pay_methods": b.methods_public(),
             "admin_ready": bool(s.get_setting("admin")),
             "regions": self.regions(), "version": VERSION,
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
@@ -553,7 +558,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def pay_callback(self, params):
         ok = self.app.billing.callback(params)
-        return self.redirect("/#/account?" + ("paid=1" if ok else "failed=1"))
+        pid = params.get("pid") or params.get("order_id")
+        return self.redirect(f"/#/invoice/{pid}" if ok and pid else "/#/account?" + ("paid=1" if ok else "failed=1"))
 
     # ---------------------------------------------------------- public api
     def gate(self, d: dict, user, full=False):
@@ -631,7 +637,12 @@ class Handler(BaseHTTPRequestHandler):
     def api_get(self, path, qs):
         a = self.app
         if path == "/api/config":
-            return self.send_json(a.public_config())
+            return self.send_json(a.public_config(self.is_local()))
+        if path == "/api/pay/invoice":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            return self.send_json(a.billing.invoice(u["phone"], qs.get("pid")))
         if path == "/api/me":
             return self.send_json({"user": self.user()})
         if path == "/api/listings":
@@ -682,6 +693,11 @@ class Handler(BaseHTTPRequestHandler):
             if qs.get("city") not in catalog.CITY_BY_KEY:
                 return self.send_json({"items": []})
             return self.send_json({"items": a.store.districts(qs["city"], qs.get("deal") or None)})
+        if path == "/api/district_map":
+            if qs.get("city") not in catalog.CITY_BY_KEY:
+                return self.send_json({"districts": []})
+            from report import district_map
+            return self.send_json(district_map(a.store, qs["city"]))
         if path == "/api/market":
             out = {"rows": a.store.market_rows(qs.get("city"))}
             if qs.get("city") in catalog.CITY_BY_KEY:
@@ -724,7 +740,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "درخواست کد زیاد بود؛ یک ساعت دیگر دوباره امتحان کنید"}, 429)
             if not LIMITER.allow("otp:global", OTP_GLOBAL_DAY, 86400):
                 return self.send_json({"error": "سقف روزانهٔ ارسال پیامک پر شده است؛ فردا دوباره امتحان کنید"}, 429)
-            return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local()))
+            return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local(), channel=data.get("channel") or "sms"))
         if path == "/api/auth/verify":
             return self.send_json(a.billing.verify_otp(data.get("phone"), data.get("code")))
         if path == "/api/auth/logout":
@@ -734,7 +750,7 @@ class Handler(BaseHTTPRequestHandler):
             u = self.user()
             if not u:
                 return self.send_json({"error": "ابتدا وارد شوید"}, 401)
-            return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback", local=self.is_local()))
+            return self.send_json(a.billing.start(u["phone"], data.get("plan"), self.base_url() + "/pay/callback", local=self.is_local(), method=data.get("method")))
         if path == "/api/pay/receipt":
             u = self.user()
             if not u:
@@ -819,6 +835,8 @@ class Handler(BaseHTTPRequestHandler):
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "tickets_unread": a.support.unread_admin(), "flags": a.flags.counts(), "sms_last_notify": s.get_setting("sms_last_notify"),
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
+                "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
+                "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
                 "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
                 "owner": {**DEFAULT_OWNER, **(s.get_setting("owner") or {})},
@@ -874,6 +892,16 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(data["support"].get("auto_text"), dict):
                     sup["auto_text"] = {**sup.get("auto_text", {}), **{k: str(v)[:1000] for k, v in data["support"]["auto_text"].items() if k in DEFAULT_SUPPORT["auto_text"]}}
                 s.set_setting("support", sup)
+            if isinstance(data.get("bale"), dict):
+                from bale import DEFAULT_BALE
+                cur = {**DEFAULT_BALE, **(s.get_setting("bale") or {})}
+                new = {k: v for k, v in data["bale"].items() if k in DEFAULT_BALE}
+                for k in ("token", "provider_token"):
+                    if new.get(k) in ("•••", None):
+                        new.pop(k, None)
+                if "bot_username" in new:
+                    new["bot_username"] = str(new["bot_username"]).strip().lstrip("@")
+                s.set_setting("bale", {**cur, **new})
             if isinstance(data.get("sms"), dict):
                 cur = {**DEFAULT_SMS, **(s.get_setting("sms") or {})}
                 new = {k: v for k, v in data["sms"].items() if k in DEFAULT_SMS}
@@ -928,6 +956,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
             return self.send_json(a.ingest.test_connection(data.get("source") or "divar"))
+        if path == "/api/admin/bale-test":
+            try:
+                me = a.bale.test()
+                return self.send_json({"ok": True, "bot": me})
+            except Exception as e:  # noqa: BLE001
+                return self.send_json({"ok": False, "error": str(e)[:200]})
         if path == "/api/admin/revalue":
             return self.send_json(a.ingest.run_valuation() or {"busy": True})
         if path == "/api/admin/discover":
@@ -1010,6 +1044,7 @@ def main():
 
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
+    Handler.app.bale.start()
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)

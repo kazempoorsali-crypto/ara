@@ -85,7 +85,7 @@
     const missing = [];
     if (!S.plans.length) missing.push("تعرفه اشتراک");
     if (!S.billing.merchant_id && !S.billing.card_number && !S.billing.test_mode) missing.push("درگاه پرداخت یا شمارهٔ کارت");
-    if (!S.sms_live) missing.push("سامانه پیامک (تا تنظیم نشود، ورود از اینترنت ممکن نیست؛ کد آزمایشی فقط روی همین رایانه نمایش داده می‌شود)");
+    if (!S.sms_live && !(S.bale && S.bale.otp && S.bale.token)) missing.push("روش ارسال کد ورود: سامانه پیامک یا پیام‌رسان بله (در «اشتراک، درگاه و پیامک»)");
     if (S.billing.test_mode) missing.push("خاموش کردن «حالت آزمایشی پرداخت» (از اینترنت کار نمی‌کند، ولی پیش از انتشار خاموشش کنید)");
     main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی${S.version ? ` · نسخهٔ نصب‌شده: <bdi dir="ltr">v ${esc(S.version.replace("|", " — "))}</bdi>` : ""}</p>
       ${missing.length ? `<div class="note" style="margin-bottom:18px">برای شروع: ${missing.join("، ")} را در بخش «اشتراک، درگاه و پیامک» تنظیم کنید.</div>` : ""}
@@ -432,10 +432,14 @@
         <label class="field"><span>تعداد نتیجهٔ رایگان هر جست‌وجو (بدون اشتراک)</span><input class="input" name="free_results" type="number" min="0" max="100" value="${b.free_results}"></label>
         <label class="field"><span>تعداد فرصت برتر رایگان با جزئیات کامل</span><input class="input" name="free_preview" type="number" min="0" max="50" value="${b.free_preview}"></label>
       </div><p class="hint">خالی یا صفر = آن طرح نمایش داده نمی‌شود.</p></div>
-      <div class="panel"><h2>درگاه پرداخت</h2><div class="grid2">
-        <label class="field"><span>درگاه</span><select class="select" name="gateway"><option value="">انتخاب نشده</option><option value="zarinpal" ${b.gateway === "zarinpal" ? "selected" : ""}>زرین‌پال</option><option value="idpay" ${b.gateway === "idpay" ? "selected" : ""}>آیدی‌پی</option><option value="card" ${b.gateway === "card" ? "selected" : ""}>کارت‌به‌کارت (مبلغ یکتا و رسید)</option></select></label>
-        <label class="field"><span>کد پذیرنده (زرین‌پال: Merchant ID؛ آیدی‌پی: API Key)</span><input class="input input--ltr" name="merchant_id" value="${esc(b.merchant_id)}"></label>
+      <div class="panel"><h2>روش‌های پرداخت</h2>
+        <p class="hint">هر روشی که روشن و تنظیم شده باشد، در صفحهٔ خرید قابل انتخاب است؛ بقیه با برچسب «فعلاً فعال نیست» دیده می‌شوند.</p>
+        <div class="methods">${(S.pay_methods || []).map((m) => `<label class="switch"><input type="checkbox" name="pm_${m.id}" ${(b.pay_methods || (b.gateway ? [b.gateway] : [])).includes(m.id) ? "checked" : ""}><i></i>${esc(m.name)} <small class="${m.ready ? "ok" : "muted"}">${m.ready ? "آماده" : "تنظیم نشده"}</small></label>`).join("<br>")}</div>
+        <div class="grid2" style="margin-top:12px">
+        <label class="field"><span>کد پذیرندهٔ زرین‌پال (Merchant ID)</span><input class="input input--ltr" name="merchant_id" value="${esc(b.merchant_id)}"></label>
+        <input type="hidden" name="gateway" value="${esc(b.gateway || "")}">
       </div>
+      <p class="hint">بله‌پی و کارت‌به‌کارت نیازی به نماد اعتماد ندارند. بله‌پی کاملاً خودکار است (تأیید پرداخت از خود بله)؛ کارت‌به‌کارت با ثبت رسید باز می‌شود و تطبیق نهایی با صورت‌حساب بانک با شماست.</p>
       <h3 style="margin-top:16px">کارت‌به‌کارت</h3><div class="grid2">
         <label class="field"><span>شمارهٔ کارت ۱۶ رقمی</span><input class="input input--ltr" name="card_number" value="${esc(b.card_number)}" placeholder="شمارهٔ کارت شما"></label>
         <label class="field"><span>نام دارندهٔ کارت</span><input class="input" name="card_holder" value="${esc(b.card_holder)}"></label>
@@ -454,6 +458,23 @@
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="sandbox" ${b.sandbox ? "checked" : ""}><i></i>محیط آزمایشی درگاه (Sandbox)</label><br><br>
       <label class="switch"><input type="checkbox" name="test_mode" ${b.test_mode ? "checked" : ""}><i></i>حالت آزمایشی پرداخت: اشتراک بدون پرداخت فعال شود</label>
       <p class="hint" style="color:var(--over)">حالت آزمایشی پرداخت فقط برای آزمون است؛ پیش از انتشار عمومی حتماً خاموشش کنید.</p></div>
+      <div class="panel"><h2>پیام‌رسان بله: کد ورود، بله‌پی و پیام رسید</h2>
+        <ol class="hint" style="line-height:2.1;padding-inline-start:18px">
+          <li>در بله، ربات <b dir="ltr">@botfather</b> را باز کنید، دستور <b dir="ltr">/newbot</b> را بزنید و نام و نام کاربری ربات (مثلاً <span dir="ltr">forsatmelk_bot</span>) را بدهید. توکن ربات را این‌جا بگذارید.</li>
+          <li>برای بله‌پی: در همان botfather، بخش پرداخت ربات را باز کنید و «توکن پرداخت» (Provider Token) را بگیرید؛ بسته به نوع حساب، شمارهٔ کارت، شمارهٔ کیف پول بله یا کد درگاه و پذیرنده است.</li>
+          <li>کلیدهای زیر را روشن کنید و «ذخیره» و سپس «آزمون اتصال» را بزنید. سرور خودش پیام‌های ربات را می‌خواند؛ وب‌هوک لازم نیست.</li>
+        </ol>
+        <div class="grid2">
+          <label class="field"><span>توکن ربات</span><input class="input input--ltr" name="bale_token" value="${esc(S.bale?.token || "")}" placeholder="123456789:AA..."></label>
+          <label class="field"><span>نام کاربری ربات (بدون @)</span><input class="input input--ltr" name="bale_bot" value="${esc(S.bale?.bot_username || "")}" placeholder="forsatmelk_bot"></label>
+          <label class="field"><span>توکن پرداخت (Provider Token)</span><input class="input input--ltr" name="bale_provider" value="${esc(S.bale?.provider_token || "")}"></label>
+        </div>
+        <label class="switch"><input type="checkbox" name="bale_otp" ${S.bale?.otp ? "checked" : ""}><i></i>ارسال کد ورود در بله (کاربر بار اول شماره‌اش را در ربات تأیید می‌کند)</label><br>
+        <label class="switch"><input type="checkbox" name="bale_pay" ${S.bale?.pay ? "checked" : ""}><i></i>پرداخت با بله‌پی (کلید «بله‌پی» در روش‌های پرداخت را هم روشن کنید)</label><br>
+        <label class="switch"><input type="checkbox" name="bale_notify" ${S.bale?.notify !== false ? "checked" : ""}><i></i>رسید پرداخت و پیام فعال‌سازی در بله</label>
+        <p class="hint">وضعیت: ${S.bale_state?.running ? "در حال کار" : "خاموش (توکن یا نام ربات وارد نشده)"}${S.bale_state?.last_ok ? "، آخرین ارتباط موفق " + when(S.bale_state.last_ok) : ""}${S.bale_state?.last_error ? `، آخرین خطا: <span class="bad">${esc(S.bale_state.last_error)}</span>` : ""}؛ ${S.bale_state?.links || 0} کاربر ربات را وصل کرده‌اند.</p>
+        <button type="button" class="btn btn--line" id="baleTest">آزمون اتصال ربات</button> <span id="baleRes" class="small"></span>
+      </div>
       <div class="panel"><h2>سامانه پیامک برای کد ورود</h2><div class="grid2">
         <label class="field"><span>سامانه</span><select class="select" name="provider">
           <option value="payamak" ${sm.provider === "payamak" ? "selected" : ""}>پنل پیامک هاست‌ایران / ملی پیامک</option>
@@ -468,6 +489,11 @@
       <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت ملک: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
       <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
+    $("#baleTest").addEventListener("click", async () => {
+      $("#baleRes").textContent = "در حال آزمون…";
+      try { const r = await api("admin/bale-test", {}); $("#baleRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.bot.first_name || "")} @${esc(r.bot.username || "")}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
+      catch (err) { $("#baleRes").textContent = err.message; }
+    });
     const showSms = () => $$("#bf [data-only]").forEach((el) => { el.hidden = el.dataset.only !== $("#bf [name=provider]").value; });
     $("#bf [name=provider]").addEventListener("change", showSms);
     showSms();
@@ -477,7 +503,9 @@
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked, trial_days: +f.trial_days.value || 10,
-          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked },
+          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
+          pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
+        bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
         sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), dev_mode: f.dev_mode.checked },
       };
       try { await api("admin/settings", body); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }

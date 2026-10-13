@@ -1,0 +1,264 @@
+"""اتصال به پیام‌رسان بله: کد ورود، پرداخت با «بله‌پی» و پیام‌های اطلاع‌رسانی؛ همه خودکار و بدون دخالت انسان.
+
+- ربات بله را در خود بله از @botfather می‌سازید؛ توکن و نام کاربری ربات در پنل وارد می‌شود.
+- سرور با «دریافت پیوستهٔ به‌روزرسانی‌ها» (getUpdates) کار می‌کند؛ نیازی به وب‌هوک و دامنهٔ جدا نیست.
+  سرور بله (tapi.bale.ai) داخلی است و در قطع اینترنت بین‌الملل هم در دسترس می‌ماند.
+- کد ورود: اولین بار کاربر در ربات «اشتراک شمارهٔ من» را می‌زند؛ بله شماره را تأیید می‌کند و
+  ربات کد را می‌فرستد. از آن پس کد مستقیم در بله ارسال می‌شود.
+- پرداخت: صورت‌حساب (sendInvoice) در بله ارسال می‌شود. پس از پرداخت موفق، بله پیام successful_payment
+  می‌فرستد؛ مبلغ و شناسه بررسی و اشتراک همان لحظه فعال می‌شود و رسید در بله و (در صورت فعال بودن) پیامک ارسال می‌شود.
+"""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import secrets
+import threading
+import time
+import traceback
+import urllib.request
+
+API = "https://tapi.bale.ai/bot{token}/{method}"
+DEFAULT_BALE = {"token": "", "bot_username": "", "provider_token": "",
+                "otp": False,       # ارسال کد ورود در بله
+                "pay": False,       # پرداخت با بله‌پی
+                "notify": True}     # پیام فعال‌سازی و رسید در بله برای کاربرانی که ربات را آغاز کرده‌اند
+SQL = """
+CREATE TABLE IF NOT EXISTS bale_links (phone TEXT PRIMARY KEY, chat_id INTEGER, user_id INTEGER, linked_at INTEGER);
+CREATE TABLE IF NOT EXISTS bale_nonce (nonce TEXT PRIMARY KEY, kind TEXT, phone TEXT, pid INTEGER, created INTEGER);
+"""
+
+
+def _fa(n) -> str:
+    return f"{int(n):,}".translate(str.maketrans("0123456789,", "۰۱۲۳۴۵۶۷۸۹٬"))
+
+
+class Bale:
+    def __init__(self, store, billing):
+        self.store, self.billing = store, billing
+        with store.lock:
+            store.db.executescript(SQL)
+            store.db.commit()
+        self.state = {"running": False, "last_ok": None, "last_error": None, "bot": None}
+        self.stop = threading.Event()
+        self.thread = None
+
+    # ---------------------------------------------------------- config
+    def cfg(self):
+        return {**DEFAULT_BALE, **(self.store.get_setting("bale") or {})}
+
+    def ready(self) -> bool:
+        c = self.cfg()
+        return bool(c["token"] and c["bot_username"])
+
+    def otp_ready(self) -> bool:
+        return self.ready() and bool(self.cfg()["otp"])
+
+    def pay_ready(self) -> bool:
+        c = self.cfg()
+        return self.ready() and bool(c["pay"] and c["provider_token"])
+
+    def link_url(self, payload: str) -> str:
+        return f"https://ble.ir/{self.cfg()['bot_username'].lstrip('@')}?start={payload}"
+
+    # ---------------------------------------------------------- http
+    def call(self, method, body=None, timeout=30):
+        from divar_client import NET, _opener
+        c = self.cfg()
+        req = urllib.request.Request(API.format(token=c["token"], method=method),
+                                     data=json.dumps(body or {}).encode(), method="POST",
+                                     headers={"content-type": "application/json"})
+        with _opener(NET["proxy"]).open(req, timeout=timeout) as r:
+            res = json.loads(r.read().decode() or "{}")
+        if not res.get("ok"):
+            raise RuntimeError(res.get("description") or "خطای بله")
+        return res.get("result")
+
+    def send(self, chat_id, text, **extra):
+        try:
+            return self.call("sendMessage", {"chat_id": chat_id, "text": text, **extra})
+        except Exception as e:  # noqa: BLE001
+            self.state["last_error"] = f"ارسال پیام: {e}"
+            return None
+
+    def chat_of(self, phone):
+        r = self.store.q("SELECT chat_id FROM bale_links WHERE phone=?", (phone,), one=True)
+        return r["chat_id"] if r else None
+
+    def test(self) -> dict:
+        me = self.call("getMe", timeout=15)
+        self.state["bot"] = me
+        return me
+
+    # ---------------------------------------------------------- nonce
+    def _nonce(self, kind, phone=None, pid=None) -> str:
+        n = secrets.token_urlsafe(9).replace("-", "x").replace("_", "y")
+        now = int(time.time())
+        self.store.x("INSERT INTO bale_nonce VALUES(?,?,?,?,?)", (n, kind, phone, pid, now))
+        self.store.x("DELETE FROM bale_nonce WHERE created < ?", (now - 86400,))
+        return n
+
+    def _take(self, n):
+        r = self.store.q("SELECT * FROM bale_nonce WHERE nonce=? AND created > ?", (n, int(time.time()) - 86400), one=True)
+        return dict(r) if r else None
+
+    # ---------------------------------------------------------- otp
+    def start_otp(self, phone, code) -> dict:
+        """کد را در بله می‌فرستد؛ اگر شماره هنوز به ربات وصل نیست، پیوند ربات برمی‌گردد و کد پس از تأیید شماره ارسال می‌شود."""
+        chat = self.chat_of(phone)
+        if chat and self.send(chat, f"کد ورود شما به فرصت ملک: {code}\nاین کد تا ۳ دقیقه معتبر است. آن را به کسی ندهید."):
+            return {"sent": True}
+        n = self._nonce("otp", phone)
+        return {"sent": False, "link": self.link_url("otp_" + n)}
+
+    # ---------------------------------------------------------- pay
+    def start_pay(self, pid) -> dict:
+        pay = self.store.q("SELECT * FROM payments WHERE id=?", (pid,), one=True)
+        chat = self.chat_of(pay["phone"])
+        if chat and self.send_invoice(chat, pay):
+            return {"sent": True, "link": self.link_url("open"), "payment_id": pid}
+        n = self._nonce("pay", pay["phone"], pid)
+        return {"sent": False, "link": self.link_url("pay_" + n), "payment_id": pid}
+
+    def _sig(self, pid) -> str:
+        return hmac.new(self.cfg()["token"].encode(), f"pay:{pid}".encode(), hashlib.sha256).hexdigest()[:16]
+
+    def send_invoice(self, chat, pay) -> bool:
+        plan = next((p for p in self.billing.plans() if p["id"] == pay["plan"]), None)
+        name = plan["name"] if plan else pay["plan"]
+        try:
+            self.call("sendInvoice", {
+                "chat_id": chat, "title": f"اشتراک {name} فرصت ملک"[:32],
+                "description": f"دسترسی کامل به فرصت‌ها و شناسنامهٔ قیمت آگهی‌ها؛ {plan['days'] if plan else ''} روز. پس از پرداخت، اشتراک خودکار فعال می‌شود."[:255],
+                "payload": f"pay:{pay['id']}:{self._sig(pay['id'])}", "provider_token": self.cfg()["provider_token"],
+                "currency": "IRR", "prices": [{"label": f"اشتراک {name}", "amount": int(pay["amount"]) * 10}]})
+            self.store.x("UPDATE payments SET note='صورت‌حساب در بله ارسال شد' WHERE id=?", (pay["id"],))
+            return True
+        except Exception as e:  # noqa: BLE001
+            self.state["last_error"] = f"ارسال صورت‌حساب: {e}"
+            return False
+
+    def _check_payload(self, payload):
+        try:
+            _, pid, sig = (payload or "").split(":")
+            pid = int(pid)
+        except ValueError:
+            return None
+        if not hmac.compare_digest(sig, self._sig(pid)):
+            return None
+        return self.store.q("SELECT * FROM payments WHERE id=? AND gateway='bale'", (pid,), one=True)
+
+    # ---------------------------------------------------------- updates
+    def link(self, phone, chat_id, user_id=None):
+        self.store.x("INSERT OR REPLACE INTO bale_links VALUES(?,?,?,?)", (phone, chat_id, user_id, int(time.time())))
+
+    def handle(self, u: dict):
+        from billing import norm_phone
+        if u.get("pre_checkout_query"):
+            q = u["pre_checkout_query"]
+            pay = self._check_payload(q.get("invoice_payload"))
+            ok = bool(pay and pay["status"] == "pending" and int(q.get("total_amount") or 0) == int(pay["amount"]) * 10)
+            body = {"pre_checkout_query_id": q["id"], "ok": ok}
+            if not ok:
+                body["error_message"] = "این صورت‌حساب معتبر نیست یا قبلاً پرداخت شده است."
+            self.call("answerPreCheckoutQuery", body)
+            return
+        m = u.get("message") or {}
+        chat = (m.get("chat") or {}).get("id")
+        if not chat:
+            return
+        if m.get("successful_payment"):
+            sp = m["successful_payment"]
+            pay = self._check_payload(sp.get("invoice_payload"))
+            if not pay:
+                self.send(chat, "پرداخت دریافت شد اما صورت‌حساب شناخته نشد؛ لطفاً از بخش پشتیبانی سایت پیگیری کنید.")
+                return
+            if pay["status"] != "paid" and int(sp.get("total_amount") or 0) == int(pay["amount"]) * 10:
+                ref = sp.get("provider_payment_charge_id") or sp.get("telegram_payment_charge_id") or ""
+                self.billing.activate(pay["phone"], pay["plan"], pay["id"], str(ref))
+                self.store.x("UPDATE payments SET note='پرداخت با بله‌پی؛ تأیید خودکار' WHERE id=?", (pay["id"],))
+            return
+        text = (m.get("text") or "").strip()
+        frm = m.get("from") or {}
+        if m.get("contact"):
+            c = m["contact"]
+            if c.get("user_id") and frm.get("id") and c["user_id"] != frm["id"]:
+                self.send(chat, "فقط شمارهٔ خودتان را با دکمهٔ «اشتراک شمارهٔ من» بفرستید.")
+                return
+            phone = norm_phone(c.get("phone_number"))
+            pend = self.store.q("SELECT * FROM bale_nonce WHERE kind='otp_wait' AND pid=? ORDER BY created DESC", (chat,), one=True)
+            if not phone or not pend or pend["phone"] != phone:
+                self.send(chat, "این شماره با شماره‌ای که در سایت وارد کرده‌اید یکی نیست. در سایت دوباره «دریافت کد در بله» را بزنید.",
+                          reply_markup={"remove_keyboard": True})
+                return
+            self.link(phone, chat, frm.get("id"))
+            self.store.x("DELETE FROM bale_nonce WHERE nonce=?", (pend["nonce"],))
+            code = self.billing.fresh_code(phone)
+            self.send(chat, f"شماره تأیید شد ✅\nکد ورود شما به فرصت ملک: {code}\nاین کد تا ۳ دقیقه معتبر است. از این پس کدها مستقیم همین‌جا می‌آید.",
+                      reply_markup={"remove_keyboard": True})
+            return
+        if text.startswith("/start"):
+            arg = text[6:].strip()
+            if arg.startswith("otp_"):
+                n = self._take(arg[4:])
+                if not n or n["kind"] != "otp":
+                    self.send(chat, "این پیوند منقضی شده است؛ در سایت دوباره «دریافت کد در بله» را بزنید.")
+                    return
+                self.store.x("UPDATE bale_nonce SET kind='otp_wait', pid=? WHERE nonce=?", (chat, n["nonce"]))
+                self.send(chat, "برای تأیید شماره، دکمهٔ زیر را بزنید تا بله شماره‌تان را بفرستد؛ کد ورود فوراً همین‌جا ارسال می‌شود.",
+                          reply_markup={"keyboard": [[{"text": "📱 اشتراک شمارهٔ من", "request_contact": True}]], "resize_keyboard": True, "one_time_keyboard": True})
+                return
+            if arg.startswith("pay_"):
+                n = self._take(arg[4:])
+                if not n or n["kind"] != "pay":
+                    self.send(chat, "این پیوند پرداخت منقضی شده است؛ از صفحهٔ اشتراک سایت دوباره اقدام کنید.")
+                    return
+                self.link(n["phone"], chat, frm.get("id"))
+                pay = self.store.q("SELECT * FROM payments WHERE id=?", (n["pid"],), one=True)
+                if pay and pay["status"] == "pending":
+                    self.send_invoice(chat, pay)
+                else:
+                    self.send(chat, "این پرداخت قبلاً انجام شده است. ✅")
+                return
+            self.send(chat, "سلام! این ربات رسمی فرصت ملک است: کد ورود، صورت‌حساب اشتراک و پیام فعال‌سازی را همین‌جا دریافت می‌کنید.\nforsatmelk.ir")
+
+    def loop(self):
+        offset = int(self.store.get_setting("bale_offset") or 0)
+        while not self.stop.is_set():
+            if not self.ready():
+                self.state["running"] = False
+                self.stop.wait(15)
+                continue
+            self.state["running"] = True
+            try:
+                ups = self.call("getUpdates", {**({"offset": offset + 1} if offset else {}), "timeout": 25}, timeout=40) or []
+                self.state["last_ok"] = int(time.time())
+                for u in ups:
+                    offset = max(offset, int(u.get("update_id") or 0))
+                    try:
+                        self.handle(u)
+                    except Exception as e:  # noqa: BLE001
+                        traceback.print_exc()
+                        self.state["last_error"] = str(e)[:200]
+                if ups:
+                    self.store.set_setting("bale_offset", offset)
+            except Exception as e:  # noqa: BLE001
+                self.state["last_error"] = str(e)[:200]
+                self.stop.wait(10)
+
+    def start(self):
+        if self.thread and self.thread.is_alive():
+            return
+        self.thread = threading.Thread(target=self.loop, name="bale", daemon=True)
+        self.thread.start()
+
+    # ---------------------------------------------------------- notify
+    def notify_paid(self, phone, plan_name, days, until, amount, pid):
+        chat = self.chat_of(phone)
+        if not (chat and self.ready() and self.cfg()["notify"]):
+            return
+        from seo import jdate
+        self.send(chat, f"✅ پرداخت شما دریافت شد و اشتراک فعال است.\n"
+                        f"طرح: {plan_name} ({_fa(days)} روز)\nمبلغ: {_fa(amount)} تومان\nشمارهٔ فاکتور: {_fa(pid)}\n"
+                        f"اعتبار تا: {jdate(until)}\nفاکتور: https://forsatmelk.ir/#/invoice/{pid}")

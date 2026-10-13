@@ -2082,3 +2082,38 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
   .brand__txt b { font-size: 17px; } .brand__txt small { font-size: 10px; }
 }
 @media (max-width: 350px) { .brand__txt small { display: none; } .top__act .icon-btn:not(.menu-btn) { width: 34px; } }
+
+/* ستون محلهٔ کم‌آگهی: کم‌رنگ، تا دیده شود ولی با محله‌های پرداده اشتباه نشود */
+.col.is-low i { opacity: .55; filter: saturate(.6); } .col.is-low span { opacity: .8; }
+
+[data-live] { transition: color .4s; } [data-live].is-bump { color: var(--gold-lux, #c9a24f) !important; -webkit-text-fill-color: currentColor; }
+
+.seo-live { margin: 14px 0 22px; padding: 14px 18px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--gold-lux, #c9a24f) 40%, var(--line)); background: var(--surface, #fff); }
+.seo-live b { display: block; font-size: 13px; color: var(--gold-lux, #c9a24f); margin-bottom: 4px; } .seo-live p { margin: 0; line-height: 2; }
+
+/* روش دریافت کد و روش پرداخت */
+.otpch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.otpch__opt, .paym__opt { display: flex; align-items: center; gap: 10px; text-align: start; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface, #fff); color: var(--ink); cursor: pointer; font: inherit; transition: border-color .2s, background .2s; }
+.otpch__opt svg, .paym__opt > i svg { width: 22px; height: 22px; flex: none; }
+.otpch__opt span, .paym__opt span { display: grid; gap: 2px; flex: 1; font-weight: 800; font-size: 13.5px; }
+.otpch__opt small, .paym__opt small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
+.otpch__opt.is-on, .paym__opt:not(.is-off):hover { border-color: var(--forest, #2c6a55); background: color-mix(in srgb, var(--forest, #2c6a55) 7%, var(--surface, #fff)); }
+.otpch__opt.is-off, .paym__opt.is-off { opacity: .55; cursor: not-allowed; }
+.paym { display: grid; gap: 10px; } .paym__opt > i { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--sunk); }
+.paym__opt em { font-style: normal; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.paywait { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--muted); }
+.paywait i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--forest, #2c6a55); border-top-color: transparent; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* فاکتور */
+.invoice { max-width: 620px; margin: 10px auto; padding: 30px; border-radius: 28px; background: var(--surface, #fff); border: 1px solid var(--line); box-shadow: 0 30px 60px -40px rgba(0,0,0,.35); text-align: center; }
+.invoice.is-ok { border-color: color-mix(in srgb, var(--forest, #2c6a55) 45%, var(--line)); }
+.invoice__badge { width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: var(--sunk); color: var(--muted); }
+.invoice.is-ok .invoice__badge { background: color-mix(in srgb, #2fbf71 16%, transparent); color: #1f9d5a; }
+.invoice h1 { font-size: clamp(20px, 2.4vw, 28px); font-weight: 900; margin-bottom: 8px; }
+.invoice__rows { margin: 22px 0; text-align: start; border-top: 1px dashed var(--line); }
+.invoice__rows div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.invoice__rows dt { color: var(--muted); } .invoice__rows dd { margin: 0; font-weight: 700; }
+.invoice__act { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+@media print { .top, .dock, .ai-fab, footer, .invoice__act { display: none !important; } .invoice { box-shadow: none; border: 1px solid #999; } }
+@media (max-width: 420px) { .otpch { grid-template-columns: 1fr; } .invoice { padding: 20px 16px; } }
+.paym__opt > svg { width: 18px; height: 18px; flex: none; }
