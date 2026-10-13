@@ -78,6 +78,7 @@ const App = (() => {
     else if (page === "method") { $('[data-nav="method"]').classList.add("is-on"); methodPage(); }
     else if (page === "account") accountPage(params);
     else if (page === "invoice") invoicePage(arg);
+    else if (page === "reset") resetPage(params);
     else if (page === "faq") faqPage();
     else if (page === "support") supportPage(params);
     else if (page === "p") contentPage("/" + path.split("/").slice(1).join("/"));
@@ -497,6 +498,8 @@ const App = (() => {
   }
   function liveHideMap() {
     $("#skyMap")?.classList.remove("is-on");
+    $("#skyStage")?.classList.remove("map-on");
+    if (live && live.globe && live.globe.pause) live.globe.pause(false);
     if ($("#skyMore")) $("#skyMore").hidden = true;
     if ($("#skyBack")) $("#skyBack").hidden = true;
     if ($("#skyBar")) $("#skyBar").hidden = true;
@@ -558,6 +561,7 @@ const App = (() => {
       // در تم تیره با فیلتر تیره؛ لایهٔ ماهواره‌ای اسری
       const dark = L.tileLayer(UI.tileUrl("osm"), { maxZoom: 19, attribution: "© OpenStreetMap", className: "sky__tiles" });
       const sat = L.tileLayer(UI.tileUrl("sat"), { maxZoom: 19, maxNativeZoom: 18, attribution: "تصویر ماهواره‌ای", keepBuffer: 1, updateWhenIdle: true });
+      UI.tileRetry(dark); UI.tileRetry(sat);
       dark.addTo(L0.map);
       L0.base = { dark, sat, osm: dark };
       L0.layer = L.layerGroup().addTo(L0.map);
@@ -657,6 +661,8 @@ const App = (() => {
     const ml = $("#skyMoreList");
     if (ml) ml.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !more.classList.contains("is-open")) { ml.scrollLeft -= e.deltaY; e.preventDefault(); } }, { passive: false });
     box.classList.add("is-on");
+    $("#skyStage")?.classList.add("map-on");
+    if (L0.globe && L0.globe.pause) L0.globe.pause(true);
     $("#skyBack").hidden = false;
     if (L0.listings.length) drawLiveListings(L0);
     setTimeout(() => {
@@ -1225,8 +1231,115 @@ const App = (() => {
     draw();
   }
 
+  /* ---------- ورود، ثبت‌نام و بازیابی رمز ---------- */
+  // روش دریافت کد (پیامک یا بله): همهٔ روش‌ها دیده می‌شوند؛ روش آماده‌نشده «فعلاً فعال نیست»
+  function chPicker(host) {
+    const chs = cfg.login_channels || [{ id: "sms", ready: true }];
+    let ch = (chs.find((c) => c.ready) || chs[0]).id;
+    host.innerHTML = chs.map((c) => `<button type="button" role="radio" class="otpch__opt${c.ready ? "" : " is-off"}" data-ch="${c.id}">${icon(c.id === "bale" ? "chat" : "phone")}<span>${c.id === "bale" ? "کد در بله" : "کد با پیامک"}<small>${c.ready ? (c.id === "bale" ? "پیام‌رسان بله" : "به همین شماره") : "فعلاً فعال نیست"}</small></span></button>`).join("");
+    const paint = () => $$(".otpch__opt", host).forEach((b) => { b.classList.toggle("is-on", b.dataset.ch === ch); b.setAttribute("aria-checked", b.dataset.ch === ch); });
+    host.addEventListener("click", (e) => { const b = e.target.closest("[data-ch]"); if (!b) return; const c = chs.find((x) => x.id === b.dataset.ch); if (!c.ready) { toast(`${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"} فعلاً فعال نیست`); return; } ch = c.id; paint(); });
+    paint();
+    return { get value() { return ch; } };
+  }
+  const codeNote = (r) => (r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>`
+    : r.channel === "bale" || r.via === "bale" ? (r.sent ? "کد در ربات فرصت ملک در بله ارسال شد؛ تا ۳ دقیقه معتبر است."
+      : `<a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener" style="margin:6px 0">${icon("chat")} باز کردن ربات در بله</a>در ربات «اشتراک شمارهٔ من» را بزنید؛ کد فوراً همان‌جا می‌آید.`)
+    : "کد پنج‌رقمی برایتان پیامک شد؛ تا ۳ دقیقه معتبر است.");
+  function loginDialog(after, tab = "login") {
+    openDialog(`<div class="dlg__head"><h2>حساب کاربری فرصت ملک</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <div class="authtabs" role="tablist"><button type="button" data-tab="login">ورود</button><button type="button" data-tab="register">ثبت‌نام</button><button type="button" data-tab="reset">فراموشی رمز</button></div>
+      <div id="authBody"></div>`);
+    const done = (u, msg) => { $("#dlg").close(); updateAccount(); toast(msg || (u.trial_started ? `خوش آمدید؛ همهٔ امکانات تا ${fa(u.trial_started)} روز برایتان رایگان باز است` : "وارد شدید")); if (after) after(); else route(); };
+    const show = (t) => {
+      $$(".authtabs button").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === t));
+      const body = $("#authBody");
+      if (t === "login") {
+        body.innerHTML = `<form class="form-grid" id="liForm">
+          <label class="field"><span>نام کاربری، موبایل یا ایمیل</span><input class="input input--ltr" id="liId" autocomplete="username" required></label>
+          <label class="field"><span>رمز عبور</span><input class="input input--ltr" id="liPw" type="password" autocomplete="current-password" required></label>
+          <button class="btn btn--hot btn--lg" id="liBtn">ورود</button>
+          <p class="small muted auth-links"><a href="#" data-go="reset">رمز را فراموش کرده‌ام</a> · <a href="#" data-go="otp">ورود با کد یک‌بار مصرف</a> · <a href="#" data-go="register">حساب ندارم، ثبت‌نام</a></p></form>`;
+        $("#liForm").addEventListener("submit", async (e) => { e.preventDefault(); const b = $("#liBtn"); b.disabled = true;
+          try { done(await DataLayer.login($("#liId").value.trim(), $("#liPw").value)); } catch (err) { toast(err.message); } b.disabled = false; });
+      } else if (t === "register") {
+        body.innerHTML = `<p class="muted small" style="margin-bottom:10px">${cfg.trial_days ? `با ثبت‌نام، همهٔ امکانات سایت <b>${fa(cfg.trial_days)} روز رایگان</b> باز می‌شود. ` : ""}شمارهٔ موبایل با یک کد تأیید می‌شود.</p>
+          <form class="form-grid" id="rgForm">
+          <div class="row2"><label class="field"><span>نام</span><input class="input" id="rgFirst" autocomplete="given-name" required></label>
+          <label class="field"><span>نام خانوادگی</span><input class="input" id="rgLast" autocomplete="family-name" required></label></div>
+          <label class="field"><span>شمارهٔ موبایل</span><input class="input input--ltr" id="rgPhone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="tel" required></label>
+          <label class="field"><span>ایمیل (اختیاری)</span><input class="input input--ltr" id="rgEmail" type="email" autocomplete="email" placeholder="برای بازیابی رمز و ایمیل خوش‌آمد"></label>
+          <label class="field"><span>نام کاربری (انگلیسی)</span><input class="input input--ltr" id="rgUser" autocomplete="username" placeholder="مثلاً ali_rezaei" required></label>
+          <div class="row2"><label class="field"><span>رمز عبور</span><input class="input input--ltr" id="rgPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required></label>
+          <label class="field"><span>تکرار رمز</span><input class="input input--ltr" id="rgPw2" type="password" autocomplete="new-password" required></label></div>
+          <div class="field"><span>دریافت کد تأیید موبایل</span><div class="otpch" id="rgCh"></div></div>
+          <div id="rgStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="rgCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="rgNote"></p></div>
+          <button class="btn btn--hot btn--lg" id="rgBtn">دریافت کد تأیید</button></form>`;
+        const chp = chPicker($("#rgCh"));
+        let sent = false;
+        $("#rgForm").addEventListener("submit", async (e) => {
+          e.preventDefault(); const b = $("#rgBtn"); b.disabled = true;
+          try {
+            if ($("#rgPw").value !== $("#rgPw2").value) throw new Error("رمز و تکرار آن یکسان نیستند");
+            if (!sent) {
+              const r = await DataLayer.requestOtp($("#rgPhone").value, chp.value);
+              sent = true; $("#rgStep2").hidden = false; $("#rgPhone").readOnly = true; $("#rgNote").innerHTML = codeNote(r); b.textContent = "تأیید و ساخت حساب"; $("#rgCode").focus();
+            } else {
+              done(await DataLayer.register({ first_name: $("#rgFirst").value, last_name: $("#rgLast").value, phone: $("#rgPhone").value, email: $("#rgEmail").value,
+                username: $("#rgUser").value, password: $("#rgPw").value, code: $("#rgCode").value }));
+            }
+          } catch (err) { toast(err.message); }
+          b.disabled = false;
+        });
+      } else if (t === "reset") {
+        body.innerHTML = `<form class="form-grid" id="rsForm">
+          <label class="field"><span>موبایل، نام کاربری یا ایمیل</span><input class="input input--ltr" id="rsId" required></label>
+          <div class="field" id="rsChWrap"><span>دریافت کد بازیابی</span><div class="otpch" id="rsCh"></div></div>
+          <div id="rsStep2" hidden><p class="small muted" id="rsNote"></p>
+            <label class="field"><span>کد</span><input class="input input--ltr" id="rsCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code"></label>
+            <label class="field"><span>رمز تازه</span><input class="input input--ltr" id="rsPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد"></label></div>
+          <button class="btn btn--hot btn--lg" id="rsBtn">ارسال</button>
+          <p class="small muted">اگر ایمیل وارد کنید، لینک تعیین رمز تازه به ایمیلتان فرستاده می‌شود${cfg.email_ready ? "" : " (ارسال ایمیل هنوز فعال نیست؛ با موبایل بازیابی کنید)"}.</p></form>`;
+        const chp = chPicker($("#rsCh"));
+        let step = 1;
+        $("#rsId").addEventListener("input", () => { $("#rsChWrap").hidden = $("#rsId").value.includes("@"); });
+        $("#rsForm").addEventListener("submit", async (e) => {
+          e.preventDefault(); const b = $("#rsBtn"); b.disabled = true;
+          try {
+            const id = $("#rsId").value.trim();
+            if (step === 1) {
+              const r = await DataLayer.resetRequest(id, id.includes("@") ? "email" : chp.value);
+              if (r.via === "email") { $("#rsStep2").hidden = true; toast("اگر این ایمیل در سایت ثبت شده باشد، لینک تعیین رمز تازه برایش ارسال شد"); $("#dlg").close(); return; }
+              step = 2; $("#rsStep2").hidden = false; $("#rsId").readOnly = true; $("#rsNote").innerHTML = codeNote(r) + (r.phone ? ` (${esc(r.phone)})` : ""); b.textContent = "تعیین رمز تازه و ورود";
+            } else {
+              done(await DataLayer.resetCode(id, $("#rsCode").value, $("#rsPw").value), "رمز تازه ثبت شد و وارد شدید");
+            }
+          } catch (err) { toast(err.message); }
+          b.disabled = false;
+        });
+      }
+      $$("[data-go]", body).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); if (a.dataset.go === "otp") { $("#dlg").close(); otpDialog(after); } else show(a.dataset.go); }));
+    };
+    $$(".authtabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+    show(tab);
+  }
+  /* لینک بازیابی رمز از ایمیل */
+  function resetPage(params) {
+    view().innerHTML = `<section class="section--tight"><div class="wrap" style="max-width:460px"><h1>تعیین رمز تازه</h1>
+      <form class="form-grid" id="rpForm"><label class="field"><span>رمز تازه</span><input class="input input--ltr" id="rpPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required></label>
+      <label class="field"><span>تکرار رمز</span><input class="input input--ltr" id="rpPw2" type="password" autocomplete="new-password" required></label>
+      <button class="btn btn--hot btn--lg">ثبت رمز و ورود</button></form></div></section>`;
+    $("#rpForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        if ($("#rpPw").value !== $("#rpPw2").value) throw new Error("رمز و تکرار آن یکسان نیستند");
+        await DataLayer.resetToken(params.token, $("#rpPw").value); updateAccount(); toast("رمز تازه ثبت شد و وارد شدید"); go("#/account");
+      } catch (err) { toast(err.message); }
+    });
+  }
+
   /* ---------- ورود با کد پیامکی ---------- */
-  function loginDialog(after) {
+  function otpDialog(after) {
     openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی با پیامک یا در پیام‌رسان بله برایتان ارسال می‌شود. ثبت‌نام همزمان انجام می‌شود.${cfg.trial_days ? ` <b>با ثبت‌نام، همهٔ امکانات سایت ${fa(cfg.trial_days)} روز رایگان برایتان باز می‌شود.</b>` : ""}</p>
       <form class="form-grid" id="otpForm">
@@ -1285,10 +1398,30 @@ const App = (() => {
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
           <a class="btn btn--line" href="#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
-        </div>` : `<div class="empty"><h3>با شماره موبایل وارد شوید</h3><p>ثبت‌نام و ورود با یک کد پیامکی انجام می‌شود.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
+        </div>
+        <form class="tool profile" id="profForm" autocomplete="on">
+          <h3>مشخصات و رمز عبور</h3>
+          ${me.has_password ? "" : `<p class="note-bad small">برای این حساب هنوز رمز عبور تعیین نشده؛ نام کاربری و رمز بگذارید تا دفعهٔ بعد بدون کد وارد شوید.</p>`}
+          <div class="row2"><label class="field"><span>نام</span><input class="input" name="first_name" value="${esc(me.first_name || "")}" required></label>
+          <label class="field"><span>نام خانوادگی</span><input class="input" name="last_name" value="${esc(me.last_name || "")}" required></label></div>
+          <div class="row2"><label class="field"><span>نام کاربری (انگلیسی)</span><input class="input input--ltr" name="username" autocomplete="username" value="${esc(me.username || "")}" required></label>
+          <label class="field"><span>ایمیل (اختیاری)</span><input class="input input--ltr" type="email" name="email" value="${esc(me.email || "")}"></label></div>
+          <div class="row2">${me.has_password ? `<label class="field"><span>رمز فعلی</span><input class="input input--ltr" type="password" name="password" autocomplete="current-password" placeholder="فقط برای تغییر رمز"></label>` : ""}
+          <label class="field"><span>${me.has_password ? "رمز جدید" : "رمز عبور"}</span><input class="input input--ltr" type="password" name="new_password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد"></label></div>
+          <button class="btn btn--hot" type="submit">ذخیرهٔ مشخصات</button>
+        </form>` : `<div class="empty"><h3>وارد حساب خود شوید</h3><p>با نام کاربری و رمز عبور وارد شوید، یا با شمارهٔ موبایل و نام خود ثبت‌نام کنید.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
     </div></section>${plansSection()}`;
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
     $("#logoutBtn")?.addEventListener("click", async () => { await DataLayer.logout(); updateAccount(); route(); });
+    $("#profForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target).entries());
+      if (!f.new_password) { delete f.new_password; delete f.password; }
+      if (!me.has_password && !f.new_password) { UI.toast("یک رمز عبور برای حساب بگذارید"); return; }
+      const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+      try { await DataLayer.saveProfile(f); UI.toast("مشخصات ذخیره شد"); updateAccount(); accountPage({}); }
+      catch (err) { UI.toast(err.message || "ذخیره نشد"); btn.disabled = false; }
+    });
     bindPlans();
   }
 
@@ -1329,7 +1462,11 @@ const App = (() => {
         <div class="field"><span>محله</span><div id="vDist"></div></div></div>
         <div class="row3"><label class="field"><span>نوع</span><select class="select" id="vKind">${PROPERTY_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join("")}</select></label>
         <label class="field"><span>متراژ (متر مربع)</span><input class="input" id="vArea" inputmode="numeric" value="100"></label>
-        <label class="field"><span>سال ساخت (اختیاری)</span><input class="input" id="vYear" inputmode="numeric" placeholder="مثلاً ۱۳۹۸"></label></div>
+        <label class="field"><span>سال ساخت</span><input class="input" id="vYear" inputmode="numeric" placeholder="مثلاً ۱۳۹۸"></label></div>
+        <div class="row4" id="vExtra"><label class="field"><span>طبقه</span><input class="input" id="vFloor" inputmode="numeric" placeholder="مثلاً ۳"></label>
+        <label class="field"><span>آسانسور</span><select class="select" id="vElev"><option value="">نامشخص</option><option value="1">دارد</option><option value="0">ندارد</option></select></label>
+        <label class="field"><span>پارکینگ</span><select class="select" id="vPark"><option value="">نامشخص</option><option value="1">دارد</option><option value="0">ندارد</option></select></label>
+        <label class="field"><span>انباری</span><select class="select" id="vWare"><option value="">نامشخص</option><option value="1">دارد</option><option value="0">ندارد</option></select></label></div>
         <div class="tool__out" id="vOut"></div></div>
       <div class="tool"><h3>اقساط وام</h3><p>روش استهلاک یکنواخت (قسط ثابت ماهانه)</p>
         <label class="field"><span>مبلغ وام (تومان)</span><input class="input input--ltr" id="lAmt" inputmode="numeric" value="1,000,000,000"></label>
@@ -1361,7 +1498,7 @@ const App = (() => {
       distBox.setItems(r.items.map((x) => ({ id: x.name, label: x.name, hint: fa(x.n) + " آگهی" })), null);
       $("#vDist input").placeholder = r.items.length ? "نام محله را بنویس" : "برای این شهر هنوز آگهی فروش با محلهٔ مشخص نیست";
     };
-    let mrows = { city: null, rows: [] };
+    let mrows = { city: null, rows: [] }, estReq = 0;
     const val = async () => {
       const city = V.city, dist = V.dist, kg = KG($("#vKind").value), area = num($("#vArea").value), year = num($("#vYear").value);
       if (!city) { $("#vOut").innerHTML = "<span>شهر را انتخاب کن.</span>"; return; }
@@ -1373,6 +1510,22 @@ const App = (() => {
       const row = mrows.rows.find((r) => r.deal === "sale" && r.kind === kg && norm(r.district) === norm(dist));
       if (!row || row.n < 5) { $("#vOut").innerHTML = `<span>در ${esc(dist)} هنوز ${row ? "فقط " + fa(row.n) + " آگهی معتبر" : "آگهی معتبری"} از این نوع هست؛ برای تخمین قابل اتکا دست‌کم ۵ آگهی هم‌محله لازم است.</span>`; return; }
       if (!area) { $("#vOut").innerHTML = "<span>متراژ را وارد کن.</span>"; return; }
+      // روی سرور: همان مدل ارزش‌گذاری سایت (قیمت پایهٔ محله × اثر سن بنا، طبقه، آسانسور، پارکینگ، انباری و …)
+      if (DataLayer.server) {
+        const id = ++estReq;
+        try {
+          const apt = !$("#vExtra").hidden;
+          const qs = new URLSearchParams({ city, district: dist, kind: $("#vKind").value, area, year: year || "", floor: apt && $("#vFloor").value.trim() ? num($("#vFloor").value) : "", elevator: apt ? $("#vElev").value : "", parking: apt ? $("#vPark").value : "", warehouse: apt ? $("#vWare").value : "" });
+          const r = await (await fetch("api/estimate?" + qs)).json();
+          if (id !== estReq || !$("#vOut")) return;
+          if (r.error) throw new Error(r.error);
+          const lo = row.p25 / row.median, hi = row.p75 / row.median;
+          $("#vOut").innerHTML = `<b>حدود ${money(r.total)} تومان</b><span>متری ${money(r.ppm)}؛ بازهٔ معمول ${money(r.total * lo)} تا ${money(r.total * hi)}. قیمت پایهٔ ${esc(dist)} برای خانهٔ میانگین: متری ${money(r.base_ppm)} از ${fa(r.n)} آگهی معتبر.</span>
+            ${r.effects.length ? `<ul class="est-fx">${r.effects.map(([lab, p]) => `<li><span>${esc(lab)}</span><b class="${p >= 0 ? "up" : "down"}">${p >= 0 ? "+" : "−"}${fa(Math.abs(Math.round(p * 1000) / 10))}٪</b></li>`).join("")}</ul>` : ""}
+            <span class="small muted">${r.method === "model" ? `اثر هر ویژگی از مدل آماری آگهی‌های همین منطقه برآورد شده (${fa(r.model.n)} آگهی).` : "برای این شهر هنوز دادهٔ کافی برای مدل آماری نیست؛ اثر ویژگی‌ها با ضریب‌های تقریبی عرف بازار حساب شده."} قیمت آگهی‌ها پیشنهادی است، نه معامله‌شده.</span>`;
+          return;
+        } catch (err) { if (id !== estReq) return; /* داده نیست: روش ساده */ }
+      }
       $("#vOut").innerHTML = `<b>حدود ${money(row.median * area)} تومان</b><span>بازهٔ معمول ${money(row.p25 * area)} تا ${money(row.p75 * area)}، میانهٔ هر متر در ${esc(dist)} ${money(row.median)} از ${fa(row.n)} آگهی معتبر، به نرخ امروز${DataLayer.samples ? " (داده نمونه)" : ""}</span>${year ? `<span class="small">سن بنا در این بازه لحاظ نشده؛ برای اثر دقیق سال ساخت، آگهی‌های همین محله را در <a href="#/market?city=${city}">صفحهٔ بازار</a> ببین.</span>` : ""}`;
     };
     fillDists().then(val);
@@ -1387,7 +1540,10 @@ const App = (() => {
       if (!r) { $("#cOut").innerHTML = ""; return; }
       $("#cOut").innerHTML = `<b>${money(d + rent / r)} رهن کامل</b><span>یا اجاره کامل بدون ودیعه: ${money(rent + d * r)} تومان در ماه</span>`;
     };
-    ["#vKind", "#vArea", "#vYear"].forEach((s) => $(s).addEventListener("input", val));
+    // طبقه، آسانسور، پارکینگ و انباری فقط برای آپارتمان
+    const extra = () => { $("#vExtra").hidden = !["apartment", "suite", "office"].includes($("#vKind").value); };
+    $("#vKind").addEventListener("input", extra); $("#vKind").addEventListener("change", extra); extra();
+    ["#vKind", "#vArea", "#vYear", "#vFloor", "#vElev", "#vPark", "#vWare"].forEach((s) => { $(s).addEventListener("input", val); $(s).addEventListener("change", val); });
     ["#lAmt", "#lRate", "#lYears"].forEach((s) => $(s).addEventListener("input", loan));
     ["#cDep", "#cRent", "#cRate"].forEach((s) => $(s).addEventListener("input", conv));
     ["#lAmt", "#cDep", "#cRent"].forEach((s) => $(s).addEventListener("blur", (e) => { const v = num(e.target.value); e.target.value = v ? v.toLocaleString("en-US") : ""; }));

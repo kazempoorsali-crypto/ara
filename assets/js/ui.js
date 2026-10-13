@@ -217,6 +217,8 @@ const UI = (() => {
 
   /* ---------- نقشه ---------- */
   // کاشی‌های نقشه از سرور خود سایت (کش دائمی؛ در قطع اینترنت بین‌الملل هم ناحیه‌های دیده‌شده باز می‌شوند)
+  // کاشی نیامده یک بار دیگر (با کمی تأخیر) خواسته می‌شود؛ سرور منبع بعدی را امتحان می‌کند
+  const tileRetry = (layer) => layer.on("tileerror", (e) => { const t = e.tile; if (t.dataset.r) return; t.dataset.r = "1"; setTimeout(() => { t.src = t.src.split("?")[0] + "?r=" + Date.now(); }, 1500); });
   const tileUrl = (style) => (DataLayer.server ? `/tiles/${style}/{z}/{x}/{y}.png`
     : style === "sat" ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" : "https://tile.openstreetmap.org/{z}/{x}/{y}.png");
   function makeMap(el, opts = {}) {
@@ -336,5 +338,5 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl };
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
 })();

@@ -2188,3 +2188,26 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .col.is-dim { opacity: .35; } .col.is-sel { opacity: 1; }
 [data-theme="dark"] .sky__more { background: rgba(20,22,20,.88); border-color: rgba(255,255,255,.12); }
 @media (max-width: 720px) { .sky__more { inset-inline: 8px 60px; bottom: 58px; } .sky__more-h { display: none; } }
+
+/* نقشه باز است: کره کاملاً پنهان (کاشی نیامده خانهٔ خالی خنثی نشان می‌دهد، نه تصویر کره) */
+.sky__stage.map-on .sky__globe { visibility: hidden; }
+.sky__map .leaflet-tile-pane { background: inherit; }
+.sky__map .leaflet-tile { background: transparent; }
+
+/* «ثبت تیکت» در نوار بالا همیشه دیده می‌شود */
+.nav .nav__ticket { display: inline-flex !important; border: 1.5px solid color-mix(in srgb, var(--narenj, #e0531f) 55%, transparent); color: var(--narenj, #e0531f); }
+@media (max-width: 1320px) { .nav { gap: 2px; } .nav a { padding-inline: 9px; font-size: 13.5px; } }
+
+.row4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+@media (max-width: 720px) { .row4 { grid-template-columns: 1fr 1fr; } }
+.est-fx { list-style: none; padding: 0; margin: 10px 0 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.est-fx li { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--sunk); font-size: 12.5px; }
+.est-fx b.up { color: #1f9d5a; } .est-fx b.down { color: #c2452d; }
+
+.authtabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--sunk); margin-bottom: 16px; }
+.authtabs button { padding: 9px 6px; border-radius: 11px; border: 0; background: transparent; font: 800 13.5px Vazirmatn, Tahoma, sans-serif; color: var(--muted); cursor: pointer; }
+.authtabs button.is-on { background: var(--surface, #fff); color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.auth-links a { text-decoration: underline; text-underline-offset: 3px; }
+.profile{margin-top:18px;max-width:760px}
+.profile h3{margin-bottom:10px}
+.row4[hidden]{display:none}

@@ -96,6 +96,12 @@ class Support:
         if c["auto_reply"] or notes:
             self._msg(tid, "auto", " ".join(([c["auto_text"].get(category, "")] if c["auto_reply"] else []) + notes).strip())
             self.store.x("UPDATE tickets SET user_unread=1 WHERE id=?", (tid,))
+        # تأیید فوری دریافت: در بله و پیامک (اگر فعال باشد)، تا خیال کاربر راحت باشد
+        try:
+            self.billing.notify_user(phone, f"✅ تیکت شمارهٔ {tid} شما در فرصت ملک دریافت شد.\nموضوع: {CATEGORIES.get(category, '') if isinstance(CATEGORIES, dict) else ''}\nپاسخ همین‌جا و در صفحهٔ پشتیبانی سایت به شما اطلاع داده می‌شود.\nhttps://forsatmelk.ir/#/support",
+                                     "ticket_template", tid)
+        except Exception:  # noqa: BLE001
+            pass
         return {"ok": True, "id": tid, "key": key}
 
     def store_dir_receipts(self):
@@ -146,6 +152,11 @@ class Support:
         body = self._clean(body)
         if body:
             self._msg(t["id"], "admin", body)
+        if body:
+            try:
+                self.billing.notify_user(t["phone"], f"💬 پاسخ تیکت شمارهٔ {t['id']} شما در فرصت ملک آماده است:\n{body[:300]}\n\nادامهٔ گفت‌وگو: https://forsatmelk.ir/#/support", "reply_template", t["id"])
+            except Exception:  # noqa: BLE001
+                pass
         status = "closed" if close else "open" if reopen else ("answered" if body else t["status"])
         self.store.x("UPDATE tickets SET status=?, updated=?, admin_unread=0, user_unread=? WHERE id=?",
                      (status, int(time.time()), 1 if body else t["user_unread"], t["id"]))

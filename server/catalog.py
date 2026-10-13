@@ -170,6 +170,9 @@ CATEGORIES = [
     {"slug": "residential-rent", "name": "اجاره مسکونی", "vertical": "estate", "verified": True, "default": False},
     {"slug": "commercial-sell", "name": "فروش اداری و تجاری", "vertical": "estate", "verified": True, "default": False},
     {"slug": "commercial-rent", "name": "اجاره اداری و تجاری", "vertical": "estate", "verified": True, "default": False},
+    # پیش‌فروش در دیوار دستهٔ جدا ندارد؛ جست‌وجوی متن «پیش فروش» در فروش آپارتمان آگهی‌های بیشتری می‌آورد
+    {"slug": "presale-search", "name": "پیش‌فروش (جست‌وجوی «پیش فروش»)", "vertical": "estate", "verified": False, "default": True,
+     "base": "apartment-sell", "query": "پیش فروش"},
 ]
 CATEGORY_BY_SLUG = {c["slug"]: c for c in CATEGORIES}
 
