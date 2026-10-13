@@ -275,6 +275,9 @@ const UI = (() => {
         items = items.map((x) => { const f = fold(x.label); const r = f.startsWith(q) ? 0 : x.label.split(/[\s\u200c]+/).some((w) => fold(w).startsWith(q)) ? 1 : f.includes(q) ? 2 : 9; return [r, x]; })
           .filter(([r]) => r < 9).sort((a, b) => a[0] - b[0] || a[1].label.localeCompare(b[1].label, "fa")).map(([, x]) => x);
         rows = items.map((x) => ({ type: "item", x }));
+        // نام دلخواه (مثلاً محله‌ای که در فهرست نیست): جست‌وجو در متن آگهی‌های همین شهر
+        const raw = inp.value.trim();
+        if (o.freeText && raw.length >= 2 && !items.some((x) => fold(x.label) === q)) rows.push({ type: "free", q: raw });
       } else {
         if (o.allLabel && !gsel) rows.push({ type: "item", x: { id: "", label: o.allLabel } });
         const order = groups.length ? (gsel ? [gsel] : groups.map((g) => g.id)) : [null];
@@ -294,16 +297,18 @@ const UI = (() => {
         k++;
         const on = k === hi ? " is-hi" : "";
         if (r.type === "group") return `<li class="cb__opt cb__opt--group${on}" data-k="${k}" role="option">کل استان ${esc(gname(r.g))}</li>`;
+        if (r.type === "free") return `<li class="cb__opt cb__opt--free${on}" data-k="${k}" role="option">${esc(o.freeText(r.q))}</li>`;
         return `<li class="cb__opt${on}${r.x.id === o.value ? " is-sel" : ""}" data-k="${k}" role="option">${esc(r.x.label)}${q && r.x.group ? `<small>${esc(gname(r.x.group))}</small>` : r.x.hint ? `<small>${esc(r.x.hint)}</small>` : ""}</li>`;
       }).join("") : `<li class="cb__empty">موردی پیدا نشد</li>`;
       list._pick = pick;
       list.querySelector(".is-hi")?.scrollIntoView({ block: "nearest" });
     }
     const open = () => { panel.hidden = false; inp.setAttribute("aria-expanded", "true"); hi = 0; draw(); };
-    const close = () => { panel.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.value = label() || (o.groupValue && !cur() ? (o.groupLabel || "") + gname(o.groupValue) : ""); };
+    const close = () => { panel.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.value = label() || (o.groupValue && !cur() ? (o.groupLabel || "") + gname(o.groupValue) : "") || (o.value == null && o.freeValue) || ""; };
     const choose = (r) => {
       if (!r) return;
       if (r.type === "group") { o.value = null; o.groupValue = r.g; close(); o.onChange && o.onChange({ id: "", group: r.g }); return; }
+      if (r.type === "free") { o.value = null; o.freeValue = r.q; panel.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.value = r.q; o.onChange && o.onChange({ id: "", free: r.q }); return; }
       o.value = r.x.id; o.groupValue = r.x.group || ""; close(); o.onChange && o.onChange({ id: r.x.id, group: r.x.group || "" });
     };
     inp.addEventListener("focus", () => { inp.select(); open(); });

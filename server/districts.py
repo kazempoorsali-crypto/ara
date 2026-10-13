@@ -144,8 +144,9 @@ def place_listings(store) -> dict:
     """مرکز هر محله: میانهٔ مختصات دقیق آگهی‌هایش، وگرنه مختصاتی که از نام محله یافته شده (geo_cache).
     آگهی‌های بدون مختصات دقیق دور مرکز محلهٔ خودشان (حدود ۳۰۰ متر) قرار می‌گیرند، نه پراکنده در کل شهر."""
     import catalog
-    rows = store.q("""SELECT id, city_key, district, lat, lng, COALESCE(latlng_exact,0) ex FROM listings
+    rows = store.q("""SELECT id, city_key, district, lat, lng, COALESCE(latlng_exact,0) ex, COALESCE(settlement,'urban') st FROM listings
                       WHERE vertical='estate' AND district IS NOT NULL AND district != ''""")
+    rural = rural_districts(store)
     geo = store.get_setting("geo_cache") or {}
     exact: dict = {}
     for r in rows:
@@ -160,16 +161,22 @@ def place_listings(store) -> dict:
         pts = exact.get(k)
         if pts:
             centers[k] = [round(_med([p[0] for p in pts]), 5), round(_med([p[1] for p in pts]), 5), "exact"]
-        elif isinstance(geo.get(k), dict) and geo[k].get("ll"):
+        elif isinstance(geo.get(k), dict) and geo[k].get("ll") and geo[k].get("v") == GEO_V:
             centers[k] = [*geo[k]["ll"], "geo"]
         # مرکز دورتر از حدود ۱۳ کیلومتر از مرکز شهر، خطاست
-        lim = (0.12, 0.14) if k in centers and centers[k][2] == "exact" else (0.065, 0.08)   # مرکز از روی نام: نزدیک‌تر به شهر
+        # محلهٔ شهری: نزدیک مرکز شهر؛ روستا و نواحی حاشیه‌ای شهرستان: تا حدود ۳۵ کیلومتر، در جای واقعی خودش
+        lim = (0.32, 0.38) if k in rural else (0.12, 0.14) if k in centers and centers[k][2] == "exact" else (0.065, 0.08)
         if k in centers and c and (abs(centers[k][0] - c["lat"]) > lim[0] or abs(centers[k][1] - c["lng"]) > lim[1]):
             centers.pop(k)
     upd = []
     for r in rows:
         k = f'{r["city_key"]}|{r["district"]}'
-        if r["ex"] or k not in centers:
+        if r["ex"]:
+            continue
+        if k not in centers:
+            # روستا یا ناحیهٔ حاشیه‌ای بی‌مکان: روی نقشه داخل شهر گذاشته نمی‌شود
+            if k in rural and r["lat"] is not None:
+                upd.append((None, None, r["id"]))
             continue
         dy, dx = _offset(r["id"])
         lat, lng = round(centers[k][0] + dy, 5), round(centers[k][1] + dx, 5)
@@ -183,6 +190,19 @@ def place_listings(store) -> dict:
     return {"centers": len(centers), "placed": len(upd)}
 
 
+GEO_V = 2   # نسخهٔ قاعدهٔ مکان‌یابی؛ با تغییرش جست‌وجوهای قبلی دوباره انجام می‌شود
+
+
+def rural_districts(store) -> set:
+    """محله‌هایی که بیشتر آگهی‌هایشان روستایی یا خارج از محدودهٔ شهرند (روستاهای شهرستان، نه محلهٔ شهر)."""
+    out = set()
+    for r in store.q("""SELECT city_key, district, COUNT(*) n, SUM(COALESCE(settlement,'urban')='rural') rr FROM listings
+                        WHERE vertical='estate' AND district IS NOT NULL AND district != '' GROUP BY city_key, district"""):
+        if r["rr"] * 2 > r["n"]:
+            out.add(f'{r["city_key"]}|{r["district"]}')
+    return out
+
+
 def missing_geo(store, limit=40):
     """محله‌هایی که نه آگهی با مختصات دقیق دارند و نه در ۳۰ روز گذشته جست‌وجوی مکانی شده‌اند."""
     import time
@@ -193,7 +213,7 @@ def missing_geo(store, limit=40):
     for r in store.q("""SELECT city_key, district, COUNT(*) n FROM listings WHERE vertical='estate' AND status='active'
                         AND district IS NOT NULL AND district != '' GROUP BY city_key, district ORDER BY n DESC"""):
         k = f'{r["city_key"]}|{r["district"]}'
-        if k in centers or (k in geo and now - geo[k].get("at", 0) < 30 * 86400):
+        if k in centers or (k in geo and geo[k].get("v") == GEO_V and now - geo[k].get("at", 0) < 30 * 86400):
             continue
         out.append((r["city_key"], r["district"]))
         if len(out) >= limit:
@@ -213,14 +233,16 @@ def geocode_once(store, limit=40, pause=1.2) -> int:
     if not todo:
         return 0
     geo = store.get_setting("geo_cache") or {}
+    rural = rural_districts(store)
     found = 0
     for city, district in todo:
         c = catalog.CITY_BY_KEY.get(city)
         k = f"{city}|{district}"
-        geo[k] = {"at": int(time.time()), "ll": None}
+        geo[k] = {"at": int(time.time()), "ll": None, "v": GEO_V}
         if not c:
             continue
-        vb = f'{c["lng"] - 0.08},{c["lat"] + 0.065},{c["lng"] + 0.08},{c["lat"] - 0.065}'
+        r_ = 0.32 if k in rural else 0.065   # روستا: کل شهرستان؛ محلهٔ شهری: فقط محدودهٔ شهر
+        vb = f'{c["lng"] - r_ * 1.2},{c["lat"] + r_},{c["lng"] + r_ * 1.2},{c["lat"] - r_}'
         for name in dict.fromkeys([norm(district), " ".join(tokens(district))]):
             q = urllib.parse.urlencode({"q": f'{name}، {c["name"]}', "format": "json", "limit": 1, "countrycodes": "ir",
                                         "viewbox": vb, "bounded": 1, "accept-language": "fa"})
