@@ -391,6 +391,11 @@ def _presale_fair(items, deal, th):
 def recompute(store, thresholds: dict | None = None) -> dict:
     t0 = time.time()
     th = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    try:  # محله‌ها پیش از هر چیز مرتب می‌شوند: بی‌معناها حذف، شکل‌های یک نام یکی، بی‌محله‌ها از روی متن
+        from districts import fix_districts
+        fix_districts(store)
+    except Exception:  # noqa: BLE001
+        import traceback; traceback.print_exc()
     rows = [store.row_to_dict(r) for r in store.q("SELECT * FROM listings WHERE status='active' AND vertical='estate'")]
     now = time.time()
     disp: dict = {}

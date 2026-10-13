@@ -582,6 +582,11 @@ def ensure_articles(store):
     with store.lock:
         store.db.execute(ARTICLES_SQL)
         store.db.commit()
+    try:  # مقاله‌های آغازین، فقط یک بار
+        from articles_seed import seed
+        seed(store)
+    except Exception:  # noqa: BLE001
+        import traceback; traceback.print_exc()
 
 
 def articles_list(store, limit=50, all_=False):

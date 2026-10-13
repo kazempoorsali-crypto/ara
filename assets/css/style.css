@@ -1976,12 +1976,19 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .scene__stage.is-hover { --sr: 210px; }
 .scene__pic { position: absolute; inset: 0; z-index: -2; }
 .scene__pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(calc(1.1 - var(--p) * .1)); }
-.scene__pic .ph { -webkit-mask-image: linear-gradient(to left, #000 calc(var(--w) - 16%), transparent var(--w)), radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--sr) * .5), transparent var(--sr));
-  mask-image: linear-gradient(to left, #000 calc(var(--w) - 16%), transparent var(--w)), radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--sr) * .5), transparent var(--sr)); }
-.scene__pic--house { --w: var(--w1); }
-.scene__pic--living { --w: var(--w2); opacity: var(--liv); }
+/* «روشن شدن چراغ‌ها»: عکس رنگی از مرکز ساختمان مثل نوری که پخش می‌شود باز می‌شود؛ نورافکن نشانگر هم همین‌جا */
+.scene__pic .ph { filter: saturate(1.08) contrast(1.04);
+  -webkit-mask-image: radial-gradient(ellipse 70% 62% at 56% 58%, #000 calc(var(--w) * .55), transparent var(--w)), radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--sr) * .45), transparent var(--sr));
+  mask-image: radial-gradient(ellipse 70% 62% at 56% 58%, #000 calc(var(--w) * .55), transparent var(--w)), radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--sr) * .45), transparent var(--sr)); }
+.scene__pic .dim { filter: brightness(calc(1 - var(--s) * .35)); }
+/* باریکهٔ نور که هنگام روشن شدن از روی تصویر می‌گذرد */
+.scene__sweep { position: absolute; inset: -10% -40%; pointer-events: none; mix-blend-mode: screen; opacity: calc(var(--s) * (1 - var(--s)) * 3.2);
+  background: linear-gradient(105deg, transparent 38%, rgba(255,226,170,.0) 42%, rgba(255,226,170,.28) 48%, rgba(255,240,210,.45) 50%, rgba(255,226,170,.28) 52%, transparent 60%);
+  transform: translateX(calc(60% - var(--s) * 120%)); }
+.scene__pic--house { --w: var(--w1); --s: var(--s1); }
+.scene__pic--living { --w: var(--w2); --s: var(--s2); opacity: var(--liv); }
 .scene__shade { position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(0deg, rgba(10,11,9,.82) 0%, rgba(10,11,9,.15) 45%, rgba(10,11,9,.35) 100%), linear-gradient(90deg, rgba(10,11,9,.55), transparent 40%, transparent 60%, rgba(10,11,9,.55)); }
+  background: linear-gradient(0deg, rgba(10,11,9,.72) 0%, rgba(10,11,9,.04) 40%, rgba(10,11,9,.14) 100%), linear-gradient(90deg, rgba(10,11,9,.38), transparent 32%, transparent 68%, rgba(10,11,9,.38)); }
 .scene__mark { position: absolute; left: 50%; top: 42%; width: min(34vmin, 300px); aspect-ratio: 1; translate: -50% -50%; perspective: 900px; opacity: var(--logo);
   filter: drop-shadow(0 30px 40px rgba(0,0,0,.6)); pointer-events: none; }
 .scene__rot { position: absolute; inset: 0; transform-style: preserve-3d;
@@ -2012,7 +2019,7 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 }
 .scene.is-static { height: auto; } .scene.is-static .scene__stage { position: relative; height: auto; min-height: 80vh; padding: 60px 7vw 70px; display: grid; gap: 30px; align-content: end; }
 .scene.is-static .scene__step { position: static; opacity: 1; transform: none; filter: none; max-width: none; }
-.scene.is-static .scene__pic .ph { -webkit-mask-image: none; mask-image: none; } .scene.is-static .scene__pic img { transform: none; }
+.scene.is-static .scene__pic .ph { -webkit-mask-image: none; mask-image: none; } .scene.is-static .scene__sweep { display: none; } .scene.is-static .scene__pic img { transform: none; }
 .scene.is-static .scene__pic--living, .scene.is-static .scene__mark, .scene.is-static .scene__dots, .scene.is-static .scene__hint { display: none; }
 /* متن واژه به واژه */
 [data-scrubbed] span { opacity: .2; transition: opacity .35s; } [data-scrubbed] span.is-lit { opacity: 1; }

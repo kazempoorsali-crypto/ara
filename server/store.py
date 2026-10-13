@@ -281,9 +281,14 @@ class Store:
         for a in [a for a in (f.get("amenities") or "").split(",") if a]:
             add("amenities LIKE ?", f'%"{a}"%')
         if f.get("district"):
+            # نام محله با واژه‌ها سنجیده می‌شود: «منفرد» ← «بلوار منفرد» و «منفرد نیاکی»
+            from districts import matches
             ds = [x.strip() for x in f["district"].split(",") if x.strip()][:12]
-            add(f"REPLACE(REPLACE(district,' ',''),char(8204),'') IN ({','.join('?' * len(ds))})",
-                *[x.replace(" ", "").replace("\u200c", "") for x in ds])
+            cities = [c.strip() for c in str(f.get("city") or "").split(",") if c.strip()]
+            cand = [r[0] for r in self.q("SELECT DISTINCT district FROM listings WHERE district IS NOT NULL AND district != ''"
+                                         + (f" AND city_key IN ({','.join('?' * len(cities))})" if cities else ""), cities)]
+            hit = [d for d in cand if any(matches(w, d) for w in ds)] or ds
+            add(f"district IN ({','.join('?' * len(hit))})", *hit)
         if f.get("ranked"):
             where.append("score IS NOT NULL")
         if f.get("q"):
