@@ -34,7 +34,9 @@ PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان ب
 # نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
 DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True,
                # الگوی دوم برای پیامک «دسترسی شما باز شد»؛ تنها متغیر الگو تعداد روز اشتراک است
-               "notify_template": ""}
+               "notify_template": "",
+               # الگوهای پیامک تأیید ثبت تیکت و آماده شدن پاسخ (متغیر: شمارهٔ تیکت)
+               "ticket_template": "", "reply_template": ""}
 PAYAMAK_URL = os.environ.get("ARA_PAYAMAK_URL") or "https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber"
 
 OTP_TTL = 180
@@ -88,6 +90,8 @@ class Billing:
     def __init__(self, store):
         self.store = store
         self.bale = None   # در App مقداردهی می‌شود
+        from accounts import ensure_schema
+        ensure_schema(store)
 
     def cfg(self):
         return {**DEFAULT_BILLING, **(self.store.get_setting("billing") or {})}
@@ -200,6 +204,36 @@ class Billing:
             return {"ok": True, "phone": phone, "dev_code": code}
         raise ValueError("ورود موقتاً در دسترس نیست")
 
+    def check_otp(self, phone_raw: str, code: str) -> str:
+        """کد را می‌سنجد و مصرف می‌کند؛ خروجی: شمارهٔ استاندارد."""
+        phone = norm_phone(phone_raw)
+        code = (code or "").translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")).strip()
+        row = self.store.q("SELECT * FROM otps WHERE phone=?", (phone,), one=True) if phone else None
+        now = int(time.time())
+        if not row or row["expires"] < now:
+            raise ValueError("کد منقضی شده است؛ دوباره درخواست دهید")
+        if row["attempts"] >= 5:
+            raise ValueError("تلاش زیاد؛ کد تازه بگیرید")
+        if not secrets.compare_digest(row["code_hash"], _hash(code, phone)):
+            self.store.x("UPDATE otps SET attempts=attempts+1 WHERE phone=?", (phone,))
+            raise ValueError("کد نادرست است")
+        self.store.x("DELETE FROM otps WHERE phone=?", (phone,))
+        return phone
+
+    def start_session(self, phone) -> dict:
+        now = int(time.time())
+        new = self.store.x("INSERT OR IGNORE INTO users(phone, created) VALUES(?,?)", (phone, now)).rowcount == 1
+        self.store.x("UPDATE users SET last_login=? WHERE phone=?", (now, phone))
+        c = self.cfg()
+        trial = 0
+        if new and c.get("trial_enabled") and int(c.get("trial_days") or 0) > 0:
+            trial = int(c["trial_days"])
+            self.store.x("UPDATE users SET sub_until=?, plan='trial' WHERE phone=?", (now + trial * 86400, phone))
+        token = secrets.token_urlsafe(32)
+        self.store.x("INSERT INTO user_sessions VALUES(?,?,?)", (token, phone, now + SESSION_DAYS * 86400))
+        self.store.x("DELETE FROM user_sessions WHERE expires < ?", (now,))
+        return {"token": token, "user": self.user(phone), "trial_days": trial, "new": new}
+
     def verify_otp(self, phone_raw: str, code: str) -> dict:
         phone = norm_phone(phone_raw)
         code = (code or "").translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")).strip()
@@ -236,9 +270,11 @@ class Billing:
         if not r:
             return None
         now = int(time.time())
+        d = dict(r)
         return {"phone": r["phone"], "sub_until": r["sub_until"] or 0, "plan": r["plan"],
                 "active": (r["sub_until"] or 0) > now, "days_left": max(0, -(-((r["sub_until"] or 0) - now) // 86400)),
-                "trial": r["plan"] == "trial"}
+                "trial": r["plan"] == "trial", "first_name": d.get("first_name") or "", "last_name": d.get("last_name") or "",
+                "email": d.get("email") or "", "username": d.get("username") or "", "has_password": bool(d.get("pw_hash"))}
 
     def logout(self, token):
         self.store.x("DELETE FROM user_sessions WHERE token=?", (token,))
@@ -426,3 +462,26 @@ class Billing:
         return {"id": pay["id"], "status": pay["status"], "plan": plan["name"] if plan else pay["plan"], "days": plan["days"] if plan else None,
                 "amount": pay["amount"], "gateway": names.get(pay["gateway"], pay["gateway"]), "ref": pay["ref_id"],
                 "created": pay["created"], "paid_at": pay["paid_at"], "sub_until": u.get("sub_until"), "phone": phone[:4] + "***" + phone[-3:]}
+
+    # ---------------------------------------------------------- اطلاع‌رسانی عمومی
+    def notify_user(self, phone, text, sms_template_key=None, sms_var=None):
+        """پیام فوری به کاربر: در بله (اگر ربات را وصل کرده) و با پیامک الگویی (اگر الگوی آن رویداد تعریف شده). بی‌وقفه برای درخواست."""
+        import threading
+
+        def run():
+            try:
+                if self.bale and self.bale.ready():
+                    chat = self.bale.chat_of(phone)
+                    if chat:
+                        self.bale.send(chat, text)
+            except Exception:  # noqa: BLE001
+                pass
+            s = self.sms_cfg()
+            tpl = s.get(sms_template_key) if sms_template_key else None
+            if tpl and self.sms_live():
+                try:
+                    ok, r = self._send_code({**s, "template": tpl}, phone, str(sms_var or ""))
+                    self.store.log_request("sms", ok, f"اطلاع‌رسانی ({sms_template_key}) به {phone[:4]}***{phone[-3:]}")
+                except Exception:  # noqa: BLE001
+                    pass
+        threading.Thread(target=run, daemon=True).start()

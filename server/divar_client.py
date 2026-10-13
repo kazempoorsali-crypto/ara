@@ -253,8 +253,10 @@ class McpSource:
         return res
 
     def search(self, city: dict, category: str, page: int, cursor=None):
-        payload = self.call("search_ads", {"city": city["name"], "category": category, "page": page,
-                                           "limit": 30, "sort": "newest"})
+        import catalog as _cat
+        meta = _cat.CATEGORY_BY_SLUG.get(category) or {}
+        payload = self.call("search_ads", {"city": city["name"], "category": meta.get("base") or category, "page": page,
+                                           "limit": 30, "sort": "newest", **({"query": meta["query"]} if meta.get("query") else {})})
         items = []
         for key in ("ads", "results", "items", "posts", "cards"):
             if isinstance(payload.get(key), list):
@@ -341,9 +343,13 @@ class DirectSource:
         if cursor:
             pag.update({k: v for k, v in cursor.items() if k not in ("@type", "search_uid", "viewed_tokens")})
             pag["page"] = page
+        import catalog as _cat
+        meta = _cat.CATEGORY_BY_SLUG.get(category) or {}
         body = {"city_ids": [str(city["divar_id"])],
-                "search_data": {"form_data": {"data": {"category": {"str": {"value": category}}}}},
+                "search_data": {"form_data": {"data": {"category": {"str": {"value": meta.get("base") or category}}}}},
                 "pagination_data": pag}
+        if meta.get("query"):   # جست‌وجوی متن (مثلاً «پیش فروش») درون دسته
+            body["search_data"]["query"] = meta["query"]
         data = self._post("/v8/postlist/w/search", body)
         rows = []
         for w in data.get("list_widgets", []):

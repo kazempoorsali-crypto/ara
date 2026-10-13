@@ -448,6 +448,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
 
     market = []
     models_info = []
+    estimator = {}   # ضریب‌های مدل و قیمت پایهٔ محله‌ها برای ابزار «تخمین ارزش» (فروش)
     trends = []
     accuracy = []
     anomalies = []  # محله‌هایی که قیمتشان با مجاورها نمی‌خواند (احتمال تبانی یا دادهٔ کم)
@@ -553,6 +554,18 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 l["_adj"] = max(-0.6, min(0.6, apply_model(model, l["_x"])[0])) if model else 0.0
         dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_wb"]) for l in ls]) for k, ls in members.items()}
         spatial = _spatial(members, dbase, float(th.get("spatial_tol") or 0.25))
+        if deal == "sale":
+            comp = lambda m: {"feats": m["feats"], "beta": [round(b, 5) for b in m["beta"]], "stats": {k: [round(v[0], 4), round(v[1], 4)] for k, v in m["stats"].items()},
+                              "n": m["n"], "r2": round(m["r2"], 3)}
+            e = estimator.setdefault(kg, {"models": {}, "base": {}})
+            if prov_model:
+                e["models"]["p:" + prov] = comp(prov_model)
+            for ck, m in city_models.items():
+                if m:
+                    e["models"]["c:" + ck] = comp(m)
+            for (ck, dk), v in dbase.items():
+                off = (spatial.get((ck, dk)) or (0,))[0]
+                e["base"][f"{ck}|{dk}"] = [round(v + off, 5), len(members[(ck, dk)])]
         for (ck, dk), (off, ref, ns, gap) in spatial.items():
             if abs(off) >= 0.03:
                 anomalies.append({"city": ck, "district": next(iter(disp.get(dk, {dk: 0}))), "kind": kg, "deal": deal, "gap": round(math.exp(gap) - 1, 3),
@@ -789,4 +802,5 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                                       and l["pp"] > first_pp[l["id"]] * 1.001)},
             "seconds": round(time.time() - t0, 2)}
     store.set_setting("valuation_info", info)
+    store.set_setting("estimator", estimator)
     return info

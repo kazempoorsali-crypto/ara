@@ -485,12 +485,32 @@
         <label class="field"><span data-only="payamak">رمز پنل یا کلید API</span><span data-only="kavenegar">کلید API</span><input class="input input--ltr" name="api_key" value="${esc(sm.api_key)}"></label>
         <label class="field"><span data-only="payamak">کد الگو (bodyId)</span><span data-only="kavenegar">نام قالب Verify</span><input class="input input--ltr" name="template" value="${esc(sm.template)}"></label>
         <label class="field"><span data-only="payamak">کد الگوی پیامک فعال‌سازی (اختیاری)</span><span data-only="kavenegar">نام قالب پیامک فعال‌سازی (اختیاری)</span><input class="input input--ltr" name="notify_template" value="${esc(sm.notify_template || "")}"></label>
+        <label class="field"><span>الگوی پیامک «تیکت شما دریافت شد» (اختیاری؛ متغیر: شمارهٔ تیکت)</span><input class="input input--ltr" name="ticket_template" value="${esc(sm.ticket_template || "")}"></label>
+        <label class="field"><span>الگوی پیامک «پاسخ تیکت آماده است» (اختیاری؛ متغیر: شمارهٔ تیکت)</span><input class="input input--ltr" name="reply_template" value="${esc(sm.reply_template || "")}"></label>
       </div>
+      <p class="hint">تأیید ثبت تیکت و آماده شدن پاسخ، همیشه در بله برای کاربرانی که ربات را وصل کرده‌اند ارسال می‌شود؛ پیامکش فقط وقتی که الگوی آن را این‌جا بگذارید.</p>
       <p class="hint">پیامک فعال‌سازی: الگویی دوم بسازید، مثلاً «دسترسی شما به فرصت ملک برای {0} روز باز شد.»؛ متغیر آن تعداد روز اشتراک است. ${S.sms_last_notify ? `آخرین ارسال: ${S.sms_last_notify.ok ? "موفق" : "ناموفق"} به ${esc(S.sms_last_notify.phone)}${S.sms_last_notify.ok ? "" : " — " + esc(S.sms_last_notify.resp)}` : ""}</p>
       <label class="switch" style="margin-top:14px"><input type="checkbox" name="dev_mode" ${sm.dev_mode ? "checked" : ""}><i></i>تا تنظیم پیامک، کد ورود روی صفحه نمایش داده شود (فقط روی همین رایانه، هرگز از اینترنت)</label>
       <p class="hint" data-only="payamak">در پنل پیامک، بخش «وب‌سرویس خدماتی (الگو)»، یک الگو بسازید، مثلاً: «کد ورود شما به فرصت ملک: {0}». پس از تأیید الگو، کد عددی آن را این‌جا وارد کنید. متغیر اول الگو همان کد پنج‌رقمی است.</p>
       <p class="hint" data-only="kavenegar">در قالب Verify کاوه‌نگار، متغیر کد را %token قرار دهید.</p></div>
+      <div class="panel"><h2>ایمیل (خوش‌آمد و بازیابی رمز)</h2>
+        <p class="hint">برای ایمیل خوش‌آمد پس از ثبت‌نام و لینک بازیابی رمز. مشخصات SMTP را از سرویس ایمیل خود (مثلاً ایمیل دامنهٔ هاست) بگیرید. تا تنظیم نشود، بازیابی رمز فقط با موبایل (پیامک یا بله) انجام می‌شود.</p>
+        <div class="grid2">
+          <label class="field"><span>سرور SMTP</span><input class="input input--ltr" name="em_host" value="${esc(S.email?.host || "")}" placeholder="mail.forsatmelk.ir"></label>
+          <label class="field"><span>پورت</span><input class="input input--ltr" name="em_port" type="number" value="${S.email?.port || 465}"></label>
+          <label class="field"><span>امنیت اتصال</span><select class="select" name="em_sec">${[["ssl", "SSL (پورت ۴۶۵)"], ["starttls", "STARTTLS (پورت ۵۸۷)"], ["none", "بدون رمزنگاری"]].map(([v, n]) => `<option value="${v}" ${(S.email?.security || "ssl") === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+          <label class="field"><span>نام کاربری SMTP</span><input class="input input--ltr" name="em_user" value="${esc(S.email?.user || "")}"></label>
+          <label class="field"><span>رمز SMTP</span><input class="input input--ltr" name="em_pass" type="password" value="${esc(S.email?.password || "")}" autocomplete="new-password"></label>
+          <label class="field"><span>نشانی فرستنده</span><input class="input input--ltr" name="em_from" value="${esc(S.email?.from_addr || "")}" placeholder="no-reply@forsatmelk.ir"></label>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><input class="input input--ltr" id="emTo" placeholder="ایمیل آزمایشی شما" style="max-width:280px"><button type="button" class="btn btn--line" id="emTest">ارسال ایمیل آزمایشی</button><span id="emRes" class="small"></span></div>
+        ${S.email_last ? `<p class="hint">آخرین ارسال: ${when(S.email_last.at)} به ${esc(S.email_last.to)} — ${S.email_last.ok ? '<span class="ok">موفق</span>' : `<span class="bad">${esc(S.email_last.error)}</span>`}</p>` : ""}
+      </div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
+    $("#emTest").addEventListener("click", async () => {
+      $("#emRes").textContent = "در حال ارسال… (اول «ذخیره» را زده باشید)";
+      try { const r = await api("admin/email-test", { to: $("#emTo").value.trim() }); $("#emRes").innerHTML = r.ok ? '<span class="ok">ارسال شد</span>' : `<span class="bad">${esc(r.error)}</span>`; } catch (err) { $("#emRes").textContent = err.message; }
+    });
     $("#baleTest").addEventListener("click", async () => {
       $("#baleRes").textContent = "در حال آزمون…";
       try { const r = await api("admin/bale-test", {}); $("#baleRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.bot.first_name || "")} @${esc(r.bot.username || "")}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
@@ -507,8 +527,9 @@
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked && +f.trial_days.value > 0, trial_days: f.trial_days.value === "" ? 3 : Math.max(0, +f.trial_days.value),
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
+        email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
-        sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), dev_mode: f.dev_mode.checked },
+        sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), ticket_template: f.ticket_template.value.trim(), reply_template: f.reply_template.value.trim(), dev_mode: f.dev_mode.checked },
       };
       try { await api("admin/settings", body); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
     });
@@ -523,6 +544,10 @@
         <label class="field"><span>شعار کوتاه</span><input class="input" name="tagline" value="${esc(s.tagline)}"></label>
         <label class="field"><span>ایمیل پشتیبانی (اختیاری)</span><input class="input input--ltr" name="email" type="email" value="${esc(s.email)}"></label>
       </div><label class="field" style="margin-top:14px"><span>درباره سایت</span><textarea class="textarea" name="about">${esc(s.about)}</textarea></label></div>
+      <div class="panel"><h2>منبع نقشه (اختیاری)</h2>
+        <p class="hint">نقشه از طریق سرور خود سایت و با چند منبع پشتیبان (OpenStreetMap و منابع ماهواره‌ای) نمایش داده و ذخیره می‌شود. اگر از یک سرویس نقشهٔ ایرانی مثل Map.ir کلید گرفته‌اید، نشانی کاشی‌اش را این‌جا بگذارید تا همیشه اول از همان گرفته شود (سریع‌تر در ایران و مستقل از اینترنت بین‌الملل). نشانی باید {z}، {x} و {y} داشته باشد؛ کلید را داخل خود نشانی بگذارید.</p>
+        <div class="grid2"><label class="field"><span>نقشهٔ خیابان</span><input class="input input--ltr" id="tileStreet" value="${esc((S.tiles || {}).street || "")}" placeholder="https://…/{z}/{x}/{y}.png?x-api-key=…"></label>
+        <label class="field"><span>نقشهٔ ماهواره‌ای</span><input class="input input--ltr" id="tileSat" value="${esc((S.tiles || {}).sat || "")}" placeholder="https://…/{z}/{x}/{y}.jpg"></label></div></div>
       <div class="panel"><h2>نمایش</h2><label class="switch"><input type="checkbox" id="showSamples" ${S.display_full.show_samples ? "checked" : ""}><i></i>نمایش آگهی‌های نمونه تا وقتی آگهی واقعی دریافت نشده</label></div>
       <div class="panel"><h2>اطلاعات تماس آگهی برای مشترکان</h2>
         <label class="field"><span>شمارهٔ تلفن آگهی</span><select class="select" id="contactMode">
@@ -543,7 +568,7 @@
       const data = Object.fromEntries(new FormData(e.target).entries());
       const owner = Object.fromEntries(["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].map((k) => [k, $("#o_" + k).value.trim()]));
       ["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].forEach((k) => delete data[k]);
-      try { await api("admin/settings", { site: data, owner, display: { show_samples: $("#showSamples").checked, contact_mode: $("#contactMode").value, show_address: $("#showAddress").checked } }); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
+      try { await api("admin/settings", { tiles: { street: $("#tileStreet").value.trim(), sat: $("#tileSat").value.trim() }, site: data, owner, display: { show_samples: $("#showSamples").checked, contact_mode: $("#contactMode").value, show_address: $("#showAddress").checked } }); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }
     });
   }
 

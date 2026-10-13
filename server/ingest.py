@@ -71,6 +71,11 @@ class Ingestor:
         """یک‌بار برای نصب‌های قبلی: دریافت هر دو منبع روشن می‌شود و مختصات تقریبی با قاعدهٔ رو به خشکی بازسازی می‌شود.
         پس از آن انتخاب مدیر (حتی خاموش کردن) حفظ می‌شود."""
         st = self.store
+        if not st.get_setting("mig_presale_feed"):   # فهرست جداگانهٔ پیش‌فروش برای همهٔ شهرها
+            cur = st.get_setting("ingest")
+            if cur is not None and "presale-search" not in (cur.get("categories") or []):
+                st.set_setting("ingest", {**cur, "categories": list(cur.get("categories") or ["real-estate"]) + ["presale-search"]})
+            st.set_setting("mig_presale_feed", int(time.time()))
         if not st.get_setting("mig_ingest_on") and os.environ.get("ARA_INGEST_DEFAULT", "1") != "0":
             cur = st.get_setting("ingest")
             if cur is not None:

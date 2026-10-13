@@ -284,6 +284,15 @@ const DataLayer = (() => {
     tok.set(r.token); me = r.user;
     return { ...r.user, trial_started: r.trial_days || 0 };
   }
+  // حساب کامل: ثبت‌نام، ورود با رمز، بازیابی رمز و ویرایش مشخصات
+  const post = async (path, body) => json(await fetch("api/" + path, { method: "POST", headers: H(), body: JSON.stringify(body) }));
+  const sess = (r) => { tok.set(r.token); me = r.user; return { ...r.user, trial_started: r.trial_days || 0 }; };
+  async function register(d) { return sess(await post("auth/register", d)); }
+  async function login(ident, password) { return sess(await post("auth/login", { ident, password })); }
+  async function resetRequest(ident, channel) { return post("auth/reset/request", { ident, channel }); }
+  async function resetCode(ident, code, password) { return sess(await post("auth/reset/code", { ident, code, password })); }
+  async function resetToken(token, password) { return sess(await post("auth/reset/token", { token, password })); }
+  async function saveProfile(d) { const r = await post("me/profile", d); me = r.user; return r.user; }
   async function refreshMe() {
     if (!server || !tok.get()) return (me = null);
     me = (await json(await fetch("api/me", { headers: H() }))).user;
@@ -330,6 +339,6 @@ const DataLayer = (() => {
     return json(await fetch("api/pay/invoice?" + qs({ pid }), { headers: H(), cache: "no-store" }));
   }
 
-  return { init, search, get, market, districtMap, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, invoice, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
+  return { init, search, get, market, districtMap, districts, verdict, requestOtp, verifyOtp, register, login, resetRequest, resetCode, resetToken, saveProfile, refreshMe, logout, startPayment, invoice, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
     get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, set stats(v) { if (v && !useSamples) stats = v; }, get me() { return me; }, RENT_RATE };
 })();

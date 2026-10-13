@@ -182,6 +182,10 @@ class App:
         from bale import Bale
         self.bale = Bale(self.store, self.billing)
         self.billing.bale = self.bale
+        from mailer import Mailer
+        from accounts import Accounts
+        self.mailer = Mailer(self.store)
+        self.accounts = Accounts(self.store, self.billing, self.mailer)
         self.support = Support(self.store, self.billing, data_dir)
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
@@ -220,13 +224,83 @@ class App:
             "owner": {k: v for k, v in {**DEFAULT_OWNER, **(s.get_setting("owner") or {})}.items() if v},
             "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
             "updated": (s.q("SELECT MAX(last_seen) t FROM listings WHERE source IN ('divar','sheypoor')", one=True) or {"t": None})["t"],
-            "sms_live": b.sms_live(),
+            "sms_live": b.sms_live(), "email_ready": self.mailer.ready(),
             # روش‌های ورود و پرداخت: همه نمایش داده می‌شوند؛ آماده‌نشده‌ها «فعلاً فعال نیست»
             "login_channels": b.login_channels(local), "pay_methods": b.methods_public(),
             "admin_ready": bool(s.get_setting("admin")),
             "regions": self.regions(), "version": VERSION,
             "valuation": s.get_setting("valuation_info") and {k: v for k, v in s.get_setting("valuation_info").items() if k != "models"},
         }
+
+
+def estimate_value(store, q: dict) -> dict:
+    """تخمین ارزش یک ملک توصیف‌شده با همان مدل ارزش‌گذاری سایت: قیمت پایهٔ محله × اثر ویژگی‌ها (سن بنا، طبقه، آسانسور، …).
+    اگر برای آن شهر مدل آماری نباشد، ضریب‌های عرف بازار به کار می‌رود و همین گفته می‌شود."""
+    import math
+    from catalog import norm as _norm
+    from features import jalali_year_now, kind_group
+    from valuation import apply_model, design_row
+    from features import LABELS
+    city, dist = q.get("city") or "", q.get("district") or ""
+    c = catalog.CITY_BY_KEY.get(city)
+    if not c or not dist:
+        raise ValueError("شهر و محله را انتخاب کنید")
+    kg = kind_group(q.get("kind") or "apartment")
+    num = lambda k: (float(str(q[k]).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))) if str(q.get(k) or "").strip() not in ("", "null", "undefined") else None)
+    area = num("area")
+    if not area or area < 15:
+        raise ValueError("متراژ را وارد کنید")
+    e = (store.get_setting("estimator") or {}).get(kg) or {}
+    bkey = f"{city}|{_norm(dist).replace(' ', '')}"
+    b = (e.get("base") or {}).get(bkey)
+    if not b:
+        raise ValueError("برای این محله و این نوع ملک هنوز آگهی معتبر کافی نیست")
+    year = num("year")
+    age = None
+    if year:
+        y = year if year > 1200 else None
+        if y and y > 1900:   # سال میلادی
+            y = y - 621
+        age = max(0, jalali_year_now() - int(y)) if y else None
+    f = {"area": area, "age": age, "floor": num("floor"), "floors_total": num("floors_total"), "elevator": num("elevator"),
+         "parking": num("parking"), "warehouse": num("warehouse"), "deed_single": num("deed_single"), "renovated": num("renovated"),
+         "rooms": num("rooms"), "land_area": num("land_area"), "pool": num("pool")}
+    model = (e.get("models") or {}).get("c:" + city) or (e.get("models") or {}).get("p:" + c["province"])
+    effects, adj, method = [], 0.0, "model"
+    if model and model.get("n", 0) >= 20:
+        m = {**model, "stats": {k: tuple(v) for k, v in model["stats"].items()}}
+        adj, contrib = apply_model(m, design_row(f, kg))
+        adj = max(-0.6, min(0.6, adj))
+        merged = {}
+        for k, v in contrib.items():
+            merged[LABELS.get(k, k)] = merged.get(LABELS.get(k, k), 0) + v
+        effects = [[lab, round(math.exp(v) - 1, 3)] for lab, v in sorted(merged.items(), key=lambda t: -abs(t[1])) if abs(v) >= 0.005][:8]
+    else:
+        # ضریب‌های عرف بازار (تقریبی): نوسازی، سن بنا، آسانسور در طبقات بالا، پارکینگ و انباری
+        method = "rule"
+        fx = []
+        if age is not None:
+            fx.append(("سن بنا", 0.06 if age <= 2 else max(-0.35, -0.012 * (age - 2))))
+        if kg == "apartment":
+            fl = f["floor"]
+            if fl is not None and f["elevator"] == 0 and fl >= 3:
+                fx.append(("طبقه بدون آسانسور", -0.04 * (fl - 2)))
+            elif f["elevator"] == 1:
+                fx.append(("آسانسور", 0.03))
+            if fl == 0:
+                fx.append(("طبقهٔ همکف", -0.03))
+            if f["parking"]:
+                fx.append(("پارکینگ", 0.06))
+            elif f["parking"] == 0:
+                fx.append(("بدون پارکینگ", -0.06))
+            if f["warehouse"]:
+                fx.append(("انباری", 0.02))
+        for lab, p in fx:
+            adj += math.log(1 + p)
+        effects = [[lab, round(p, 3)] for lab, p in fx]
+    ppm = math.exp(b[0] + adj)
+    return {"ppm": ppm, "total": ppm * area, "base_ppm": math.exp(b[0]), "effects": effects, "method": method,
+            "n": b[1], "model": {"n": model["n"], "r2": model["r2"]} if model and method == "model" else None}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -483,6 +557,10 @@ class Handler(BaseHTTPRequestHandler):
         now = time.time()
         with TILE_LOCK:
             srcs = sorted(TILE_SOURCES[style], key=lambda t: TILE_HEALTH.get(t, {}).get("fail", 0))
+        # منبع نقشهٔ ایرانی که مدیر در پنل گذاشته (مثلاً Map.ir با کلید خودش) همیشه اول امتحان می‌شود
+        custom = ((Handler.app.store.get_setting("tiles") or {}).get("street" if style == "osm" else "sat") or "").strip() if Handler.app else ""
+        if custom.startswith("https://") and "{z}" in custom:
+            srcs = [custom] + [t for t in srcs if t != custom]
         proxies = [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else [])
         for tpl in srcs:
             h = TILE_HEALTH.get(tpl, {})
@@ -698,6 +776,8 @@ class Handler(BaseHTTPRequestHandler):
             if qs.get("city") not in catalog.CITY_BY_KEY:
                 return self.send_json({"items": []})
             return self.send_json({"items": a.store.districts(qs["city"], qs.get("deal") or None)})
+        if path == "/api/estimate":
+            return self.send_json(estimate_value(a.store, qs))
         if path == "/api/district_map":
             if qs.get("city") not in catalog.CITY_BY_KEY:
                 return self.send_json({"districts": []})
@@ -746,6 +826,27 @@ class Handler(BaseHTTPRequestHandler):
             if not LIMITER.allow("otp:global", OTP_GLOBAL_DAY, 86400):
                 return self.send_json({"error": "سقف روزانهٔ ارسال پیامک پر شده است؛ فردا دوباره امتحان کنید"}, 429)
             return self.send_json(a.billing.send_otp(data.get("phone"), local=self.is_local(), channel=data.get("channel") or "sms"))
+        if path == "/api/auth/register":
+            if not LIMITER.allow("reg:" + self.client_ip(), 20, 3600):
+                return self.send_json({"error": "تلاش زیاد؛ کمی بعد دوباره امتحان کنید"}, 429)
+            return self.send_json(a.accounts.register(data))
+        if path == "/api/auth/login":
+            if not LIMITER.allow("login:" + self.client_ip(), 30, 600):
+                return self.send_json({"error": "تلاش زیاد؛ چند دقیقه دیگر دوباره امتحان کنید"}, 429)
+            return self.send_json(a.accounts.login(data.get("ident"), data.get("password"), self.client_ip()))
+        if path == "/api/auth/reset/request":
+            if not LIMITER.allow("otp:" + self.client_ip(), OTP_PER_IP_HOUR, 3600):
+                return self.send_json({"error": "درخواست زیاد بود؛ یک ساعت دیگر دوباره امتحان کنید"}, 429)
+            return self.send_json(a.accounts.reset_request(data.get("ident"), data.get("channel") or "sms", self.base_url(), local=self.is_local()))
+        if path == "/api/auth/reset/code":
+            return self.send_json(a.accounts.reset_with_code(data.get("ident"), data.get("code"), data.get("password")))
+        if path == "/api/auth/reset/token":
+            return self.send_json(a.accounts.reset_with_token(data.get("token"), data.get("password")))
+        if path == "/api/me/profile":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            return self.send_json(a.accounts.update_profile(u["phone"], data))
         if path == "/api/auth/verify":
             return self.send_json(a.billing.verify_otp(data.get("phone"), data.get("code")))
         if path == "/api/auth/logout":
@@ -842,6 +943,8 @@ class Handler(BaseHTTPRequestHandler):
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
+                "tiles": s.get_setting("tiles") or {"street": "", "sat": ""},
+                "email": {**a.mailer.cfg(), "password": "•••" if a.mailer.cfg()["password"] else ""}, "email_last": s.get_setting("email_last"),
                 "geo": {"stats": s.get_setting("geo_stats") or {}, "centers": len(s.get_setting("district_centers") or {}),
                         "districts": s.q("SELECT COUNT(*) n FROM (SELECT DISTINCT city_key, district FROM listings WHERE vertical='estate' AND status='active' AND district IS NOT NULL AND district != '')", one=True)["n"]},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
@@ -899,6 +1002,22 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(data["support"].get("auto_text"), dict):
                     sup["auto_text"] = {**sup.get("auto_text", {}), **{k: str(v)[:1000] for k, v in data["support"]["auto_text"].items() if k in DEFAULT_SUPPORT["auto_text"]}}
                 s.set_setting("support", sup)
+            if isinstance(data.get("email"), dict):
+                from mailer import DEFAULT_EMAIL
+                cur = {**DEFAULT_EMAIL, **(s.get_setting("email") or {})}
+                new = {k: v for k, v in data["email"].items() if k in DEFAULT_EMAIL}
+                if new.get("password") in ("•••", None):
+                    new.pop("password", None)
+                if "port" in new:
+                    new["port"] = int(new["port"] or 465)
+                s.set_setting("email", {**cur, **new})
+            if isinstance(data.get("tiles"), dict):
+                t = {k: str(data["tiles"].get(k) or "").strip()[:400] for k in ("street", "sat")}
+                for k, v in t.items():
+                    if v and not (v.startswith("https://") and "{z}" in v and "{x}" in v and "{y}" in v):
+                        raise ValueError("نشانی منبع نقشه باید با https شروع شود و {z}، {x} و {y} داشته باشد")
+                s.set_setting("tiles", t)
+                TILE_HEALTH.clear()
             if isinstance(data.get("bale"), dict):
                 from bale import DEFAULT_BALE
                 cur = {**DEFAULT_BALE, **(s.get_setting("bale") or {})}
@@ -963,6 +1082,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "ingest": cfg})
         if path == "/api/admin/test":
             return self.send_json(a.ingest.test_connection(data.get("source") or "divar"))
+        if path == "/api/admin/email-test":
+            to = (data.get("to") or "").strip()
+            if not to:
+                return self.send_json({"ok": False, "error": "نشانی ایمیل آزمایشی را وارد کنید"})
+            try:
+                a.mailer.send(to, "آزمون ایمیل فرصت ملک", a.mailer._wrap("ایمیل سایت درست کار می‌کند", "<p>این یک ایمیل آزمایشی است.</p>"))
+                return self.send_json({"ok": True})
+            except Exception as e:  # noqa: BLE001
+                return self.send_json({"ok": False, "error": str(e)[:200]})
         if path == "/api/admin/bale-test":
             try:
                 me = a.bale.test()

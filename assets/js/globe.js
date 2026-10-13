@@ -73,7 +73,7 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   const labEls = marks.map((m) => { const e = document.createElement("span"); e.textContent = m.userData.c.name; labels.appendChild(e); return e; });
   const MIN_D = 1.24, MAX_D = 3.4;
 
-  let dist = 3.1, dir = vec(30, 53).normalize(), auto = true, anim = null, drag = null, raf = 0, visible = true;
+  let dist = 3.1, dir = vec(30, 53).normalize(), auto = true, anim = null, drag = null, raf = 0, visible = true, paused = false;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const resize = () => {
     const w = host.clientWidth || 1, h = host.clientHeight || 1;
@@ -89,7 +89,7 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   const place = () => { camera.position.copy(dir).multiplyScalar(dist); camera.up.set(0, 1, 0); camera.lookAt(0, 0, 0); };
   const tick = (now) => {
     raf = requestAnimationFrame(tick);
-    if (!visible || document.hidden) return;
+    if (!visible || paused || document.hidden) return;
     if (anim) {
       const t = Math.min(1, (now - anim.t0) / anim.ms), k = ease(t);
       dir = anim.from.clone().lerp(anim.to, k).normalize();
@@ -198,6 +198,8 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
     },
     // پس از جابه‌جایی کادر (تمام صفحه) اندازه و نمایش دوباره سنجیده شود
     refresh() { visible = true; resize(); },
+    // وقتی نقشه روی کره باز است، کره رسم نمی‌شود (هم سبک‌تر، هم جلوی نمایش تصویر کره از زیر کاشی‌های نیامدهٔ نقشه را می‌گیرد)
+    pause(v) { paused = !!v; },
     destroy() {
       cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
       renderer.dispose(); el.remove(); labels.remove();
