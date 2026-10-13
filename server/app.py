@@ -189,6 +189,11 @@ class App:
         site = self.store.get_setting("site") or {}
         if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
             self.store.set_setting("site", {**site, "name": "فرصت ملک"})
+        if not self.store.get_setting("mig_trial3"):   # دورهٔ رایگان پیش‌فرض از ۱۰ به ۳ روز (قابل تغییر در پنل، ۰ = بدون دوره)
+            b = self.store.get_setting("billing") or {}
+            if int(b.get("trial_days") or 10) == 10:
+                self.store.set_setting("billing", {**b, "trial_days": 3})
+            self.store.set_setting("mig_trial3", int(time.time()))
         site = self.store.get_setting("site") or {}
         if (site.get("tagline") or "").strip() in ("ملک زیر قیمت، محله به محله",):  # شعار قدیمی ← شعار تازه
             self.store.set_setting("site", {**site, "tagline": "ارزش واقعی ملک، محله به محله"})
@@ -837,6 +842,8 @@ class Handler(BaseHTTPRequestHandler):
                 "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
+                "geo": {"stats": s.get_setting("geo_stats") or {}, "centers": len(s.get_setting("district_centers") or {}),
+                        "districts": s.q("SELECT COUNT(*) n FROM (SELECT DISTINCT city_key, district FROM listings WHERE vertical='estate' AND status='active' AND district IS NOT NULL AND district != '')", one=True)["n"]},
                 "thresholds": {**DEFAULT_THRESHOLDS, **(s.get_setting("thresholds") or {})},
                 "display_full": {**DEFAULT_DISPLAY, **(s.get_setting("display") or {})},
                 "owner": {**DEFAULT_OWNER, **(s.get_setting("owner") or {})},
