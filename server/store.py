@@ -289,6 +289,13 @@ class Store:
                                          + (f" AND city_key IN ({','.join('?' * len(cities))})" if cities else ""), cities)]
             hit = [d for d in cand if any(matches(w, d) for w in ds)] or ds
             add(f"district IN ({','.join('?' * len(hit))})", *hit)
+        if f.get("dq"):
+            # نام محله‌ای که در فهرست نیست: در نام محله، عنوان و متن آگهی (بی‌توجه به فاصله و نیم‌فاصله)
+            from catalog import norm
+            w = norm(str(f["dq"])).replace(" ", "")[:40]
+            if w:
+                sq = lambda c: f"REPLACE(REPLACE(REPLACE(REPLACE(COALESCE({c},''),' ',''),char(8204),''),'ي','ی'),'ك','ک') LIKE ?"
+                add(f"({sq('district')} OR {sq('title')} OR {sq('description')})", f"%{w}%", f"%{w}%", f"%{w}%")
         if f.get("ranked"):
             where.append("score IS NOT NULL")
         if f.get("q"):

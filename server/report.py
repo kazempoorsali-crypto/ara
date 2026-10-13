@@ -170,6 +170,8 @@ def district_map(store, city: str) -> dict:
     if key in _cache:
         return _cache[key]
     centers = store.get_setting("district_centers") or {}
+    from districts import rural_districts
+    rural = rural_districts(store)
     rows = [dict(r) for r in store.q("""SELECT district, kind, deal, pp, area, label FROM listings
               WHERE status='active' AND hidden=0 AND vertical='estate' AND city_key=? AND district IS NOT NULL AND district != ''""", (city,))]
     by = {}
@@ -185,7 +187,7 @@ def district_map(store, city: str) -> dict:
         out.append({"name": d, "n": len(rs), "sale": len(sale), "opportunities": sum(1 for r in rs if r["label"] in OPP),
                     "median_ppm": ppm, "ppm_kind": "apartment" if len(apt) >= 2 else ("mixed" if res else None),
                     "lat": c[0] if c else None, "lng": c[1] if c else None, "approx": bool(c and c[2] != "exact") if c else True,
-                    "low": len(sale) < MIN_N})
+                    "low": len(sale) < MIN_N, "rural": f"{city}|{d}" in rural})
     out.sort(key=lambda x: -x["n"])
     rep = {"city": city, "districts": out}
     if len(_cache) > 200:

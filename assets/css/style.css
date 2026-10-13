@@ -2117,3 +2117,51 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 @media print { .top, .dock, .ai-fab, footer, .invoice__act { display: none !important; } .invoice { box-shadow: none; border: 1px solid #999; } }
 @media (max-width: 420px) { .otpch { grid-template-columns: 1fr; } .invoice { padding: 20px 16px; } }
 .paym__opt > svg { width: 18px; height: 18px; flex: none; }
+
+.dq-btn { display: flex; align-items: center; gap: 8px; width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--forest, #2c6a55) 55%, var(--line)); background: color-mix(in srgb, var(--forest, #2c6a55) 6%, transparent); color: var(--ink); font: 700 13px Vazirmatn, Tahoma, sans-serif; cursor: pointer; text-align: start; }
+.cb__opt--free { color: var(--forest, #2c6a55); font-weight: 800; border-top: 1px dashed var(--line); }
+
+.col.is-rural i { filter: hue-rotate(-35deg) saturate(.7); } .col.is-rural span { font-style: italic; }
+
+/* رسید چاپی (الهام از چاپگر رسید): دستگاه تیره، شکاف، کاغذی که مرحله‌به‌مرحله بیرون می‌آید */
+.rp { max-width: 400px; margin: 10px auto 0; display: grid; justify-items: center; }
+.rp__printer { position: relative; z-index: 2; width: 100%; padding: 14px 14px 16px; border-radius: 26px; background: linear-gradient(180deg, #2c2d2b, #1c1d1b);
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 30px 50px -30px rgba(0,0,0,.6); color: #f1ede6; }
+.rp__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rp__logo { width: 30px; height: 30px; }
+.rp__home { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 12px; background: #3a3b38; color: #f1ede6; font-size: 12.5px; font-weight: 700; box-shadow: 0 2px 0 #111; }
+.rp__panel { padding: 14px 16px; border-radius: 16px; background: #141513; border: 1px solid rgba(255,255,255,.06); }
+.rp__row { display: flex; justify-content: space-between; gap: 12px; }
+.rp__row b { display: block; font-size: 15px; } .rp__row small { color: rgba(241,237,230,.6); font-size: 12px; }
+.rp__total { text-align: left; } .rp__total b { font-size: 18px; font-variant-numeric: tabular-nums; } .rp__total i { font-style: normal; font-size: 11px; color: rgba(241,237,230,.6); }
+.rp__status { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 13px; color: rgba(241,237,230,.85); }
+.rp__dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #c9a24f; border-top-color: transparent; animation: spin .9s linear infinite; flex: none; }
+.rp[data-stage="complete"] .rp__dot { border: 0; animation: none; background: #2fbf71 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/11px no-repeat; }
+.rp[data-stage="idle"] .rp__dot { animation: none; border-color: #8a877f; }
+.rp__slot { position: absolute; left: 16px; right: 16px; bottom: 7px; height: 6px; border-radius: 6px; background: #050505; box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+.rp__feed { position: relative; z-index: 1; width: 82%; margin-top: -9px; overflow: hidden; padding-bottom: 12px; }
+.rp__paper { position: relative; padding: 26px 20px 18px; background: #fdfcf8; color: #1a1a18; box-shadow: 0 18px 30px -18px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.04);
+  font-variant-numeric: tabular-nums; font-size: 12.5px; transform: translateY(-101%); background-image: linear-gradient(180deg, rgba(0,0,0,.06), transparent 18px); }
+.rp__paper::after { content: ""; position: absolute; left: 0; right: 0; bottom: -8px; height: 8px;
+  background: linear-gradient(135deg, #fdfcf8 50%, transparent 50%) 0 0 / 12px 8px repeat-x, linear-gradient(225deg, #fdfcf8 50%, transparent 50%) 0 0 / 12px 8px repeat-x; }
+.rp[data-stage="printing"] .rp__paper { animation: rpFeed 3.1s cubic-bezier(.45,.05,.3,1) forwards; }
+.rp[data-stage="complete"] .rp__paper { transform: none; }
+@keyframes rpFeed { 0% { transform: translateY(-101%); } 18% { transform: translateY(-82%); } 26% { transform: translateY(-82%); } 46% { transform: translateY(-55%); } 54% { transform: translateY(-55%); } 74% { transform: translateY(-26%); } 82% { transform: translateY(-26%); } 100% { transform: none; } }
+.rp__plogo { display: block; width: 38px; height: 38px; margin: 0 auto 6px; }
+.rp__brand { text-align: center; font-weight: 900; font-size: 15px; margin: 0; } .rp__brand small { display: block; font-weight: 500; font-size: 11px; color: #77746c; letter-spacing: .5px; }
+.rp__paper hr { border: 0; border-top: 1px dashed #b9b4a8; margin: 12px 0; }
+.rp__line { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; } .rp__line span:first-child { color: #66635b; }
+.rp__sub { font-size: 11px; color: #77746c; } .rp__sum b:last-child { font-size: 18px; } .rp__sum small { font-size: 10px; }
+.rp__until { margin-top: 6px; padding-top: 8px; border-top: 1px dashed #b9b4a8; }
+.rp__bar { display: block; width: 70%; height: 38px; margin: 16px auto 6px; fill: #1a1a18; }
+.rp__thanks { text-align: center; font-size: 11.5px; color: #66635b; margin: 0; }
+.rp__note { text-align: center; margin: 14px 0; font-size: 13px; }
+.rp[data-stage="idle"] .rp__feed { display: none; }
+@media (prefers-reduced-motion: reduce) { .rp__paper { transform: none !important; animation: none !important; } }
+@media print { .rp__printer, .rp__note { display: none !important; } .rp__feed { width: 100%; overflow: visible; } .rp__paper { transform: none !important; box-shadow: none; } }
+
+/* ارتفاع محل کاغذ همراه کاغذ بزرگ می‌شود تا فضای خالی زیر چاپگر نماند */
+.rp[data-stage="processing"] .rp__feed { height: 0; padding: 0; }
+.rp[data-stage="printing"] .rp__feed { animation: rpGrow 3.1s cubic-bezier(.45,.05,.3,1) forwards; }
+@keyframes rpGrow { 0% { height: 0; } 18% { height: calc(var(--H) * .18); } 26% { height: calc(var(--H) * .18); } 46% { height: calc(var(--H) * .45); } 54% { height: calc(var(--H) * .45); }
+  74% { height: calc(var(--H) * .74); } 82% { height: calc(var(--H) * .74); } 100% { height: calc(var(--H) + 12px); } }

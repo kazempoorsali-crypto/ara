@@ -263,7 +263,7 @@ const App = (() => {
       const { tags } = v.length > 2 ? NLP.parseQuery(v) : { tags: [] };
       $("#heroParsed").innerHTML = tags.length ? `<span>برداشت:</span>${tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join("")}` : "";
     });
-    const H = { provs: [], cities: [], dist: "" };
+    const H = { provs: [], cities: [], dist: "", dq: "" };
     const drawHTags = () => {
       const el = $("#hTags");
       if (!el) return;
@@ -290,6 +290,7 @@ const App = (() => {
       if (H.provs.length) f.province = H.provs.join(",");
       if (H.cities.length) f.city = H.cities.join(",");
       if (H.dist) f.district = H.dist;
+      if (H.dq) f.dq = H.dq;
       if ($("#hOpp").checked) f.opp = 1;
       go("#/s?" + toQuery({ sort: "score", ...f }));
     });
@@ -306,7 +307,10 @@ const App = (() => {
         hDist.setItems(r.items.map((x) => ({ id: x.name, label: x.name, hint: fa(x.n) + " آگهی" })), null);
         if ($("#hDist input")) $("#hDist input").placeholder = r.items.length ? "همهٔ محله‌ها" : "محله‌ها";
       } });
-    const hDist = UI.combo($("#hDist"), { items: [], value: null, allLabel: "همهٔ محله‌ها", placeholder: "انتخاب محله", onChange: ({ id }) => { H.dist = id || ""; } });
+    const hDist = UI.combo($("#hDist"), { items: [], value: null, allLabel: "همهٔ محله‌ها", placeholder: "انتخاب یا نوشتن نام محله",
+      // محله‌ای که در فهرست نیست: در متن آگهی‌های شهر انتخابی جست‌وجو می‌شود
+      freeText: (q) => `جست‌وجوی «${q}» در آگهی‌های ${H.cities.length ? H.cities.map((c) => UI.cityOf(c)?.name || c).join(" و ") : "همهٔ شهرها"}`,
+      onChange: ({ id, free }) => { H.dist = id || ""; H.dq = free || ""; } });
     $("#heroQuick").addEventListener("click", (e) => { const c = e.target.closest("[data-q]"); if (c) { $("#heroQ").value = c.dataset.q; $("#heroForm").requestSubmit(); } });
 
     const top = (await DataLayer.search({ sort: "score", ranked: 1, limit: 15 })).items;
@@ -548,17 +552,14 @@ const App = (() => {
     const lo = pv.length ? Math.min(...pv) : 0, hi = pv.length ? Math.max(...pv) : 0;
     const all = [], posOf = {};
     ds.forEach((d) => {
-      let lat = d.lat, lng = d.lng;
-      if (!lat || !lng) {
-        const c = CITIES.find((x) => x.id === d.city), k = (byCity[d.city] = (byCity[d.city] || 0) + 1);
-        const a = k * 2.399, r = 0.006 * Math.sqrt(k);
-        lat = c.lat + r * Math.cos(a); lng = c.lng + r * Math.sin(a) * 1.25;
-      }
+      // محله‌ای که مکانش معلوم نیست روی نقشه گذاشته نمی‌شود (قبلاً دور مرکز شهر چیده می‌شد و روستاهای دور را داخل شهر نشان می‌داد)
+      const lat = d.lat, lng = d.lng;
+      if (!lat || !lng) return;
       all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
       const q = L0.opts.query || {}, isSel = q.district && String(q.district).split(",").includes(d.name) && (!q.dcity || q.dcity === d.city);
       const h = d.median_ppm ? Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5)) : 12;
-      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${d.low || !d.median_ppm ? " is-low" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
-        .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>${d.median_ppm ? "میانهٔ هر متر " + money(d.median_ppm) + (d.ppm_kind === "mixed" ? " (آپارتمان و ویلا)" : "") : "قیمت هر متر: دادهٔ کافی نیست"}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}${d.approx && d.lat ? "<br><small>مکان تقریبی محله</small>" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
+      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${d.low || !d.median_ppm ? " is-low" : ""}${d.rural ? " is-rural" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
+        .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>${d.median_ppm ? "میانهٔ هر متر " + money(d.median_ppm) + (d.ppm_kind === "mixed" ? " (آپارتمان و ویلا)" : "") : "قیمت هر متر: دادهٔ کافی نیست"}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}${d.rural ? "<br><small>روستا یا ناحیهٔ خارج از شهر</small>" : d.approx && d.lat ? "<br><small>مکان تقریبی محله</small>" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
         .on("click", () => skyGo(() => {
           // محلهٔ انتخابی اول می‌آید و دکمهٔ «فرصت‌های بیشتر» همهٔ شهرهای انتخابی را باز می‌کند
           const base = L0.mode === "search" ? { ...(L0.opts.query || {}) } : { sort: "score" };
@@ -988,24 +989,57 @@ const App = (() => {
     try { inv = await DataLayer.invoice(pid); } catch (err) {
       view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="empty"><h3>فاکتور پیدا نشد</h3><p>${esc(err.message)}</p><a class="btn btn--ink" href="#/account">حساب کاربری</a></div></div></section>`; return;
     }
-    const paid = inv.status === "paid", review = inv.status === "review";
+    const paid = inv.status === "paid", review = inv.status === "review", ok = paid || review;
     const jd = (t) => (t ? new Date(t * 1000).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" }) : "—");
-    view().innerHTML = `<section class="section--tight"><div class="wrap"><article class="invoice${paid || review ? " is-ok" : ""}">
-      <div class="invoice__badge">${icon(paid || review ? "check" : "info", 'width="34"')}</div>
-      <h1>${paid ? "پرداخت موفق بود؛ اشتراک شما فعال است" : review ? "رسید ثبت شد؛ اشتراک شما فعال است" : inv.status === "failed" ? "پرداخت انجام نشد" : "در انتظار پرداخت"}</h1>
-      <p class="muted">${paid || review ? (() => { const bale = (cfg.login_channels || []).concat(cfg.pay_methods || []).some((x) => x.id === "bale" && x.ready); const ch = [cfg.sms_live && "پیامک", bale && "پیام‌رسان بله"].filter(Boolean); return ch.length ? "رسید این پرداخت با " + ch.join(" و ") + " هم برایتان ارسال شد." : "این صفحه را برای پیگیری نگه دارید یا چاپ کنید."; })() : "اگر مبلغی از حسابتان کم شده و اشتراک فعال نشده، از پشتیبانی پیگیری کنید؛ پرداخت‌های ناموفق معمولاً تا ۷۲ ساعت به حساب برمی‌گردد."}</p>
-      <dl class="invoice__rows">
-        <div><dt>شمارهٔ فاکتور</dt><dd>${fa(inv.id)}</dd></div>
-        <div><dt>طرح</dt><dd>اشتراک ${esc(inv.plan)}${inv.days ? "، " + fa(inv.days) + " روز" : ""}</dd></div>
-        <div><dt>مبلغ</dt><dd>${fa(inv.amount)} تومان</dd></div>
-        <div><dt>روش پرداخت</dt><dd>${esc(inv.gateway)}</dd></div>
-        ${inv.ref ? `<div><dt>کد پیگیری</dt><dd dir="ltr">${esc(inv.ref)}</dd></div>` : ""}
-        <div><dt>تاریخ</dt><dd>${jd(inv.paid_at || inv.created)}</dd></div>
-        <div><dt>شمارهٔ موبایل</dt><dd dir="ltr">${esc(inv.phone)}</dd></div>
-        ${paid || review ? `<div><dt>اعتبار اشتراک تا</dt><dd><b>${jd(inv.sub_until)}</b></dd></div>` : ""}
-      </dl>
-      <div class="invoice__act"><a class="btn btn--gold btn--lg" href="#/s?sort=score&opp=1">دیدن فرصت‌ها ${icon("arrow")}</a><button class="btn btn--line" onclick="window.print()">چاپ یا ذخیرهٔ فاکتور</button><a class="btn btn--ghost" href="#/support?cat=payment">پشتیبانی پرداخت</a></div>
-    </article></div></section>`;
+    const jt = (t) => (t ? new Date(t * 1000).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : "");
+    const notice = (() => { const bale = (cfg.login_channels || []).concat(cfg.pay_methods || []).some((x) => x.id === "bale" && x.ready); const ch = [cfg.sms_live && "پیامک", bale && "بله"].filter(Boolean); return ch.length ? "رسید با " + ch.join(" و ") + " هم ارسال شد" : "این رسید را چاپ یا ذخیره کنید"; })();
+    // بارکد پایدار از روی شمارهٔ فاکتور
+    let h = 2166136261; for (const ch of "FM-" + inv.id + "-" + (inv.ref || "")) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    let x = 0, bars = "";
+    for (let i = 0; i < 46; i++) { h = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0; const w = 1 + (h % 3); if (i % 2 === 0) bars += `<rect x="${x}" y="0" width="${w}" height="40"/>`; x += w + 1; }
+    const status = ok ? (paid ? "پرداخت موفق؛ اشتراک شما فعال است" : "رسید ثبت شد؛ اشتراک شما فعال است") : inv.status === "failed" ? "پرداخت انجام نشد" : "در انتظار پرداخت";
+    view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="rp" id="rp" data-stage="${ok ? "processing" : "idle"}">
+      <div class="rp__printer">
+        <div class="rp__top"><svg class="rp__logo" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3aa37c" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M10 25l13-13 13 13" stroke="#ece6da" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="39" cy="10" r="4.2" fill="#e0531f"/></svg><a class="rp__home" href="#/">${icon("home", 'width="14"')} خانه</a></div>
+        <div class="rp__panel">
+          <div class="rp__row"><div><b>اشتراک ${esc(inv.plan)}</b><small>${inv.days ? fa(inv.days) + " روز دسترسی کامل" : ""}</small></div><div class="rp__total"><small>مبلغ</small><b>${fa(inv.amount)} <i>تومان</i></b></div></div>
+          <p class="rp__status"><i class="rp__dot"></i><span id="rpStatus">${ok ? "در حال تأیید پرداخت…" : esc(status)}</span></p>
+        </div>
+        <div class="rp__slot"></div>
+      </div>
+      <div class="rp__feed"><article class="rp__paper" aria-label="رسید پرداخت">
+        <svg class="rp__plogo" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#2c6a55" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M10 25l13-13 13 13" stroke="#151614" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="39" cy="10" r="4.2" fill="#e0531f"/></svg>
+        <p class="rp__brand">فرصت ملک<small>forsatmelk.ir</small></p>
+        <hr>
+        <div class="rp__line"><b>اشتراک ${esc(inv.plan)}</b><b>${fa(inv.amount)}</b></div>
+        <div class="rp__line rp__sub"><span>${inv.days ? fa(inv.days) + " روز" : ""}</span><span>تومان</span></div>
+        <hr>
+        <div class="rp__line rp__sum"><b>مبلغ پرداخت‌شده</b><b>${fa(inv.amount)} <small>تومان</small></b></div>
+        <hr>
+        <div class="rp__line"><span>شمارهٔ فاکتور</span><span>FM-${fa(inv.id)}</span></div>
+        <div class="rp__line"><span>روش پرداخت</span><span>${esc(inv.gateway)}</span></div>
+        ${inv.ref ? `<div class="rp__line"><span>کد پیگیری</span><span dir="ltr">${esc(inv.ref)}</span></div>` : ""}
+        <div class="rp__line"><span>تاریخ</span><span>${jd(inv.paid_at || inv.created)} · ${jt(inv.paid_at || inv.created)}</span></div>
+        <div class="rp__line"><span>موبایل</span><span dir="ltr">${esc(inv.phone)}</span></div>
+        ${ok ? `<div class="rp__line rp__until"><span>اعتبار اشتراک تا</span><b>${jd(inv.sub_until)}</b></div>` : ""}
+        <svg class="rp__bar" viewBox="0 0 ${x} 40" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+        <p class="rp__thanks">${ok ? "از اعتماد شما سپاسگزاریم" : "این رسید پس از پرداخت معتبر است"}</p>
+      </article></div>
+      <p class="rp__note muted">${ok ? esc(notice) : "اگر مبلغی کم شده و اشتراک فعال نشده، از پشتیبانی پیگیری کنید؛ پرداخت ناموفق معمولاً تا ۷۲ ساعت برمی‌گردد."}</p>
+      <div class="invoice__act"><a class="btn btn--gold btn--lg" href="#/s?sort=score&opp=1">دیدن فرصت‌ها ${icon("arrow")}</a><button class="btn btn--line" onclick="window.print()">چاپ یا ذخیرهٔ رسید</button><button class="btn btn--ghost" id="rpReplay">${icon("arrow")} چاپ دوباره</button><a class="btn btn--ghost" href="#/support?cat=payment">پشتیبانی پرداخت</a></div>
+    </div></div></section>`;
+    // مراحل: تأیید پرداخت ← چاپ رسید ← تکمیل؛ با «کاهش حرکت» همه یک‌جا نمایش داده می‌شود
+    const rp = $("#rp"), st = $("#rpStatus");
+    const run = () => {
+      if (!ok) return;
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) { rp.dataset.stage = "complete"; st.textContent = status; return; }
+      rp.style.setProperty("--H", ($(".rp__paper", rp).offsetHeight || 520) + "px");
+      rp.dataset.stage = "processing"; st.textContent = "در حال تأیید پرداخت…";
+      setTimeout(() => { if (!rp.isConnected) return; rp.dataset.stage = "printing"; st.textContent = "در حال چاپ رسید…"; }, 1100);
+      setTimeout(() => { if (!rp.isConnected) return; rp.dataset.stage = "complete"; st.textContent = status; }, 4300);
+    };
+    run();
+    $("#rpReplay").addEventListener("click", () => { rp.dataset.stage = "idle"; requestAnimationFrame(() => requestAnimationFrame(run)); });
   }
   /* کارت‌به‌کارت: مبلغ یکتا، رسید یا کد پیگیری، فعال‌سازی فوری */
   function cardDialog(r) {
@@ -1375,7 +1409,9 @@ const App = (() => {
       const cities = (F.city || "").split(",").filter(Boolean);
       const provs = (F.province || "").split(",").filter(Boolean);
       let where = "در همهٔ شهرها";
-      if (F.district) {
+      if (F.dq) {
+        where = `در «${F.dq}»${cities.length ? "، " + cities.map((c) => UI.cityOf(c)?.name || c).join(" و ") : ""}`;
+      } else if (F.district) {
         where = `در ${F.district.split(",").join("، ")}`;
       } else if (cities.length) {
         where = cities.length === 1 ? `در ${UI.cityOf(cities[0])?.name || cities[0]}` : `در ${cities.map((c) => UI.cityOf(c)?.name || c).join(" و ")}`;
@@ -1424,9 +1460,10 @@ const App = (() => {
       const settle = F.settle || "";
       const shown = districts.filter((x) => !settle || (settle === "rural") === !!x.rural);
       html += dd("district", dsel.length ? (dsel.length > 2 ? fa(dsel.length) + " محله" : dsel.join("، ")) : "محله", dsel.length,
-        F.city ? (districts.length ? `<div class="dd__label">محله‌های ${esc(UI.cityOf(F.city)?.name || "")}؛ چند محله هم می‌شود</div><input class="input" id="ddDistQ" placeholder="نام محله را بنویس">
+        F.city ? (districts.length ? `<div class="dd__label">محله‌های ${esc(UI.cityOf(F.city)?.name || "")}؛ چند محله هم می‌شود</div><input class="input" id="ddDistQ" placeholder="نام محله را بنویس؛ اگر در فهرست نبود، در متن آگهی‌ها جست‌وجو می‌شود">
+          <button type="button" class="dq-btn" id="ddDq" hidden></button>
           <div class="dd__grid dd__grid--scroll" id="ddDists">${shown.map((x) => `<button type="button" class="chip ${dsel.includes(x.d) ? "is-on" : ""}" data-toggle="district" data-val="${esc(x.d)}">${esc(x.d)} <small>${fa(x.n)} آگهی${x.opp ? "، " + fa(x.opp) + " فرصت" : ""}</small></button>`).join("") || '<p class="small muted">محله‌ای با این نوع سکونتگاه نیست.</p>'}</div>`
-          : `<p class="small muted">برای این شهر هنوز آگهی با محلهٔ مشخص جمع نشده است.</p>`)
+          : `<input class="input" id="ddDistQ" placeholder="نام محله یا کلیدواژه را بنویس"><button type="button" class="dq-btn" id="ddDq" hidden></button><p class="small muted">برای این شهر هنوز آگهی با محلهٔ مشخص جمع نشده؛ نام محله در متن آگهی‌ها جست‌وجو می‌شود.</p>`)
           : `<p class="small muted">اول شهر را انتخاب کن تا فهرست محله‌هایش بیاید.</p>`);
       html += dd("settle", settle === "urban" ? "شهری" : settle === "rural" ? "روستایی" : "شهری / روستایی", settle,
         `<div class="dd__grid">${[["", "همه"], ["urban", "شهری"], ["rural", "روستایی و خارج از محدوده"]].map(([v, n]) => `<button type="button" class="chip ${settle === v ? "is-on" : ""}" data-pick="settle" data-val="${v}">${n}</button>`).join("")}</div><p class="small muted" style="margin-top:8px">از محله و متن آگهی تشخیص داده می‌شود: اشاره به روستا، دهستان یا خارج از محدودهٔ شهر.</p>`);
@@ -1546,7 +1583,9 @@ const App = (() => {
         panel.addEventListener("change", (e) => { if (e.target.id === "ddCity") panel.querySelector("[data-apply]").click(); });
         panel.addEventListener("input", (e) => {
           if (e.target.id !== "ddDistQ") return;
-          const q = UI.fold(e.target.value);
+          const q = UI.fold(e.target.value), raw = e.target.value.trim();
+          const dqb = panel.querySelector("#ddDq");
+          if (dqb) { dqb.hidden = raw.length < 2; dqb.innerHTML = `${icon("search", 'width="15"')} جست‌وجوی «${esc(raw)}» در آگهی‌های ${esc(UI.cityOf(String(F.city).split(",")[0])?.name || "این شهر")}`; dqb.onclick = () => set({ district: "", dq: raw }); }
           const btns = $$("#ddDists [data-val]", panel);
           btns.forEach((b) => { b.hidden = q && !UI.fold(b.dataset.val).includes(q); });
           btns.filter((b) => q && UI.fold(b.dataset.val).startsWith(q)).reverse().forEach((b) => b.parentNode.prepend(b));
@@ -1573,6 +1612,7 @@ const App = (() => {
         });
       }
       (F.district || "").split(",").filter(Boolean).forEach((d) => t.push(["district:" + d, d]));
+      if (F.dq) t.push(["dq", "محله یا کلیدواژه: " + F.dq]);
       if (F.deal) t.push(["deal", UI.dealName(F.deal)]);
       (F.kinds || "").split(",").filter(Boolean).forEach((k) => t.push(["kinds:" + k, UI.kindName(k)]));
       if (F.min) t.push(["min", "از " + money(+F.min)]);
