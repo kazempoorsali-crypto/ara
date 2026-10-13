@@ -28,6 +28,7 @@ const App = (() => {
     }
     updateFavCount();
     updateAccount();
+    liveNumbers();
     window.addEventListener("hashchange", route);
     window.addEventListener("scroll", () => $("#top").classList.toggle("is-scrolled", scrollY > 8), { passive: true });
     bindGlobal();
@@ -76,6 +77,7 @@ const App = (() => {
     else if (page === "market") { $('[data-nav="market"]').classList.add("is-on"); marketPage(params); }
     else if (page === "method") { $('[data-nav="method"]').classList.add("is-on"); methodPage(); }
     else if (page === "account") accountPage(params);
+    else if (page === "invoice") invoicePage(arg);
     else if (page === "faq") faqPage();
     else if (page === "support") supportPage(params);
     else if (page === "p") contentPage("/" + path.split("/").slice(1).join("/"));
@@ -145,9 +147,9 @@ const App = (() => {
           <div class="sky__stage" id="skyStage"><svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg></div>
           <div class="sky__tip" id="skyTip" hidden></div>
           <div class="sky__kpis">
-            <div><b>${fa(st.total || 0)}</b><span>آگهی بررسی‌شده</span></div>
-            <div class="is-hot"><b>${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده</span></div>
-            <div><b>${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
+            <div><b data-live="total">${fa(st.total || 0)}</b><span>آگهی بررسی‌شده</span></div>
+            <div class="is-hot"><b data-live="deals">${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده</span></div>
+            <div><b data-live="excluded">${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
           </div>
           <p class="sky__hint">بکشید تا بچرخد. با انتخاب یک یا چند شهر یا استان در جست‌وجو، کادر همان‌جا را نشان می‌دهد.</p>
         </aside>
@@ -155,10 +157,10 @@ const App = (() => {
     </section>
     <section class="wrap">
       <div class="strip">
-        <div><b>${fa(st.ranked || 0)}</b><span>آگهی دارای امتیاز</span></div>
-        <div><b>${fa(st.today || 0)}</b><span>آگهی تازه در ۲۴ ساعت</span></div>
-        <div><b>${fa(st.drops || 0)}</b><span>کاهش قیمت ثبت‌شده</span></div>
-        <div><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی از ${fa(CITIES.length)}</span></div>
+        <div><b data-live="ranked">${fa(st.ranked || 0)}</b><span>آگهی دارای امتیاز</span></div>
+        <div><b data-live="today">${fa(st.today || 0)}</b><span>آگهی تازه در ۲۴ ساعت</span></div>
+        <div><b data-live="drops">${fa(st.drops || 0)}</b><span>کاهش قیمت ثبت‌شده</span></div>
+        <div><b data-live="cities">${fa(Object.keys(st.cities || {}).length)}</b><span>شهر دارای آگهی از <i data-live="citiesAll">${fa(CITIES.length)}</i></span></div>
       </div>
     </section>
     <section class="scene" id="pinScene" aria-label="فرصت ملک در یک نگاه">
@@ -168,9 +170,9 @@ const App = (() => {
         <div class="scene__shade" aria-hidden="true"></div>
         <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 12 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path class="r" d="M10 25l13-13 13 13"/><path class="w" d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0"/><circle cx="39" cy="10" r="4.2"/></svg>`).join("")}</div></div>
         <p class="scene__hint" aria-hidden="true">اسکرول کنید تا چراغ‌ها روشن شوند؛ نشانگر را روی تصویر بکشید</p>
-        <div class="scene__step" data-step="0"><b>${fa(st.total || 0)}</b><span>آگهی که قیمتش را با محلهٔ خودش سنجیده‌ایم</span></div>
-        <div class="scene__step scene__step--end" data-step="1"><b>${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده با فاصلهٔ معنادار از برآورد بازار</span></div>
-        <div class="scene__step" data-step="2"><b>${fa(Object.keys(st.cities || {}).length)}</b><span>شهر زیر پوشش، محله به محله</span></div>
+        <div class="scene__step" data-step="0"><b data-live="total">${fa(st.total || 0)}</b><span>آگهی که قیمتش را با محلهٔ خودش سنجیده‌ایم</span></div>
+        <div class="scene__step scene__step--end" data-step="1"><b data-live="deals">${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده با فاصلهٔ معنادار از برآورد بازار</span></div>
+        <div class="scene__step" data-step="2"><b data-live="cities">${fa(Object.keys(st.cities || {}).length)}</b><span>شهر زیر پوشش، محله به محله</span></div>
         <div class="scene__step scene__step--why" data-step="3"><h2>چرا فرصت ملک؟</h2><p>قیمت آگهی، پیشنهاد فروشنده است، نه ارزش بازار. ما هر آگهی را با محلهٔ خودش، سن بنا، متراژ و امکانات می‌سنجیم، اثر تبانی و قیمت‌سازی را کنار می‌گذاریم و دلیل هر عدد را نشان می‌دهیم.</p></div>
         <div class="scene__dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       </div>
@@ -474,7 +476,8 @@ const App = (() => {
     const names = pts.map((c) => c.name);
     // اگر نقشه همین حالا باز است، بدون برگشت به کره فقط روی شهرهای تازه می‌رود
     const mapOpen = $("#skyMap")?.classList.contains("is-on");
-    L0.pending = Promise.all(ids.map((c) => DataLayer.market(c, "sale", "apartment").then((r) => ({ c, ds: ((r.report && r.report.districts) || []).filter((d) => d.median_ppm) })).catch(() => ({ c, ds: [] }))));
+    // همهٔ محله‌های هر شهر (همهٔ نوع‌ها)، با مرکز واقعی محله؛ محلهٔ کم‌آگهی هم ستون کم‌رنگ می‌گیرد
+    L0.pending = Promise.all(ids.map((c) => DataLayer.districtMap(c).then((r) => ({ c, ds: (r.districts || []) })).catch(() => ({ c, ds: [] }))));
     L0.sel = { ids, pts, names, token };
     if (mapOpen && L0.map) { liveShowMap(L0); return; }
     $("#skyTitle").textContent = liveTitle(names, "در حال پرواز به ");
@@ -523,7 +526,7 @@ const App = (() => {
     const reps = await L0.pending;
     if (sel.token !== L0.token || !$("#skyMap")) return;
     const multi = reps.filter((r) => r.ds.length).length > 1;
-    const ds = reps.flatMap((r) => r.ds.map((d) => ({ ...d, city: r.c }))).sort((a, b) => b.n - a.n).slice(0, 80);
+    const ds = reps.flatMap((r) => r.ds.map((d) => ({ ...d, city: r.c }))).sort((a, b) => b.n - a.n).slice(0, 160);
     $("#skyTitle").textContent = liveTitle(sel.names);
     const box = $("#skyMap");
     if (!L0.map) {
@@ -541,7 +544,8 @@ const App = (() => {
     L0.layer.clearLayers();
     // محله‌ای که مختصات ندارد، دور مرکز شهرش روی مارپیچ طلایی چیده می‌شود
     const byCity = {}, bounds = {};
-    const lo = Math.min(...ds.map((d) => d.median_ppm)), hi = Math.max(...ds.map((d) => d.median_ppm));
+    const pv = ds.map((d) => d.median_ppm).filter(Boolean);
+    const lo = pv.length ? Math.min(...pv) : 0, hi = pv.length ? Math.max(...pv) : 0;
     const all = [], posOf = {};
     ds.forEach((d) => {
       let lat = d.lat, lng = d.lng;
@@ -552,9 +556,9 @@ const App = (() => {
       }
       all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
       const q = L0.opts.query || {}, isSel = q.district && String(q.district).split(",").includes(d.name) && (!q.dcity || q.dcity === d.city);
-      const h = Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5));
-      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
-        .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>میانهٔ هر متر ${money(d.median_ppm)}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
+      const h = d.median_ppm ? Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5)) : 12;
+      L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${d.low || !d.median_ppm ? " is-low" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
+        .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>${d.median_ppm ? "میانهٔ هر متر " + money(d.median_ppm) + (d.ppm_kind === "mixed" ? " (آپارتمان و ویلا)" : "") : "قیمت هر متر: دادهٔ کافی نیست"}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}${d.approx && d.lat ? "<br><small>مکان تقریبی محله</small>" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
         .on("click", () => skyGo(() => {
           // محلهٔ انتخابی اول می‌آید و دکمهٔ «فرصت‌های بیشتر» همهٔ شهرهای انتخابی را باز می‌کند
           const base = L0.mode === "search" ? { ...(L0.opts.query || {}) } : { sort: "score" };
@@ -772,6 +776,26 @@ const App = (() => {
     }), { threshold: 0.6 });
     $$(".sky__kpis b, .strip b, .glance b").forEach((el) => { if (!el.dataset.scr) { el.dataset.scr = "1"; io.observe(el); } });
   }
+  /* عددهای زندهٔ سایت: هر دقیقه از سرور خوانده می‌شوند (و با برگشتن به برگه)، بدون بارگذاری دوبارهٔ صفحه.
+     استان‌ها و شهرهایی که در پنل فعال می‌شوند هم همین‌جا به فهرست سایت اضافه می‌شوند. */
+  function liveNumbers() {
+    if (!DataLayer.server) return;
+    const pull = async () => {
+      if (document.hidden) return;
+      try {
+        const [st, conf] = await Promise.all([fetch("api/stats", { cache: "no-store" }).then((r) => r.json()), fetch("api/config", { cache: "no-store" }).then((r) => r.json())]);
+        const R = conf.regions || {};
+        (R.provinces || []).forEach((p) => { if (!PROVINCES.some((x) => x.id === p.id)) PROVINCES.push(p); });
+        (R.cities || []).forEach((c) => { if (!CITIES.some((x) => x.id === c.id)) CITIES.push(c); });
+        DataLayer.stats = st;
+        const val = { total: st.total, deals: st.deals, excluded: st.excluded, ranked: st.ranked, today: st.today, drops: st.drops,
+          cities: Object.keys(st.cities || {}).length, citiesAll: CITIES.length };
+        $$("[data-live]").forEach((el) => { const v = val[el.dataset.live]; if (v != null && el.textContent !== fa(v)) { el.textContent = fa(v); el.classList.add("is-bump"); setTimeout(() => el.classList.remove("is-bump"), 900); } });
+      } catch (e) { /* شبکه */ }
+    };
+    setInterval(pull, 60000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+  }
   /* عمق و سه‌بعدی: کج شدن کارت با نشانگر و نور دنبال‌کننده؛ فقط دستگاه دارای نشانگر و بدون «کاهش حرکت» */
   /* صحنه‌های وابسته به اسکرول (الهام از سایت‌های سینمایی): صحنهٔ ثابتی که با اسکرول عوض می‌شود،
      و متنی که واژه به واژه با اسکرول پررنگ می‌شود. با «کاهش حرکت» همه‌چیز ساکن و کامل دیده می‌شود. */
@@ -907,15 +931,81 @@ const App = (() => {
     </section>`;
   }
   function bindPlans() { $$("[data-buy]").forEach((b) => b.addEventListener("click", () => buy(b.dataset.buy))); }
-  async function buy(plan) {
+  async function buy(plan, method) {
     if (!DataLayer.me) { loginDialog(() => buy(plan)); return; }
-    if (!cfg.payable) { toast("پرداخت هنوز فعال نشده است"); return; }
+    const methods = cfg.pay_methods || [];
+    // انتخاب روش پرداخت: همهٔ روش‌ها دیده می‌شوند؛ روش آماده‌نشده پیام «فعلاً فعال نیست» می‌دهد
+    if (!method && !cfg.test_payments) { payMethodDialog(plan); return; }
     try {
-      const r = await DataLayer.startPayment(plan);
+      const r = await DataLayer.startPayment(plan, method);
       if (r.redirect) { location.href = r.redirect; return; }
       if (r.card) { cardDialog(r); return; }
-      if (r.activated) { await DataLayer.refreshMe(); updateAccount(); toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); }
+      if (r.bale) { balePayDialog(r.bale); return; }
+      if (r.activated) { await DataLayer.refreshMe(); updateAccount(); if (r.payment_id) go("#/invoice/" + r.payment_id); else { toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); } }
     } catch (err) { toast(err.message); }
+  }
+  const PAY_ICON = { bale: "chat", zarinpal: "lock", card: "copy" };
+  const PAY_NOTE = { bale: "پرداخت در پیام‌رسان بله؛ تأیید و فعال‌سازی کاملاً خودکار و فوری", zarinpal: "درگاه بانکی آنلاین؛ فعال‌سازی خودکار پس از پرداخت", card: "واریز مبلغ یکتا و ثبت رسید؛ فعال‌سازی فوری" };
+  function payMethodDialog(plan) {
+    const ms = cfg.pay_methods || [];
+    const p = (cfg.plans || []).find((x) => x.id === plan);
+    openDialog(`<div class="dlg__head"><h2>روش پرداخت</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      ${p ? `<p class="muted" style="margin-bottom:14px">اشتراک ${esc(p.name)}، ${fa(p.days)} روز: <b>${fa(p.price)} تومان</b></p>` : ""}
+      <div class="paym">${ms.map((m) => `<button type="button" class="paym__opt${m.ready ? "" : " is-off"}" data-m="${m.id}" aria-disabled="${!m.ready}">
+        <i>${icon(PAY_ICON[m.id] || "spark")}</i><span><b>${esc(m.name)}</b><small>${m.ready ? PAY_NOTE[m.id] || "" : "فعلاً فعال نیست"}</small></span>${m.ready ? icon("arrow") : '<em>به‌زودی</em>'}</button>`).join("")}</div>
+      <p class="small muted" style="margin-top:12px">پس از پرداخت، فاکتور همان لحظه نمایش داده می‌شود و رسید ${ms.some((m) => m.id === "bale" && m.ready) ? "در بله و " : ""}با پیامک برایتان ارسال می‌شود.</p>`);
+    $$(".paym__opt").forEach((b) => b.addEventListener("click", () => {
+      const m = ms.find((x) => x.id === b.dataset.m);
+      if (!m.ready) { toast(`«${m.name}» فعلاً فعال نیست؛ روش دیگری را انتخاب کنید`); return; }
+      $("#dlg").close(); buy(plan, m.id);
+    }));
+  }
+  /* بله‌پی: صورت‌حساب در بله ارسال می‌شود؛ این‌جا وضعیت پرداخت پیوسته بررسی و پس از پرداخت فاکتور نمایش داده می‌شود */
+  function balePayDialog(b) {
+    openDialog(`<div class="dlg__head"><h2>پرداخت با بله‌پی</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <ol class="pay-steps">
+        <li><span>${b.sent ? "صورت‌حساب همین حالا در ربات فرصت ملک در بله برایتان ارسال شد." : "دکمهٔ زیر را بزنید تا ربات فرصت ملک در بله باز شود و صورت‌حساب برایتان بیاید."}</span>
+          <a class="btn btn--hot btn--lg" href="${esc(b.link)}" target="_blank" rel="noopener">${icon("chat")} ${b.sent ? "باز کردن بله" : "باز کردن ربات و دریافت صورت‌حساب"}</a></li>
+        <li><span>در بله روی «پرداخت» بزنید. پرداخت مستقیم از طریق بله انجام و همان لحظه تأیید می‌شود.</span></li>
+        <li><span>این صفحه را باز نگه دارید؛ به‌محض تأیید، اشتراک فعال و فاکتور نمایش داده می‌شود. رسید در بله هم می‌آید.</span></li>
+      </ol>
+      <p class="paywait" id="payWait"><i></i> در انتظار پرداخت…</p>`);
+    let n = 0;
+    const t = setInterval(async () => {
+      if (!$("#payWait") || ++n > 400) { clearInterval(t); return; }
+      try {
+        const inv = await DataLayer.invoice(b.payment_id);
+        if (inv.status === "paid") { clearInterval(t); $("#dlg").close(); await DataLayer.refreshMe(); updateAccount(); go("#/invoice/" + b.payment_id); }
+      } catch (e) { /* شبکه */ }
+    }, 3000);
+  }
+  /* فاکتور پرداخت: بلافاصله پس از پرداخت، تا خریدار از دریافت پول و فعال شدن اشتراک مطمئن باشد */
+  async function invoicePage(pid) {
+    view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="skeleton" style="height:360px;max-width:560px;margin:auto"></div></div></section>`;
+    if (DataLayer.server) await DataLayer.refreshMe().catch(() => {});
+    updateAccount();
+    let inv;
+    try { inv = await DataLayer.invoice(pid); } catch (err) {
+      view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="empty"><h3>فاکتور پیدا نشد</h3><p>${esc(err.message)}</p><a class="btn btn--ink" href="#/account">حساب کاربری</a></div></div></section>`; return;
+    }
+    const paid = inv.status === "paid", review = inv.status === "review";
+    const jd = (t) => (t ? new Date(t * 1000).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" }) : "—");
+    view().innerHTML = `<section class="section--tight"><div class="wrap"><article class="invoice${paid || review ? " is-ok" : ""}">
+      <div class="invoice__badge">${icon(paid || review ? "check" : "info", 'width="34"')}</div>
+      <h1>${paid ? "پرداخت موفق بود؛ اشتراک شما فعال است" : review ? "رسید ثبت شد؛ اشتراک شما فعال است" : inv.status === "failed" ? "پرداخت انجام نشد" : "در انتظار پرداخت"}</h1>
+      <p class="muted">${paid || review ? (() => { const bale = (cfg.login_channels || []).concat(cfg.pay_methods || []).some((x) => x.id === "bale" && x.ready); const ch = [cfg.sms_live && "پیامک", bale && "پیام‌رسان بله"].filter(Boolean); return ch.length ? "رسید این پرداخت با " + ch.join(" و ") + " هم برایتان ارسال شد." : "این صفحه را برای پیگیری نگه دارید یا چاپ کنید."; })() : "اگر مبلغی از حسابتان کم شده و اشتراک فعال نشده، از پشتیبانی پیگیری کنید؛ پرداخت‌های ناموفق معمولاً تا ۷۲ ساعت به حساب برمی‌گردد."}</p>
+      <dl class="invoice__rows">
+        <div><dt>شمارهٔ فاکتور</dt><dd>${fa(inv.id)}</dd></div>
+        <div><dt>طرح</dt><dd>اشتراک ${esc(inv.plan)}${inv.days ? "، " + fa(inv.days) + " روز" : ""}</dd></div>
+        <div><dt>مبلغ</dt><dd>${fa(inv.amount)} تومان</dd></div>
+        <div><dt>روش پرداخت</dt><dd>${esc(inv.gateway)}</dd></div>
+        ${inv.ref ? `<div><dt>کد پیگیری</dt><dd dir="ltr">${esc(inv.ref)}</dd></div>` : ""}
+        <div><dt>تاریخ</dt><dd>${jd(inv.paid_at || inv.created)}</dd></div>
+        <div><dt>شمارهٔ موبایل</dt><dd dir="ltr">${esc(inv.phone)}</dd></div>
+        ${paid || review ? `<div><dt>اعتبار اشتراک تا</dt><dd><b>${jd(inv.sub_until)}</b></dd></div>` : ""}
+      </dl>
+      <div class="invoice__act"><a class="btn btn--gold btn--lg" href="#/s?sort=score&opp=1">دیدن فرصت‌ها ${icon("arrow")}</a><button class="btn btn--line" onclick="window.print()">چاپ یا ذخیرهٔ فاکتور</button><a class="btn btn--ghost" href="#/support?cat=payment">پشتیبانی پرداخت</a></div>
+    </article></div></section>`;
   }
   /* کارت‌به‌کارت: مبلغ یکتا، رسید یا کد پیگیری، فعال‌سازی فوری */
   function cardDialog(r) {
@@ -943,8 +1033,8 @@ const App = (() => {
         const res = await DataLayer.submitReceipt(r.payment_id, $("#rcTrack").value, img);
         $("#dlg").close();
         await DataLayer.refreshMe(); updateAccount();
-        toast(res.activated ? "رسید ثبت شد و اشتراک فعال شد" : "رسید ثبت شد؛ پس از بررسی فعال می‌شود");
-        route();
+        if (res.activated) go("#/invoice/" + r.payment_id);
+        else { toast("رسید ثبت شد؛ پس از بررسی فعال می‌شود"); route(); }
       } catch (err) { toast(err.message); }
       btn.disabled = false;
     });
@@ -1043,23 +1133,38 @@ const App = (() => {
   /* ---------- ورود با کد پیامکی ---------- */
   function loginDialog(after) {
     openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی برایتان پیامک می‌شود. ثبت‌نام همزمان انجام می‌شود.${cfg.trial_days ? ` <b>با ثبت‌نام، همهٔ امکانات سایت ${fa(cfg.trial_days)} روز رایگان برایتان باز می‌شود.</b>` : ""}</p>
+      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی با پیامک یا در پیام‌رسان بله برایتان ارسال می‌شود. ثبت‌نام همزمان انجام می‌شود.${cfg.trial_days ? ` <b>با ثبت‌نام، همهٔ امکانات سایت ${fa(cfg.trial_days)} روز رایگان برایتان باز می‌شود.</b>` : ""}</p>
       <form class="form-grid" id="otpForm">
+        <div class="otpch" role="radiogroup" aria-label="روش دریافت کد">${(cfg.login_channels || [{ id: "sms", name: "پیامک", ready: true }]).map((c, i) => `<button type="button" role="radio" class="otpch__opt${c.ready ? "" : " is-off"}" data-ch="${c.id}" aria-checked="false">${icon(c.id === "bale" ? "chat" : "phone")}<span>${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"}<small>${c.ready ? (c.id === "bale" ? "پیام‌رسان بله" : "پیامک به همین شماره") : "فعلاً فعال نیست"}</small></span></button>`).join("")}</div>
         <label class="field"><span>شماره موبایل</span><input class="input input--ltr" id="otpPhone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required autocomplete="tel"></label>
         <div id="otpStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="otpCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="otpNote" style="margin-top:6px"></p></div>
         <button class="btn btn--hot btn--lg" type="submit" id="otpBtn">دریافت کد</button>
         <p class="small muted">کد نمی‌رسد؟ <a href="#/support?cat=sms" data-close>تیکت پشتیبانی بفرستید</a>.</p>
       </form>`);
     let sent = false;
+    // روش دریافت کد: اولین روش آماده انتخاب می‌شود؛ روش آماده‌نشده پیام «فعلاً فعال نیست» می‌دهد
+    const chs = cfg.login_channels || [{ id: "sms", ready: true }];
+    let ch = (chs.find((c) => c.ready) || chs[0]).id;
+    const paintCh = () => $$(".otpch__opt").forEach((b) => { b.classList.toggle("is-on", b.dataset.ch === ch); b.setAttribute("aria-checked", b.dataset.ch === ch); });
+    $$(".otpch__opt").forEach((b) => b.addEventListener("click", () => {
+      if (sent) return;
+      const c = chs.find((x) => x.id === b.dataset.ch);
+      if (!c.ready) { toast(`${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"} فعلاً فعال نیست`); return; }
+      ch = c.id; paintCh();
+    }));
+    paintCh();
     $("#otpForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = $("#otpBtn"); btn.disabled = true;
       try {
         if (!sent) {
-          const r = await DataLayer.requestOtp($("#otpPhone").value);
+          const r = await DataLayer.requestOtp($("#otpPhone").value, ch);
           sent = true;
           $("#otpStep2").hidden = false; $("#otpPhone").readOnly = true;
-          $("#otpNote").innerHTML = r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>` : "کد تا ۳ دقیقه معتبر است.";
+          $("#otpNote").innerHTML = r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>`
+            : r.channel === "bale" ? (r.sent ? "کد در ربات فرصت ملک در بله برایتان ارسال شد؛ تا ۳ دقیقه معتبر است."
+              : `<a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener" style="margin:6px 0">${icon("chat")} باز کردن ربات در بله</a>در ربات «اشتراک شمارهٔ من» را بزنید؛ کد فوراً همان‌جا می‌آید. آن را این‌جا وارد کنید.`)
+            : "کد تا ۳ دقیقه معتبر است.";
           btn.textContent = "ورود"; $("#otpCode").focus();
         } else {
           const u = await DataLayer.verifyOtp($("#otpPhone").value, $("#otpCode").value);

@@ -126,3 +126,115 @@ def fix_districts(store) -> dict:
             store.db.commit()
     stats["updated"] = len(updates)
     return stats
+
+
+# ---------------------------------------------------------------- مختصات محله‌ها
+def _med(v):
+    v = sorted(v)
+    return v[len(v) // 2] if v else None
+
+
+def _offset(key: str, spread=0.0028):
+    import hashlib
+    h = hashlib.sha1(key.encode()).digest()
+    return (h[0] / 255 - 0.5) * 2 * spread, (h[1] / 255 - 0.5) * 2 * spread * 1.25
+
+
+def place_listings(store) -> dict:
+    """مرکز هر محله: میانهٔ مختصات دقیق آگهی‌هایش، وگرنه مختصاتی که از نام محله یافته شده (geo_cache).
+    آگهی‌های بدون مختصات دقیق دور مرکز محلهٔ خودشان (حدود ۳۰۰ متر) قرار می‌گیرند، نه پراکنده در کل شهر."""
+    import catalog
+    rows = store.q("""SELECT id, city_key, district, lat, lng, COALESCE(latlng_exact,0) ex FROM listings
+                      WHERE vertical='estate' AND district IS NOT NULL AND district != ''""")
+    geo = store.get_setting("geo_cache") or {}
+    exact: dict = {}
+    for r in rows:
+        if r["ex"] and r["lat"] and r["lng"]:
+            exact.setdefault(f'{r["city_key"]}|{r["district"]}', []).append((r["lat"], r["lng"]))
+    centers = {}
+    for r in rows:
+        k = f'{r["city_key"]}|{r["district"]}'
+        if k in centers:
+            continue
+        c = catalog.CITY_BY_KEY.get(r["city_key"])
+        pts = exact.get(k)
+        if pts:
+            centers[k] = [round(_med([p[0] for p in pts]), 5), round(_med([p[1] for p in pts]), 5), "exact"]
+        elif isinstance(geo.get(k), dict) and geo[k].get("ll"):
+            centers[k] = [*geo[k]["ll"], "geo"]
+        # مرکز دورتر از حدود ۱۳ کیلومتر از مرکز شهر، خطاست
+        lim = (0.12, 0.14) if k in centers and centers[k][2] == "exact" else (0.065, 0.08)   # مرکز از روی نام: نزدیک‌تر به شهر
+        if k in centers and c and (abs(centers[k][0] - c["lat"]) > lim[0] or abs(centers[k][1] - c["lng"]) > lim[1]):
+            centers.pop(k)
+    upd = []
+    for r in rows:
+        k = f'{r["city_key"]}|{r["district"]}'
+        if r["ex"] or k not in centers:
+            continue
+        dy, dx = _offset(r["id"])
+        lat, lng = round(centers[k][0] + dy, 5), round(centers[k][1] + dx, 5)
+        if r["lat"] is None or abs((r["lat"] or 0) - lat) > 1e-5 or abs((r["lng"] or 0) - lng) > 1e-5:
+            upd.append((lat, lng, r["id"]))
+    if upd:
+        with store.lock:
+            store.db.executemany("UPDATE listings SET lat=?, lng=? WHERE id=?", upd)
+            store.db.commit()
+    store.set_setting("district_centers", centers)
+    return {"centers": len(centers), "placed": len(upd)}
+
+
+def missing_geo(store, limit=40):
+    """محله‌هایی که نه آگهی با مختصات دقیق دارند و نه در ۳۰ روز گذشته جست‌وجوی مکانی شده‌اند."""
+    import time
+    centers = store.get_setting("district_centers") or {}
+    geo = store.get_setting("geo_cache") or {}
+    now = time.time()
+    out = []
+    for r in store.q("""SELECT city_key, district, COUNT(*) n FROM listings WHERE vertical='estate' AND status='active'
+                        AND district IS NOT NULL AND district != '' GROUP BY city_key, district ORDER BY n DESC"""):
+        k = f'{r["city_key"]}|{r["district"]}'
+        if k in centers or (k in geo and now - geo[k].get("at", 0) < 30 * 86400):
+            continue
+        out.append((r["city_key"], r["district"]))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def geocode_once(store, limit=40, pause=1.2) -> int:
+    """نام محله را با Nominatim (OpenStreetMap) به مختصات تبدیل می‌کند؛ فقط درون محدودهٔ شهر. نتیجه (حتی ناموفق) کش می‌شود."""
+    import json
+    import time
+    import urllib.parse
+    import urllib.request
+    import catalog
+    from divar_client import NET, _opener
+    todo = missing_geo(store, limit)
+    if not todo:
+        return 0
+    geo = store.get_setting("geo_cache") or {}
+    found = 0
+    for city, district in todo:
+        c = catalog.CITY_BY_KEY.get(city)
+        k = f"{city}|{district}"
+        geo[k] = {"at": int(time.time()), "ll": None}
+        if not c:
+            continue
+        vb = f'{c["lng"] - 0.08},{c["lat"] + 0.065},{c["lng"] + 0.08},{c["lat"] - 0.065}'
+        for name in dict.fromkeys([norm(district), " ".join(tokens(district))]):
+            q = urllib.parse.urlencode({"q": f'{name}، {c["name"]}', "format": "json", "limit": 1, "countrycodes": "ir",
+                                        "viewbox": vb, "bounded": 1, "accept-language": "fa"})
+            req = urllib.request.Request("https://nominatim.openstreetmap.org/search?" + q,
+                                         headers={"user-agent": "forsatmelk.ir district geocoder (+https://forsatmelk.ir)"})
+            try:
+                with _opener(NET["proxy"]).open(req, timeout=10) as resp:
+                    res = json.loads(resp.read(200_000) or b"[]")
+            except Exception:  # noqa: BLE001
+                res = []
+            time.sleep(pause)
+            if res:
+                geo[k]["ll"] = [round(float(res[0]["lat"]), 5), round(float(res[0]["lon"]), 5)]
+                found += 1
+                break
+    store.set_setting("geo_cache", geo)
+    return found

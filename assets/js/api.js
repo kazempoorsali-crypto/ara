@@ -264,15 +264,20 @@ const DataLayer = (() => {
     }
     return json(await fetch("api/districts?" + qs({ city, deal })));
   }
+  // همهٔ محله‌های یک شهر برای نقشهٔ زنده (همهٔ نوع‌ها، با مرکز محله)
+  async function districtMap(city) {
+    if (useSamples) { const r = localReport(city, "sale", "apartment"); return { districts: (r && r.districts) || [] }; }
+    return json(await fetch("api/district_map?" + qs({ city })));
+  }
   async function market(city, deal, kind) {
     if (useSamples) return { rows: localMarket(city), report: city ? localReport(city, deal, kind) : null };
     return json(await fetch("api/market?" + qs({ city, deal, kind })));
   }
 
   /* ---------- حساب کاربری ---------- */
-  async function requestOtp(phone) {
+  async function requestOtp(phone, channel = "sms") {
     if (!server) throw new Error("ورود در پیش‌نمایش فعال نیست؛ نسخه اجراشده روی سرور را باز کنید.");
-    return json(await fetch("api/auth/otp", { method: "POST", headers: H(), body: JSON.stringify({ phone }) }));
+    return json(await fetch("api/auth/otp", { method: "POST", headers: H(), body: JSON.stringify({ phone, channel }) }));
   }
   async function verifyOtp(phone, code) {
     const r = await json(await fetch("api/auth/verify", { method: "POST", headers: H(), body: JSON.stringify({ phone, code }) }));
@@ -318,10 +323,13 @@ const DataLayer = (() => {
   async function flag(id, reason) {
     return json(await fetch(`api/listing/${encodeURIComponent(id)}/flag`, { method: "POST", headers: H(), body: JSON.stringify({ reason }) }));
   }
-  async function startPayment(plan) {
-    return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan }) }));
+  async function startPayment(plan, method) {
+    return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan, method }) }));
+  }
+  async function invoice(pid) {
+    return json(await fetch("api/pay/invoice?" + qs({ pid }), { headers: H(), cache: "no-store" }));
   }
 
-  return { init, search, get, market, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
-    get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, get me() { return me; }, RENT_RATE };
+  return { init, search, get, market, districtMap, districts, verdict, requestOtp, verifyOtp, refreshMe, logout, startPayment, invoice, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
+    get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, set stats(v) { if (v && !useSamples) stats = v; }, get me() { return me; }, RENT_RATE };
 })();

@@ -198,6 +198,19 @@ class Ingestor:
         self.thread = threading.Thread(target=self.loop, name="ingest", daemon=True)
         self.thread.start()
         threading.Thread(target=self.value_loop, name="valuation", daemon=True).start()
+        threading.Thread(target=self.geo_loop, name="geocode", daemon=True).start()
+
+    def geo_loop(self):
+        """مختصات محله‌هایی که آگهی با موقعیت دقیق ندارند، از روی نامشان (OpenStreetMap)؛ آهسته و با کش."""
+        from districts import geocode_once
+        self.stop.wait(90)
+        while not self.stop.is_set():
+            try:
+                if geocode_once(self.store, limit=30):
+                    self.dirty = max(self.dirty, 1)   # ارزش‌گذاری بعدی آگهی‌ها را سر جای محله‌شان می‌گذارد
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+            self.stop.wait(900)
 
     def run_valuation(self):
         """بازمحاسبه قیمت منصفانه، پاک‌سازی و امتیاز همه آگهی‌ها."""

@@ -83,6 +83,7 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
     for r in valid:
         by_d.setdefault(r.get("district") or "", []).append(r)
     city_ppm = _med([r["ppm"] for r in valid])
+    centers = store.get_setting("district_centers") or {}   # مرکز محله: آگهی‌های با مختصات دقیق یا نام محله روی نقشه
     districts = []
     for d, rs in by_d.items():
         if not d or len(rs) < MIN_N:
@@ -92,8 +93,8 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
         districts.append({
             "name": d, "n": len(rs), "median_ppm": ppm, "median_price": _med([r["pp"] for r in rs]),
             # مرکز تقریبی محله برای نقشه (میانهٔ مختصات آگهی‌ها)
-            "lat": _med([r["lat"] for r in rs if r.get("lat")]) if sum(1 for r in rs if r.get("lat")) >= 2 else None,
-            "lng": _med([r["lng"] for r in rs if r.get("lng")]) if sum(1 for r in rs if r.get("lng")) >= 2 else None,
+            "lat": (centers.get(f"{city}|{d}") or [None])[0],
+            "lng": (centers.get(f"{city}|{d}") or [None, None])[1],
             "median_area": _med([r["area"] for r in rs]), "opportunities": sum(1 for r in rs if r["label"] in OPP),
             "gold": sum(1 for r in rs if r["label"] == "gold"), "scored": sum(1 for r in rs if r["score"] is not None),
             "elevator_share": (sum(1 for r in el if (r.get("feat") or {}).get("elevator")) / len(el)) if el else None,
@@ -156,6 +157,37 @@ def market_report(store, city: str, deal: str = "sale", kind: str = "apartment")
         "by_area": _group(valid, lambda r: _band(r["area"], AREA_BANDS), [(i, b[2]) for i, b in enumerate(AREA_BANDS)]),
         "amenities": amenities, "cheap": cheap, "pricey": pricey, "districts": districts,
     }
+    if len(_cache) > 200:
+        _cache.clear()
+    _cache[key] = rep
+    return rep
+
+
+def district_map(store, city: str) -> dict:
+    """همهٔ محله‌های یک شهر برای نقشهٔ زنده (همهٔ نوع‌های ملک): تعداد، فرصت، میانهٔ قیمت هر متر و مرکز محله."""
+    vinfo = store.get_setting("valuation_info") or {}
+    key = ("map", city, vinfo.get("at"))
+    if key in _cache:
+        return _cache[key]
+    centers = store.get_setting("district_centers") or {}
+    rows = [dict(r) for r in store.q("""SELECT district, kind, deal, pp, area, label FROM listings
+              WHERE status='active' AND hidden=0 AND vertical='estate' AND city_key=? AND district IS NOT NULL AND district != ''""", (city,))]
+    by = {}
+    for r in rows:
+        by.setdefault(r["district"], []).append(r)
+    out = []
+    for d, rs in by.items():
+        sale = [r for r in rs if r["deal"] == "sale" and r["pp"] and r["area"] and not (r["label"] in ("sus", "excluded"))]
+        apt = [r["pp"] / r["area"] for r in sale if kind_group(r["kind"]) == "apartment"]
+        res = [r["pp"] / r["area"] for r in sale if kind_group(r["kind"]) in ("apartment", "villa")]
+        ppm = _med(apt) if len(apt) >= 2 else (_med(res) if res else None)
+        c = centers.get(f"{city}|{d}")
+        out.append({"name": d, "n": len(rs), "sale": len(sale), "opportunities": sum(1 for r in rs if r["label"] in OPP),
+                    "median_ppm": ppm, "ppm_kind": "apartment" if len(apt) >= 2 else ("mixed" if res else None),
+                    "lat": c[0] if c else None, "lng": c[1] if c else None, "approx": bool(c and c[2] != "exact") if c else True,
+                    "low": len(sale) < MIN_N})
+    out.sort(key=lambda x: -x["n"])
+    rep = {"city": city, "districts": out}
     if len(_cache) > 200:
         _cache.clear()
     _cache[key] = rep

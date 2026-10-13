@@ -632,10 +632,13 @@ def article(app, base, slug):
     a = dict(r)
     crumbs = [("صفحهٔ اصلی", "/"), ("مقاله‌ها", "/maghale"), (a["title"], "/maghale/" + urllib.parse.quote(slug))]
     c = catalog.CITY_BY_KEY.get(a.get("city_key") or "")
-    body = (_crumbs_html(crumbs) + f'<h1>{ESC(a["title"])}</h1><p class="seo-upd">{jdate(a["updated"])}</p>'
+    # آمار زندهٔ بازار در لحظهٔ مطالعه؛ با هر به‌روزرسانی داده خودکار عوض می‌شود
+    live = ('<aside class="seo-live"><b>آمار زندهٔ بازار</b><p>هم‌اکنون ⟨LISTINGS⟩ آگهی ملک در ⟨CITIES⟩ شهر سنجیده شده و ⟨OPPS⟩ فرصت شناسایی‌شده است؛ '
+            'آخرین به‌روزرسانی داده: ⟨UPDATED⟩. <a href="/#/s?sort=score&opp=1">دیدن فرصت‌ها</a> · <a href="/#/market">بازار محله‌ها</a></p></aside>')
+    body = _fill(app, _crumbs_html(crumbs) + f'<h1>{ESC(a["title"])}</h1><p class="seo-upd">به‌روزرسانی: ⟨UPDATED⟩</p>' + live
             + render_body(a["body"]) + (f'<p><a href="{city_path(c["key"])}">آگهی‌ها و فرصت‌های امروز {ESC(c["name"])}</a></p>' if c else ""))
     ld = [_crumbs_ld(base, crumbs), {"@context": "https://schema.org", "@type": "Article", "headline": a["title"][:110], "inLanguage": "fa-IR",
-          "datePublished": time.strftime("%Y-%m-%d", time.gmtime(a["created"])), "dateModified": time.strftime("%Y-%m-%d", time.gmtime(a["updated"])),
+          "datePublished": time.strftime("%Y-%m-%d", time.gmtime(a["created"])), "dateModified": time.strftime("%Y-%m-%d", time.gmtime(max(a["updated"], _updated(st) or 0))),
           "author": {"@type": "Organization", "name": site["name"]}, "publisher": {"@type": "Organization", "name": site["name"]},
           "mainEntityOfPage": base + "/maghale/" + urllib.parse.quote(slug), "description": a.get("summary") or ""}]
     return {"title": f"{a['title']} | {site['name']}", "desc": (a.get("summary") or a["title"])[:300],
@@ -667,6 +670,11 @@ def _fill(app, text: str) -> str:
     th = {**DEFAULT_THRESHOLDS, **(app.store.get_setting("thresholds") or {})}
     for k, v in (("OPP", th["opp"]), ("GOLD", th["gold"]), ("SUS", th["sus"])):
         text = text.replace(f"⟨{k}⟩", fa(round(float(v) * 100)) + "٪")
+    if "⟨" in text:  # عددهای زندهٔ سایت برای متن مقاله‌ها و راهنماها
+        stt = app.store.stats()
+        for k, v in (("LISTINGS", fa(stt.get("total") or 0)), ("OPPS", fa(stt.get("deals") or 0)),
+                     ("CITIES", fa(len(stt.get("cities") or {}))), ("UPDATED", jdate(_updated(app.store)))):
+            text = text.replace(f"⟨{k}⟩", v)
     return text
 
 
