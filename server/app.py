@@ -82,10 +82,18 @@ LIMITER = RateLimiter()
 LIMITS = {"api": 240, "post": 40, "img": 300, "page": 120, "tile": 1200}
 # کاشی‌های نقشه از طریق سرور خود سایت با کش دائمی روی دیسک: بدون کلید، و در قطع اینترنت بین‌الملل
 # هر ناحیه‌ای که یک بار دیده شده باز هم نمایش داده می‌شود
+# هر سبک چند منبع دارد: اگر یکی از ایران کند یا مسدود باشد (مثلاً اسری که ایران را تحریم کرده)، منبع بعدی امتحان می‌شود
+# و منبعی که پشت سر هم خطا داده چند دقیقه کنار گذاشته می‌شود تا کاشی‌ها منتظر تایم‌اوت نمانند.
 TILE_SOURCES = {
-    "osm": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    "sat": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    "osm": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "https://{abc}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
+            "https://tile.openstreetmap.de/{z}/{x}/{y}.png"],
+    "sat": ["https://mt{n}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"],
 }
+TILE_HEALTH = {}             # url → {"fail": خطاهای پیاپی, "until": زمان پایان کنارگذاری}
+TILE_LOCK = threading.Lock()
 OTP_PER_IP_HOUR = 6          # درخواست کد ورود از هر IP در ساعت (جلوی پیامک‌بمباران و هزینهٔ پیامک)
 OTP_GLOBAL_DAY = int(os.environ.get("ARA_OTP_DAILY_CAP", "500"))
 SECURITY_HEADERS = {
@@ -442,17 +450,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers(); return None
         f = self.app.data_dir / "tilecache" / style / str(z) / str(x) / f"{y}.img"
         if not f.is_file():
-            from divar_client import NET, _opener, _system_proxies
-            u = TILE_SOURCES[style].format(z=z, x=x, y=y)
-            req = urllib.request.Request(u, headers={"user-agent": "forsatmelk.ir tile cache (+https://forsatmelk.ir)", "referer": "https://forsatmelk.ir/"})
-            data = None
-            for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
-                try:
-                    with _opener(proxy).open(req, timeout=12) as r:
-                        data = r.read(2_000_000)
-                    break
-                except Exception:  # noqa: BLE001
-                    continue
+            data = self.fetch_tile(style, z, x, y)
             if not data or not (data[:3] == b"\xff\xd8\xff" or data[:4] == b"\x89PNG"):
                 self.send_response(404); self.send_header("cache-control", "no-store"); self.end_headers(); return None
             f.parent.mkdir(parents=True, exist_ok=True)
@@ -467,6 +465,34 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("cache-control", "public, max-age=2592000")
         self.end_headers()
         self.wfile.write(data)
+        return None
+
+    @staticmethod
+    def fetch_tile(style, z, x, y):
+        from divar_client import NET, _opener, _system_proxies
+        now = time.time()
+        with TILE_LOCK:
+            srcs = sorted(TILE_SOURCES[style], key=lambda t: TILE_HEALTH.get(t, {}).get("fail", 0))
+        proxies = [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else [])
+        for tpl in srcs:
+            h = TILE_HEALTH.get(tpl, {})
+            if h.get("until", 0) > now:
+                continue
+            u = tpl.format(z=z, x=x, y=y, n=(x + y) % 4, abc="abc"[(x + y) % 3])
+            req = urllib.request.Request(u, headers={"user-agent": "Mozilla/5.0 (compatible; forsatmelk.ir tile cache; +https://forsatmelk.ir)", "referer": "https://forsatmelk.ir/"})
+            for proxy in proxies:
+                try:
+                    with _opener(proxy).open(req, timeout=6) as r:
+                        data = r.read(2_000_000)
+                    if data[:3] == b"\xff\xd8\xff" or data[:4] == b"\x89PNG":
+                        with TILE_LOCK:
+                            TILE_HEALTH[tpl] = {"fail": 0}
+                        return data
+                except Exception:  # noqa: BLE001
+                    continue
+            with TILE_LOCK:
+                f = TILE_HEALTH.get(tpl, {}).get("fail", 0) + 1
+                TILE_HEALTH[tpl] = {"fail": f, "until": now + 300 if f >= 4 else 0}
         return None
 
     @staticmethod
