@@ -189,6 +189,10 @@ def district_map(store, city: str) -> dict:
                     "lat": c[0] if c else None, "lng": c[1] if c else None, "approx": bool(c and c[2] != "exact") if c else True,
                     "low": len(sale) < MIN_N, "rural": f"{city}|{d}" in rural})
     out.sort(key=lambda x: -x["n"])
+    if any(x["lat"] is None for x in out):   # محله‌های بی‌مکان این شهر زودتر مکان‌یابی شوند
+        import districts as _d
+        _d.GEO_PRIORITY.add(city)
+        _d.GEO_WAKE.set()
     rep = {"city": city, "districts": out}
     if len(_cache) > 200:
         _cache.clear()

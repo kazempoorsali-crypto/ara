@@ -202,15 +202,24 @@ class Ingestor:
 
     def geo_loop(self):
         """مختصات محله‌هایی که آگهی با موقعیت دقیق ندارند، از روی نامشان (OpenStreetMap)؛ آهسته و با کش."""
-        from districts import geocode_once
-        self.stop.wait(90)
+        import districts as D
+        import report
+        self.stop.wait(60)
         while not self.stop.is_set():
             try:
-                if geocode_once(self.store, limit=50):
-                    self.dirty = max(self.dirty, 1)   # ارزش‌گذاری بعدی آگهی‌ها را سر جای محله‌شان می‌گذارد
+                found = D.geocode_once(self.store, limit=50, pause=1.1)
+                if found:
+                    D.place_listings(self.store)   # آگهی‌ها همان لحظه سر جای محله‌شان و نقشه به‌روز
+                    report._cache.clear()
+                elif D.GEO_PRIORITY and not D.missing_geo(self.store, 1):
+                    D.GEO_PRIORITY.clear()
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
-            self.stop.wait(600)
+            # اگر شهری منتظر است، بی‌درنگ ادامه؛ وگرنه ۱۰ دقیقه یا تا وقتی کسی نقشهٔ شهری را باز کند
+            pending = D.GEO_PRIORITY and D.missing_geo(self.store, 1) and D.missing_geo(self.store, 1)[0][0] in D.GEO_PRIORITY
+            if not pending:
+                D.GEO_WAKE.clear()
+                D.GEO_WAKE.wait(600)
 
     def run_valuation(self):
         """بازمحاسبه قیمت منصفانه، پاک‌سازی و امتیاز همه آگهی‌ها."""
