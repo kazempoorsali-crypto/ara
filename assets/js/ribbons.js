@@ -5,6 +5,8 @@ window.Ribbons = (() => {
   "use strict";
   function mount(host, { colors = ["#3fd99a", "#d4b46a", "#7be3ff"], count = 5, alpha = 0.55 } = {}) {
     if (!host || host.querySelector(":scope > canvas.ribbons")) return;
+    // سیستم ضعیف (حالت سبک): نوارها کشیده نمی‌شوند
+    if (document.documentElement.classList.contains("lite")) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const cv = document.createElement("canvas");
     cv.className = "ribbons"; cv.setAttribute("aria-hidden", "true");

@@ -5,6 +5,7 @@ const Cine = (() => {
   const root = document.documentElement;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const lite = () => root.classList.contains("lite");   // سیستم ضعیف: جلوه‌های سنگین خاموش
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const toFa = (n) => String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
@@ -56,7 +57,7 @@ const Cine = (() => {
   function intro() {
     let seen = false;
     try { seen = sessionStorage.getItem("cineIntro") === "1"; sessionStorage.setItem("cineIntro", "1"); } catch { /* */ }
-    if (seen || reduce || (location.hash && location.hash !== "#/")) return;
+    if (seen || reduce || lite() || (location.hash && location.hash !== "#/")) return;
     const mark = $(".brand__mark")?.outerHTML || "";
     const name = $(".brand__txt b")?.textContent || "";
     const el = document.createElement("div");
@@ -154,7 +155,7 @@ const Cine = (() => {
       if (h.dataset.cineSplit || h.closest(".dlg")) return;
       splitWords(h);
       // جمله‌های بیانیه‌ای فصل‌ها: پررنگ‌شدن واژه به واژه با پیمایش (به‌جای ورود یک‌باره)
-      if (!reduce && document.body.dataset.page === "home" && h.closest(".story__q, .section--ink") && !h.closest(".scene")) { h.classList.add("cine-scrub"); scrubs.push(h); return; }
+      if (!reduce && !lite() && document.body.dataset.page === "home" && h.closest(".story__q, .section--ink") && !h.closest(".scene")) { h.classList.add("cine-scrub"); scrubs.push(h); return; }
       io.observe(h);
     });
     $$(".cine-ch:not(.is-in)", view).forEach((s) => io.observe(s));
@@ -162,7 +163,7 @@ const Cine = (() => {
 
   // کارت‌ها: کج‌شدن سه‌بعدی و برق نور زیر نشانگر
   function tilt(view) {
-    if (!fine || reduce) return;
+    if (!fine || reduce || lite()) return;
     $$(".card, .how__card, .trust__item, .plan, .strip > div", view).forEach((c) => {
       if (c.dataset.tilt) return; c.dataset.tilt = "1"; c.classList.add("cine-tilt");
       let raf = 0;
@@ -202,7 +203,7 @@ const Cine = (() => {
   /* ---------- عمق صحنهٔ آغاز با نشانگر (ستون متن و کادر کره در دو عمق متفاوت) ---------- */
   function heroDepth(view) {
     const hero = $(".hero", view);
-    if (!hero || hero.dataset.depth || !fine || reduce) return;
+    if (!hero || hero.dataset.depth || !fine || reduce || lite()) return;
     hero.dataset.depth = "1";
     let raf = 0;
     hero.addEventListener("pointermove", (e) => {
@@ -274,10 +275,25 @@ const Cine = (() => {
     lastHash = location.hash;
   }
 
+  /* سنجش روان بودن: اگر در چند ثانیهٔ اول صفحه کند نقاشی شود، حالت سبک خودکار روشن می‌شود */
+  function probe() {
+    if (lite() || reduce) return;
+    const ts = []; let last = 0, n = 0;
+    const step = (t) => {
+      if (last) ts.push(t - last);
+      last = t;
+      if (++n < 90 && !document.hidden) return requestAnimationFrame(step);
+      ts.sort((a, b) => a - b);
+      const med = ts[ts.length >> 1] || 16, slow = ts.filter((x) => x > 50).length / Math.max(1, ts.length);
+      if (med > 30 || slow > 0.25) { root.classList.add("lite"); root.dataset.cine = "lite"; }
+    };
+    setTimeout(() => requestAnimationFrame(step), 1800);
+  }
+
   function init() {
     if (root.dataset.cine) return;
     root.dataset.cine = reduce ? "lite" : "full";
-    layers(); intro();
+    layers(); intro(); probe();
     const view = $("#view");
     new MutationObserver(() => { clearTimeout(pending); pending = setTimeout(enhance, 80); }).observe(view, { childList: true, subtree: true });
     addEventListener("hashchange", onRoute);

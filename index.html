@@ -9,10 +9,22 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/img/icon-180.png" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <script>
+    /* طراحی (پیش‌نمایش ?design=new فقط در همین مرورگر) و حالت سبک برای سیستم‌های ضعیف، پیش از نقاشی صفحه */
+    (function () {
+      var r = document.documentElement, d = null, q = new URLSearchParams(location.search).get("design");
+      try { if (q === "new" || q === "classic") localStorage.setItem("fmDesign", q); d = localStorage.getItem("fmDesign"); } catch (e) { d = q; }
+      if (d === "new") r.setAttribute("data-design", "new"); else if (d === "classic") r.removeAttribute("data-design");
+      var n = navigator, c = n.connection || {};
+      if ((n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || c.saveData || /(^|-)2g/.test(c.effectiveType || "") ||
+          matchMedia("(prefers-reduced-motion: reduce)").matches) r.classList.add("lite");
+    })();
+  </script>
   <link rel="preload" href="assets/vendor/vazirmatn/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/cine.css" />
+  <link rel="stylesheet" href="assets/css/v2.css" />
 </head>
 <body>
   <nav class="dock" aria-label="ناوبری سریع">
