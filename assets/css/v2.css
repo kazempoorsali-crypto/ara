@@ -174,3 +174,14 @@
 :root.lite .cine-slab { clip-path: none !important; }
 :root.lite .hero .sky { position: relative; top: 0; }
 :root.lite .cine-scrub .cw__i { opacity: 1 !important; }
+
+/* سربرگ تیره (روی فصل‌های تیره): «ثبت تیکت» روشن و خوانا */
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav .nav__ticket { color: #ff9a6e; border-color: rgba(255,154,110,.6); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav .nav__ticket:hover { background: rgba(255,154,110,.12); }
+/* دکمه‌ها روی کادرهای تیره (درخواست مشاوره و فصل‌های تیره) در هر دو تم خوانا */
+:root[data-design="new"] .consult .btn--gold, :root[data-design="new"] .section--ink .btn--gold { background: var(--v2-slab-ink); color: var(--v2-slab); }
+:root[data-design="new"] .consult .btn--gold:hover, :root[data-design="new"] .section--ink .btn--gold:hover { background: #fff; }
+:root[data-design="new"] .consult .btn--line, :root[data-design="new"] .consult .btn--ghost { color: var(--v2-slab-ink); border-color: rgba(239,236,228,.4); background: transparent; }
+:root[data-design="new"] .consult .btn--line:hover, :root[data-design="new"] .consult .btn--ghost:hover { border-color: var(--v2-slab-ink); background: rgba(239,236,228,.08); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top #accountBtn { background: var(--v2-slab-ink); color: var(--v2-slab); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav a.is-on { background: var(--v2-slab-ink); color: var(--v2-slab); }
