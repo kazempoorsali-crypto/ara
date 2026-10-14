@@ -50,7 +50,9 @@ from report import market_report  # noqa: E402
 from store import Store  # noqa: E402
 from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
-DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ارزش واقعی ملک، محله به محله", "about": "", "email": ""}
+DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ارزش واقعی ملک، محله به محله", "about": "", "email": "",
+                # طراحی سایت: classic (قبلی) یا new (طراحی سینمایی تازه)؛ پیش‌نمایش برای خود مالک با ?design=new
+                "design": "classic"}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -389,6 +391,14 @@ class Handler(BaseHTTPRequestHandler):
         # نسخهٔ دستی (?v=...) هم با نسخهٔ واقعی جایگزین می‌شود تا هیچ فایلی در کش مرورگر نماند
         return re.sub(rb'((?:src|href)="assets/[^"?]+\.(?:js|css))(?:\?v=[^"]*)?"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
 
+    def page_html(self, data: bytes) -> bytes:
+        """صفحهٔ اصلی با نسخهٔ فایل‌ها و طراحی انتخاب‌شده در پنل (بدون پرش ظاهر هنگام بارگذاری)."""
+        data = self.versioned(data)
+        site = self.app.store.get_setting("site") or {}
+        if site.get("design") == "new":
+            data = data.replace(b'<html lang="fa" dir="rtl">', b'<html lang="fa" dir="rtl" data-design="new" data-design-src="site">', 1)
+        return data
+
     def send_text(self, text: str, ctype: str, status=200, cache="public, max-age=600"):
         body = text.encode()
         self.send_response(status)
@@ -477,10 +487,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_text(SITEMAP["xml"], "application/xml; charset=utf-8")
             p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
             if p is not None:
-                tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
+                tpl = self.page_html((ROOT / "index.html").read_bytes()).decode()
                 return self.send_text(seo.render(tpl, p, VERSION), "text/html; charset=utf-8", cache="no-cache")
             if re.fullmatch(r"/(melk|ad|rahnama|maghale)/.*", url.path):
-                tpl = self.versioned((ROOT / "index.html").read_bytes()).decode()
+                tpl = self.page_html((ROOT / "index.html").read_bytes()).decode()
                 body = seo.render(tpl, {"title": "یافت نشد", "desc": "این صفحه پیدا نشد.", "canonical": self.base_url() + "/",
                                         "body": "<h1>این صفحه پیدا نشد</h1><p><a href=\"/\">بازگشت به صفحهٔ اصلی</a></p>",
                                         "ld": [], "hash": "", "noindex": True}, VERSION)
@@ -517,7 +527,9 @@ class Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or ctype in ("application/javascript", "image/svg+xml"):
             ctype += "; charset=utf-8"
         data = target.read_bytes()
-        if rel.endswith(".html"):
+        if rel == "index.html":
+            data = self.page_html(data)
+        elif rel.endswith(".html"):
             data = self.versioned(data)
         self.send_response(200)
         self.send_header("content-type", ctype)

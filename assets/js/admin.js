@@ -557,6 +557,11 @@
         <label class="field"><span>شعار کوتاه</span><input class="input" name="tagline" value="${esc(s.tagline)}"></label>
         <label class="field"><span>ایمیل پشتیبانی (اختیاری)</span><input class="input input--ltr" name="email" type="email" value="${esc(s.email)}"></label>
       </div><label class="field" style="margin-top:14px"><span>درباره سایت</span><textarea class="textarea" name="about">${esc(s.about)}</textarea></label></div>
+      <div class="panel"><h2>طراحی سایت</h2>
+        <div class="grid2"><label class="field"><span>طراحی فعال برای همهٔ بازدیدکنندگان</span><select class="select" name="design">
+          <option value="classic" ${s.design !== "new" ? "selected" : ""}>طراحی قبلی</option>
+          <option value="new" ${s.design === "new" ? "selected" : ""}>طراحی سینمایی تازه</option></select></label></div>
+        <p class="hint">پیش از روشن کردن برای همه، طراحی تازه را خودتان ببینید: <a href="/?design=new" target="_blank" rel="noopener">پیش‌نمایش طراحی تازه</a> · <a href="/?design=classic" target="_blank" rel="noopener">بازگشت به طراحی قبلی در این مرورگر</a>. پیش‌نمایش فقط در مرورگر خود شما می‌ماند. هر دو تم روشن و تیره پشتیبانی می‌شوند و روی سیستم‌ها و گوشی‌های ضعیف، جلوه‌های سنگین خودکار خاموش می‌شوند.</p></div>
       <div class="panel"><h2>منبع نقشه (اختیاری)</h2>
         <p class="hint">نقشه از طریق سرور خود سایت و با چند منبع پشتیبان (OpenStreetMap و منابع ماهواره‌ای) نمایش داده و ذخیره می‌شود. اگر از یک سرویس نقشهٔ ایرانی مثل Map.ir کلید گرفته‌اید، نشانی کاشی‌اش را این‌جا بگذارید تا همیشه اول از همان گرفته شود (سریع‌تر در ایران و مستقل از اینترنت بین‌الملل). نشانی باید {z}، {x} و {y} داشته باشد؛ کلید را داخل خود نشانی بگذارید.</p>
         <div class="grid2"><label class="field"><span>نقشهٔ خیابان</span><input class="input input--ltr" id="tileStreet" value="${esc((S.tiles || {}).street || "")}" placeholder="https://…/{z}/{x}/{y}.png?x-api-key=…"></label>
