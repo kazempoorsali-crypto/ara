@@ -1264,74 +1264,132 @@ const App = (() => {
           try { done(await DataLayer.login($("#liId").value.trim(), $("#liPw").value)); } catch (err) { toast(err.message); } b.disabled = false; });
       } else if (t === "register") {
         body.innerHTML = `<div class="reg-form-container">
-          <p class="muted small" style="margin-bottom:10px">${cfg.trial_days ? `با ثبت‌نام، همهٔ امکانات سایت <b>${fa(cfg.trial_days)} روز رایگان</b> باز می‌شود. ` : ""}شمارهٔ موبایل با یک کد تأیید می‌شود.</p>
           <div id="reg-error-box" class="reg-error-summary"></div>
-          <form class="form-grid" id="rgForm" onsubmit="return handleRegisterSubmit(event)">
-          <div class="row2"><label class="field reg-input-group"><span class="reg-label">نام</span><input class="input reg-input" id="rgFirst" autocomplete="given-name" required></label>
-          <label class="field reg-input-group"><span class="reg-label">نام خانوادگی</span><input class="input reg-input" id="rgLast" autocomplete="family-name" required></label></div>
-          <div class="reg-input-group">
-            <label class="reg-label" for="reg-phone">شمارهٔ موبایل</label>
-            <div class="reg-input-wrap">
-              <input class="input reg-input input--ltr" id="reg-phone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="tel" required>
+          <form id="rgForm" onsubmit="return handleRegisterSubmit(event);">
+            <div class="reg-input-group">
+              <label class="reg-label" for="reg-phone">شماره تلفن همراه</label>
+              <div class="reg-input-wrap">
+                <input
+                  type="tel"
+                  id="reg-phone"
+                  name="phone"
+                  class="reg-input"
+                  dir="ltr"
+                  placeholder="09123456789"
+                  required
+                />
+              </div>
             </div>
-          </div>
-          <label class="field reg-input-group"><span class="reg-label">ایمیل (اختیاری)</span><input class="input reg-input input--ltr" id="rgEmail" type="email" autocomplete="email" placeholder="برای بازیابی رمز و ایمیل خوش‌آمد"></label>
-          <label class="field reg-input-group"><span class="reg-label">نام کاربری (انگلیسی)</span><input class="input reg-input input--ltr" id="rgUser" autocomplete="username" placeholder="مثلاً ali_rezaei" required></label>
-          <div class="reg-input-group">
-            <label class="reg-label" for="reg-password">رمز عبور</label>
-            <div class="reg-input-wrap">
-              <input class="input reg-input input--ltr" id="reg-password" name="password" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required oninput="onPasswordInput(this)">
-              <button type="button" class="reg-eye-btn" onclick="togglePasswordVisibility('reg-password', this)" title="نمایش رمز">👁</button>
+            <div class="reg-input-group">
+              <label class="reg-label" for="reg-password">رمز عبور</label>
+              <div class="reg-input-wrap">
+                <input
+                  type="password"
+                  id="reg-password"
+                  name="password"
+                  class="reg-input"
+                  dir="ltr"
+                  placeholder="رمز عبور ایمن را تایپ کنید..."
+                  oninput="onPasswordInput(this)"
+                  required
+                />
+                <button
+                  type="button"
+                  class="reg-eye-btn"
+                  onclick="togglePasswordVisibility('reg-password', this)"
+                  title="نمایش رمز"
+                >👁</button>
+              </div>
+              <div class="password-rules-box">
+                <div class="rules-header">معیارهای رمز عبور (با تایپ شما سبز می‌شوند):</div>
+                <div id="rule-len" class="rule-item invalid">
+                  <span class="rule-icon">○</span>
+                  <span>حداقل ۸ کاراکتر</span>
+                </div>
+                <div id="rule-upper" class="rule-item invalid">
+                  <span class="rule-icon">○</span>
+                  <span>حداقل یک حرف بزرگ انگلیسی (A-Z)</span>
+                </div>
+                <div id="rule-lower" class="rule-item invalid">
+                  <span class="rule-icon">○</span>
+                  <span>حداقل یک حرف کوچک انگلیسی (a-z)</span>
+                </div>
+                <div id="rule-num" class="rule-item invalid">
+                  <span class="rule-icon">○</span>
+                  <span>حداقل یک رقم عددی (0-9)</span>
+                </div>
+                <div id="rule-spec" class="rule-item invalid">
+                  <span class="rule-icon">○</span>
+                  <span>حداقل یک نشانه خاص (@$!%*#?&)</span>
+                </div>
+              </div>
             </div>
-            <div class="password-rules-box">
-              <div class="rules-header">معیارهای پنج‌گانه رمز عبور:</div>
-              <div id="rule-len" class="rule-item"><span class="rule-icon">○</span><span>حداقل ۸ کاراکتر</span></div>
-              <div id="rule-upper" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک حرف بزرگ انگلیسی (A-Z)</span></div>
-              <div id="rule-lower" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک حرف کوچک انگلیسی (a-z)</span></div>
-              <div id="rule-num" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک رقم عددی (0-9)</span></div>
-              <div id="rule-spec" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک کاراکتر ویژه (@$!%*#?&)</span></div>
+            <div class="reg-input-group">
+              <label class="reg-label" for="reg-password-confirm">تکرار رمز عبور</label>
+              <div class="reg-input-wrap">
+                <input
+                  type="password"
+                  id="reg-password-confirm"
+                  name="confirm_password"
+                  class="reg-input"
+                  dir="ltr"
+                  placeholder="تکرار رمز عبور..."
+                  oninput="onConfirmPasswordInput(this)"
+                  required
+                />
+                <button
+                  type="button"
+                  class="reg-eye-btn"
+                  onclick="togglePasswordVisibility('reg-password-confirm', this)"
+                  title="نمایش رمز"
+                >👁</button>
+              </div>
+              <div id="reg-password-match" class="password-match-msg"></div>
             </div>
-          </div>
-          <div class="reg-input-group">
-            <label class="reg-label" for="reg-password-confirm">تکرار رمز عبور</label>
-            <div class="reg-input-wrap">
-              <input class="input reg-input input--ltr" id="reg-password-confirm" name="password_confirm" type="password" autocomplete="new-password" required oninput="onConfirmPasswordInput(this)">
-              <button type="button" class="reg-eye-btn" onclick="togglePasswordVisibility('reg-password-confirm', this)" title="نمایش رمز">👁</button>
+            <div style="margin-top: 20px;">
+              <button
+                type="submit"
+                id="rgBtn"
+                style="width:100%; padding:12px; background:#10b981; color:#020617; border:none; border-radius:8px; font-weight:bold; cursor:pointer;"
+              >
+                تایید و عضویت
+              </button>
             </div>
-            <div id="reg-password-match" class="password-match-msg"></div>
-          </div>
-          <div class="field"><span>دریافت کد تأیید موبایل</span><div class="otpch" id="rgCh"></div></div>
-          <div id="rgStep2" hidden><label class="field reg-input-group"><span class="reg-label">کد تأیید</span><input class="input reg-input input--ltr" id="rgCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="rgNote"></p></div>
-          <button class="btn btn--hot btn--lg" type="submit" id="rgBtn" style="width:100%;margin-top:10px">دریافت کد تأیید</button></form>
+          </form>
         </div>`;
-        const chp = chPicker($("#rgCh"));
+        const chEl = $("#rgCh");
+        const chp = chEl ? chPicker(chEl) : { value: "sms" };
         let sent = false;
-        $("#rgForm").addEventListener("submit", async (e) => {
-          e.preventDefault();
-          if (typeof window.handleRegisterSubmit === 'function' && !window.handleRegisterSubmit(e)) return;
-          const b = $("#rgBtn"); b.disabled = true;
-          try {
-            const phoneVal = ($("#reg-phone") || $("#rgPhone")).value.trim();
-            const passVal = ($("#reg-password") || $("#rgPw")).value;
-            if (!sent) {
-              const r = await DataLayer.requestOtp(phoneVal, chp.value);
-              sent = true; $("#rgStep2").hidden = false;
-              if ($("#reg-phone")) $("#reg-phone").readOnly = true;
-              $("#rgNote").innerHTML = codeNote(r); b.textContent = "تأیید و ساخت حساب"; $("#rgCode").focus();
-            } else {
-              done(await DataLayer.register({
-                first_name: $("#rgFirst") ? $("#rgFirst").value : "",
-                last_name: $("#rgLast") ? $("#rgLast").value : "",
-                phone: phoneVal,
-                email: $("#rgEmail") ? $("#rgEmail").value : "",
-                username: $("#rgUser") ? $("#rgUser").value : "",
-                password: passVal,
-                code: $("#rgCode") ? $("#rgCode").value : ""
-              }));
-            }
-          } catch (err) { toast(err.message); }
-          b.disabled = false;
-        });
+        const formEl = $("#rgForm");
+        if (formEl) {
+          formEl.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (typeof window.handleRegisterSubmit === 'function' && !window.handleRegisterSubmit(e)) return;
+            const b = $("#rgBtn"); if (b) b.disabled = true;
+            try {
+              const phoneVal = ($("#reg-phone") || $("#rgPhone")) ? ($("#reg-phone") || $("#rgPhone")).value.trim() : "";
+              const passVal = ($("#reg-password") || $("#rgPw")) ? ($("#reg-password") || $("#rgPw")).value : "";
+              if (!sent && chEl) {
+                const r = await DataLayer.requestOtp(phoneVal, chp.value);
+                sent = true; if ($("#rgStep2")) $("#rgStep2").hidden = false;
+                if ($("#reg-phone")) $("#reg-phone").readOnly = true;
+                if ($("#rgNote")) $("#rgNote").innerHTML = codeNote(r); if (b) b.textContent = "تأیید و ساخت حساب"; if ($("#rgCode")) $("#rgCode").focus();
+              } else {
+                const u = await DataLayer.register({
+                  first_name: $("#rgFirst") ? $("#rgFirst").value : "",
+                  last_name: $("#rgLast") ? $("#rgLast").value : "",
+                  phone: phoneVal,
+                  email: $("#rgEmail") ? $("#rgEmail").value : "",
+                  username: $("#rgUser") ? $("#rgUser").value : "",
+                  password: passVal,
+                  code: $("#rgCode") ? $("#rgCode").value : ""
+                });
+                if (u) done(u);
+              }
+            } catch (err) { toast(err.message); }
+            if (b) b.disabled = false;
+          });
+        }
       } else if (t === "reset") {
         body.innerHTML = `<form class="form-grid" id="rsForm">
           <label class="field"><span>موبایل، نام کاربری یا ایمیل</span><input class="input input--ltr" id="rsId" required></label>
@@ -3151,6 +3209,7 @@ if (typeof window !== 'undefined') {
     var errors = [];
 
     var safeEsc = typeof esc === 'function' ? esc : (typeof UI !== 'undefined' && UI.esc ? UI.esc : function(s) { return String(s ?? "").replace(/[&<>"']/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); });
+    if (typeof window !== 'undefined' && typeof window.esc !== 'function') { window.esc = safeEsc; }
 
     // ۱. اعتبارسنجی شماره موبایل
     if (!/^09[0-9]{9}$/.test(phone)) {
