@@ -2336,3 +2336,12 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 :root:not([data-theme="dark"]) .lightbox__top-close { background: #fff; color: var(--ink); border-color: var(--line); box-shadow: 0 6px 18px -8px rgba(0,0,0,.3); }
 :root:not([data-theme="dark"]) .lbz__hint { background: rgba(255,255,255,.92); color: var(--ink-2); box-shadow: 0 4px 14px -6px rgba(0,0,0,.25); }
 :root:not([data-theme="dark"]) .lightbox--photo .lbz__img img { box-shadow: 0 30px 70px -30px rgba(40,30,20,.45); }
+
+/* تصویر آنی کره تا آماده شدن کرهٔ سه‌بعدی: کره‌ای سبک با بافت ۱۰۲۴ پیکسلی و چرخش آرام */
+.globe-poster { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; pointer-events: none; transition: opacity .6s ease; }
+.globe-poster.is-out { opacity: 0; }
+.globe-poster i { height: 72%; aspect-ratio: 1; border-radius: 50%; background-size: 200% 100%; background-repeat: repeat-x; background-position: 0 50%;
+  box-shadow: inset -22px -16px 46px rgba(0,0,0,.55), inset 10px 8px 26px rgba(255,255,255,.12), 0 0 40px rgba(110,210,170,.25);
+  animation: posterSpin 60s linear infinite; }
+@keyframes posterSpin { to { background-position: -200% 50%; } }
+:root.lite .globe-poster i { animation: none; }
