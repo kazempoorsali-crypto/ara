@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="28%" r="85%">
+      <stop offset="0" stop-color="#24493d"/><stop offset=".55" stop-color="#13201c"/><stop offset="1" stop-color="#0b1411"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="58%" r="45%">
+      <stop offset="0" stop-color="#3ccf8e" stop-opacity=".18"/><stop offset="1" stop-color="#3ccf8e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <!-- نشان فرصت ملک: بام خانه، موج (محله/بازار) و نقطهٔ نارنجی فرصت؛ در مرکز و داخل دایرهٔ امن برش گرد بله -->
+  <g transform="translate(512 520) scale(13.6) translate(-24 -24)" filter="url(#sh)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 31c4.5-3.4 9-3.4 13.5 0s9 3.4 13.5 0" stroke="#7fc7a6" stroke-width="2.6"/>
+    <path d="M14 25l10-10 10 10" stroke="#fffdf9" stroke-width="2.8"/>
+    <circle cx="35" cy="13" r="3.4" fill="#e0531f" stroke="none"/>
+  </g>
+</svg>
