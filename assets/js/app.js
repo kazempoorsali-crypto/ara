@@ -54,6 +54,60 @@ const App = (() => {
   }
   const active = () => !!(DataLayer.me && DataLayer.me.active);
 
+  /* منوی «حساب من»: با ورود، دکمهٔ حساب یک منوی کوچک باز می‌کند؛ بدون اشتراک فعال، «فعال‌سازی اشتراک» بالای منوست */
+  function closeAcctMenu() { const m = $("#acctMenu"); if (!m) return; m.remove(); $("#accountBtn")?.setAttribute("aria-expanded", "false"); }
+  function acctMenu() {
+    const me = DataLayer.me, btn = $("#accountBtn");
+    if ($("#acctMenu")) { closeAcctMenu(); return; }
+    const m = document.createElement("div");
+    m.id = "acctMenu"; m.className = "amenu"; m.setAttribute("role", "menu");
+    m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
+      ${me.active ? "" : `<button type="button" class="amenu__sub" role="menuitem" data-a="sub">${icon("spark")}<span><b>فعال‌سازی اشتراک</b><small>هفتگی یا ماهانه، با بله‌پی یا بزن به کارت</small></span></button>`}
+      <a role="menuitem" href="#/account">${icon("user")} حساب من</a>
+      <a role="menuitem" href="#/support">${icon("chat")} پشتیبانی و تیکت‌ها</a>
+      <button type="button" role="menuitem" data-a="out">${icon("logout")} خروج</button>`;
+    document.body.append(m);
+    const r = btn.getBoundingClientRect();
+    m.style.top = Math.round(r.bottom + 8) + "px";
+    m.style.left = Math.round(Math.max(12, Math.min(r.left, innerWidth - m.offsetWidth - 12))) + "px";
+    btn.setAttribute("aria-expanded", "true");
+    m.addEventListener("click", async (e) => {
+      const t = e.target.closest("a, button"); if (!t) return;
+      closeAcctMenu();
+      if (t.dataset.a === "sub") subscribeDialog();
+      else if (t.dataset.a === "out") { await DataLayer.logout(); updateAccount(); route(); }
+    });
+    setTimeout(() => {
+      const off = (e) => { if (!e.target.closest("#acctMenu, #accountBtn")) { closeAcctMenu(); document.removeEventListener("pointerdown", off); } };
+      document.addEventListener("pointerdown", off);
+    });
+  }
+  /* خرید اشتراک در یک پنجره: انتخاب طرح (هفتگی/ماهانه) و سپس پرداخت با بله‌پی یا بزن به کارت */
+  function subscribeDialog(planId) {
+    if (!DataLayer.me) { loginDialog(() => subscribeDialog(planId)); return; }
+    const plans = cfg.plans || [];
+    if (!plans.length) { toast("تعرفهٔ اشتراک هنوز تعیین نشده است"); return; }
+    const all = cfg.pay_methods || [];
+    let ms = all.filter((x) => x.id === "bale" || x.id === "bezan");
+    if (!ms.length) ms = all;
+    let sel = plans.some((p) => p.id === planId) ? planId : plans[plans.length - 1].id;
+    openDialog(`<div class="dlg__head"><h2>فعال‌سازی اشتراک</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <p class="muted small" style="margin-bottom:12px">همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل، پیوند مستقیم هر آگهی اصلی و جزئیات کامل ارزش‌گذاری باز می‌شود. بدون تمدید خودکار.</p>
+      <div class="subp" role="radiogroup" aria-label="طرح اشتراک">${plans.map((p) => `<button type="button" class="subp__opt" role="radio" data-p="${p.id}">
+        <span><b>${esc(p.name)}</b><small>${fa(p.days)} روز دسترسی کامل</small></span><em>${fa(p.price)} <small>تومان</small></em></button>`).join("")}</div>
+      <h3 class="subp__h">روش پرداخت</h3>
+      <div class="paym">${ms.map((m) => `<button type="button" class="paym__opt${m.ready ? "" : " is-off"}" data-m="${m.id}" aria-disabled="${!m.ready}">
+        <i>${icon(PAY_ICON[m.id] || "spark")}</i><span><b>${esc(m.name)}</b><small>${m.ready ? PAY_NOTE[m.id] || "" : "فعلاً فعال نیست"}</small></span>${m.ready ? icon("arrow") : "<em>به‌زودی</em>"}</button>`).join("") || `<p class="muted small">هنوز روش پرداختی فعال نشده است.</p>`}</div>`);
+    const mark = () => $$(".subp__opt").forEach((b) => { const on = b.dataset.p === sel; b.classList.toggle("is-on", on); b.setAttribute("aria-checked", on); });
+    mark();
+    $$(".subp__opt").forEach((b) => b.addEventListener("click", () => { sel = b.dataset.p; mark(); }));
+    $$("#dlg .paym__opt").forEach((b) => b.addEventListener("click", () => {
+      const m = ms.find((x) => x.id === b.dataset.m);
+      if (!m.ready) { toast(`«${m.name}» فعلاً فعال نیست؛ روش دیگری را انتخاب کنید`); return; }
+      $("#dlg").close(); buy(sel, cfg.test_payments ? undefined : m.id);
+    }));
+  }
+
   /* ---------- مسیریابی ---------- */
   function parseHash() {
     const h = location.hash.replace(/^#\/?/, "");
@@ -1489,6 +1543,7 @@ const App = (() => {
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
           <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
+          ${me.active ? "" : `<button class="btn btn--hot" id="subBtn">فعال‌سازی اشتراک</button>`}
           <a class="btn btn--line" href="#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
         </div>
@@ -1505,6 +1560,7 @@ const App = (() => {
         </form>` : `<div class="empty"><h3>وارد حساب خود شوید</h3><p>با شمارهٔ موبایل و رمز وارد شوید، یا با همین شماره در چند ثانیه ثبت‌نام کنید.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
     </div></section>${plansSection()}`;
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
+    $("#subBtn")?.addEventListener("click", () => subscribeDialog());
     // کارت‌به‌کارت خودکار: تا تطبیق واریز، هر ۸ ثانیه (حداکثر ۴۵ دقیقه) وضعیت پرسیده می‌شود
     if (params.pending && me) {
       const pid = params.pending, t0 = Date.now();
@@ -3005,6 +3061,13 @@ const App = (() => {
   }
 
   function bindGlobal() {
+    // دکمهٔ حساب: پیش از ورود به صفحهٔ حساب می‌رود؛ پس از ورود منوی حساب را باز می‌کند
+    const ab = $("#accountBtn");
+    ab.setAttribute("aria-haspopup", "menu"); ab.setAttribute("aria-expanded", "false");
+    ab.addEventListener("click", (e) => { if (!DataLayer.me) return; e.preventDefault(); acctMenu(); });
+    addEventListener("keydown", (e) => { if (e.key === "Escape") closeAcctMenu(); });
+    addEventListener("hashchange", closeAcctMenu);
+    addEventListener("resize", closeAcctMenu);
     const top = document.querySelector(".top");
     // نوار جست‌وجوی جمع‌شونده و اندازهٔ نقشه بر پایهٔ ارتفاع واقعی نوارها
     const measure = () => {

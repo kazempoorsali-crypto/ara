@@ -64,6 +64,8 @@ const UI = (() => {
     tg: '<path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/>',
     alert: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17h.01"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+    logout: '<path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l-5-5 5-5M5 12h11"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/>',
     upload: '<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
     expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
