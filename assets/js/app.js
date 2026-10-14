@@ -1263,30 +1263,71 @@ const App = (() => {
         $("#liForm").addEventListener("submit", async (e) => { e.preventDefault(); const b = $("#liBtn"); b.disabled = true;
           try { done(await DataLayer.login($("#liId").value.trim(), $("#liPw").value)); } catch (err) { toast(err.message); } b.disabled = false; });
       } else if (t === "register") {
-        body.innerHTML = `<p class="muted small" style="margin-bottom:10px">${cfg.trial_days ? `با ثبت‌نام، همهٔ امکانات سایت <b>${fa(cfg.trial_days)} روز رایگان</b> باز می‌شود. ` : ""}شمارهٔ موبایل با یک کد تأیید می‌شود.</p>
-          <form class="form-grid" id="rgForm">
-          <div class="row2"><label class="field"><span>نام</span><input class="input" id="rgFirst" autocomplete="given-name" required></label>
-          <label class="field"><span>نام خانوادگی</span><input class="input" id="rgLast" autocomplete="family-name" required></label></div>
-          <label class="field"><span>شمارهٔ موبایل</span><input class="input input--ltr" id="rgPhone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="tel" required></label>
-          <label class="field"><span>ایمیل (اختیاری)</span><input class="input input--ltr" id="rgEmail" type="email" autocomplete="email" placeholder="برای بازیابی رمز و ایمیل خوش‌آمد"></label>
-          <label class="field"><span>نام کاربری (انگلیسی)</span><input class="input input--ltr" id="rgUser" autocomplete="username" placeholder="مثلاً ali_rezaei" required></label>
-          <div class="row2"><label class="field"><span>رمز عبور</span><input class="input input--ltr" id="rgPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required></label>
-          <label class="field"><span>تکرار رمز</span><input class="input input--ltr" id="rgPw2" type="password" autocomplete="new-password" required></label></div>
+        body.innerHTML = `<div class="reg-form-container">
+          <p class="muted small" style="margin-bottom:10px">${cfg.trial_days ? `با ثبت‌نام، همهٔ امکانات سایت <b>${fa(cfg.trial_days)} روز رایگان</b> باز می‌شود. ` : ""}شمارهٔ موبایل با یک کد تأیید می‌شود.</p>
+          <div id="reg-error-box" class="reg-error-summary"></div>
+          <form class="form-grid" id="rgForm" onsubmit="return handleRegisterSubmit(event)">
+          <div class="row2"><label class="field reg-input-group"><span class="reg-label">نام</span><input class="input reg-input" id="rgFirst" autocomplete="given-name" required></label>
+          <label class="field reg-input-group"><span class="reg-label">نام خانوادگی</span><input class="input reg-input" id="rgLast" autocomplete="family-name" required></label></div>
+          <div class="reg-input-group">
+            <label class="reg-label" for="reg-phone">شمارهٔ موبایل</label>
+            <div class="reg-input-wrap">
+              <input class="input reg-input input--ltr" id="reg-phone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="tel" required>
+            </div>
+          </div>
+          <label class="field reg-input-group"><span class="reg-label">ایمیل (اختیاری)</span><input class="input reg-input input--ltr" id="rgEmail" type="email" autocomplete="email" placeholder="برای بازیابی رمز و ایمیل خوش‌آمد"></label>
+          <label class="field reg-input-group"><span class="reg-label">نام کاربری (انگلیسی)</span><input class="input reg-input input--ltr" id="rgUser" autocomplete="username" placeholder="مثلاً ali_rezaei" required></label>
+          <div class="reg-input-group">
+            <label class="reg-label" for="reg-password">رمز عبور</label>
+            <div class="reg-input-wrap">
+              <input class="input reg-input input--ltr" id="reg-password" name="password" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required oninput="onPasswordInput(this)">
+              <button type="button" class="reg-eye-btn" onclick="togglePasswordVisibility('reg-password', this)" title="نمایش رمز">👁</button>
+            </div>
+            <div class="password-rules-box">
+              <div class="rules-header">معیارهای پنج‌گانه رمز عبور:</div>
+              <div id="rule-len" class="rule-item"><span class="rule-icon">○</span><span>حداقل ۸ کاراکتر</span></div>
+              <div id="rule-upper" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک حرف بزرگ انگلیسی (A-Z)</span></div>
+              <div id="rule-lower" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک حرف کوچک انگلیسی (a-z)</span></div>
+              <div id="rule-num" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک رقم عددی (0-9)</span></div>
+              <div id="rule-spec" class="rule-item"><span class="rule-icon">○</span><span>حداقل یک کاراکتر ویژه (@$!%*#?&)</span></div>
+            </div>
+          </div>
+          <div class="reg-input-group">
+            <label class="reg-label" for="reg-password-confirm">تکرار رمز عبور</label>
+            <div class="reg-input-wrap">
+              <input class="input reg-input input--ltr" id="reg-password-confirm" name="password_confirm" type="password" autocomplete="new-password" required oninput="onConfirmPasswordInput(this)">
+              <button type="button" class="reg-eye-btn" onclick="togglePasswordVisibility('reg-password-confirm', this)" title="نمایش رمز">👁</button>
+            </div>
+            <div id="reg-password-match" class="password-match-msg"></div>
+          </div>
           <div class="field"><span>دریافت کد تأیید موبایل</span><div class="otpch" id="rgCh"></div></div>
-          <div id="rgStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="rgCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="rgNote"></p></div>
-          <button class="btn btn--hot btn--lg" id="rgBtn">دریافت کد تأیید</button></form>`;
+          <div id="rgStep2" hidden><label class="field reg-input-group"><span class="reg-label">کد تأیید</span><input class="input reg-input input--ltr" id="rgCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="rgNote"></p></div>
+          <button class="btn btn--hot btn--lg" type="submit" id="rgBtn" style="width:100%;margin-top:10px">دریافت کد تأیید</button></form>
+        </div>`;
         const chp = chPicker($("#rgCh"));
         let sent = false;
         $("#rgForm").addEventListener("submit", async (e) => {
-          e.preventDefault(); const b = $("#rgBtn"); b.disabled = true;
+          e.preventDefault();
+          if (typeof window.handleRegisterSubmit === 'function' && !window.handleRegisterSubmit(e)) return;
+          const b = $("#rgBtn"); b.disabled = true;
           try {
-            if ($("#rgPw").value !== $("#rgPw2").value) throw new Error("رمز و تکرار آن یکسان نیستند");
+            const phoneVal = ($("#reg-phone") || $("#rgPhone")).value.trim();
+            const passVal = ($("#reg-password") || $("#rgPw")).value;
             if (!sent) {
-              const r = await DataLayer.requestOtp($("#rgPhone").value, chp.value);
-              sent = true; $("#rgStep2").hidden = false; $("#rgPhone").readOnly = true; $("#rgNote").innerHTML = codeNote(r); b.textContent = "تأیید و ساخت حساب"; $("#rgCode").focus();
+              const r = await DataLayer.requestOtp(phoneVal, chp.value);
+              sent = true; $("#rgStep2").hidden = false;
+              if ($("#reg-phone")) $("#reg-phone").readOnly = true;
+              $("#rgNote").innerHTML = codeNote(r); b.textContent = "تأیید و ساخت حساب"; $("#rgCode").focus();
             } else {
-              done(await DataLayer.register({ first_name: $("#rgFirst").value, last_name: $("#rgLast").value, phone: $("#rgPhone").value, email: $("#rgEmail").value,
-                username: $("#rgUser").value, password: $("#rgPw").value, code: $("#rgCode").value }));
+              done(await DataLayer.register({
+                first_name: $("#rgFirst") ? $("#rgFirst").value : "",
+                last_name: $("#rgLast") ? $("#rgLast").value : "",
+                phone: phoneVal,
+                email: $("#rgEmail") ? $("#rgEmail").value : "",
+                username: $("#rgUser") ? $("#rgUser").value : "",
+                password: passVal,
+                code: $("#rgCode") ? $("#rgCode").value : ""
+              }));
             }
           } catch (err) { toast(err.message); }
           b.disabled = false;
@@ -3007,3 +3048,169 @@ const App = (() => {
   document.addEventListener("DOMContentLoaded", boot);
   return { get favs() { return state.favs; }, get compare() { return state.compare; } };
 })();
+
+// ========================================================
+// اصلاح و بازطراحی سیستم اعتبارسنجی ثبت‌نام و رمز عبور
+// ========================================================
+
+if (typeof window !== 'undefined') {
+  window.API = window.API || (typeof DataLayer !== 'undefined' ? DataLayer : {});
+}
+
+// معیارهای پنج‌گانه رمز عبور
+var passwordRules = [
+  { id: 'rule-len', label: 'حداقل ۸ کاراکتر', test: function(p) { return p.length >= 8; } },
+  { id: 'rule-upper', label: 'حداقل یک حرف بزرگ انگلیسی (A-Z)', test: function(p) { return /[A-Z]/.test(p); } },
+  { id: 'rule-lower', label: 'حداقل یک حرف کوچک انگلیسی (a-z)', test: function(p) { return /[a-z]/.test(p); } },
+  { id: 'rule-num', label: 'حداقل یک رقم عددی (0-9)', test: function(p) { return /[0-9]/.test(p); } },
+  { id: 'rule-spec', label: 'حداقل یک کاراکتر ویژه (@$!%*#?&)', test: function(p) { return /[@$!%*#?&]/.test(p); } }
+];
+if (typeof window !== 'undefined') window.passwordRules = passwordRules;
+
+// تابع بررسی لحظه‌ای رمز و سبز کردن گزینه‌ها
+if (typeof window !== 'undefined') {
+  window.onPasswordInput = function(input) {
+    var val = input.value;
+    var allPassed = true;
+
+    passwordRules.forEach(function(rule) {
+      var el = document.getElementById(rule.id);
+      if (!el) return;
+
+      if (rule.test(val)) {
+        el.classList.add('valid');
+        el.classList.remove('invalid');
+        var icon = el.querySelector('.rule-icon');
+        if (icon) icon.textContent = '✓';
+      } else {
+        allPassed = false;
+        el.classList.remove('valid');
+        el.classList.add('invalid');
+        var icon = el.querySelector('.rule-icon');
+        if (icon) icon.textContent = '○';
+      }
+    });
+
+    // بررسی تکرار رمز اگر پر شده باشد
+    var confirmInput = document.getElementById('reg-password-confirm');
+    if (confirmInput && confirmInput.value) {
+      window.onConfirmPasswordInput(confirmInput);
+    }
+
+    return allPassed;
+  };
+
+  // تابع بررسی تطابق تکرار رمز
+  window.onConfirmPasswordInput = function(confirmInput) {
+    var passInput = document.getElementById('reg-password');
+    var matchMsg = document.getElementById('reg-password-match');
+    if (!passInput || !matchMsg) return;
+
+    if (!confirmInput.value) {
+      matchMsg.style.display = 'none';
+      return;
+    }
+
+    matchMsg.style.display = 'block';
+    if (confirmInput.value === passInput.value) {
+      matchMsg.textContent = '✓ تکرار رمز عبور مطابقت دارد.';
+      matchMsg.className = 'password-match-msg match-success';
+    } else {
+      matchMsg.textContent = '✕ تکرار رمز عبور با رمز اصلی همخوانی ندارد.';
+      matchMsg.className = 'password-match-msg match-error';
+    }
+  };
+
+  // تابع نمایش / مخفی‌سازی رمز عبور (آیکون چشم)
+  window.togglePasswordVisibility = function(inputId, btn) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🔒';
+      btn.title = 'مخفی کردن';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+      btn.title = 'نمایش رمز';
+    }
+  };
+
+  // تابع تایید و ارسال نهایی فرم ثبت‌نام (بررسی خطاها و اعلام دقیق)
+  window.handleRegisterSubmit = function(e) {
+    if (e) e.preventDefault();
+
+    var phoneEl = document.getElementById('reg-phone');
+    var passEl = document.getElementById('reg-password');
+    var confirmEl = document.getElementById('reg-password-confirm');
+    var errBox = document.getElementById('reg-error-box');
+
+    var phone = phoneEl ? phoneEl.value.trim() : '';
+    var pass = passEl ? passEl.value : '';
+    var confirm = confirmEl ? confirmEl.value : '';
+    var errors = [];
+
+    var safeEsc = typeof esc === 'function' ? esc : (typeof UI !== 'undefined' && UI.esc ? UI.esc : function(s) { return String(s ?? "").replace(/[&<>"']/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); });
+
+    // ۱. اعتبارسنجی شماره موبایل
+    if (!/^09[0-9]{9}$/.test(phone)) {
+      errors.push('شماره موبایل باید ۱۱ رقم باشد و با 09 آغاز شود.');
+    }
+
+    // ۲. بررسی تک‌تک معیارهای رمز عبور
+    passwordRules.forEach(function(rule) {
+      if (!rule.test(pass)) {
+        errors.push('ایراد رمز: شرط «' + rule.label + '» رعایت نشده است.');
+      }
+    });
+
+    // ۳. بررسی همخوانی تکرار رمز
+    if (pass !== confirm) {
+      errors.push('رمز عبور و تکرار آن یکسان نیستند.');
+    }
+
+    // ۴. اگر خطایی وجود دارد، نمایش دقیق خطاها
+    if (errors.length > 0) {
+      if (errBox) {
+        errBox.style.display = 'block';
+        var html = '<div class="err-box-title">⚠️ لطفاً خطاهای زیر را برطرف کنید:</div><ul>';
+        errors.forEach(function(err) {
+          html += '<li>' + safeEsc(err) + '</li>';
+        });
+        html += '</ul>';
+        errBox.innerHTML = html;
+        if (typeof errBox.scrollIntoView === 'function') {
+          errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+      if (typeof toast === 'function') {
+        toast('لطفاً خطاهای فرم ثبت‌نام را برطرف فرمایید.', 'error');
+      }
+      return false;
+    }
+
+    // اگر همه موارد تایید شد:
+    if (errBox) errBox.style.display = 'none';
+
+    // فراخوانی API ثبت‌نام سرور
+    var apiObj = typeof API !== 'undefined' ? API : (typeof DataLayer !== 'undefined' ? DataLayer : null);
+    if (apiObj && apiObj.register) {
+      var cb = function(res) {
+        if (res && (res.ok || res.id || res.phone)) {
+          if (typeof toast === 'function') toast('ثبت‌نام با موفقیت انجام شد.', 'success');
+        } else {
+          if (errBox) {
+            errBox.style.display = 'block';
+            errBox.innerHTML = '<div>' + safeEsc((res && res.error) || 'خطایی در ثبت‌نام رخ داد') + '</div>';
+          }
+        }
+      };
+      var ret = apiObj.register({ phone: phone, password: pass }, cb);
+      if (ret && typeof ret.then === 'function') {
+        ret.then(function(res) { cb(res || { ok: true }); }).catch(function(err) { cb({ ok: false, error: err.message }); });
+      }
+    }
+
+    return true;
+  };
+}
