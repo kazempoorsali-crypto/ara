@@ -655,6 +655,8 @@ class Handler(BaseHTTPRequestHandler):
     def pay_callback(self, params):
         ok = self.app.billing.callback(params)
         pid = params.get("pid") or params.get("order_id")
+        if ok == "pending":   # کارت‌به‌کارت خودکار: واریز هنوز تطبیق نشده؛ صفحهٔ حساب منتظر می‌ماند و خودکار بررسی می‌کند
+            return self.redirect(f"/#/account?pending={int(pid or 0)}")
         return self.redirect(f"/#/invoice/{pid}" if ok and pid else "/#/account?" + ("paid=1" if ok else "failed=1"))
 
     # ---------------------------------------------------------- public api
@@ -734,6 +736,19 @@ class Handler(BaseHTTPRequestHandler):
         a = self.app
         if path == "/api/config":
             return self.send_json(a.public_config(self.is_local()))
+        if path == "/api/pay/bezan/hook":
+            return self.api_post(path, {})
+        if path == "/api/pay/check":
+            # خریدار منتظر تطبیق کارت‌به‌کارت خودکار است؛ وضعیت فقط برای صاحب پرداخت
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            pid = int(qs.get("pid") or 0)
+            pay = a.store.q("SELECT gateway FROM payments WHERE id=? AND phone=?", (pid, u["phone"]), one=True)
+            if not pay:
+                return self.send_json({"error": "پرداخت پیدا نشد"}, 404)
+            st = a.billing.bezan_check(pid) if pay["gateway"] == "bezan" else "missing"
+            return self.send_json({"status": st})
         if path == "/api/pay/invoice":
             u = self.user()
             if not u:
@@ -865,6 +880,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/auth/logout":
             a.billing.logout(self.headers.get("x-user-token"))
             return self.send_json({"ok": True})
+        if path == "/api/pay/bezan/hook":
+            # اعلان سرور‌به‌سرور «بزن به کارت»: به محتوای آن اعتماد نمی‌شود؛ فقط امضا سنجیده و وضعیت از API خوانده می‌شود
+            q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+            pid = int(q.get("pid") or 0)
+            import hmac as _hm
+            if not pid or not _hm.compare_digest(q.get("sig") or "", a.billing.bezan_sig(pid)):
+                return self.send_json({"error": "امضای نامعتبر"}, 403)
+            return self.send_json({"ok": True, "status": a.billing.bezan_check(pid)})
         if path == "/api/pay/start":
             u = self.user()
             if not u:
@@ -953,7 +976,7 @@ class Handler(BaseHTTPRequestHandler):
                 "expansion": a.ingest.expansion(), "province_progress": a.ingest.province_progress(),
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "tickets_unread": a.support.unread_admin(), "flags": a.flags.counts(), "sms_last_notify": s.get_setting("sms_last_notify"),
-                "billing": a.billing.cfg(), "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
+                "billing": {**a.billing.cfg(), "bezan_api_key": "•••" if a.billing.cfg().get("bezan_api_key") else ""}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
                 "tiles": s.get_setting("tiles") or {"street": "", "sat": ""},
@@ -1004,6 +1027,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/settings":
             if isinstance(data.get("display"), dict) and data["display"].get("contact_mode") not in (None, "none", "owner", "all"):
                 raise ValueError("حالت نمایش شماره نامعتبر است")
+            if isinstance(data.get("billing"), dict) and data["billing"].get("bezan_api_key") in ("•••", None):
+                data["billing"].pop("bezan_api_key", None)   # کلید ذخیره‌شده با مقدار پوشیده بازنویسی نشود
             for key, default in (("site", DEFAULT_SITE), ("display", DEFAULT_DISPLAY), ("billing", DEFAULT_BILLING)):
                 if isinstance(data.get(key), dict):
                     clean = {k: v for k, v in data[key].items() if k in default}
@@ -1104,6 +1129,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             except Exception as e:  # noqa: BLE001
                 return self.send_json({"ok": False, "error": str(e)[:200]})
+        if path == "/api/admin/bezan-test":
+            from billing import BEZAN_API, _http_json
+            r = _http_json("GET", f"{BEZAN_API}/public/me", None, a.billing._bezan_headers(), timeout=15)
+            if r.get("merchant_id") or r.get("store_name"):
+                return self.send_json({"ok": True, "store": r.get("store_name"), "subscription": r.get("subscription")})
+            return self.send_json({"ok": False, "error": r.get("detail") or r.get("error") or "پاسخ نامعتبر"})
         if path == "/api/admin/bale-test":
             try:
                 me = a.bale.test()
@@ -1193,6 +1224,7 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
+    Handler.app.billing.start_bezan_poller()
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)

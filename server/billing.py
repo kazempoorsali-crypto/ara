@@ -28,8 +28,12 @@ DEFAULT_BILLING = {
     "trial_enabled": True, "trial_days": 3,
     # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
     "pay_methods": [],
+    # «بزن به کارت»: کارت‌به‌کارت با مبلغ یکتا و تأیید خودکار؛ بدون درگاه بانکی و نماد اعتماد (کلید API از داشبورد bezanbecard.ir)
+    "bezan_api_key": "", "bezan_expiry": 30,
 }
-PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان بله)"), ("zarinpal", "درگاه زرین‌پال"), ("card", "کارت‌به‌کارت")]
+PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان بله)"), ("bezan", "کارت‌به‌کارت خودکار (بزن به کارت)"),
+               ("zarinpal", "درگاه زرین‌پال"), ("card", "کارت‌به‌کارت با ثبت رسید")]
+BEZAN_API = os.environ.get("ARA_BEZAN_API") or "https://bezanbecard.ir/api/v1"
 # provider: kavenegar (کلید API + نام قالب Verify) یا payamak (پنل پیامک هاست‌ایران / ملی پیامک:
 # نام کاربری + رمز یا کلید API پنل + کد الگو bodyId؛ ارسال از خط خدماتی با الگو)
 DEFAULT_SMS = {"provider": "kavenegar", "api_key": "", "username": "", "template": "", "dev_mode": True,
@@ -152,6 +156,8 @@ class Billing:
             return bool(c["merchant_id"])
         if m == "card":
             return len(c["card_number"].replace("-", "").replace(" ", "")) == 16
+        if m == "bezan":
+            return len(str(c.get("bezan_api_key") or "")) >= 8
         return False
 
     def methods_public(self):
@@ -315,6 +321,8 @@ class Billing:
                 pid = self.store.x("INSERT INTO payments(phone, plan, amount, gateway, created) VALUES(?,?,?,?,?)",
                                    (phone, plan_id, plan["price"], "bale", int(time.time()))).lastrowid
                 return {"ok": True, "bale": self.bale.start_pay(pid), "payment_id": pid}
+            if m == "bezan":
+                return self._bezan_start(phone, plan, callback_url)
             c["gateway"] = m
         if c["test_mode"] and not local:  # پرداخت آزمایشی فقط روی همین رایانه
             c["test_mode"] = False
@@ -351,6 +359,79 @@ class Billing:
             self.store.x("UPDATE payments SET authority=? WHERE id=?", (r.get("id"), pid))
             return {"ok": True, "redirect": r["link"]}
         raise ValueError("درگاه پرداخت هنوز تنظیم نشده است")
+
+    # ---------------------------------------------------------- بزن به کارت (کارت‌به‌کارت خودکار)
+    def _bezan_headers(self):
+        return {"x-api-key": str(self.cfg().get("bezan_api_key") or "")}
+
+    def bezan_sig(self, pid) -> str:
+        """امضای نشانی اعلان سرور‌به‌سرور؛ اعلان فقط بهانهٔ بررسی است و وضعیت همیشه از API خوانده می‌شود."""
+        import hmac
+        key = (str(self.cfg().get("bezan_api_key") or "") + "|fm-bezan").encode()
+        return hmac.new(key, str(pid).encode(), hashlib.sha256).hexdigest()[:24]
+
+    def _bezan_start(self, phone, plan, callback_url):
+        c = self.cfg()
+        rial = int(plan["price"]) * 10
+        if rial < 10000:
+            raise ValueError("مبلغ این طرح برای کارت‌به‌کارت خودکار کمتر از حداقل (۱٬۰۰۰ تومان) است")
+        now = int(time.time())
+        pid = self.store.x("INSERT INTO payments(phone, plan, amount, gateway, created) VALUES(?,?,?,?,?)",
+                           (phone, plan["id"], plan["price"], "bezan", now)).lastrowid
+        base = callback_url.rsplit("/pay/callback", 1)[0]
+        body = {"amount": rial, "merchant_order_id": f"fm-{pid}", "customer_phone": phone,
+                "description": f"اشتراک {plan['name']} فرصت ملک",
+                "return_url": f"{callback_url}?pid={pid}",
+                "callback_url": f"{base}/api/pay/bezan/hook?pid={pid}&sig={self.bezan_sig(pid)}",
+                "expiry_minutes": max(15, min(120, int(c.get("bezan_expiry") or 30)))}
+        r = _http_json("POST", f"{BEZAN_API}/public/orders", body, {**self._bezan_headers(), "Idempotency-Key": f"forsatmelk-{pid}"})
+        if not r.get("payment_url") or not r.get("payment_token"):
+            self.store.x("UPDATE payments SET status='failed', note=? WHERE id=?", (json.dumps(r, ensure_ascii=False)[:300], pid))
+            raise ValueError("اتصال به «بزن به کارت» ناموفق بود؛ روش دیگری را امتحان کنید" + (f" ({r.get('detail')})" if r.get("detail") else ""))
+        uniq = int(r.get("unique_amount") or rial)
+        self.store.x("UPDATE payments SET authority=?, note=? WHERE id=?",
+                     (r["payment_token"], f"مبلغ یکتا {uniq:,} ریال؛ در انتظار واریز", pid))
+        return {"ok": True, "redirect": r["payment_url"], "payment_id": pid, "unique_amount": uniq}
+
+    def bezan_check(self, pid) -> str:
+        """وضعیت یک پرداخت «بزن به کارت» را از خود سرویس می‌خواند و در صورت پرداخت، اشتراک را فعال می‌کند.
+        خروجی: paid | pending | needs_review | expired | missing"""
+        pay = self.store.q("SELECT * FROM payments WHERE id=? AND gateway='bezan'", (int(pid or 0),), one=True)
+        if not pay or not pay["authority"]:
+            return "missing"
+        if pay["status"] == "paid":
+            return "paid"
+        r = _http_json("GET", f"{BEZAN_API}/public/orders/{urllib.parse.quote(pay['authority'])}", None, self._bezan_headers())
+        st = r.get("status") or "pending"
+        if st == "paid" and pay["status"] != "paid":
+            self.activate(pay["phone"], pay["plan"], pay["id"], str(r.get("order_code") or r.get("order_id") or pay["authority"]))
+        elif st == "expired" and pay["status"] == "pending":
+            self.store.x("UPDATE payments SET status='failed', note='مهلت واریز تمام شد' WHERE id=?", (pay["id"],))
+        elif st == "needs_review":
+            self.store.x("UPDATE payments SET note='بزن به کارت: نیاز به بررسی (مبلغ یا کارت مغایرت دارد)' WHERE id=?", (pay["id"],))
+        return st
+
+    def bezan_poll(self):
+        """پشتیبان اعلان: پرداخت‌های در انتظار چند ساعت اخیر هر دقیقه بررسی می‌شوند."""
+        if not self.method_ready("bezan"):
+            return
+        since = int(time.time()) - 4 * 3600
+        for p in self.store.q("SELECT id FROM payments WHERE gateway='bezan' AND status='pending' AND authority IS NOT NULL AND created>?", (since,)):
+            try:
+                self.bezan_check(p["id"])
+            except Exception:  # noqa: BLE001
+                pass
+
+    def start_bezan_poller(self):
+        import threading
+        def loop():
+            while True:
+                time.sleep(60)
+                try:
+                    self.bezan_poll()
+                except Exception:  # noqa: BLE001
+                    pass
+        threading.Thread(target=loop, daemon=True, name="bezan-poll").start()
 
     # ---------------------------------------------------------- card to card
     def _card_start(self, pid, plan):
@@ -429,11 +510,15 @@ class Billing:
             self.store.x("UPDATE users SET sub_until=MAX(0, sub_until-?) WHERE phone=?", (days * 86400, pay["phone"]))
         self.store.x("UPDATE payments SET status='rejected' WHERE id=?", (pay["id"],))
 
-    def callback(self, params: dict) -> bool:
+    def callback(self, params: dict):
         pid = int(params.get("pid") or params.get("order_id") or 0)
         pay = self.store.q("SELECT * FROM payments WHERE id=?", (pid,), one=True)
         if not pay or pay["status"] == "paid":
             return bool(pay and pay["status"] == "paid")
+        if pay["gateway"] == "bezan":
+            # بازگشت خریدار از صفحهٔ «بزن به کارت»: وضعیت از خود سرویس خوانده می‌شود؛ «در انتظار» شکست نیست
+            st = self.bezan_check(pid)
+            return True if st == "paid" else ("pending" if st in ("pending", "needs_review") else False)
         c = self.cfg()
         ok, ref = False, None
         if pay["gateway"] == "zarinpal" and params.get("Status") == "OK":
@@ -460,7 +545,7 @@ class Billing:
             raise ValueError("پرداخت پیدا نشد")
         plan = next((p for p in self.plans() if p["id"] == pay["plan"]), None)
         u = self.user(phone) or {}
-        names = {"bale": "بله‌پی", "zarinpal": "زرین‌پال", "idpay": "آیدی‌پی", "card": "کارت‌به‌کارت", "test": "آزمایشی"}
+        names = {"bale": "بله‌پی", "bezan": "کارت‌به‌کارت خودکار", "zarinpal": "زرین‌پال", "idpay": "آیدی‌پی", "card": "کارت‌به‌کارت", "test": "آزمایشی"}
         return {"id": pay["id"], "status": pay["status"], "plan": plan["name"] if plan else pay["plan"], "days": plan["days"] if plan else None,
                 "amount": pay["amount"], "gateway": names.get(pay["gateway"], pay["gateway"]), "ref": pay["ref_id"],
                 "created": pay["created"], "paid_at": pay["paid_at"], "sub_until": u.get("sub_until"), "phone": phone[:4] + "***" + phone[-3:]}

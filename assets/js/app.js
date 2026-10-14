@@ -1012,8 +1012,8 @@ const App = (() => {
       if (r.activated) { await DataLayer.refreshMe(); updateAccount(); if (r.payment_id) go("#/invoice/" + r.payment_id); else { toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); } }
     } catch (err) { toast(err.message); }
   }
-  const PAY_ICON = { bale: "chat", zarinpal: "lock", card: "copy" };
-  const PAY_NOTE = { bale: "پرداخت در پیام‌رسان بله؛ تأیید و فعال‌سازی کاملاً خودکار و فوری", zarinpal: "درگاه بانکی آنلاین؛ فعال‌سازی خودکار پس از پرداخت", card: "واریز مبلغ یکتا و ثبت رسید؛ فعال‌سازی فوری" };
+  const PAY_ICON = { bale: "chat", bezan: "copy", zarinpal: "lock", card: "copy" };
+  const PAY_NOTE = { bale: "پرداخت در پیام‌رسان بله؛ تأیید و فعال‌سازی کاملاً خودکار و فوری", bezan: "کارت‌به‌کارت با اپ بانک خودتان؛ مبلغ یکتا، تأیید و فعال‌سازی خودکار", zarinpal: "درگاه بانکی آنلاین؛ فعال‌سازی خودکار پس از پرداخت", card: "واریز مبلغ یکتا و ثبت رسید؛ فعال‌سازی فوری" };
   function payMethodDialog(plan) {
     const ms = cfg.pay_methods || [];
     const p = (cfg.plans || []).find((x) => x.id === plan);
@@ -1458,6 +1458,7 @@ const App = (() => {
     updateAccount();
     const me = DataLayer.me;
     view().innerHTML = `<section class="section--tight"><div class="wrap">
+      ${params.pending ? `<div class="note-ok" id="payPending" aria-live="polite">واریز شما در حال تطبیق خودکار است؛ معمولاً چند ثانیه تا چند دقیقه طول می‌کشد و همین صفحه خودش به‌روز می‌شود. اگر هنوز کارت‌به‌کارت نکرده‌اید، به صفحهٔ پرداخت برگردید و <b>دقیقاً همان مبلغ یکتا</b> را واریز کنید.</div>` : ""}
       ${params.paid ? `<div class="note-ok">پرداخت موفق بود و اشتراک شما فعال شد.</div>` : params.failed ? `<div class="note-bad">پرداخت تکمیل نشد. اگر مبلغی کسر شده باشد، طبق قوانین درگاه ظرف ۷۲ ساعت بازمی‌گردد.</div>` : ""}
       <div class="sec-head"><div><span class="kicker">حساب من</span><h2>${me ? "اشتراک و حساب کاربری" : "ورود و اشتراک"}</h2></div></div>
       ${me ? `<div class="account">
@@ -1480,6 +1481,21 @@ const App = (() => {
         </form>` : `<div class="empty"><h3>وارد حساب خود شوید</h3><p>با شمارهٔ موبایل و رمز وارد شوید، یا با همین شماره در چند ثانیه ثبت‌نام کنید.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
     </div></section>${plansSection()}`;
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
+    // کارت‌به‌کارت خودکار: تا تطبیق واریز، هر ۸ ثانیه (حداکثر ۴۵ دقیقه) وضعیت پرسیده می‌شود
+    if (params.pending && me) {
+      const pid = params.pending, t0 = Date.now();
+      const poll = async () => {
+        if (!$("#payPending")) return;
+        try {
+          const r = await DataLayer.payCheck(pid);
+          if (r.status === "paid") { await DataLayer.refreshMe(); updateAccount(); go("#/invoice/" + pid); return; }
+          if (r.status === "expired") { $("#payPending").className = "note-bad"; $("#payPending").textContent = "مهلت واریز تمام شد و پرداختی تطبیق نشد. اگر مبلغی واریز کرده‌اید، از «پشتیبانی» تیکت بفرستید."; return; }
+          if (r.status === "needs_review") $("#payPending").textContent = "واریز شما رسید ولی مبلغ یا کارت با سفارش کاملاً نخواند و برای بررسی دستی ثبت شد؛ پس از تأیید، اشتراک خودکار فعال می‌شود.";
+        } catch { /* */ }
+        if (Date.now() - t0 < 45 * 60e3) setTimeout(poll, 8000);
+      };
+      setTimeout(poll, 1500);
+    }
     $("#logoutBtn")?.addEventListener("click", async () => { await DataLayer.logout(); updateAccount(); route(); });
     $("#profForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
