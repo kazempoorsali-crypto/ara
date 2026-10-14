@@ -2213,84 +2213,174 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .row4[hidden]{display:none}
 
 /* ========================================================
-   استایل‌های بازطراحی فرم ثبت‌نام و چک‌لیست سبز/قرمز رمز
+   اصلاح مودال ثبت‌نام: حذف اسکرول + سفید شدن خانه‌ها در حالت روشن
    ======================================================== */
 
+/* کادر اصلی - متناسب با ارتفاع صفحه و بدون اسکرول */
+.auth-modal-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 92vh;
+  margin: auto;
+  border-radius: 18px;
+  padding: 20px 24px;
+  direction: rtl;
+  text-align: right;
+  overflow: hidden; /* حذف قطعی اسکرول‌بار */
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* اصلاح خانه‌ها در حالت روشن (رنگ سفید شفاف و متن کاملاً خوانا) */
+body.light .auth-modal-card,
+.auth-modal-card.mode-light {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+body.light .auth-input,
+.mode-light .auth-input,
+:root:not([data-theme="dark"]) .reg-input {
+  background: #ffffff !important; /* رنگ سفید واضح به جای مشکی */
+  color: #0f172a !important; /* متن تیره و خوانا */
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+body.light .auth-input:focus,
+.mode-light .auth-input:focus,
+:root:not([data-theme="dark"]) .reg-input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+}
+
+body.light .auth-label,
+.mode-light .auth-label,
+:root:not([data-theme="dark"]) .reg-label {
+  color: #334155 !important;
+}
+
+/* حالت تیره */
+body.dark .auth-modal-card,
+.auth-modal-card.mode-dark {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #1e293b;
+}
+
+body.dark .auth-input,
+.mode-dark .auth-input,
+:root[data-theme="dark"] .reg-input {
+  background: #020617 !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+/* ساختار ورودی‌ها */
+.auth-form-group, .reg-input-group {
+  margin-bottom: 12px;
+}
+
+.auth-label, .reg-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.auth-input-wrapper, .reg-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input, .reg-input {
+  width: 100%;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.auth-eye-btn, .reg-eye-btn {
+  position: absolute;
+  left: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+/* دو چیپ فشرده کنار هم برای رمز ۷ رقمی با حرف و عدد (بدون اشغال فضای عمودی) */
+.password-criteria-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pw-rule-chip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+/* وضعیت سبز هنگام برقراری شرط */
+.pw-rule-chip.valid {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #059669 !important;
+  font-weight: 600;
+}
+
+.mode-dark .pw-rule-chip.valid {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+}
+
+/* پشتیبانی از فرم ثبت‌نام و چک‌لیست شرایط رمز */
 .reg-form-container {
   direction: rtl;
   text-align: right;
   font-family: inherit;
 }
 
-.reg-input-group {
-  margin-bottom: 16px;
-  position: relative;
-}
-
-.reg-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #cbd5e1;
-}
-
-.reg-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.reg-input {
-  width: 100%;
-  background: #020617;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
-  color: #f8fafc;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.reg-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-}
-
-.reg-eye-btn {
-  position: absolute;
-  left: 10px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #94a3b8;
-  padding: 4px;
-}
-
-/* چک‌لیست شرایط رمز عبور */
 .password-rules-box {
-  background: rgba(2, 6, 23, 0.6);
-  border: 1px solid #1e293b;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   margin-top: 8px;
   font-size: 12px;
+}
+:root[data-theme="dark"] .password-rules-box {
+  background: rgba(2, 6, 23, 0.6);
+  border-color: #1e293b;
 }
 
 .rules-header {
   font-size: 11px;
-  color: #94a3b8;
-  margin-bottom: 8px;
+  color: #64748b;
+  margin-bottom: 6px;
   font-weight: 600;
+}
+:root[data-theme="dark"] .rules-header {
+  color: #94a3b8;
 }
 
 .rule-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 5px 0;
+  margin: 4px 0;
   color: #64748b;
   transition: color 0.2s ease;
 }
@@ -2304,48 +2394,78 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
   justify-content: center;
   font-size: 10px;
   font-weight: bold;
-  background: #1e293b;
+  background: #e2e8f0;
   color: #64748b;
   transition: all 0.2s ease;
 }
+:root[data-theme="dark"] .rule-icon {
+  background: #1e293b;
+}
 
-/* وقتی شرط برقرار است -> سبز درخشان */
 .rule-item.valid {
+  color: #059669 !important;
+  font-weight: 600;
+}
+:root[data-theme="dark"] .rule-item.valid {
   color: #34d399 !important;
-  font-weight: 500;
 }
 
 .rule-item.valid .rule-icon {
+  background: #d1fae5 !important;
+  color: #059669 !important;
+}
+:root[data-theme="dark"] .rule-item.valid .rule-icon {
   background: #064e3b !important;
   color: #34d399 !important;
 }
 
-/* پیام تطابق تکرار رمز */
 .password-match-msg {
   font-size: 11px;
   margin-top: 6px;
   display: none;
 }
 .match-success {
-  color: #34d399;
+  color: #059669;
 }
 .match-error {
-  color: #f87171;
+  color: #b91c1c;
 }
 
-/* باکس نمایش صریح خطاها هنگام زدن تایید */
 .reg-error-summary {
   display: none;
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #b91c1c;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+:root[data-theme="dark"] .reg-error-summary {
   background: rgba(127, 29, 29, 0.3);
-  border: 1px solid #ef4444;
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-color: #ef4444;
   color: #fca5a5;
-  font-size: 12px;
-  line-height: 1.6;
-  margin-bottom: 16px;
 }
 .reg-error-summary ul {
-  margin: 6px 0 0 0;
+  margin: 4px 0 0 0;
   padding-right: 18px;
+}
+
+/* باکس اعلام خطاها */
+.auth-error-box {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #b91c1c;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.mode-dark .auth-error-box {
+  background: rgba(127, 29, 29, 0.3);
+  border-color: #ef4444;
+  color: #fca5a5;
 }
