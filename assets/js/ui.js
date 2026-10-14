@@ -338,5 +338,43 @@ const UI = (() => {
   const cityItems = () => CITIES.map((c) => ({ id: c.id, label: c.name, group: c.province }));
   const cityPicker = (host, o) => combo(host, { items: cityItems(), groups: PROVINCES.map((p) => ({ id: p.id, name: p.name })), placeholder: "نام شهر را بنویس یا از فهرست استان‌ها انتخاب کن", ...o });
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
+  // تابع ساخت برچسب هوشمند حکم فرصت
+  function dealBadge(deal) {
+    if (!deal) return '';
+
+    var verdict = deal.verdict || 'قیمت عرف';
+    var discount = deal.discount_pct || 0;
+    var colorClass = 'badge-sky';
+
+    if (verdict === 'اکازیون استثنایی') {
+      colorClass = 'badge-emerald';
+    } else if (verdict === 'مشکوک به آگهی صوری/طعمه') {
+      colorClass = 'badge-red';
+    } else if (verdict === 'گران‌تر از ارزش واقعی') {
+      colorClass = 'badge-amber';
+    }
+
+    var html = '<div class="deal-pill ' + esc(colorClass) + '">';
+    html += '<span class="deal-title font-bold">' + esc(verdict) + '</span>';
+
+    if (discount > 0) {
+      html += '<span class="deal-discount font-mono mr-1">(' + fa(Math.abs(discount)) + '٪ زیر قیمت)</span>';
+    } else if (discount < -5) {
+      html += '<span class="deal-discount font-mono mr-1">(' + fa(Math.abs(discount)) + '٪ حباب قیمت)</span>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // نمایش سود تخمینی خرید
+  function profitEstimate(profitBillion) {
+    if (!profitBillion || profitBillion <= 0) return '';
+    return '<div class="deal-profit-tag text-emerald-400 text-xs mt-1">' +
+      '<span>سود برآورد شده خرید: </span>' +
+      '<strong>+' + fa(profitBillion) + ' میلیارد تومان</strong>' +
+      '</div>';
+  }
+
+  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, dealBadge, profitEstimate, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
 })();
