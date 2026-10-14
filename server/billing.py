@@ -182,7 +182,7 @@ class Billing:
         now = int(time.time())
         row = self.store.q("SELECT * FROM otps WHERE phone=?", (phone,), one=True)
         if row and now - (row["sent_at"] or 0) < OTP_RESEND:
-            raise ValueError(f"کد قبلی هنوز معتبر است؛ {OTP_RESEND - (now - row['sent_at'])} ثانیه دیگر دوباره امتحان کنید")
+            raise ValueError(f"کد قبلی هنوز معتبر است؛ {str(OTP_RESEND - (now - row['sent_at'])).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} ثانیه دیگر دوباره امتحان کنید")
         if channel == "bale":
             if not (self.bale and self.bale.otp_ready()):
                 raise ValueError("دریافت کد در بله فعلاً فعال نیست")
@@ -213,10 +213,11 @@ class Billing:
         if not row or row["expires"] < now:
             raise ValueError("کد منقضی شده است؛ دوباره درخواست دهید")
         if row["attempts"] >= 5:
-            raise ValueError("تلاش زیاد؛ کد تازه بگیرید")
+            raise ValueError("تلاش زیاد بود؛ کد منقضی شد، کد تازه بگیرید")
         if not secrets.compare_digest(row["code_hash"], _hash(code, phone)):
             self.store.x("UPDATE otps SET attempts=attempts+1 WHERE phone=?", (phone,))
-            raise ValueError("کد نادرست است")
+            left = 4 - row["attempts"]
+            raise ValueError(f"کد نادرست است؛ {str(left).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} تلاش دیگر باقی است" if left > 0 else "کد نادرست است؛ کد تازه بگیرید")
         self.store.x("DELETE FROM otps WHERE phone=?", (phone,))
         return phone
 
@@ -242,10 +243,11 @@ class Billing:
         if not row or row["expires"] < now:
             raise ValueError("کد منقضی شده است؛ دوباره درخواست دهید")
         if row["attempts"] >= 5:
-            raise ValueError("تلاش زیاد؛ کد تازه بگیرید")
+            raise ValueError("تلاش زیاد بود؛ کد منقضی شد، کد تازه بگیرید")
         if not secrets.compare_digest(row["code_hash"], _hash(code, phone)):
             self.store.x("UPDATE otps SET attempts=attempts+1 WHERE phone=?", (phone,))
-            raise ValueError("کد نادرست است")
+            left = 4 - row["attempts"]
+            raise ValueError(f"کد نادرست است؛ {str(left).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} تلاش دیگر باقی است" if left > 0 else "کد نادرست است؛ کد تازه بگیرید")
         self.store.x("DELETE FROM otps WHERE phone=?", (phone,))
         new = self.store.x("INSERT OR IGNORE INTO users(phone, created) VALUES(?,?)", (phone, now)).rowcount == 1
         self.store.x("UPDATE users SET last_login=? WHERE phone=?", (now, phone))

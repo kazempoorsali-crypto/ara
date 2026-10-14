@@ -1,5 +1,7 @@
-"""حساب کاربری کامل: ثبت‌نام با نام، موبایل (تأیید با کد)، ایمیل اختیاری، نام کاربری و رمز؛
-ورود با نام کاربری/موبایل/ایمیل و رمز؛ بازیابی رمز با کد (پیامک یا بله) یا لینک ایمیلی.
+"""حساب کاربری: ثبت‌نام با شمارهٔ موبایل (نام کاربری) و رمز، پس از تأیید شماره با کد بله یا پیامک؛
+ورود با موبایل و رمز یا با کد یک‌بارمصرف؛ بازیابی رمز با کد (پیامک یا بله) یا لینک ایمیلی.
+نام، ایمیل و نام کاربری انگلیسی اختیاری‌اند و از «حساب من» افزوده می‌شوند.
+هیچ پاسخی پیش از تأیید کد نشان نمی‌دهد که شماره‌ای در سایت حساب دارد یا نه.
 
 رمزها با PBKDF2-SHA256 و نمک تصادفی ذخیره می‌شوند؛ هیچ رمزی به‌صورت خام نگه داشته یا ارسال نمی‌شود.
 """
@@ -50,16 +52,20 @@ def _digits(s):
 
 def _name(v, label):
     v = re.sub(r"\s+", " ", (v or "").strip())[:40]
-    if len(v) < 2:
-        raise ValueError(f"{label} را وارد کنید")
-    return v
+    if v and len(v) < 2:
+        raise ValueError(f"{label} دست‌کم دو حرف باشد")
+    return v or None
+
+
+PW_MIN = 7
 
 
 def validate_password(pw):
+    """دست‌کم ۷ نویسه و ترکیبی از حرف و عدد (ارقام فارسی هم عدد حساب می‌شوند)."""
     pw = pw or ""
-    if len(pw) < 8:
-        raise ValueError("رمز عبور دست‌کم ۸ نویسه باشد")
-    if pw.isdigit() or pw.isalpha():
+    if len(pw) < PW_MIN:
+        raise ValueError("رمز عبور دست‌کم ۷ نویسه باشد")
+    if not (any(c.isalpha() for c in pw) and any(c.isdigit() for c in pw)):
         raise ValueError("رمز عبور ترکیبی از حرف و عدد باشد")
     return pw
 
@@ -86,10 +92,10 @@ class Accounts:
         email = (data.get("email") or "").strip().lower()[:200]
         if email and not EMAIL_RE.match(email):
             raise ValueError("ایمیل معتبر نیست")
-        username = (data.get("username") or "").strip()
-        if not USERNAME_RE.match(username):
+        username = (data.get("username") or "").strip() or None   # اختیاری؛ نام کاربری اصلی همان شمارهٔ موبایل است
+        if username and not USERNAME_RE.match(username):
             raise ValueError("نام کاربری ۴ تا ۳۰ نویسهٔ انگلیسی باشد و با حرف شروع شود (حرف، عدد، نقطه و _)")
-        other = self.store.q("SELECT phone FROM users WHERE username=? COLLATE NOCASE", (username,), one=True)
+        other = username and self.store.q("SELECT phone FROM users WHERE username=? COLLATE NOCASE", (username,), one=True)
         if other and other["phone"] != phone:
             raise ValueError("این نام کاربری قبلاً گرفته شده است")
         if email:
@@ -112,24 +118,30 @@ class Accounts:
 
     # ---------------------------------------------------------- register / login
     def register(self, data: dict) -> dict:
-        """ثبت‌نام: کد تأیید موبایل (پیامک یا بله) + نام، نام خانوادگی، ایمیل اختیاری، نام کاربری و رمز."""
+        """ثبت‌نام: شمارهٔ موبایل (نام کاربری) + رمز، پس از تأیید شماره با کد بله یا پیامک.
+
+        اگر شماره از قبل حساب داشته باشد، چون مالکیت شماره با کد ثابت شده، رمز تازه جایگزین می‌شود
+        (مثل بازیابی رمز) و نشست‌های قبلی بسته می‌شوند؛ پس پیش از کد هیچ نشانه‌ای از وجود حساب داده نمی‌شود."""
         from billing import norm_phone
         phone = norm_phone(data.get("phone"))
         if not phone:
             raise ValueError("شمارهٔ موبایل معتبر نیست")
-        ex = self.store.q("SELECT * FROM users WHERE phone=?", (phone,), one=True)
-        if ex and ex["pw_hash"]:
-            raise ValueError("با این شماره قبلاً ثبت‌نام شده است؛ وارد شوید یا «فراموشی رمز» را بزنید")
         first, last, email, username = self._clean_profile(data, phone)
         pw = validate_password(data.get("password"))
         self.billing.check_otp(phone, data.get("code"))
+        ex = self.store.q("SELECT pw_hash FROM users WHERE phone=?", (phone,), one=True)
+        existed = bool(ex and ex["pw_hash"])
+        if existed:
+            self.store.x("DELETE FROM user_sessions WHERE phone=?", (phone,))
         res = self.billing.start_session(phone)
-        self.store.x("UPDATE users SET first_name=?, last_name=?, email=?, username=?, pw_hash=? WHERE phone=?",
-                     (first, last, email, username, hash_pw(pw), phone))
+        self.store.x("UPDATE users SET first_name=COALESCE(?, first_name), last_name=COALESCE(?, last_name), email=COALESCE(?, email), "
+                     "username=COALESCE(?, username), pw_hash=? WHERE phone=?", (first, last, email, username, hash_pw(pw), phone))
         res["user"] = self.billing.user(phone)
-        if email:
-            self.mailer.send_async(email, "به فرصت ملک خوش آمدید", self.mailer.welcome(first, username, res.get("trial_days") or 0))
-        self.billing.notify_user(phone, f"👋 {first} عزیز، حساب شما در فرصت ملک ساخته شد.\nنام کاربری: {username}\nhttps://forsatmelk.ir")
+        res["existed"] = existed
+        if email and not existed:
+            self.mailer.send_async(email, "به فرصت ملک خوش آمدید", self.mailer.welcome(first or "", username or phone, res.get("trial_days") or 0))
+        self.billing.notify_user(phone, ("🔐 رمز حساب شما در فرصت ملک تغییر کرد. اگر خودتان نبودید، از «فراموشی رمز» رمز تازه بگذارید."
+                                         if existed else f"👋 حساب شما در فرصت ملک ساخته شد.\nنام کاربری: {phone}\nhttps://forsatmelk.ir"))
         return res
 
     def login(self, ident: str, password: str, ip: str = "") -> dict:
@@ -140,9 +152,8 @@ class Accounts:
         if not u or not u["pw_hash"] or not check_pw(password or "", u["pw_hash"]):
             self._fail(key)
             self._fail("ip:" + ip)
-            if u and not u["pw_hash"]:
-                raise ValueError("برای این حساب هنوز رمز تعیین نشده؛ با «ورود با کد یک‌بار مصرف» وارد شوید و از حساب کاربری رمز بگذارید")
-            raise ValueError("نام کاربری یا رمز عبور نادرست است")
+            # پیام یکسان برای «حساب ندارد»، «رمز ندارد» و «رمز نادرست»؛ تا وجود حساب لو نرود
+            raise ValueError("شماره یا رمز عبور نادرست است. اگر رمز نگذاشته‌اید، «ورود با کد یک‌بارمصرف» را بزنید.")
         return self.billing.start_session(u["phone"])
 
     # ---------------------------------------------------------- reset
@@ -158,21 +169,30 @@ class Accounts:
             elif not self.mailer.ready():
                 raise ValueError("ارسال ایمیل هنوز فعال نیست؛ با شمارهٔ موبایل بازیابی کنید")
             return {**generic, "via": "email"}   # برای حفظ حریم خصوصی، وجود یا نبود حساب گفته نمی‌شود
-        if not u:
-            raise ValueError("حسابی با این مشخصات پیدا نشد")
-        r = self.billing.send_otp(u["phone"], local=local, channel=channel)
-        return {**generic, "via": channel, "phone": u["phone"][:4] + "***" + u["phone"][-3:],
-                **{k: r[k] for k in ("dev_code", "link", "sent") if k in r}}
+        # شماره‌ای که حساب ندارد هم دقیقاً همان پاسخ را می‌گیرد (کد برایش فرستاده می‌شود ولی رمزی عوض نمی‌شود)
+        from billing import norm_phone
+        phone = u["phone"] if u else norm_phone(ident)
+        if not phone:
+            raise ValueError("شمارهٔ موبایل را درست وارد کنید")
+        r = self.billing.send_otp(phone, local=local, channel=channel)
+        return {**generic, "via": channel, "phone": phone[:4] + "***" + phone[-3:],
+                **{k: r[k] for k in ("dev_code", "link", "sent", "channel") if k in r}}
 
     def reset_with_code(self, ident: str, code: str, password: str) -> dict:
-        u = self._find(ident)
-        if not u:
-            raise ValueError("حسابی با این مشخصات پیدا نشد")
+        """رمز تازه با کد پیامک یا بله. چون کد مالکیت شماره را ثابت می‌کند، اگر شماره حساب نداشت همین‌جا ساخته می‌شود
+        (پاسخ برای شمارهٔ ثبت‌شده و ثبت‌نشده یکسان است)."""
+        from billing import norm_phone
         validate_password(password)
-        self.billing.check_otp(u["phone"], code)
-        self.store.x("UPDATE users SET pw_hash=? WHERE phone=?", (hash_pw(password), u["phone"]))
-        self.store.x("DELETE FROM user_sessions WHERE phone=?", (u["phone"],))   # همهٔ نشست‌های قبلی بسته شوند
-        return self.billing.start_session(u["phone"])
+        u = self._find(ident)
+        phone = u["phone"] if u else norm_phone(ident)
+        if not phone:
+            raise ValueError("شمارهٔ موبایل را درست وارد کنید")
+        self.billing.check_otp(phone, code)
+        self.store.x("DELETE FROM user_sessions WHERE phone=?", (phone,))   # همهٔ نشست‌های قبلی بسته شوند
+        res = self.billing.start_session(phone)
+        self.store.x("UPDATE users SET pw_hash=? WHERE phone=?", (hash_pw(password), phone))
+        res["user"] = self.billing.user(phone)
+        return res
 
     def reset_with_token(self, token: str, password: str) -> dict:
         validate_password(password)
