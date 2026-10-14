@@ -197,8 +197,6 @@
 :root[data-design="new"][data-theme="dark"] .hero h1 .accent { color: var(--v2-hi); text-shadow: 0 0 40px color-mix(in srgb, var(--v2-hi) 25%, transparent); -webkit-text-fill-color: currentColor; background: none; }
 :root[data-design="new"][data-theme="dark"] .cine-progress { background: linear-gradient(90deg, var(--v2-hi), #7cf5c8); box-shadow: 0 0 10px var(--v2-hi); }
 :root[data-design="new"][data-theme="dark"] .sky__kpis .is-hot b, :root[data-design="new"][data-theme="dark"] .strip > div:nth-child(1) b { color: var(--v2-hi); }
-:root[data-design="new"][data-theme="dark"] .mcur[data-mode="link"] .mcur__ring::before { border-color: var(--v2-hi); background: color-mix(in srgb, var(--v2-hi) 14%, transparent); }
-:root[data-design="new"][data-theme="dark"] .mcur__dot::before { background: var(--v2-hi); }
 :root[data-design="new"][data-theme="dark"] :focus-visible { outline: 2px solid var(--v2-hi); outline-offset: 3px; }
 /* حاشیه‌های ۱ پیکسلی لوکس (گلس) روی کارت‌ها و کادرها در تم شب */
 :root[data-design="new"][data-theme="dark"] .card, :root[data-design="new"][data-theme="dark"] .plan, :root[data-design="new"][data-theme="dark"] .scale5 .s5,

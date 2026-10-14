@@ -1,8 +1,7 @@
 /* جلوه‌های پیشرفتهٔ طراحی تازه — فقط وقتی <html data-design="new"> و حالت سبک خاموش است:
-   ۱. نشانگر آهنربایی ماوس (فقط دسکتاپ با ماوس)؛ روی پیوند و دکمه بزرگ می‌شود و به مرکزشان کشیده می‌شود،
-      روی عکس «دیدن»، روی کره «بچرخانید» نشان می‌دهد، روی فیلدهای متنی کنار می‌رود.
-   ۲. اسکرول نرم Lenis و حرکت‌های هماهنگ با GSAP ScrollTrigger — فقط روی دسکتاپ قوی؛ موبایل و سیستم ضعیف اسکرول عادی.
-   ۳. جابه‌جایی زاویهٔ دید عکس‌های صحنه با نقشهٔ عمق و سایه‌زن سادهٔ WebGL (با حرکت ماوس و اسکرول).
+   (نشانگر ماوس همان نشانگر معمولی سیستم است.)
+   ۱. اسکرول نرم Lenis و حرکت‌های هماهنگ با GSAP ScrollTrigger — فقط روی دسکتاپ قوی؛ موبایل و سیستم ضعیف اسکرول عادی.
+   ۲. جابه‌جایی زاویهٔ دید عکس‌های صحنه با نقشهٔ عمق و سایه‌زن سادهٔ WebGL (با حرکت ماوس و اسکرول).
    کتابخانه‌ها از سرور خود سایت بارگذاری می‌شوند (بدون CDN خارجی). */
 (() => {
   const root = document.documentElement;
@@ -15,54 +14,7 @@
   const V = (($('script[src*="assets/js/fx.js"]') || {}).src || "").split("?v=")[1] || "";
   const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + (V ? "?v=" + V : ""); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
 
-  /* ---------- ۱. نشانگر آهنربایی ---------- */
-  function cursor() {
-    if (!fine) return;
-    const c = document.createElement("div");
-    c.className = "mcur"; c.setAttribute("aria-hidden", "true");
-    c.innerHTML = '<i class="mcur__ring"><b class="mcur__label"></b></i><i class="mcur__dot"></i>';
-    document.body.append(c);
-    root.classList.add("has-mcur");
-    const ring = c.firstChild, dot = c.lastChild, label = $(".mcur__label", c);
-    let x = innerWidth / 2, y = innerHeight / 2, rx = x, ry = y, tx = x, ty = y, raf = 0, target = null, mode = "";
-    const MAG = "a, button, [role=button], .chip, summary, .card__fav, label.switch";
-    const setMode = (m, text = "") => { if (m === mode && label.textContent === text) return; mode = m; c.dataset.mode = m; label.textContent = text; };
-    const loop = () => {
-      raf = 0;
-      // حلقه با تأخیر نرم دنبال می‌کند؛ روی دکمه به سمت مرکز آن کشیده می‌شود (آهنربا)
-      let gx = x, gy = y;
-      if (target && mode === "link") { const r = target.getBoundingClientRect(); gx = x + (r.left + r.width / 2 - x) * 0.35; gy = y + (r.top + r.height / 2 - y) * 0.35; }
-      rx += (gx - rx) * 0.2; ry += (gy - ry) * 0.2;
-      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
-      dot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      if (Math.abs(gx - rx) > 0.3 || Math.abs(gy - ry) > 0.3) raf = requestAnimationFrame(loop);
-    };
-    const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
-    addEventListener("pointermove", (e) => {
-      if (e.pointerType !== "mouse") { c.classList.add("is-off"); return; }
-      x = e.clientX; y = e.clientY; c.classList.remove("is-off");
-      const el = e.target instanceof Element ? e.target : null;
-      if (!el || el.closest("input, textarea, select, [contenteditable], .leaflet-container, .dlg, .lightbox")) { setMode("hide"); target = null; }
-      else if (el.closest("#skyStage")) { setMode("drag", "بچرخانید"); target = null; }
-      else if (el.closest(".card__media, #gal [data-img], .scene__stage")) { setMode("view", el.closest(".scene__stage") ? "" : "دیدن"); target = null; }
-      else if ((target = el.closest(MAG))) setMode("link");
-      else { setMode(""); target = null; }
-      kick();
-    }, { passive: true });
-    addEventListener("pointerdown", () => c.classList.add("is-down"), { passive: true });
-    addEventListener("pointerup", () => c.classList.remove("is-down"), { passive: true });
-    document.addEventListener("mouseleave", () => c.classList.add("is-off"));
-    // دکمه‌های اصلی خودشان هم کمی به سمت نشانگر کشیده می‌شوند
-    document.addEventListener("pointerover", (e) => {
-      const b = e.target instanceof Element && e.target.closest(".btn--lg, .btn--hot, .nav a, #accountBtn");
-      if (!b || b.dataset.mag2) return;
-      b.dataset.mag2 = "1";
-      b.addEventListener("pointermove", (ev) => { const r = b.getBoundingClientRect(); b.style.translate = `${((ev.clientX - r.left - r.width / 2) * 0.15).toFixed(1)}px ${((ev.clientY - r.top - r.height / 2) * 0.25).toFixed(1)}px`; });
-      b.addEventListener("pointerleave", () => { b.style.translate = ""; });
-    });
-  }
-
-  /* ---------- ۲. اسکرول نرم و حرکت‌های هماهنگ ---------- */
+  /* ---------- ۱. اسکرول نرم و حرکت‌های هماهنگ ---------- */
   let lenis = null;
   async function smooth() {
     if (!strong) return;
@@ -106,7 +58,7 @@
     ST.refresh();
   }
 
-  /* ---------- ۳. جابه‌جایی زاویهٔ دید عکس‌های صحنه با نقشهٔ عمق (WebGL) ---------- */
+  /* ---------- ۲. جابه‌جایی زاویهٔ دید عکس‌های صحنه با نقشهٔ عمق (WebGL) ---------- */
   const VS = "attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;v.y=1.-v.y;gl_Position=vec4(p,0.,1.);}";
   const FS = "precision mediump float;varying vec2 v;uniform sampler2D img,dep;uniform vec2 off,sc;void main(){vec2 uv=(v-.5)*sc+.5;float d=texture2D(dep,uv).r;vec2 u=uv+off*(d-.45);gl_FragColor=texture2D(img,clamp(u,0.,1.));}";
   function depthPic(img, depthUrl) {
@@ -170,8 +122,7 @@
   new MutationObserver(() => {
     if (!root.classList.contains("lite")) return;
     if (lenis) { lenis.destroy(); lenis = null; root.classList.remove("has-lenis"); }
-    document.querySelector(".mcur")?.remove(); root.classList.remove("has-mcur");
   }).observe(root, { attributes: true, attributeFilter: ["class"] });
-  const start = () => { cursor(); depth(); smooth(); };
+  const start = () => { depth(); smooth(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
