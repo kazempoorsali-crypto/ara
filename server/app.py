@@ -19,8 +19,21 @@ import time
 import urllib.parse
 import urllib.request
 import webbrowser
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer, SimpleHTTPRequestHandler
+import sqlite3
 from pathlib import Path
+
+
+def get_optimized_db(db_path='database.db'):
+    """
+    اتصال امن و همزمان به SQLite با فعال‌سازی WAL mode
+    """
+    conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
+    conn.execute('PRAGMA journal_mode=WAL;') # خواندن و نوشتن همزمان بدون قفل
+    conn.execute('PRAGMA synchronous=NORMAL;')
+    conn.execute('PRAGMA cache_size=-64000;') # ۶۴ مگابایت کش رم
+    conn.row_factory = sqlite3.Row
+    return conn
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -1180,7 +1193,9 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
-    httpd = BoundedServer((args.host, args.port), Handler)
+    AppHandler = Handler
+    server = ThreadingHTTPServer((args.host, args.port), AppHandler)
+    httpd = server
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)
     print(f"  فرصت ملک روشن شد:    {url}")
