@@ -262,3 +262,56 @@ class Bale:
         self.send(chat, f"✅ پرداخت شما دریافت شد و اشتراک فعال است.\n"
                         f"طرح: {plan_name} ({_fa(days)} روز)\nمبلغ: {_fa(amount)} تومان\nشمارهٔ فاکتور: {_fa(pid)}\n"
                         f"اعتبار تا: {jdate(until)}\nفاکتور: https://forsatmelk.ir/#/invoice/{pid}")
+
+
+def send_instant_opportunity_alert(chat_id, deal_data, bot_token):
+    """
+    ارسال بلادرنگ آگهی شکار شده با قالب مارک‌داون رسمی بله
+    """
+    neighborhood = deal_data.get('neighborhood', 'تهران')
+    area = deal_data.get('area', 0)
+    price_b = deal_data.get('total_price_billion', 0)
+    sqm_m = deal_data.get('listed_sqm', 0)
+    discount = deal_data.get('discount_pct', 0)
+    profit = deal_data.get('potential_profit_billion', 0)
+    url = deal_data.get('source_url', 'https://forsatmelk.ir')
+    risk_level = deal_data.get('risk_score', 10)
+
+    risk_badge = "🟢 تایید اولیه سند رسمی" if risk_level < 40 else "🟡 نیازمند استعلام سند ثبتی"
+    if risk_level >= 70:
+        risk_badge = "🔴 هشدار: احتمال آگهی صوری (تخفیف نامتعارف)"
+
+    text = f"""🔥 **شکار فرصت ملکی جدید در {neighborhood}**
+
+🏢 **مشخصات:** {area} متر · {deal_data.get('age', 0)} سال ساخت
+💰 **قیمت کل:** {price_b} میلیارد تومان (متری {sqm_m} م.ت)
+📉 **تخفیف نسبت به عرف:** {discount}% زیر قیمت منصفانه
+💎 **سود تخمینی خرید:** +{profit} میلیارد تومان
+🛡️ **وضعیت اصالت:** {risk_badge}
+
+⚡ *فرصت ملک | موتور هوشمند پردازش و تحلیل آماری بازار مسکن*"""
+
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "reply_markup": {
+            "inline_keyboard": [
+                [{"text": "📞 تماس با فروشنده / منبع اصلی", "url": url}],
+                [{"text": "📊 گزارش کامل محله در سایت", "url": "https://forsatmelk.ir"}]
+            ]
+        }
+    }
+
+    api_url = f"https://tapi.bale.ai/bot{bot_token}/sendMessage"
+    req = urllib.request.Request(
+        api_url,
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            return response.status == 200
+    except Exception as e:
+        print(f"Error sending Bale alert: {e}")
+        return False
