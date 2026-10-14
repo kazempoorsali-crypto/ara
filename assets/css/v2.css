@@ -85,8 +85,10 @@
 :root[data-design="new"] .search-card { grid-area: form; border-radius: var(--v2-r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 :root[data-design="new"] .hero__quick { grid-area: quick; margin-top: 16px; }
 :root[data-design="new"] .chip { border-radius: 999px; }
-:root[data-design="new"] .hero .sky { grid-area: sky; border-radius: 36px; margin-top: 4px; position: sticky; top: 96px;
-  background: radial-gradient(120% 90% at 70% 0%, #1d3a2f 0%, #0f1a15 48%, #070c0a 100%); }
+:root[data-design="new"] .hero .sky { grid-area: sky; border-radius: 36px; margin-top: 4px; position: sticky; top: 96px; }
+/* کادر کره هم‌رنگ تم: روشن در حالت روشن، تیره در حالت تیره */
+:root[data-design="new"][data-theme="dark"] .hero .sky { background: radial-gradient(120% 90% at 70% 0%, #1d3a2f 0%, #0f1a15 48%, #070c0a 100%); }
+:root[data-design="new"]:not([data-theme="dark"]) .hero .sky { background: radial-gradient(120% 90% at 70% 0%, #ffffff 0%, var(--surface) 45%, var(--paper-2) 100%); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 :root[data-design="new"] .sky__stage.is-globe { height: min(52vh, 470px); }
 :root[data-design="new"] .search-card__deals button.is-on { background: var(--ink); color: var(--paper); }
 @media (max-width: 1100px) {
