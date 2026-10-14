@@ -18,6 +18,13 @@
       var n = navigator, c = n.connection || {};
       if ((n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || c.saveData || /(^|-)2g/.test(c.effectiveType || "") ||
           matchMedia("(prefers-reduced-motion: reduce)").matches) r.classList.add("lite");
+      // نقشهٔ کرهٔ صفحهٔ اصلی (روز یا شب، بسته به تم) از همان ابتدا بارگذاری می‌شود تا کره سریع‌تر ظاهر شود
+      if (location.pathname === "/" && (!location.hash || location.hash === "#/")) {
+        var dark = false; try { dark = JSON.parse(localStorage.getItem("ara:theme_v2") || '"light"') === "dark"; } catch (e) {}
+        var webp = false; try { webp = document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0; } catch (e) {}
+        var l = document.createElement("link"); l.rel = "preload"; l.as = "image"; l.crossOrigin = "anonymous";
+        l.href = "/assets/vendor/globe/earth-" + (dark ? "night" : "day") + (webp ? ".webp" : ".jpg"); document.head.appendChild(l);
+      }
     })();
   </script>
   <link rel="preload" href="assets/vendor/vazirmatn/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
