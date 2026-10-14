@@ -1231,243 +1231,224 @@ const App = (() => {
     draw();
   }
 
-  /* ---------- ورود، ثبت‌نام و بازیابی رمز ---------- */
-  // روش دریافت کد (پیامک یا بله): همهٔ روش‌ها دیده می‌شوند؛ روش آماده‌نشده «فعلاً فعال نیست»
-  function chPicker(host) {
-    const chs = cfg.login_channels || [{ id: "sms", ready: true }];
-    let ch = (chs.find((c) => c.ready) || chs[0]).id;
-    host.innerHTML = chs.map((c) => `<button type="button" role="radio" class="otpch__opt${c.ready ? "" : " is-off"}" data-ch="${c.id}">${icon(c.id === "bale" ? "chat" : "phone")}<span>${c.id === "bale" ? "کد در بله" : "کد با پیامک"}<small>${c.ready ? (c.id === "bale" ? "پیام‌رسان بله" : "به همین شماره") : "فعلاً فعال نیست"}</small></span></button>`).join("");
-    const paint = () => $$(".otpch__opt", host).forEach((b) => { b.classList.toggle("is-on", b.dataset.ch === ch); b.setAttribute("aria-checked", b.dataset.ch === ch); });
-    host.addEventListener("click", (e) => { const b = e.target.closest("[data-ch]"); if (!b) return; const c = chs.find((x) => x.id === b.dataset.ch); if (!c.ready) { toast(`${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"} فعلاً فعال نیست`); return; } ch = c.id; paint(); });
-    paint();
-    return { get value() { return ch; } };
+  /* ---------- ورود، ثبت‌نام و بازیابی رمز ----------
+     نام کاربری = شمارهٔ موبایل؛ رمز دست‌کم ۷ نویسه و ترکیب حرف و عدد.
+     تأیید شماره با کد بله (یا پیامک وقتی فعال شود) در یک گام جدا انجام می‌شود. */
+  const EYE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const EYE_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 005.4-1.6M9.9 9.9a3 3 0 004.2 4.2"/></svg>`;
+  const PW_MIN = 7;
+  const faDigits = (s) => String(s || "").replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  // ۰۹۱۲…، 9121234567، +989121234567 و 00989121234567 همه به 09121234567 تبدیل می‌شوند
+  const normPhone = (s) => { let d = faDigits(s).replace(/\D/g, ""); if (d.startsWith("0098")) d = d.slice(4); else if (d.startsWith("98") && d.length === 12) d = d.slice(2); if (d.length === 10 && d[0] === "9") d = "0" + d; return /^09\d{9}$/.test(d) ? d : ""; };
+  const toFa = (s) => String(s).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+  const maskPhone = (p) => (p ? `\u2066${toFa(p.slice(0, 4))}•••${toFa(p.slice(-3))}\u2069` : "");   // جداسازی جهت تا شماره برعکس نشود
+  const pwRules = (pw, pw2) => ({ len: pw.length >= PW_MIN, mix: /\p{L}/u.test(pw) && /[0-9۰-۹٠-٩]/.test(pw), same: !!pw2 && pw === pw2 });
+  const pwField = (id, label, auto, ph = "") => `<label class="af"><span class="af__lbl">${label}</span><span class="af__box"><input class="af__in" id="${id}" type="password" dir="ltr" autocomplete="${auto}" placeholder="${ph}" required><button type="button" class="af__eye" data-eye="${id}" aria-label="نمایش رمز" aria-pressed="false">${EYE}</button></span></label>`;
+  const phoneField = (id, label = "شمارهٔ موبایل") => `<label class="af"><span class="af__lbl">${label}</span><span class="af__box"><input class="af__in" id="${id}" type="tel" dir="ltr" inputmode="tel" autocomplete="username tel" placeholder="09123456789" required></span></label>`;
+  const rulesRow = () => `<div class="pwr" aria-live="polite"><span class="pwr__i" data-rule="len">حداقل ۷ نویسه</span><span class="pwr__i" data-rule="mix">حرف و عدد</span><span class="pwr__i" data-rule="same">تکرار یکسان</span></div>`;
+  // چشم رمز: داخل کادر، سمت چپ (ابتدای متن لاتین)، بدون هم‌پوشانی با متن
+  function bindEyes(root) {
+    $$("[data-eye]", root).forEach((b) => b.addEventListener("click", () => {
+      const inp = $("#" + b.dataset.eye), show = inp.type === "password";
+      inp.type = show ? "text" : "password"; b.innerHTML = show ? EYE_OFF : EYE;
+      b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "پنهان کردن رمز" : "نمایش رمز"); inp.focus();
+    }));
   }
-  const codeNote = (r) => (r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>`
-    : r.channel === "bale" || r.via === "bale" ? (r.sent ? "کد در ربات فرصت ملک در بله ارسال شد؛ تا ۳ دقیقه معتبر است."
-      : `<a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener" style="margin:6px 0">${icon("chat")} باز کردن ربات در بله</a>در ربات «اشتراک شمارهٔ من» را بزنید؛ کد فوراً همان‌جا می‌آید.`)
-    : "کد پنج‌رقمی برایتان پیامک شد؛ تا ۳ دقیقه معتبر است.");
+  // گزینه‌های خاکستری با تایپ سبز می‌شوند؛ خروجی: آیا هر سه شرط برقرار است
+  function bindRules(root, a, b) {
+    const paint = () => {
+      const r = pwRules($(a).value, $(b).value);
+      $$("[data-rule]", root).forEach((el) => el.classList.toggle("is-ok", r[el.dataset.rule]));
+      $(b).closest(".af").classList.toggle("is-bad", !!$(b).value && !r.same && $(b).value.length >= Math.min($(a).value.length, 1));
+      return r.len && r.mix && r.same;
+    };
+    [a, b].forEach((s) => $(s).addEventListener("input", paint));
+    return paint;
+  }
+  const channels = () => {
+    const chs = cfg.login_channels || [{ id: "sms", ready: true }];
+    return [...chs].sort((x, y) => (x.id === "bale" ? -1 : y.id === "bale" ? 1 : 0));   // بله اول
+  };
+  const firstReady = () => (channels().find((c) => c.ready) || channels()[0]).id;
+
   function loginDialog(after, tab = "login") {
-    openDialog(`<div class="dlg__head"><h2>حساب کاربری فرصت ملک</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <div class="authtabs" role="tablist"><button type="button" data-tab="login">ورود</button><button type="button" data-tab="register">ثبت‌نام</button><button type="button" data-tab="reset">فراموشی رمز</button></div>
-      <div id="authBody"></div>`);
+    openDialog(`<div class="auth">
+      <div class="auth__head"><div><b class="auth__title">حساب فرصت ملک</b><small class="auth__sub" id="authSub"></small></div><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <div class="auth__seg" role="tablist"><button type="button" role="tab" data-tab="login">ورود</button><button type="button" role="tab" data-tab="register">ثبت‌نام</button></div>
+      <div class="auth__body" id="authBody"></div></div>`);
+    $("#dlg").classList.add("dlg--auth");
     const done = (u, msg) => { $("#dlg").close(); updateAccount(); toast(msg || (u.trial_started ? `خوش آمدید؛ همهٔ امکانات تا ${fa(u.trial_started)} روز برایتان رایگان باز است` : "وارد شدید")); if (after) after(); else route(); };
-    const show = (t) => {
-      $$(".authtabs button").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === t));
-      const body = $("#authBody");
+    const body = $("#authBody");
+    const sub = (t) => { $("#authSub").textContent = t; };
+    const seg = (t) => { $(".auth__seg").hidden = !["login", "register"].includes(t); $$(".auth__seg button").forEach((b) => { b.classList.toggle("is-on", b.dataset.tab === t); b.setAttribute("aria-selected", b.dataset.tab === t); }); };
+    const links = (root) => $$("[data-go]", root).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); show(a.dataset.go); }));
+
+    function show(t) {
+      seg(t);
       if (t === "login") {
-        body.innerHTML = `<form class="form-grid" id="liForm">
-          <label class="field"><span>نام کاربری، موبایل یا ایمیل</span><input class="input input--ltr" id="liId" autocomplete="username" required></label>
-          <label class="field"><span>رمز عبور</span><input class="input input--ltr" id="liPw" type="password" autocomplete="current-password" required></label>
-          <button class="btn btn--hot btn--lg" id="liBtn">ورود</button>
-          <p class="small muted auth-links"><a href="#" data-go="reset">رمز را فراموش کرده‌ام</a> · <a href="#" data-go="otp">ورود با کد یک‌بار مصرف</a> · <a href="#" data-go="register">حساب ندارم، ثبت‌نام</a></p></form>`;
-        $("#liForm").addEventListener("submit", async (e) => { e.preventDefault(); const b = $("#liBtn"); b.disabled = true;
-          try { done(await DataLayer.login($("#liId").value.trim(), $("#liPw").value)); } catch (err) { toast(err.message); } b.disabled = false; });
-      } else if (t === "register") {
-        body.innerHTML = `<div class="reg-form-container">
-          <div id="reg-error-box" class="reg-error-summary"></div>
-          <form id="rgForm" onsubmit="return validateAndSubmitRegister(event);">
-            <div class="reg-input-group">
-              <label class="reg-label" for="reg-phone">شماره تلفن همراه</label>
-              <div class="reg-input-wrap">
-                <input
-                  type="tel"
-                  id="reg-phone"
-                  name="phone"
-                  class="reg-input"
-                  dir="ltr"
-                  placeholder="09123456789"
-                  required
-                />
-              </div>
-            </div>
-            <div class="reg-input-group">
-              <label class="reg-label" for="reg-password">رمز عبور</label>
-              <div class="reg-input-wrap">
-                <input
-                  type="password"
-                  id="reg-password"
-                  name="password"
-                  class="reg-input"
-                  dir="ltr"
-                  placeholder="رمز عبور ایمن را تایپ کنید..."
-                  oninput="onPasswordInput(this)"
-                  required
-                />
-                <button
-                  type="button"
-                  class="reg-eye-btn"
-                  onclick="togglePasswordEye('reg-password', this)"
-                  title="نمایش رمز"
-                >👁</button>
-              </div>
-              <div class="password-rules-box">
-                <div class="rules-header">معیارهای رمز عبور (با تایپ شما سبز می‌شوند):</div>
-                <div id="rule-len" class="pw-rule-chip invalid">
-                  <span class="icon">○</span>
-                  <span>حداقل ۷ کاراکتر</span>
-                </div>
-                <div id="rule-mix" class="pw-rule-chip invalid">
-                  <span class="icon">○</span>
-                  <span>شامل حروف و اعداد</span>
-                </div>
-              </div>
-            </div>
-            <div class="reg-input-group">
-              <label class="reg-label" for="reg-password-confirm">تکرار رمز عبور</label>
-              <div class="reg-input-wrap">
-                <input
-                  type="password"
-                  id="reg-password-confirm"
-                  name="confirm_password"
-                  class="reg-input"
-                  dir="ltr"
-                  placeholder="تکرار رمز عبور..."
-                  oninput="onConfirmPasswordInput(this)"
-                  required
-                />
-                <button
-                  type="button"
-                  class="reg-eye-btn"
-                  onclick="togglePasswordEye('reg-password-confirm', this)"
-                  title="نمایش رمز"
-                >👁</button>
-              </div>
-              <div id="reg-password-match" class="password-match-msg"></div>
-            </div>
-            <div style="margin-top: 20px;">
-              <button
-                type="submit"
-                id="rgBtn"
-                style="width:100%; padding:12px; background:#10b981; color:#020617; border:none; border-radius:8px; font-weight:bold; cursor:pointer;"
-              >
-                تایید و عضویت
-              </button>
-            </div>
-          </form>
-        </div>`;
-        const chEl = $("#rgCh");
-        const chp = chEl ? chPicker(chEl) : { value: "sms" };
-        let sent = false;
-        const formEl = $("#rgForm");
-        if (formEl) {
-          formEl.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            if (typeof window.handleRegisterSubmit === 'function' && !window.handleRegisterSubmit(e)) return;
-            const b = $("#rgBtn"); if (b) b.disabled = true;
-            try {
-              const phoneVal = ($("#reg-phone") || $("#rgPhone")) ? ($("#reg-phone") || $("#rgPhone")).value.trim() : "";
-              const passVal = ($("#reg-password") || $("#rgPw")) ? ($("#reg-password") || $("#rgPw")).value : "";
-              if (!sent && chEl) {
-                const r = await DataLayer.requestOtp(phoneVal, chp.value);
-                sent = true; if ($("#rgStep2")) $("#rgStep2").hidden = false;
-                if ($("#reg-phone")) $("#reg-phone").readOnly = true;
-                if ($("#rgNote")) $("#rgNote").innerHTML = codeNote(r); if (b) b.textContent = "تأیید و ساخت حساب"; if ($("#rgCode")) $("#rgCode").focus();
-              } else {
-                const u = await DataLayer.register({
-                  first_name: $("#rgFirst") ? $("#rgFirst").value : "",
-                  last_name: $("#rgLast") ? $("#rgLast").value : "",
-                  phone: phoneVal,
-                  email: $("#rgEmail") ? $("#rgEmail").value : "",
-                  username: $("#rgUser") ? $("#rgUser").value : "",
-                  password: passVal,
-                  code: $("#rgCode") ? $("#rgCode").value : ""
-                });
-                if (u) done(u);
-              }
-            } catch (err) { toast(err.message); }
-            if (b) b.disabled = false;
-          });
-        }
-      } else if (t === "reset") {
-        body.innerHTML = `<form class="form-grid" id="rsForm">
-          <label class="field"><span>موبایل، نام کاربری یا ایمیل</span><input class="input input--ltr" id="rsId" required></label>
-          <div class="field" id="rsChWrap"><span>دریافت کد بازیابی</span><div class="otpch" id="rsCh"></div></div>
-          <div id="rsStep2" hidden><p class="small muted" id="rsNote"></p>
-            <label class="field"><span>کد</span><input class="input input--ltr" id="rsCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code"></label>
-            <label class="field"><span>رمز تازه</span><input class="input input--ltr" id="rsPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد"></label></div>
-          <button class="btn btn--hot btn--lg" id="rsBtn">ارسال</button>
-          <p class="small muted">اگر ایمیل وارد کنید، لینک تعیین رمز تازه به ایمیلتان فرستاده می‌شود${cfg.email_ready ? "" : " (ارسال ایمیل هنوز فعال نیست؛ با موبایل بازیابی کنید)"}.</p></form>`;
-        const chp = chPicker($("#rsCh"));
-        let step = 1;
-        $("#rsId").addEventListener("input", () => { $("#rsChWrap").hidden = $("#rsId").value.includes("@"); });
-        $("#rsForm").addEventListener("submit", async (e) => {
-          e.preventDefault(); const b = $("#rsBtn"); b.disabled = true;
-          try {
-            const id = $("#rsId").value.trim();
-            if (step === 1) {
-              const r = await DataLayer.resetRequest(id, id.includes("@") ? "email" : chp.value);
-              if (r.via === "email") { $("#rsStep2").hidden = true; toast("اگر این ایمیل در سایت ثبت شده باشد، لینک تعیین رمز تازه برایش ارسال شد"); $("#dlg").close(); return; }
-              step = 2; $("#rsStep2").hidden = false; $("#rsId").readOnly = true; $("#rsNote").innerHTML = codeNote(r) + (r.phone ? ` (${esc(r.phone)})` : ""); b.textContent = "تعیین رمز تازه و ورود";
-            } else {
-              done(await DataLayer.resetCode(id, $("#rsCode").value, $("#rsPw").value), "رمز تازه ثبت شد و وارد شدید");
-            }
-          } catch (err) { toast(err.message); }
+        sub("با شمارهٔ موبایل و رمز وارد شوید");
+        body.innerHTML = `<form class="auth__form" id="liForm" novalidate>${phoneField("liPhone")}${pwField("liPw", "رمز عبور", "current-password")}
+          <p class="auth__err" id="liErr" role="alert"></p>
+          <button class="btn btn--hot auth__go" id="liBtn">ورود</button>
+          <div class="auth__links"><a href="#" data-go="otp">ورود با رمز یک‌بارمصرف</a><a href="#" data-go="reset">فراموشی رمز</a></div></form>`;
+        bindEyes(body); links(body);
+        $("#liForm").addEventListener("submit", async (e) => {
+          e.preventDefault(); const b = $("#liBtn"), raw = $("#liPhone").value.trim();
+          const id = normPhone(raw) || raw;   // نام کاربری یا ایمیل حساب‌های قدیمی هم پذیرفته می‌شود
+          if (!id || !$("#liPw").value) { $("#liErr").textContent = "شماره و رمز را وارد کنید"; return; }
+          b.disabled = true; $("#liErr").textContent = "";
+          try { done(await DataLayer.login(id, $("#liPw").value)); } catch (err) { $("#liErr").textContent = err.message; }
           b.disabled = false;
         });
+        setTimeout(() => $("#liPhone")?.focus(), 30);
+      } else if (t === "register" || t === "reset") {
+        const reg = t === "register";
+        sub(reg ? `شماره موبایل نام کاربری شماست${cfg.trial_days ? `؛ ${fa(cfg.trial_days)} روز استفادهٔ رایگان` : ""}` : "کد بازیابی با بله یا پیامک می‌آید");
+        body.innerHTML = `<form class="auth__form" id="pwForm" novalidate>${reg ? "" : `<a href="#" class="auth__back" data-go="login">${icon("arrow")} بازگشت به ورود</a>`}
+          ${phoneField("fPhone")}${pwField("fPw", reg ? "رمز عبور" : "رمز تازه", "new-password")}${pwField("fPw2", "تکرار رمز", "new-password")}${rulesRow()}
+          <p class="auth__err" id="fErr" role="alert"></p>
+          <button class="btn btn--hot auth__go" id="fBtn">${reg ? "ثبت‌نام" : "دریافت کد بازیابی"}</button>
+          ${reg ? `<div class="auth__links"><span class="muted">حساب دارید؟</span><a href="#" data-go="login">وارد شوید</a></div>`
+            : cfg.email_ready ? `<div class="auth__links"><span class="muted">ایمیل ثبت کرده‌اید؟ به‌جای شماره ایمیل را بنویسید تا لینک بیاید.</span></div>` : ""}</form>`;
+        bindEyes(body); links(body);
+        const ok = bindRules(body, "#fPw", "#fPw2");
+        if (!reg && cfg.email_ready) $("#fPhone").setAttribute("type", "text");
+        $("#pwForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const raw = $("#fPhone").value.trim(), phone = normPhone(raw), err = $("#fErr");
+          if (!reg && cfg.email_ready && raw.includes("@")) {   // بازیابی با لینک ایمیلی (پاسخ یکسان برای ایمیل ثبت‌شده و نشده)
+            try { await DataLayer.resetRequest(raw, "email"); $("#dlg").close(); toast("اگر این ایمیل در سایت ثبت شده باشد، لینک تعیین رمز تازه برایش ارسال شد"); } catch (x) { err.textContent = x.message; }
+            return;
+          }
+          if (!phone) { err.textContent = "شمارهٔ موبایل را درست وارد کنید (مثل 09123456789)"; $("#fPhone").focus(); return; }
+          if (!ok()) { err.textContent = "رمز باید دست‌کم ۷ نویسه، شامل حرف و عدد و با تکرارش یکسان باشد"; return; }
+          err.textContent = "";
+          const pw = $("#fPw").value;
+          codeStep({
+            phone, title: reg ? "تأیید شماره و ساخت حساب" : "بازیابی رمز", back: t,
+            send: (ch) => (reg ? DataLayer.requestOtp(phone, ch) : DataLayer.resetRequest(phone, ch)),
+            verify: async (code) => { const u = reg ? await DataLayer.register({ phone, password: pw, code }) : await DataLayer.resetCode(phone, code, pw);
+              done(u, u.existed || !reg ? "رمز تازه ثبت شد و وارد شدید" : null); },
+          });
+        });
+        setTimeout(() => $("#fPhone")?.focus(), 30);
+      } else if (t === "otp") {
+        sub("کد یک‌بارمصرف با بله یا پیامک");
+        body.innerHTML = `<form class="auth__form" id="otpForm" novalidate><a href="#" class="auth__back" data-go="login">${icon("arrow")} ورود با رمز</a>
+          ${phoneField("oPhone")}<p class="auth__err" id="oErr" role="alert"></p>
+          <button class="btn btn--hot auth__go">دریافت کد</button>
+          <p class="auth__fine">اگر هنوز حساب ندارید، با همین کد حساب ساخته می‌شود و بعداً از «حساب من» رمز می‌گذارید.</p></form>`;
+        links(body);
+        $("#otpForm").addEventListener("submit", (e) => {
+          e.preventDefault(); const phone = normPhone($("#oPhone").value);
+          if (!phone) { $("#oErr").textContent = "شمارهٔ موبایل را درست وارد کنید"; return; }
+          codeStep({ phone, title: "ورود با رمز یک‌بارمصرف", back: "otp", send: (ch) => DataLayer.requestOtp(phone, ch), verify: async (code) => done(await DataLayer.verifyOtp(phone, code)) });
+        });
+        setTimeout(() => $("#oPhone")?.focus(), 30);
       }
-      $$("[data-go]", body).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); if (a.dataset.go === "otp") { $("#dlg").close(); otpDialog(after); } else show(a.dataset.go); }));
-    };
-    $$(".authtabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
-    show(tab);
+    }
+
+    /* گام کد تأیید: کانال (بله / پیامک)، پیوند ربات (اپ و وب)، شمارش اعتبار و ارسال دوباره، و حالت‌های کد درست، نادرست و منقضی */
+    function codeStep({ phone, title, back, send, verify }) {
+      seg("code"); sub(`کد به ${maskPhone(phone)}`);
+      const chs = channels();
+      let ch = firstReady(), sentAt = 0, expires = 0, timer = 0, busy = false;
+      body.innerHTML = `<div class="auth__code">
+        <a href="#" class="auth__back" id="cBack">${icon("arrow")} ویرایش شماره یا رمز</a>
+        <b class="auth__ctitle">${esc(title)}</b>
+        <div class="auth__ch" role="radiogroup" aria-label="روش دریافت کد">${chs.map((c) => `<button type="button" role="radio" data-ch="${c.id}" class="${c.ready ? "" : "is-off"}" ${c.ready ? "" : 'aria-disabled="true"'}>${icon(c.id === "bale" ? "chat" : "phone")}<span>${c.id === "bale" ? "بله" : "پیامک"}</span>${c.ready ? "" : "<em>به‌زودی</em>"}</button>`).join("")}</div>
+        <div class="auth__note" id="cNote" aria-live="polite"></div>
+        <form id="cForm" novalidate><label class="af"><span class="af__lbl">کد ۵ رقمی</span><input class="af__in af__code" id="cCode" dir="ltr" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="•••••" aria-describedby="cErr"></label>
+          <p class="auth__err" id="cErr" role="alert"></p>
+          <button class="btn btn--hot auth__go" id="cBtn">تأیید</button></form>
+        <div class="auth__timers"><span id="cLeft"></span><button type="button" class="linkbtn" id="cResend" disabled>ارسال دوباره</button></div></div>`;
+      const note = $("#cNote"), err = $("#cErr"), input = $("#cCode"), btn = $("#cBtn"), resend = $("#cResend");
+      const paintCh = () => $$("[data-ch]", body).forEach((b) => { b.classList.toggle("is-on", b.dataset.ch === ch); b.setAttribute("aria-checked", b.dataset.ch === ch); });
+      const state = (s, msg = "") => {   // idle | wrong | expired | ok
+        const box = input.closest(".af"); box.classList.remove("is-bad", "is-ok", "shake");
+        err.textContent = msg; err.classList.toggle("is-ok", s === "ok");
+        if (s === "wrong") { box.classList.add("is-bad"); void box.offsetWidth; box.classList.add("shake"); input.select(); }
+        if (s === "expired") { box.classList.add("is-bad"); btn.disabled = true; resend.disabled = false; resend.classList.add("is-hot"); clearInterval(timer); $("#cLeft").textContent = "کد منقضی شد"; }
+        if (s === "ok") box.classList.add("is-ok");
+      };
+      const tick = () => {
+        const now = Date.now() / 1000, left = Math.max(0, Math.round(expires - now)), wait = Math.max(0, Math.round(sentAt + 90 - now));
+        const mm = (x) => `\u2066${toFa(Math.floor(x / 60))}:${toFa(String(x % 60).padStart(2, "0"))}\u2069`;
+        $("#cLeft").textContent = left ? `اعتبار کد: ${mm(left)}` : "";
+        resend.disabled = wait > 0; resend.textContent = wait ? `ارسال دوباره (${mm(wait)})` : "ارسال دوباره";
+        if (!left && expires) state("expired", "زمان کد تمام شد؛ «ارسال دوباره» را بزنید");
+      };
+      const botNote = (r) => {
+        if (r.dev_code) return `<div class="auth__dev">سامانهٔ ارسال هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b></div>`;
+        if ((r.channel || ch) !== "bale") return `${icon("phone")} کد پیامک شد؛ تا ۳ دقیقه معتبر است.`;
+        if (r.sent) return `${icon("check")} کد در ربات فرصت ملک در بله ارسال شد. پیام بله را باز کنید.`;
+        // بار اول: شماره هنوز به ربات وصل نیست؛ ربات پس از «اشتراک شمارهٔ من» کد را می‌فرستد
+        const start = (r.link || "").split("start=")[1] || "", bot = ((r.link || "").match(/ble\.ir\/([\w.]+)/) || [])[1] || "";
+        return `<ol class="auth__steps"><li>ربات فرصت ملک را در بله باز کنید</li><li>دکمهٔ «اشتراک شمارهٔ من» را بزنید</li><li>کدی که ربات می‌فرستد را این‌جا وارد کنید</li></ol>
+          <div class="auth__bale"><a class="btn btn--line" href="${esc(r.link)}" target="_blank" rel="noopener">${icon("chat")} باز کردن بله</a>
+          <a class="btn btn--line" href="https://web.bale.ai/" target="_blank" rel="noopener">بله وب</a></div>
+          ${bot ? `<p class="auth__fine">در بله وب، <b dir="ltr">@${esc(bot)}</b> را جست‌وجو کنید و این پیام را بفرستید: <code dir="ltr" class="auth__cmd" title="کپی">/start ${esc(start)}</code></p>` : ""}
+          <button type="button" class="linkbtn" id="cLinked">در بله وصل شدم</button>`;
+      };
+      const doSend = async () => {
+        if (busy) return false; busy = true; let sentOk = false; state("idle"); note.innerHTML = `<span class="muted">در حال ارسال کد…</span>`;
+        try {
+          const r = await send(ch);
+          sentAt = Date.now() / 1000; expires = sentAt + 180; btn.disabled = false; resend.classList.remove("is-hot");
+          note.innerHTML = botNote(r);
+          $("#cLinked")?.addEventListener("click", () => { note.querySelector(".auth__steps")?.remove(); input.focus(); toast("اگر شماره را در ربات به اشتراک گذاشته‌اید، کد همان‌جا آمده است"); });
+          note.querySelector(".auth__cmd")?.addEventListener("click", async (e) => { try { await navigator.clipboard.writeText(e.target.textContent); toast("پیام کپی شد"); } catch { /* */ } });
+          clearInterval(timer); timer = setInterval(tick, 1000); tick();
+          if (r.dev_code || r.sent) input.focus();
+          sentOk = true;
+        } catch (x) {
+          note.innerHTML = ""; err.textContent = x.message;
+          const m = /(\d+)\s*ثانیه/.exec(faDigits(x.message));   // کد قبلی هنوز معتبر است
+          if (m) { sentAt = Date.now() / 1000 - (90 - +m[1]); if (!expires) expires = sentAt + 180; btn.disabled = false; clearInterval(timer); timer = setInterval(tick, 1000); tick(); }
+        }
+        busy = false;
+        return sentOk;
+      };
+      $$("[data-ch]", body).forEach((b) => b.addEventListener("click", () => {
+        const c = chs.find((x) => x.id === b.dataset.ch);
+        if (!c.ready) { toast(c.id === "sms" ? "دریافت کد با پیامک به‌زودی فعال می‌شود" : "دریافت کد در بله فعلاً فعال نیست"); return; }
+        if (c.id === ch) return;
+        const prev = ch, prevNote = note.innerHTML; ch = c.id; paintCh();
+        // اگر مهلت ارسال دوباره نرسیده باشد، کد قبلی (در کانال قبلی) معتبر می‌ماند و انتخاب برمی‌گردد
+        doSend().then((okSent) => { if (!okSent && /ثانیه/.test(err.textContent)) { ch = prev; paintCh(); note.innerHTML = prevNote; err.textContent = `برای تغییر روش، ${err.textContent.match(/[\d۰-۹]+\s*ثانیه/)?.[0] || "کمی"} دیگر صبر کنید؛ کد قبلی هنوز معتبر است`; } });
+      }));
+      resend.addEventListener("click", doSend);
+      $("#cBack").addEventListener("click", (e) => { e.preventDefault(); clearInterval(timer); show(back); });
+      input.addEventListener("input", () => { input.value = faDigits(input.value).replace(/\D/g, "").slice(0, 5); if (input.closest(".af").classList.contains("is-bad") && !btn.disabled) state("idle"); if (input.value.length === 5) $("#cForm").requestSubmit(); });
+      $("#cForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (input.value.length !== 5) { state("wrong", "کد ۵ رقمی را کامل وارد کنید"); return; }
+        if (busy || btn.disabled) return; busy = true; btn.disabled = true;
+        try { await verify(input.value); state("ok", "تأیید شد"); clearInterval(timer); }
+        catch (x) {
+          const m = x.message || "";
+          if (/منقضی|کد تازه/.test(m)) state("expired", m); else { state("wrong", m); btn.disabled = false; }
+        }
+        busy = false;
+      });
+      $("#dlg").addEventListener("close", () => clearInterval(timer), { once: true });
+      paintCh(); doSend();
+    }
+
+    $$(".auth__seg button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+    show(tab === "reset" || tab === "otp" ? tab : tab === "register" ? "register" : "login");
   }
   /* لینک بازیابی رمز از ایمیل */
   function resetPage(params) {
-    view().innerHTML = `<section class="section--tight"><div class="wrap" style="max-width:460px"><h1>تعیین رمز تازه</h1>
-      <form class="form-grid" id="rpForm"><label class="field"><span>رمز تازه</span><input class="input input--ltr" id="rpPw" type="password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد" required></label>
-      <label class="field"><span>تکرار رمز</span><input class="input input--ltr" id="rpPw2" type="password" autocomplete="new-password" required></label>
-      <button class="btn btn--hot btn--lg">ثبت رمز و ورود</button></form></div></section>`;
+    view().innerHTML = `<section class="section--tight"><div class="wrap" style="max-width:420px"><h1>تعیین رمز تازه</h1>
+      <form class="auth__form" id="rpForm" novalidate>${pwField("rpPw", "رمز تازه", "new-password")}${pwField("rpPw2", "تکرار رمز", "new-password")}${rulesRow()}
+      <p class="auth__err" id="rpErr" role="alert"></p><button class="btn btn--hot auth__go">ثبت رمز و ورود</button></form></div></section>`;
+    bindEyes(view()); const ok = bindRules(view(), "#rpPw", "#rpPw2");
     $("#rpForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      try {
-        if ($("#rpPw").value !== $("#rpPw2").value) throw new Error("رمز و تکرار آن یکسان نیستند");
-        await DataLayer.resetToken(params.token, $("#rpPw").value); updateAccount(); toast("رمز تازه ثبت شد و وارد شدید"); go("#/account");
-      } catch (err) { toast(err.message); }
-    });
-  }
-
-  /* ---------- ورود با کد پیامکی ---------- */
-  function otpDialog(after) {
-    openDialog(`<div class="dlg__head"><h2>ورود یا ثبت‌نام</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <p class="muted" style="margin-bottom:16px">شماره موبایل را وارد کنید؛ کد پنج‌رقمی با پیامک یا در پیام‌رسان بله برایتان ارسال می‌شود. ثبت‌نام همزمان انجام می‌شود.${cfg.trial_days ? ` <b>با ثبت‌نام، همهٔ امکانات سایت ${fa(cfg.trial_days)} روز رایگان برایتان باز می‌شود.</b>` : ""}</p>
-      <form class="form-grid" id="otpForm">
-        <div class="otpch" role="radiogroup" aria-label="روش دریافت کد">${(cfg.login_channels || [{ id: "sms", name: "پیامک", ready: true }]).map((c, i) => `<button type="button" role="radio" class="otpch__opt${c.ready ? "" : " is-off"}" data-ch="${c.id}" aria-checked="false">${icon(c.id === "bale" ? "chat" : "phone")}<span>${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"}<small>${c.ready ? (c.id === "bale" ? "پیام‌رسان بله" : "پیامک به همین شماره") : "فعلاً فعال نیست"}</small></span></button>`).join("")}</div>
-        <label class="field"><span>شماره موبایل</span><input class="input input--ltr" id="otpPhone" name="phone" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required autocomplete="tel"></label>
-        <div id="otpStep2" hidden><label class="field"><span>کد تأیید</span><input class="input input--ltr" id="otpCode" inputmode="numeric" maxlength="5" autocomplete="one-time-code" placeholder="-----"></label><p class="small muted" id="otpNote" style="margin-top:6px"></p></div>
-        <button class="btn btn--hot btn--lg" type="submit" id="otpBtn">دریافت کد</button>
-        <p class="small muted">کد نمی‌رسد؟ <a href="#/support?cat=sms" data-close>تیکت پشتیبانی بفرستید</a>.</p>
-      </form>`);
-    let sent = false;
-    // روش دریافت کد: اولین روش آماده انتخاب می‌شود؛ روش آماده‌نشده پیام «فعلاً فعال نیست» می‌دهد
-    const chs = cfg.login_channels || [{ id: "sms", ready: true }];
-    let ch = (chs.find((c) => c.ready) || chs[0]).id;
-    const paintCh = () => $$(".otpch__opt").forEach((b) => { b.classList.toggle("is-on", b.dataset.ch === ch); b.setAttribute("aria-checked", b.dataset.ch === ch); });
-    $$(".otpch__opt").forEach((b) => b.addEventListener("click", () => {
-      if (sent) return;
-      const c = chs.find((x) => x.id === b.dataset.ch);
-      if (!c.ready) { toast(`${c.id === "bale" ? "دریافت کد در بله" : "دریافت کد با پیامک"} فعلاً فعال نیست`); return; }
-      ch = c.id; paintCh();
-    }));
-    paintCh();
-    $("#otpForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = $("#otpBtn"); btn.disabled = true;
-      try {
-        if (!sent) {
-          const r = await DataLayer.requestOtp($("#otpPhone").value, ch);
-          sent = true;
-          $("#otpStep2").hidden = false; $("#otpPhone").readOnly = true;
-          $("#otpNote").innerHTML = r.dev_code ? `سامانه پیامک هنوز تنظیم نشده؛ کد آزمایشی: <b dir="ltr">${esc(r.dev_code)}</b>`
-            : r.channel === "bale" ? (r.sent ? "کد در ربات فرصت ملک در بله برایتان ارسال شد؛ تا ۳ دقیقه معتبر است."
-              : `<a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener" style="margin:6px 0">${icon("chat")} باز کردن ربات در بله</a>در ربات «اشتراک شمارهٔ من» را بزنید؛ کد فوراً همان‌جا می‌آید. آن را این‌جا وارد کنید.`)
-            : "کد تا ۳ دقیقه معتبر است.";
-          btn.textContent = "ورود"; $("#otpCode").focus();
-        } else {
-          const u = await DataLayer.verifyOtp($("#otpPhone").value, $("#otpCode").value);
-          $("#dlg").close(); updateAccount(); toast(u.trial_started ? `خوش آمدید؛ همهٔ امکانات تا ${fa(u.trial_started)} روز برایتان رایگان باز است` : "وارد شدید");
-          if (after) after(); else route();
-        }
-      } catch (err) { toast(err.message); }
-      btn.disabled = false;
+      if (!ok()) { $("#rpErr").textContent = "رمز باید دست‌کم ۷ نویسه، شامل حرف و عدد و با تکرارش یکسان باشد"; return; }
+      try { await DataLayer.resetToken(params.token, $("#rpPw").value); updateAccount(); toast("رمز تازه ثبت شد و وارد شدید"); go("#/account"); }
+      catch (err) { $("#rpErr").textContent = err.message; }
     });
   }
 
@@ -1488,15 +1469,15 @@ const App = (() => {
         </div>
         <form class="tool profile" id="profForm" autocomplete="on">
           <h3>مشخصات و رمز عبور</h3>
-          ${me.has_password ? "" : `<p class="note-bad small">برای این حساب هنوز رمز عبور تعیین نشده؛ نام کاربری و رمز بگذارید تا دفعهٔ بعد بدون کد وارد شوید.</p>`}
-          <div class="row2"><label class="field"><span>نام</span><input class="input" name="first_name" value="${esc(me.first_name || "")}" required></label>
-          <label class="field"><span>نام خانوادگی</span><input class="input" name="last_name" value="${esc(me.last_name || "")}" required></label></div>
-          <div class="row2"><label class="field"><span>نام کاربری (انگلیسی)</span><input class="input input--ltr" name="username" autocomplete="username" value="${esc(me.username || "")}" required></label>
+          ${me.has_password ? "" : `<p class="note-bad small">برای این حساب هنوز رمز عبور تعیین نشده؛ یک رمز بگذارید تا دفعهٔ بعد با شماره و رمز وارد شوید.</p>`}
+          <div class="row2"><label class="field"><span>نام</span><input class="input" name="first_name" value="${esc(me.first_name || "")}"></label>
+          <label class="field"><span>نام خانوادگی</span><input class="input" name="last_name" value="${esc(me.last_name || "")}"></label></div>
+          <div class="row2"><label class="field"><span>نام کاربری انگلیسی (اختیاری)</span><input class="input input--ltr" name="username" value="${esc(me.username || "")}"></label>
           <label class="field"><span>ایمیل (اختیاری)</span><input class="input input--ltr" type="email" name="email" value="${esc(me.email || "")}"></label></div>
           <div class="row2">${me.has_password ? `<label class="field"><span>رمز فعلی</span><input class="input input--ltr" type="password" name="password" autocomplete="current-password" placeholder="فقط برای تغییر رمز"></label>` : ""}
-          <label class="field"><span>${me.has_password ? "رمز جدید" : "رمز عبور"}</span><input class="input input--ltr" type="password" name="new_password" autocomplete="new-password" placeholder="دست‌کم ۸ نویسه، حرف و عدد"></label></div>
+          <label class="field"><span>${me.has_password ? "رمز جدید" : "رمز عبور"}</span><input class="input input--ltr" type="password" name="new_password" autocomplete="new-password" placeholder="دست‌کم ۷ نویسه، حرف و عدد"></label></div>
           <button class="btn btn--hot" type="submit">ذخیرهٔ مشخصات</button>
-        </form>` : `<div class="empty"><h3>وارد حساب خود شوید</h3><p>با نام کاربری و رمز عبور وارد شوید، یا با شمارهٔ موبایل و نام خود ثبت‌نام کنید.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
+        </form>` : `<div class="empty"><h3>وارد حساب خود شوید</h3><p>با شمارهٔ موبایل و رمز وارد شوید، یا با همین شماره در چند ثانیه ثبت‌نام کنید.</p><button class="btn btn--hot btn--lg" id="loginBtn">ورود یا ثبت‌نام</button><p class="small muted" style="margin-top:12px">کد ورود نمی‌رسد؟ <a href="#/support?cat=sms">تیکت پشتیبانی بفرستید</a>.</p></div>`}
     </div></section>${plansSection()}`;
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
     $("#logoutBtn")?.addEventListener("click", async () => { await DataLayer.logout(); updateAccount(); route(); });
@@ -3095,149 +3076,3 @@ const App = (() => {
   return { get favs() { return state.favs; }, get compare() { return state.compare; } };
 })();
 
-// ========================================================
-// اعتبارسنجی رمز عبور (حداقل ۷ کاراکتر، شامل حرف و عدد)
-// ========================================================
-
-if (typeof window !== 'undefined') {
-  window.API = window.API || (typeof DataLayer !== 'undefined' ? DataLayer : {});
-
-  window.onPasswordInput = function(input) {
-    var val = input.value;
-    var ruleLen = document.getElementById('rule-len');
-    var ruleMix = document.getElementById('rule-mix');
-
-    // ۱. حداقل ۷ کاراکتر
-    var hasLength = val.length >= 7;
-    if (ruleLen) {
-      if (hasLength) {
-        ruleLen.className = 'pw-rule-chip valid';
-        var icon = ruleLen.querySelector('.icon') || ruleLen.querySelector('.rule-icon');
-        if (icon) icon.textContent = '✓';
-      } else {
-        ruleLen.className = 'pw-rule-chip invalid';
-        var icon = ruleLen.querySelector('.icon') || ruleLen.querySelector('.rule-icon');
-        if (icon) icon.textContent = '○';
-      }
-    }
-
-    // ۲. شامل حروف و اعداد (بدون اجبار کاراکتر خاص یا بزرگ/کوچک)
-    var hasMix = /[a-zA-Zآ-ی]/.test(val) && /[0-9۰-۹]/.test(val);
-    if (ruleMix) {
-      if (hasMix) {
-        ruleMix.className = 'pw-rule-chip valid';
-        var icon = ruleMix.querySelector('.icon') || ruleMix.querySelector('.rule-icon');
-        if (icon) icon.textContent = '✓';
-      } else {
-        ruleMix.className = 'pw-rule-chip invalid';
-        var icon = ruleMix.querySelector('.icon') || ruleMix.querySelector('.rule-icon');
-        if (icon) icon.textContent = '○';
-      }
-    }
-
-    var confirmInput = document.getElementById('reg-password-confirm');
-    if (confirmInput && confirmInput.value && typeof window.onConfirmPasswordInput === 'function') {
-      window.onConfirmPasswordInput(confirmInput);
-    }
-
-    return hasLength && hasMix;
-  };
-
-  window.onConfirmPasswordInput = function(confirmInput) {
-    var passInput = document.getElementById('reg-password');
-    var matchMsg = document.getElementById('reg-password-match');
-    if (!passInput || !matchMsg) return;
-
-    if (!confirmInput.value) {
-      matchMsg.style.display = 'none';
-      return;
-    }
-
-    matchMsg.style.display = 'block';
-    if (confirmInput.value === passInput.value) {
-      matchMsg.textContent = '✓ تکرار رمز عبور مطابقت دارد.';
-      matchMsg.className = 'password-match-msg match-success';
-    } else {
-      matchMsg.textContent = '✕ تکرار رمز عبور با رمز اصلی همخوانی ندارد.';
-      matchMsg.className = 'password-match-msg match-error';
-    }
-  };
-
-  // نمایش و مخفی کردن رمز
-  window.togglePasswordEye = function(inputId, btn) {
-    var input = document.getElementById(inputId);
-    if (!input) return;
-    if (input.type === 'password') {
-      input.type = 'text';
-      btn.textContent = '🔒';
-    } else {
-      input.type = 'password';
-      btn.textContent = '👁';
-    }
-  };
-  window.togglePasswordVisibility = window.togglePasswordEye;
-
-  // تایید نهایی فرم ثبت‌نام و ذکر صریح خطاها
-  window.validateAndSubmitRegister = function(e) {
-    if (e) e.preventDefault();
-
-    var phone = (document.getElementById('reg-phone')?.value || '').trim();
-    var pass = document.getElementById('reg-password')?.value || '';
-    var confirm = document.getElementById('reg-password-confirm')?.value || '';
-    var errBox = document.getElementById('reg-error-box');
-    var errors = [];
-
-    // بررسی شماره موبایل
-    if (!/^09[0-9]{9}$/.test(phone)) {
-      errors.push('شماره موبایل باید ۱۱ رقم بوده و با 09 آغاز شود.');
-    }
-
-    // بررسی رمز (حداقل ۷ کاراکتر و ترکیب حرف و عدد)
-    if (pass.length < 7) {
-      errors.push('طول رمز عبور باید حداقل ۷ کاراکتر باشد.');
-    }
-    if (!(/[a-zA-Zآ-ی]/.test(pass) && /[0-9۰-۹]/.test(pass))) {
-      errors.push('رمز عبور باید شامل هر دو موردِ «حروف» و «اعداد» باشد.');
-    }
-
-    // بررسی تکرار رمز
-    if (pass !== confirm) {
-      errors.push('رمز عبور و تکرار آن یکسان نیستند.');
-    }
-
-    var safeEsc = typeof esc === 'function' ? esc : (typeof UI !== 'undefined' && UI.esc ? UI.esc : function(s) { return String(s ?? "").replace(/[&<>"']/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); });
-    if (typeof window !== 'undefined' && typeof window.esc !== 'function') { window.esc = safeEsc; }
-
-    // نمایش خطاها
-    if (errors.length > 0) {
-      if (errBox) {
-        errBox.style.display = 'block';
-        errBox.innerHTML = '<strong style="display:block;margin-bottom:3px;">لطفاً موارد زیر را اصلاح کنید:</strong>' +
-          '<ul style="margin:0;padding-right:16px;">' +
-          errors.map(function(err) { return '<li>' + safeEsc(err) + '</li>'; }).join('') +
-          '</ul>';
-      }
-      return false;
-    }
-
-    if (errBox) errBox.style.display = 'none';
-
-    // ارسال امن به سرور
-    var apiObj = typeof API !== 'undefined' && API.register ? API : (typeof DataLayer !== 'undefined' ? DataLayer : null);
-    if (apiObj && apiObj.register) {
-      apiObj.register({ phone: phone, password: pass }, function(res) {
-        if (res && (res.ok || res.id || res.phone)) {
-          if (typeof toast === 'function') toast('ثبت‌نام با موفقیت انجام شد.', 'success');
-        } else {
-          if (errBox) {
-            errBox.style.display = 'block';
-            errBox.innerHTML = safeEsc((res && res.error) || 'خطایی در ثبت‌نام رخ داد.');
-          }
-        }
-      });
-    }
-
-    return false;
-  };
-  window.handleRegisterSubmit = window.validateAndSubmitRegister;
-}

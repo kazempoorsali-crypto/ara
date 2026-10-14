@@ -19,7 +19,7 @@ import time
 import urllib.parse
 import urllib.request
 import webbrowser
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer, SimpleHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import sqlite3
 from pathlib import Path
 
@@ -107,7 +107,7 @@ TILE_SOURCES = {
 }
 TILE_HEALTH = {}             # url → {"fail": خطاهای پیاپی, "until": زمان پایان کنارگذاری}
 TILE_LOCK = threading.Lock()
-OTP_PER_IP_HOUR = 6          # درخواست کد ورود از هر IP در ساعت (جلوی پیامک‌بمباران و هزینهٔ پیامک)
+OTP_PER_IP_HOUR = int(os.environ.get("ARA_OTP_PER_IP_HOUR", 6))         # درخواست کد ورود از هر IP در ساعت (جلوی پیامک‌بمباران و هزینهٔ پیامک)
 OTP_GLOBAL_DAY = int(os.environ.get("ARA_OTP_DAILY_CAP", "500"))
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -1193,9 +1193,7 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
-    AppHandler = Handler
-    server = ThreadingHTTPServer((args.host, args.port), AppHandler)
-    httpd = server
+    httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)
     print(f"  فرصت ملک روشن شد:    {url}")

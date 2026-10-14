@@ -2212,260 +2212,69 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .profile h3{margin-bottom:10px}
 .row4[hidden]{display:none}
 
-/* ========================================================
-   اصلاح مودال ثبت‌نام: حذف اسکرول + سفید شدن خانه‌ها در حالت روشن
-   ======================================================== */
 
-/* کادر اصلی - متناسب با ارتفاع صفحه و بدون اسکرول */
-.auth-modal-card {
-  width: 100%;
-  max-width: 420px;
-  max-height: 92vh;
-  margin: auto;
-  border-radius: 18px;
-  padding: 20px 24px;
-  direction: rtl;
-  text-align: right;
-  overflow: hidden; /* حذف قطعی اسکرول‌بار */
-  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.2);
-}
-
-/* اصلاح خانه‌ها در حالت روشن (رنگ سفید شفاف و متن کاملاً خوانا) */
-body.light .auth-modal-card,
-.auth-modal-card.mode-light {
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
-}
-
-body.light .auth-input,
-.mode-light .auth-input,
-:root:not([data-theme="dark"]) .reg-input {
-  background: #ffffff !important; /* رنگ سفید واضح به جای مشکی */
-  color: #0f172a !important; /* متن تیره و خوانا */
-  border: 1.5px solid #cbd5e1 !important;
-}
-
-body.light .auth-input:focus,
-.mode-light .auth-input:focus,
-:root:not([data-theme="dark"]) .reg-input:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
-}
-
-body.light .auth-label,
-.mode-light .auth-label,
-:root:not([data-theme="dark"]) .reg-label {
-  color: #334155 !important;
-}
-
-/* حالت تیره */
-body.dark .auth-modal-card,
-.auth-modal-card.mode-dark {
-  background: #0f172a;
-  color: #f8fafc;
-  border: 1px solid #1e293b;
-}
-
-body.dark .auth-input,
-.mode-dark .auth-input,
-:root[data-theme="dark"] .reg-input {
-  background: #020617 !important;
-  color: #f8fafc !important;
-  border: 1px solid #334155 !important;
-}
-
-/* ساختار ورودی‌ها */
-.auth-form-group, .reg-input-group {
-  margin-bottom: 12px;
-}
-
-.auth-label, .reg-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 5px;
-}
-
-.auth-input-wrapper, .reg-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.auth-input, .reg-input {
-  width: 100%;
-  border-radius: 9px;
-  padding: 9px 12px;
-  font-size: 13px;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.auth-eye-btn, .reg-eye-btn {
-  position: absolute;
-  left: 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  opacity: 0.6;
-}
-
-/* دو چیپ فشرده کنار هم برای رمز ۷ رقمی با حرف و عدد (بدون اشغال فضای عمودی) */
-.password-criteria-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.pw-rule-chip {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 5px 8px;
-  border-radius: 7px;
-  font-size: 11px;
-  font-weight: 500;
-  background: rgba(148, 163, 184, 0.12);
-  color: #64748b;
-  transition: all 0.2s ease;
-}
-
-/* وضعیت سبز هنگام برقراری شرط */
-.pw-rule-chip.valid {
-  background: rgba(16, 185, 129, 0.15) !important;
-  color: #059669 !important;
-  font-weight: 600;
-}
-
-.mode-dark .pw-rule-chip.valid {
-  background: rgba(16, 185, 129, 0.2) !important;
-  color: #34d399 !important;
-}
-
-/* پشتیبانی از فرم ثبت‌نام و چک‌لیست شرایط رمز */
-.reg-form-container {
-  direction: rtl;
-  text-align: right;
-  font-family: inherit;
-}
-
-.password-rules-box {
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-top: 8px;
-  font-size: 12px;
-}
-:root[data-theme="dark"] .password-rules-box {
-  background: rgba(2, 6, 23, 0.6);
-  border-color: #1e293b;
-}
-
-.rules-header {
-  font-size: 11px;
-  color: #64748b;
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-:root[data-theme="dark"] .rules-header {
-  color: #94a3b8;
-}
-
-.rule-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
-  color: #64748b;
-  transition: color 0.2s ease;
-}
-
-.rule-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: bold;
-  background: #e2e8f0;
-  color: #64748b;
-  transition: all 0.2s ease;
-}
-:root[data-theme="dark"] .rule-icon {
-  background: #1e293b;
-}
-
-.rule-item.valid {
-  color: #059669 !important;
-  font-weight: 600;
-}
-:root[data-theme="dark"] .rule-item.valid {
-  color: #34d399 !important;
-}
-
-.rule-item.valid .rule-icon {
-  background: #d1fae5 !important;
-  color: #059669 !important;
-}
-:root[data-theme="dark"] .rule-item.valid .rule-icon {
-  background: #064e3b !important;
-  color: #34d399 !important;
-}
-
-.password-match-msg {
-  font-size: 11px;
-  margin-top: 6px;
-  display: none;
-}
-.match-success {
-  color: #059669;
-}
-.match-error {
-  color: #b91c1c;
-}
-
-.reg-error-summary {
-  display: none;
-  background: #fef2f2;
-  border: 1px solid #f87171;
-  color: #b91c1c;
-  border-radius: 9px;
-  padding: 8px 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-:root[data-theme="dark"] .reg-error-summary {
-  background: rgba(127, 29, 29, 0.3);
-  border-color: #ef4444;
-  color: #fca5a5;
-}
-.reg-error-summary ul {
-  margin: 4px 0 0 0;
-  padding-right: 18px;
-}
-
-/* باکس اعلام خطاها */
-.auth-error-box {
-  display: none;
-  background: #fef2f2;
-  border: 1px solid #f87171;
-  color: #b91c1c;
-  border-radius: 9px;
-  padding: 8px 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-.mode-dark .auth-error-box {
-  background: rgba(127, 29, 29, 0.3);
-  border-color: #ef4444;
-  color: #fca5a5;
-}
+/* ---------- ورود، ثبت‌نام و بازیابی رمز (فشرده، بدون اسکرول) ---------- */
+.dlg--auth { width: min(400px, calc(100vw - 24px)); }
+.dlg--auth .dlg__body { padding: 20px 22px 18px; overflow: visible; max-height: none; }
+.auth { display: grid; gap: 14px; }
+.auth__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.auth__title { display: block; font-size: 19px; font-weight: 900; line-height: 1.3; }
+.auth__sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; min-height: 1.2em; }
+.auth__seg { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 14px; background: var(--sunk); border: 1px solid var(--line); }
+.auth__seg[hidden] { display: none; }
+.auth__seg button { font: inherit; font-size: 14px; font-weight: 800; padding: 8px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; transition: background .2s var(--ease), color .2s; }
+.auth__seg button.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+.auth__form, .auth__code form { display: grid; gap: 10px; }
+.af { display: grid; gap: 5px; }
+.af__lbl { font-size: 12.5px; font-weight: 800; color: var(--ink-2); }
+.af__box { position: relative; display: block; }
+.af__in { width: 100%; height: 44px; padding: 0 14px; font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line-2); border-radius: 12px; outline: none; transition: border-color .15s, box-shadow .15s; text-align: left; }
+.af__in::placeholder { color: var(--muted); opacity: .7; }
+.af__in:focus { border-color: var(--forest-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--forest-2) 14%, transparent); }
+/* چشم رمز: داخل کادر و سمت چپ؛ متن رمز (لاتین، چپ‌چین) از کنار آن فاصله می‌گیرد */
+.af__box:has(.af__eye) .af__in { padding-left: 46px; }
+.af__eye { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; background: none; color: var(--muted); cursor: pointer; }
+.af__eye:hover, .af__eye[aria-pressed="true"] { color: var(--ink); background: var(--sunk); }
+.af__eye svg { width: 19px; height: 19px; }
+.af.is-bad .af__in { border-color: var(--over); }
+.af.is-ok .af__in { border-color: var(--great); }
+.af__code { height: 52px; text-align: center; font-size: 26px; font-weight: 800; letter-spacing: .55em; padding-left: .55em; font-variant-numeric: tabular-nums; }
+.shake { animation: afShake .36s; }
+@keyframes afShake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+/* شرط‌های رمز: خاکستری ← سبز */
+.pwr { display: flex; flex-wrap: wrap; gap: 6px; }
+.pwr__i { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 10px 4px 9px; border-radius: 999px; color: var(--muted); background: var(--sunk); border: 1px solid var(--line); transition: color .2s, background .2s, border-color .2s; }
+.pwr__i::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .55; transition: .2s; }
+.pwr__i.is-ok { color: var(--great); background: color-mix(in srgb, var(--great) 12%, var(--surface)); border-color: color-mix(in srgb, var(--great) 40%, transparent); }
+.pwr__i.is-ok::before { width: 12px; height: 12px; opacity: 1; background: var(--great) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center/9px no-repeat; }
+.auth__err { min-height: 0; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--over); }
+.auth__err:empty { display: none; }
+.auth__err.is-ok { color: var(--great); }
+.auth__go { width: 100%; height: 46px; font-size: 15.5px; border-radius: 12px; }
+.auth__links { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.auth__links a { color: var(--forest-2); }
+.auth__back { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--muted); justify-self: start; }
+.auth__back svg { width: 14px; height: 14px; transform: scaleX(-1); }
+.auth__fine { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.auth__code { display: grid; gap: 12px; }
+.auth__ctitle { font-size: 15px; }
+.auth__ch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.auth__ch button { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; font: inherit; font-size: 14px; font-weight: 800; border-radius: 12px; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink); cursor: pointer; }
+.auth__ch button svg { width: 18px; height: 18px; }
+.auth__ch button.is-on { border-color: var(--forest-2); background: color-mix(in srgb, var(--forest-2) 9%, var(--surface)); }
+.auth__ch button.is-off { color: var(--muted); border-style: dashed; cursor: not-allowed; }
+.auth__ch em { font-style: normal; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.auth__note { display: grid; gap: 8px; font-size: 13px; line-height: 1.7; padding: 10px 12px; border-radius: 12px; background: var(--sunk); border: 1px solid var(--line); }
+.auth__note:empty { display: none; }
+.auth__note > svg { width: 16px; height: 16px; vertical-align: -3px; margin-left: 4px; color: var(--great); }
+.auth__steps { margin: 0; padding-right: 18px; display: grid; gap: 2px; }
+.auth__bale { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.auth__bale .btn { height: 40px; font-size: 13.5px; justify-content: center; }
+.auth__cmd { cursor: copy; padding: 1px 6px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; word-break: break-all; }
+.auth__dev b { font-size: 16px; letter-spacing: .2em; }
+.auth__timers { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--muted); min-height: 20px; }
+.linkbtn { font: inherit; font-size: 12.5px; font-weight: 800; color: var(--forest-2); background: none; border: 0; padding: 4px 0; cursor: pointer; justify-self: start; }
+.linkbtn:disabled { color: var(--muted); cursor: default; }
+.linkbtn.is-hot { color: var(--narenj); }
+@media (max-height: 700px) { .dlg--auth .dlg__body { padding: 14px 18px; } .auth { gap: 10px; } .af__in { height: 40px; } .auth__go { height: 42px; } }
+.auth__steps { list-style: persian; }
