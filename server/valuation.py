@@ -804,3 +804,89 @@ def recompute(store, thresholds: dict | None = None) -> dict:
     store.set_setting("valuation_info", info)
     store.set_setting("estimator", estimator)
     return info
+
+
+def evaluate_deal(ad_data, neighborhood_benchmark):
+    """
+    محاسبه قیمت منصفانه هدونیک، درصد اختلاف، نمره فرصت و سپر ضدطعمه
+    """
+    area = max(1, ad_data.get('area', 1))
+    total_price = ad_data.get('total_price_billion', 0)
+    base_price = neighborhood_benchmark.get('base_price_sqm', 150) # میلیون تومان بر متر
+
+    # ۱. قیمت هر متر اعلامی
+    listed_sqm = (total_price * 1000) / area
+
+    # ۲. استهلاک سن بنا (میانگین ۲.۱٪ سالانه تا سقف ۴۰٪)
+    age = min(30, max(0, ad_data.get('age', 0)))
+    depreciation = (age * 2.1) / 100
+    fair_sqm = base_price * (1 - min(0.40, depreciation))
+
+    # ۳. ضرایب امکانات کلیدی
+    if ad_data.get('has_parking'):
+        fair_sqm *= 1.07
+    else:
+        fair_sqm *= 0.92 # کسری پارکینگ در تهران افت شدید ارزش ایجاد می‌کند
+
+    if ad_data.get('has_elevator'):
+        fair_sqm *= 1.05
+    if ad_data.get('has_storage'):
+        fair_sqm *= 1.02
+
+    fair_sqm = round(fair_sqm, 1)
+    fair_total = round((fair_sqm * area) / 1000, 2)
+
+    # ۴. درصد تخفیف نسبت به ارزش کارشناسی
+    discount_pct = round(((fair_sqm - listed_sqm) / fair_sqm) * 100, 1) if fair_sqm > 0 else 0
+
+    # ۵. راستی‌آزمایی و ارزیابی ریسک (Anti-Fraud Shield)
+    risk_score = 10
+    flags = []
+
+    if discount_pct > 42:
+        risk_score += 65
+        flags.append("هشدار: تخفیف غیرعادی بالای ۴۰٪ (احتمال ۹۰٪ طعمه صوری دلال یا بیعانه جعلی)")
+    elif discount_pct > 28:
+        risk_score += 25
+        flags.append("نیاز به تایید و استعلام سند رسمی تک‌برگ در سامانه کاتب")
+
+    if not ad_data.get('has_document', True):
+        risk_score += 35
+        flags.append("کسری سند رسمی تک‌برگ (قولنامه‌ای یا وکالتی)")
+
+    # ۶. صدور حکم فرصت (Deal Verdict)
+    if discount_pct > 40 and risk_score >= 70:
+        verdict = "مشکوک به آگهی صوری/طعمه"
+        deal_score = 30
+        verdict_color = "red"
+    elif discount_pct >= 14 and risk_score < 45:
+        verdict = "اکازیون استثنایی"
+        deal_score = min(98, int(50 + discount_pct * 1.5))
+        verdict_color = "emerald"
+    elif discount_pct >= 6:
+        verdict = "فرصت خوب سرمایه‌گذاری"
+        deal_score = min(80, int(50 + discount_pct * 1.2))
+        verdict_color = "teal"
+    elif discount_pct < -8:
+        verdict = "گران‌تر از ارزش واقعی"
+        deal_score = max(5, int(50 + discount_pct))
+        verdict_color = "amber"
+    else:
+        verdict = "قیمت منصفانه عرف بازار"
+        deal_score = 50
+        verdict_color = "sky"
+
+    profit_billion = max(0, round(fair_total - total_price, 2))
+
+    return {
+        "listed_sqm": round(listed_sqm, 1),
+        "fair_sqm": fair_sqm,
+        "fair_total_billion": fair_total,
+        "discount_pct": discount_pct,
+        "verdict": verdict,
+        "verdict_color": verdict_color,
+        "deal_score": deal_score,
+        "risk_score": min(100, risk_score),
+        "potential_profit_billion": profit_billion,
+        "flags": flags
+    }
