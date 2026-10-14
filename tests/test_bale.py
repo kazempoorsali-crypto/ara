@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "server"))
-from bale import Bale  # noqa: E402
+import json
+import urllib.request
+from bale import Bale, send_instant_opportunity_alert  # noqa: E402
 from billing import Billing  # noqa: E402
 from store import Store  # noqa: E402
 
@@ -103,4 +105,56 @@ try:
     ok(False, "باید خطا می‌داد")
 except ValueError:
     ok(True, "فاکتور هر کاربر فقط برای خودش باز می‌شود")
+
+# ---- هشدار فوری فرصت ملکی (send_instant_opportunity_alert)
+class DummyResponse:
+    def __init__(self, status):
+        self.status = status
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        pass
+
+sent_reqs = []
+def fake_urlopen(req, timeout=5):
+    sent_reqs.append(req)
+    return DummyResponse(200)
+
+orig_urlopen = urllib.request.urlopen
+urllib.request.urlopen = fake_urlopen
+
+try:
+    deal = {
+        "neighborhood": "سعادت‌آباد",
+        "area": 110,
+        "age": 5,
+        "total_price_billion": 12.5,
+        "listed_sqm": 113.6,
+        "discount_pct": 18,
+        "potential_profit_billion": 2.7,
+        "source_url": "https://divar.ir/v/test",
+        "risk_score": 10
+    }
+    res = send_instant_opportunity_alert(CHAT, deal, "test_token")
+    ok(res is True, "ارسال بلادرنگ آگهی شکار شده با موفقیت انجام شد")
+    ok(len(sent_reqs) == 1, "درخواست HTTP ارسال شد")
+    req_body = json.loads(sent_reqs[0].data.decode("utf-8"))
+    ok("🟢 تایید اولیه سند رسمی" in req_body["text"], "علامت سطح ریسک پایین 🟢 به‌درستی نمایش داده شد")
+    ok(req_body["chat_id"] == CHAT, "chat_id به‌درستی ست شد")
+
+    # تست ریسک متوسط
+    deal["risk_score"] = 50
+    send_instant_opportunity_alert(CHAT, deal, "test_token")
+    req_body = json.loads(sent_reqs[-1].data.decode("utf-8"))
+    ok("🟡 نیازمند استعلام سند ثبتی" in req_body["text"], "علامت سطح ریسک متوسط 🟡 به‌درستی نمایش داده شد")
+
+    # تست ریسک بالا
+    deal["risk_score"] = 80
+    send_instant_opportunity_alert(CHAT, deal, "test_token")
+    req_body = json.loads(sent_reqs[-1].data.decode("utf-8"))
+    ok("🔴 هشدار: احتمال آگهی صوری" in req_body["text"], "علامت سطح ریسک بالا 🔴 به‌درستی نمایش داده شد")
+
+finally:
+    urllib.request.urlopen = orig_urlopen
+
 print("همهٔ آزمون‌های بله موفق بود.")
