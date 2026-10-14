@@ -638,6 +638,7 @@ const App = (() => {
     const chips = ds.slice().sort((a, b) => (b.opportunities || 0) - (a.opportunities || 0) || b.n - a.n).slice(0, 200);
     more.hidden = !chips.length;
     more.innerHTML = chips.length ? `<span class="sky__more-h">محله‌های ${multi ? "این شهرها" : esc(sel.pts[0].name)} <small>${fa(chips.length)}</small></span><div class="sky__more-list" id="skyMoreList">` + chips.map((d, i) => `<button type="button" data-um="${i}" aria-pressed="false" class="${d.opportunities ? "is-hot" : ""}${d.rural ? " is-rural" : ""}${d.lat ? "" : " is-nopin"}" title="${d.lat ? "روشن/خاموش کردن این محله" : "مکان دقیق این محله هنوز روی نقشه معلوم نیست؛ با روشن کردن، آگهی‌هایش در فهرست می‌آید"}">${esc(d.name)}<small>${fa(d.n)}${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}</small></button>`).join("") + `</div><button type="button" class="sky__more-x" id="skyMoreX" title="نمایش همه یا جمع کردن">${icon("down", 'width="16"')}</button>` : "";
+    if (chips.length) UI.hscroll($("#skyMoreList"));
     const paintSel = () => {
       const on = L0.dsel;
       $$("[data-um]", more).forEach((b) => { const v = on.has(chips[+b.dataset.um].name); b.classList.toggle("is-on", v); b.setAttribute("aria-pressed", v); });
@@ -1805,6 +1806,7 @@ const App = (() => {
         </div>
         <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
+      UI.hscroll($("#dds"));
       $("#ddMulti")?.addEventListener("change", (e) => { multiPick = e.target.checked; });
       $("#ddCityQ")?.addEventListener("input", (e) => {
         const q = NLP.toEn(e.target.value.trim().toLowerCase());
@@ -3061,6 +3063,24 @@ const App = (() => {
     addEventListener("resize", measure);
     if (window.ResizeObserver) new ResizeObserver(measure).observe(document.body);
     $("#menuBtn").addEventListener("click", () => { const on = top.classList.toggle("is-menu"); $("#menuBtn").setAttribute("aria-expanded", on); });
+    // منوی پویا: اگر سربرگ در عرض واقعی صفحه (با هر بزرگ‌نمایی مرورگر) جا نشود، منو به دکمهٔ «منو» جمع می‌شود
+    const fitNav = () => {
+      const inner = $(".top__in"), nav = $(".nav");
+      if (!inner || !nav) return;
+      top.classList.remove("top--collapse");
+      if (getComputedStyle(nav).display === "none") return;   // موبایل: از قبل جمع است
+      // جمع پهنای طبیعی برند، پیوندها و دکمه‌ها با فاصله‌ها، در برابر پهنای واقعی سربرگ
+      const gap = parseFloat(getComputedStyle(inner).columnGap) || 0;
+      const need = [...inner.children].reduce((w, c) => w + (c === nav ? nav.scrollWidth : c.getBoundingClientRect().width), 0) + gap * (inner.children.length - 1);
+      const over = need > inner.clientWidth - 8;
+      top.classList.toggle("top--collapse", over);
+      if (!over) top.classList.remove("is-menu");
+    };
+    let fitT = 0;
+    addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitNav, 60); });
+    document.fonts?.ready.then(fitNav);
+    new MutationObserver(() => { clearTimeout(fitT); fitT = setTimeout(fitNav, 60); }).observe($("#accountLabel") || top, { childList: true, characterData: true, subtree: true });
+    fitNav();
     $$(".nav a").forEach((a) => a.addEventListener("click", () => { top.classList.remove("is-menu"); $("#menuBtn").setAttribute("aria-expanded", "false"); }));
     document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });
     $("#themeBtn").addEventListener("click", () => {

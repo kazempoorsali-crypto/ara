@@ -163,13 +163,15 @@ body.cine-go #view { animation: cineEnter .9s .25s var(--cine-ease) both; }
 .cine-rail button { position: relative; display: flex; align-items: center; gap: 10px; height: 22px; padding: 0 0 0 4px; background: none; border: 0; cursor: pointer; color: var(--muted); font: 700 12px/1 Vazirmatn, sans-serif; justify-content: flex-start; }
 .cine-rail button::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; transition: transform .3s var(--cine-ease), background .3s; }
 .cine-rail button span { display: inline-block; direction: rtl; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width .5s var(--cine-ease), opacity .3s, padding .3s; padding: 3px 0; border-radius: 8px; }
-.cine-rail:hover button span, .cine-rail button.is-on span { max-width: 240px; opacity: 1; }
-.cine-rail:hover button span { background: color-mix(in srgb, var(--paper) 90%, transparent); padding: 3px 8px; }
+/* نام فصل فقط روی همان نقطه‌ای که نشانگر رویش است (یا فصل فعال وقتی حاشیهٔ صفحه پهن است)؛ هرگز همهٔ نام‌ها با هم */
+.cine-rail button:hover span, .cine-rail button:focus-visible span, .cine-rail--labels button.is-on span { max-width: 240px; opacity: 1; }
+.cine-rail button:hover span, .cine-rail button:focus-visible span { background: var(--surface); padding: 4px 10px; box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); color: var(--ink); }
+.cine-rail button { height: 18px; }
 .cine-rail button.is-on { color: var(--ink); }
 .cine-rail button.is-on::before { background: var(--cine-accent); border-color: var(--cine-accent); transform: scale(1.35); }
 :root[data-cine-tone="dark"] .cine-rail button { color: rgba(241,239,232,.55); }
 :root[data-cine-tone="dark"] .cine-rail button.is-on { color: var(--cine-bone); }
-:root[data-cine-tone="dark"] .cine-rail:hover button span { background: rgba(14,23,20,.82); }
+:root[data-cine-tone="dark"] .cine-rail button:hover span { background: #17221e; color: var(--cine-bone); }
 
 /* ---------- پانویس: نام سایت با حروف بزرگ توخالی، مثل امضای پایان فیلم ---------- */
 :root[data-cine="full"] .foot { position: relative; overflow: clip; }

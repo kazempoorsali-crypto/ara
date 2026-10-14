@@ -124,13 +124,16 @@ const Cine = (() => {
     const key = list.map((s) => s.className).join("|") + innerWidth;
     if (rail && rail._key === key && rail._secs?.[0] === list[0]) return;
     rail?.remove(); rail = null;
-    if (list.length < 4 || innerWidth < 1200) return;
+    // ستون فقط در حاشیهٔ خالی کنار محتوا: اگر جا نباشد اصلاً ساخته نمی‌شود تا روی کادرها نیفتد
+    const margin = Math.min(...$$(".wrap", $("#view")).map((w) => w.getBoundingClientRect().left).filter((x) => x >= 0), innerWidth);
+    if (list.length < 4 || margin < 52) return;
     rail = document.createElement("nav");
     rail.className = "cine-rail"; rail.setAttribute("aria-label", "فصل‌های صفحه");
     rail.innerHTML = `<i class="cine-rail__line"><i></i></i>` + list.map((s, i) => {
       const t = (s.querySelector("h1, h2")?.textContent || "").replace(/\s+/g, " ").trim().split(/[؛،.:]/)[0].slice(0, 34);
       return `<button type="button" data-i="${i}" aria-label="${t.replace(/"/g, "")}"><span>${t}</span></button>`;
     }).join("");
+    rail.classList.toggle("cine-rail--labels", margin >= 250);   // حاشیهٔ پهن: نام فصل فعال کنار نقطه می‌ماند
     document.body.append(rail);
     rail.addEventListener("click", (e) => {
       const b = e.target.closest("button"); if (!b) return;
