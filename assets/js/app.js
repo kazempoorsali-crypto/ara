@@ -1265,7 +1265,7 @@ const App = (() => {
       } else if (t === "register") {
         body.innerHTML = `<div class="reg-form-container">
           <div id="reg-error-box" class="reg-error-summary"></div>
-          <form id="rgForm" onsubmit="return handleRegisterSubmit(event);">
+          <form id="rgForm" onsubmit="return validateAndSubmitRegister(event);">
             <div class="reg-input-group">
               <label class="reg-label" for="reg-phone">شماره تلفن همراه</label>
               <div class="reg-input-wrap">
@@ -1296,31 +1296,19 @@ const App = (() => {
                 <button
                   type="button"
                   class="reg-eye-btn"
-                  onclick="togglePasswordVisibility('reg-password', this)"
+                  onclick="togglePasswordEye('reg-password', this)"
                   title="نمایش رمز"
                 >👁</button>
               </div>
               <div class="password-rules-box">
                 <div class="rules-header">معیارهای رمز عبور (با تایپ شما سبز می‌شوند):</div>
-                <div id="rule-len" class="rule-item invalid">
-                  <span class="rule-icon">○</span>
-                  <span>حداقل ۸ کاراکتر</span>
+                <div id="rule-len" class="pw-rule-chip invalid">
+                  <span class="icon">○</span>
+                  <span>حداقل ۷ کاراکتر</span>
                 </div>
-                <div id="rule-upper" class="rule-item invalid">
-                  <span class="rule-icon">○</span>
-                  <span>حداقل یک حرف بزرگ انگلیسی (A-Z)</span>
-                </div>
-                <div id="rule-lower" class="rule-item invalid">
-                  <span class="rule-icon">○</span>
-                  <span>حداقل یک حرف کوچک انگلیسی (a-z)</span>
-                </div>
-                <div id="rule-num" class="rule-item invalid">
-                  <span class="rule-icon">○</span>
-                  <span>حداقل یک رقم عددی (0-9)</span>
-                </div>
-                <div id="rule-spec" class="rule-item invalid">
-                  <span class="rule-icon">○</span>
-                  <span>حداقل یک نشانه خاص (@$!%*#?&)</span>
+                <div id="rule-mix" class="pw-rule-chip invalid">
+                  <span class="icon">○</span>
+                  <span>شامل حروف و اعداد</span>
                 </div>
               </div>
             </div>
@@ -1340,7 +1328,7 @@ const App = (() => {
                 <button
                   type="button"
                   class="reg-eye-btn"
-                  onclick="togglePasswordVisibility('reg-password-confirm', this)"
+                  onclick="togglePasswordEye('reg-password-confirm', this)"
                   title="نمایش رمز"
                 >👁</button>
               </div>
@@ -3108,57 +3096,53 @@ const App = (() => {
 })();
 
 // ========================================================
-// اصلاح و بازطراحی سیستم اعتبارسنجی ثبت‌نام و رمز عبور
+// اعتبارسنجی رمز عبور (حداقل ۷ کاراکتر، شامل حرف و عدد)
 // ========================================================
 
 if (typeof window !== 'undefined') {
   window.API = window.API || (typeof DataLayer !== 'undefined' ? DataLayer : {});
-}
 
-// معیارهای پنج‌گانه رمز عبور
-var passwordRules = [
-  { id: 'rule-len', label: 'حداقل ۸ کاراکتر', test: function(p) { return p.length >= 8; } },
-  { id: 'rule-upper', label: 'حداقل یک حرف بزرگ انگلیسی (A-Z)', test: function(p) { return /[A-Z]/.test(p); } },
-  { id: 'rule-lower', label: 'حداقل یک حرف کوچک انگلیسی (a-z)', test: function(p) { return /[a-z]/.test(p); } },
-  { id: 'rule-num', label: 'حداقل یک رقم عددی (0-9)', test: function(p) { return /[0-9]/.test(p); } },
-  { id: 'rule-spec', label: 'حداقل یک کاراکتر ویژه (@$!%*#?&)', test: function(p) { return /[@$!%*#?&]/.test(p); } }
-];
-if (typeof window !== 'undefined') window.passwordRules = passwordRules;
-
-// تابع بررسی لحظه‌ای رمز و سبز کردن گزینه‌ها
-if (typeof window !== 'undefined') {
   window.onPasswordInput = function(input) {
     var val = input.value;
-    var allPassed = true;
+    var ruleLen = document.getElementById('rule-len');
+    var ruleMix = document.getElementById('rule-mix');
 
-    passwordRules.forEach(function(rule) {
-      var el = document.getElementById(rule.id);
-      if (!el) return;
-
-      if (rule.test(val)) {
-        el.classList.add('valid');
-        el.classList.remove('invalid');
-        var icon = el.querySelector('.rule-icon');
+    // ۱. حداقل ۷ کاراکتر
+    var hasLength = val.length >= 7;
+    if (ruleLen) {
+      if (hasLength) {
+        ruleLen.className = 'pw-rule-chip valid';
+        var icon = ruleLen.querySelector('.icon') || ruleLen.querySelector('.rule-icon');
         if (icon) icon.textContent = '✓';
       } else {
-        allPassed = false;
-        el.classList.remove('valid');
-        el.classList.add('invalid');
-        var icon = el.querySelector('.rule-icon');
+        ruleLen.className = 'pw-rule-chip invalid';
+        var icon = ruleLen.querySelector('.icon') || ruleLen.querySelector('.rule-icon');
         if (icon) icon.textContent = '○';
       }
-    });
+    }
 
-    // بررسی تکرار رمز اگر پر شده باشد
+    // ۲. شامل حروف و اعداد (بدون اجبار کاراکتر خاص یا بزرگ/کوچک)
+    var hasMix = /[a-zA-Zآ-ی]/.test(val) && /[0-9۰-۹]/.test(val);
+    if (ruleMix) {
+      if (hasMix) {
+        ruleMix.className = 'pw-rule-chip valid';
+        var icon = ruleMix.querySelector('.icon') || ruleMix.querySelector('.rule-icon');
+        if (icon) icon.textContent = '✓';
+      } else {
+        ruleMix.className = 'pw-rule-chip invalid';
+        var icon = ruleMix.querySelector('.icon') || ruleMix.querySelector('.rule-icon');
+        if (icon) icon.textContent = '○';
+      }
+    }
+
     var confirmInput = document.getElementById('reg-password-confirm');
-    if (confirmInput && confirmInput.value) {
+    if (confirmInput && confirmInput.value && typeof window.onConfirmPasswordInput === 'function') {
       window.onConfirmPasswordInput(confirmInput);
     }
 
-    return allPassed;
+    return hasLength && hasMix;
   };
 
-  // تابع بررسی تطابق تکرار رمز
   window.onConfirmPasswordInput = function(confirmInput) {
     var passInput = document.getElementById('reg-password');
     var matchMsg = document.getElementById('reg-password-match');
@@ -3179,97 +3163,81 @@ if (typeof window !== 'undefined') {
     }
   };
 
-  // تابع نمایش / مخفی‌سازی رمز عبور (آیکون چشم)
-  window.togglePasswordVisibility = function(inputId, btn) {
+  // نمایش و مخفی کردن رمز
+  window.togglePasswordEye = function(inputId, btn) {
     var input = document.getElementById(inputId);
     if (!input) return;
     if (input.type === 'password') {
       input.type = 'text';
       btn.textContent = '🔒';
-      btn.title = 'مخفی کردن';
     } else {
       input.type = 'password';
       btn.textContent = '👁';
-      btn.title = 'نمایش رمز';
     }
   };
+  window.togglePasswordVisibility = window.togglePasswordEye;
 
-  // تابع تایید و ارسال نهایی فرم ثبت‌نام (بررسی خطاها و اعلام دقیق)
-  window.handleRegisterSubmit = function(e) {
+  // تایید نهایی فرم ثبت‌نام و ذکر صریح خطاها
+  window.validateAndSubmitRegister = function(e) {
     if (e) e.preventDefault();
 
-    var phoneEl = document.getElementById('reg-phone');
-    var passEl = document.getElementById('reg-password');
-    var confirmEl = document.getElementById('reg-password-confirm');
+    var phone = (document.getElementById('reg-phone')?.value || '').trim();
+    var pass = document.getElementById('reg-password')?.value || '';
+    var confirm = document.getElementById('reg-password-confirm')?.value || '';
     var errBox = document.getElementById('reg-error-box');
-
-    var phone = phoneEl ? phoneEl.value.trim() : '';
-    var pass = passEl ? passEl.value : '';
-    var confirm = confirmEl ? confirmEl.value : '';
     var errors = [];
 
-    var safeEsc = typeof esc === 'function' ? esc : (typeof UI !== 'undefined' && UI.esc ? UI.esc : function(s) { return String(s ?? "").replace(/[&<>"']/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); });
-    if (typeof window !== 'undefined' && typeof window.esc !== 'function') { window.esc = safeEsc; }
-
-    // ۱. اعتبارسنجی شماره موبایل
+    // بررسی شماره موبایل
     if (!/^09[0-9]{9}$/.test(phone)) {
-      errors.push('شماره موبایل باید ۱۱ رقم باشد و با 09 آغاز شود.');
+      errors.push('شماره موبایل باید ۱۱ رقم بوده و با 09 آغاز شود.');
     }
 
-    // ۲. بررسی تک‌تک معیارهای رمز عبور
-    passwordRules.forEach(function(rule) {
-      if (!rule.test(pass)) {
-        errors.push('ایراد رمز: شرط «' + rule.label + '» رعایت نشده است.');
-      }
-    });
+    // بررسی رمز (حداقل ۷ کاراکتر و ترکیب حرف و عدد)
+    if (pass.length < 7) {
+      errors.push('طول رمز عبور باید حداقل ۷ کاراکتر باشد.');
+    }
+    if (!(/[a-zA-Zآ-ی]/.test(pass) && /[0-9۰-۹]/.test(pass))) {
+      errors.push('رمز عبور باید شامل هر دو موردِ «حروف» و «اعداد» باشد.');
+    }
 
-    // ۳. بررسی همخوانی تکرار رمز
+    // بررسی تکرار رمز
     if (pass !== confirm) {
       errors.push('رمز عبور و تکرار آن یکسان نیستند.');
     }
 
-    // ۴. اگر خطایی وجود دارد، نمایش دقیق خطاها
+    var safeEsc = typeof esc === 'function' ? esc : (typeof UI !== 'undefined' && UI.esc ? UI.esc : function(s) { return String(s ?? "").replace(/[&<>"']/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); });
+    if (typeof window !== 'undefined' && typeof window.esc !== 'function') { window.esc = safeEsc; }
+
+    // نمایش خطاها
     if (errors.length > 0) {
       if (errBox) {
         errBox.style.display = 'block';
-        var html = '<div class="err-box-title">⚠️ لطفاً خطاهای زیر را برطرف کنید:</div><ul>';
-        errors.forEach(function(err) {
-          html += '<li>' + safeEsc(err) + '</li>';
-        });
-        html += '</ul>';
-        errBox.innerHTML = html;
-        if (typeof errBox.scrollIntoView === 'function') {
-          errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
-      if (typeof toast === 'function') {
-        toast('لطفاً خطاهای فرم ثبت‌نام را برطرف فرمایید.', 'error');
+        errBox.innerHTML = '<strong style="display:block;margin-bottom:3px;">لطفاً موارد زیر را اصلاح کنید:</strong>' +
+          '<ul style="margin:0;padding-right:16px;">' +
+          errors.map(function(err) { return '<li>' + safeEsc(err) + '</li>'; }).join('') +
+          '</ul>';
       }
       return false;
     }
 
-    // اگر همه موارد تایید شد:
     if (errBox) errBox.style.display = 'none';
 
-    // فراخوانی API ثبت‌نام سرور
-    var apiObj = typeof API !== 'undefined' ? API : (typeof DataLayer !== 'undefined' ? DataLayer : null);
+    // ارسال امن به سرور
+    var apiObj = typeof API !== 'undefined' && API.register ? API : (typeof DataLayer !== 'undefined' ? DataLayer : null);
     if (apiObj && apiObj.register) {
-      var cb = function(res) {
+      apiObj.register({ phone: phone, password: pass }, function(res) {
         if (res && (res.ok || res.id || res.phone)) {
           if (typeof toast === 'function') toast('ثبت‌نام با موفقیت انجام شد.', 'success');
         } else {
           if (errBox) {
             errBox.style.display = 'block';
-            errBox.innerHTML = '<div>' + safeEsc((res && res.error) || 'خطایی در ثبت‌نام رخ داد') + '</div>';
+            errBox.innerHTML = safeEsc((res && res.error) || 'خطایی در ثبت‌نام رخ داد.');
           }
         }
-      };
-      var ret = apiObj.register({ phone: phone, password: pass }, cb);
-      if (ret && typeof ret.then === 'function') {
-        ret.then(function(res) { cb(res || { ok: true }); }).catch(function(err) { cb({ ok: false, error: err.message }); });
-      }
+      });
     }
 
-    return true;
+    return false;
   };
+  window.handleRegisterSubmit = window.validateAndSubmitRegister;
 }
