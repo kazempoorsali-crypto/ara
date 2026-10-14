@@ -12,6 +12,10 @@ BR=$($G symbolic-ref --short refs/remotes/origin/HEAD | sed 's#^origin/##')
 $G checkout -q -B "$BR" "origin/$BR"
 $G reset -q --hard "origin/$BR"
 echo "شاخهٔ نصب‌شده: $BR"
+# یک‌بار: کتابخانهٔ Pillow برای تبدیل عکس آگهی‌ها به WebP (سبک‌تر)؛ اگر نصب نشد، سایت با همان عکس‌های اصلی کار می‌کند
+if ! python3 -c "import PIL" >/dev/null 2>&1; then
+  (DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y -qq python3-pil >/dev/null 2>&1 && echo "Pillow نصب شد (تبدیل عکس به WebP فعال است).") || echo "Pillow نصب نشد؛ عکس‌ها بدون تبدیل نمایش داده می‌شوند."
+fi
 systemctl restart forsatyab
 # یک‌بار: پیکربندی تازهٔ Caddy (تغییر مسیر www به نشانی اصلی، فشرده‌سازی بهتر)؛ اگر نامعتبر بود، نسخهٔ قبلی برمی‌گردد
 if [ -f /etc/caddy/Caddyfile ] && grep -q ', www\.' /etc/caddy/Caddyfile; then

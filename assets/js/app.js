@@ -2,6 +2,8 @@
 const App = (() => {
   "use strict";
   const { $, $$, esc, fa, faY, num, store, money, toast, icon, pct } = UI;
+  // عکس‌های ثابت سایت با WebP (سبک‌تر و سریع‌تر)؛ مرورگرهای خیلی قدیمی همان JPG را می‌گیرند
+  const IMGX = (() => { try { return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp") ? "webp" : "jpg"; } catch { return "jpg"; } })();
   const state = { favs: new Set(store.get("favs", [])), compare: [], map: null, layer: null, markers: {} };
   const view = () => $("#view");
   let cfg = null;
@@ -166,8 +168,8 @@ const App = (() => {
     </section>
     <section class="scene" id="pinScene" aria-label="فرصت ملک در یک نگاه">
       <div class="scene__stage">
-        <div class="scene__pic scene__pic--house" aria-hidden="true"><img class="dim" src="/assets/img/scene/house-dim.jpg" alt="" decoding="async"><img class="ph" src="/assets/img/scene/house-1280.jpg" srcset="/assets/img/scene/house-1280.jpg 1280w, /assets/img/scene/house.jpg 2400w" sizes="100vw" alt="" decoding="async"><i class="scene__sweep"></i></div>
-        <div class="scene__pic scene__pic--living" aria-hidden="true"><img class="dim" src="/assets/img/scene/living-dim.jpg" alt="" loading="lazy" decoding="async"><img class="ph" src="/assets/img/scene/living-1280.jpg" srcset="/assets/img/scene/living-1280.jpg 1280w, /assets/img/scene/living.jpg 2400w" sizes="100vw" alt="" loading="lazy" decoding="async"><i class="scene__sweep"></i></div>
+        <div class="scene__pic scene__pic--house" aria-hidden="true"><img class="dim" src="/assets/img/scene/house-dim.${IMGX}" alt="" decoding="async"><img class="ph" src="/assets/img/scene/house-1280.${IMGX}" srcset="/assets/img/scene/house-1280.${IMGX} 1280w, /assets/img/scene/house.${IMGX} 2400w" sizes="100vw" alt="" decoding="async"><i class="scene__sweep"></i></div>
+        <div class="scene__pic scene__pic--living" aria-hidden="true"><img class="dim" src="/assets/img/scene/living-dim.${IMGX}" alt="" loading="lazy" decoding="async"><img class="ph" src="/assets/img/scene/living-1280.${IMGX}" srcset="/assets/img/scene/living-1280.${IMGX} 1280w, /assets/img/scene/living.${IMGX} 2400w" sizes="100vw" alt="" loading="lazy" decoding="async"><i class="scene__sweep"></i></div>
         <div class="scene__shade" aria-hidden="true"></div>
         <div class="scene__mark" aria-hidden="true"><div class="scene__rot">${Array.from({ length: 12 }, (_, i) => `<svg viewBox="0 0 48 48" style="--z:${i}"><path class="r" d="M10 25l13-13 13 13"/><path class="w" d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0"/><circle cx="39" cy="10" r="4.2"/></svg>`).join("")}</div></div>
         <p class="scene__hint" aria-hidden="true">اسکرول کنید تا چراغ‌ها روشن شوند؛ نشانگر را روی تصویر بکشید</p>
@@ -280,6 +282,7 @@ const App = (() => {
       const b = e.target.closest("[data-k]"); if (!b) return;
       if (b.dataset.k === "prov") H.provs = H.provs.filter((x) => x !== b.dataset.id);
       if (b.dataset.k === "city") H.cities = H.cities.filter((x) => x !== b.dataset.id);
+      if (b.dataset.k === "prov") refreshCities();
       drawHTags();
     });
 
@@ -296,9 +299,20 @@ const App = (() => {
       go("#/s?" + toQuery({ sort: "score", ...f }));
     });
 
-    const hCities = () => CITIES.map((c) => ({ id: c.id, label: c.name, hint: (PROVINCES.find((p) => p.id === c.province) || {}).name }));
+    // فهرست شهرها فقط شهرهای استان‌های انتخاب‌شده (یک یا چند استان)؛ بدون استان، همهٔ شهرها
+    const hCities = () => CITIES.filter((c) => !H.provs.length || H.provs.includes(c.province))
+      .map((c) => ({ id: c.id, label: c.name, hint: (PROVINCES.find((p) => p.id === c.province) || {}).name }));
+    const refreshCities = () => {
+      // شهرهای انتخابی که در استان‌های انتخاب‌شده نیستند کنار می‌روند
+      if (H.provs.length) H.cities = H.cities.filter((id) => H.provs.includes(UI.cityOf(id)?.province));
+      {
+        hCity.setItems(hCities(), null);
+        const inp = $("#hCity input");
+        if (inp) inp.placeholder = H.provs.length ? `افزودن شهر از ${H.provs.map((p) => PROVINCES.find((x) => x.id === p)?.name || p).join(" و ")}...` : "افزودن شهر...";
+      }
+    };
     UI.combo($("#hProv"), { items: PROVINCES.map((p) => ({ id: p.id, label: p.name })), value: null, allLabel: "انتخاب استان", placeholder: "افزودن استان...",
-      onChange: ({ id }) => { if (id && !H.provs.includes(id)) { H.provs.push(id); drawHTags(); } } });
+      onChange: ({ id }) => { if (id && !H.provs.includes(id)) { H.provs.push(id); refreshCities(); drawHTags(); } } });
     const hCity = UI.combo($("#hCity"), { items: hCities(), value: null, allLabel: "انتخاب شهر", placeholder: "افزودن شهر...",
       onChange: async ({ id }) => {
         if (!id) return;
@@ -339,7 +353,7 @@ const App = (() => {
     $("#feedS").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; fs = b.dataset.s; $$("#feedS button").forEach((x) => x.classList.toggle("is-on", x === b)); drawFeed(); });
     drawFeed();
     // انتخاب شهر روی کره، فیلتر شهر جست‌وجو را هم پر می‌کند
-    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; if (!ids.length) hCity.set(null); else if (ids.length === 1) hCity.set(ids[0]); drawHTags(); },
+    initLive(st, { onCities: (ids) => { H.cities = ids.slice(); H.provs = []; H.dist = ""; refreshCities(); if (!ids.length) hCity.set(null); else if (ids.length === 1) hCity.set(ids[0]); drawHTags(); },
       // محله‌های روشن در فهرست زیر نقشه = فیلتر محلهٔ جست‌وجو
       onDistricts: (names) => { H.dist = names.join(","); H.dq = ""; hDist.set(names.length === 1 ? names[0] : null); } });
     // راهنمای استان‌ها: یک ردیف با پیمایش افقی؛ دکمهٔ «همه» باز و بسته می‌کند
@@ -413,7 +427,7 @@ const App = (() => {
       const L0 = { st, mode, opts, sel: null, map: null, token: 0, listings: [] };
       live = L0;
       L0.globe = await mod.mountGlobe($("#skyGlobe"), {
-        cities, day: !dark(), textureUrl: dark() ? "/assets/vendor/globe/earth-night.jpg" : "/assets/vendor/globe/earth-day.jpg",
+        cities, day: !dark(), textureUrl: `/assets/vendor/globe/earth-${dark() ? "night" : "day"}.${IMGX}`,
         // بار اول: شهر انتخاب و فیلتر می‌شود و نقشه‌اش همین‌جا باز می‌شود؛ زدن دوباره روی همان شهر: صفحهٔ فرصت‌های آن شهر
         onPick: (c) => {
           if (L0.sel && L0.sel.ids.length === 1 && L0.sel.ids[0] === c.id) return liveOpenCity(L0, c.id);
@@ -1748,12 +1762,13 @@ const App = (() => {
       }
 
       const provChips = PROVINCES.map((p) => `<button type="button" class="chip ${provsSel.includes(p.id) ? "is-on" : ""}" data-toggle="province" data-val="${p.id}">${p.name}</button>`).join("");
-      const cityChips = CITIES.map((c) => `<button type="button" class="chip ${citiesSel.includes(c.id) ? "is-on" : ""}" data-toggle="city" data-val="${c.id}" data-prov="${c.province}">${c.name}</button>`).join("");
+      // با انتخاب استان، فقط شهرهای همان استان(ها) نمایش داده می‌شوند (به‌علاوهٔ شهرهای از قبل انتخاب‌شده)
+      const cityChips = CITIES.filter((c) => !provsSel.length || provsSel.includes(c.province) || citiesSel.includes(c.id)).map((c) => `<button type="button" class="chip ${citiesSel.includes(c.id) ? "is-on" : ""}" data-toggle="city" data-val="${c.id}" data-prov="${c.province}">${c.name}</button>`).join("");
 
       let html = dd("city", cityLabel, citiesSel.length || provsSel.length, `
         <div class="dd__label">استان</div>
         <div class="dd__grid" style="margin-bottom:12px">${provChips}</div>
-        <div class="dd__label">شهر</div>
+        <div class="dd__label">${provsSel.length ? `شهرهای ${provsSel.map((p) => UI.provOf(p)?.name || p).join(" و ")}` : "شهر"}</div>
         <input class="input" id="ddCityQ" placeholder="جست‌وجوی شهر..." style="margin-bottom:8px">
         <div class="dd__grid dd__grid--scroll" id="ddCityGrid" style="max-height:200px;overflow-y:auto">${cityChips}</div>
         <label class="dd__multi"><input type="checkbox" id="ddMulti" ${multiPick || citiesSel.length > 1 || provsSel.length > 1 ? "checked" : ""}> انتخاب همزمان چند شهر یا چند استان</label>
@@ -2303,224 +2318,170 @@ const App = (() => {
   }
 
   /* ---------- بزرگ‌نمایی تصویر (لایت‌باکس با اسکرول کامل و مدیریت دکمه بازگشت) ---------- */
+  /* نمایش بزرگ عکس‌ها: بزرگ‌نمایی نرم با transform (بدون نوار پیمایش و بدون پرش تصویر)
+     دکمه‌ها و صفحه‌کلید: از مرکز آنچه دیده می‌شود؛ چرخ موس، دوبار کلیک و دو انگشت: از همان نقطهٔ زیر نشانگر/انگشت.
+     در حالت بزرگ‌شده با کشیدن موس یا انگشت جابه‌جا می‌شود و لبه‌های تصویر هیچ‌وقت از کادر جدا نمی‌شوند. */
   function lightbox(l, i) {
-    // بستن هر لایت‌باکس یا مدال باز قبلی جهت جلوگیری از تداخل
     document.querySelectorAll(".lightbox").forEach((node) => node.remove());
-
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [null, null, null, null, null];
     const n = imgs.length;
-    let zoomLevel = 1;
-    let isClosed = false;
-
-    // ثبت در تاریخچه مرورگر برای کارکرد دکمه بازگشت فیزیکی موبایل و مرورگر
+    const MIN = 1, MAX = 5;
+    let z = 1, tx = 0, ty = 0, isClosed = false;
     history.pushState({ modal: "lightbox", t: Date.now() }, "", location.hash);
-
     const el = document.createElement("div");
-    el.className = "lightbox";
+    el.className = "lightbox lightbox--photo";
+    el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "نمایش بزرگ عکس");
 
     const close = (fromPopState = false) => {
       if (isClosed) return;
       isClosed = true;
-
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("keydown", onKeyDown);
-
-      // حذف فوری و قطعی از صفحه بدون تاخیر تا صفحه مسدود نماند
       el.remove();
-
-      // اگر کاربر دستی دکمه بستن، پس‌زمینه یا اسکیپ را زد، یک گام تاریخچه عقب برگردد
-      if (!fromPopState) {
-        if (history.state && history.state.modal === "lightbox") {
-          history.back();
-        }
-      }
+      if (!fromPopState && history.state && history.state.modal === "lightbox") history.back();
     };
-
-    // اگر کاربر دکمه Back مرورگر یا دکمه برگشت گوشی را زد، لایت‌باکس فوراً بسته می‌شود
-    const onPopState = () => {
-      close(true);
-    };
+    const onPopState = () => close(true);
     window.addEventListener("popstate", onPopState);
 
-    const setZoom = (targetZoom) => {
-      const clamped = Math.max(1, Math.min(4, +(targetZoom).toFixed(2)));
-      if (clamped === zoomLevel) return;
-      zoomLevel = clamped;
-      applyZoomLayout();
+    const vp = () => el.querySelector(".lbz");
+    const box = () => el.querySelector(".lbz__img");
+    // جابه‌جایی مجاز: تصویر بزرگ‌تر از کادر هرگز لبه‌اش از کادر جدا نمی‌شود؛ تصویر کوچک‌تر وسط می‌ماند
+    const clamp = () => {
+      const v = vp(), b = box(); if (!v || !b) return;
+      const mx = Math.max(0, (b.offsetWidth * z - v.clientWidth) / 2), my = Math.max(0, (b.offsetHeight * z - v.clientHeight) / 2);
+      tx = Math.max(-mx, Math.min(mx, tx)); ty = Math.max(-my, Math.min(my, ty));
     };
-
-    const applyZoomLayout = () => {
-      const vp = el.querySelector("#lbVp");
-      const stage = el.querySelector("#lbStage");
-      const canvas = el.querySelector("#lbCanvas");
-      const zoomVal = el.querySelector("#lbZoomVal");
-      if (zoomVal) zoomVal.textContent = fa(Math.round(zoomLevel * 100)) + "٪";
-      if (!vp || !stage || !canvas) return;
-
-      if (zoomLevel <= 1) {
-        vp.style.cursor = "zoom-in";
-        stage.style.width = "";
-        stage.style.height = "";
-        canvas.style.minWidth = "100%";
-        canvas.style.minHeight = "100%";
-        const imgEl = stage.querySelector("img, svg");
-        if (imgEl) {
-          imgEl.style.width = "";
-          imgEl.style.height = "";
-          imgEl.style.maxWidth = "92vw";
-          imgEl.style.maxHeight = "calc(100vh - 130px)";
-        }
-        vp.scrollTo({ left: 0, top: 0, behavior: "smooth" });
-      } else {
-        vp.style.cursor = "grab";
-        const baseW = Math.min(window.innerWidth * 0.9, 1080);
-        const baseH = Math.min(window.innerHeight - 140, 720);
-        const scaledW = Math.round(baseW * zoomLevel);
-        const scaledH = Math.round(baseH * zoomLevel);
-        stage.style.width = scaledW + "px";
-        stage.style.height = scaledH + "px";
-        canvas.style.minWidth = (scaledW + 60) + "px";
-        canvas.style.minHeight = (scaledH + 60) + "px";
-        const imgEl = stage.querySelector("img, svg");
-        if (imgEl) {
-          imgEl.style.width = "100%";
-          imgEl.style.height = "100%";
-          imgEl.style.maxWidth = "none";
-          imgEl.style.maxHeight = "none";
-        }
-        setTimeout(() => {
-          const targetX = Math.max(0, (vp.scrollWidth - vp.clientWidth) / 2);
-          const targetY = Math.max(0, (vp.scrollHeight - vp.clientHeight) / 2);
-          vp.scrollTo({ left: targetX, top: targetY, behavior: "smooth" });
-        }, 40);
-      }
+    const paint = (smooth) => {
+      const b = box(); if (!b) return;
+      clamp();
+      b.style.transition = smooth ? "transform .28s cubic-bezier(.16,1,.3,1)" : "none";
+      b.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${z})`;
+      vp().classList.toggle("is-zoomed", z > 1.001);
+      const zv = el.querySelector("#lbZoomVal"); if (zv) zv.textContent = fa(Math.round(z * 100)) + "٪";
     };
+    // بزرگ‌نمایی حول یک نقطه از کادر (px نسبت به مرکز کادر)؛ همان نقطه زیر نشانگر می‌ماند
+    const zoomAt = (nz, px = 0, py = 0, smooth = true) => {
+      nz = Math.max(MIN, Math.min(MAX, nz));
+      const k = nz / z;
+      tx = px - (px - tx) * k; ty = py - (py - ty) * k; z = nz;
+      if (z <= 1.001) { z = 1; tx = 0; ty = 0; }
+      paint(smooth);
+    };
+    const local = (cx, cy) => { const r = vp().getBoundingClientRect(); return [cx - r.left - r.width / 2, cy - r.top - r.height / 2]; };
 
     const draw = () => {
+      z = 1; tx = 0; ty = 0;
       el.innerHTML = `
         <button class="lightbox__top-close" data-x aria-label="بستن" title="بستن (Esc)">✕</button>
-        <div class="lightbox__viewport" id="lbVp">
-          <div class="lightbox__canvas" id="lbCanvas">
-            <div class="lightbox__stage" id="lbStage">
-              ${UI.media(l, i, "lb-active-img")}
-            </div>
-          </div>
-        </div>
+        <div class="lbz" id="lbVp"><div class="lbz__img" id="lbStage">${UI.media(l, i, "lb-active-img")}</div></div>
         <div class="lightbox__bar">
           <button class="btn btn--line btn--sm" data-d="-1" title="تصویر قبلی">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
           <span style="font-size:13px;font-weight:700">${fa(i + 1)} از ${fa(n)}</span>
           <button class="btn btn--line btn--sm" data-d="1" title="تصویر بعدی">بعدی ${icon("arrow")}</button>
-          <div style="display:inline-flex;gap:4px;margin-inline:10px;align-items:center">
-            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی">${icon("plus", 'width="15"')} بزرگ‌نمایی</button>
-            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی">${icon("minus", 'width="15"')} کوچک‌نمایی</button>
-            <button class="btn btn--line btn--sm" data-zoom="reset" title="اندازه اولیه"><span id="lbZoomVal">${fa(Math.round(zoomLevel * 100))}٪</span></button>
+          <div class="lbz__tools">
+            <button class="btn btn--line btn--sm" data-zoom="out" title="کوچک‌نمایی (−)" aria-label="کوچک‌نمایی">${icon("minus", 'width="15"')}</button>
+            <button class="btn btn--line btn--sm lbz__val" data-zoom="reset" title="اندازهٔ اولیه"><span id="lbZoomVal">${fa(100)}٪</span></button>
+            <button class="btn btn--line btn--sm" data-zoom="in" title="بزرگ‌نمایی (+)" aria-label="بزرگ‌نمایی">${icon("plus", 'width="15"')}</button>
           </div>
           <button class="btn btn--line btn--sm" data-x title="بستن">${icon("x", 'width="15"')} بستن</button>
-        </div>`;
-      bindEvents();
-      applyZoomLayout();
+        </div>
+        <p class="lbz__hint">چرخ موس یا دو انگشت: بزرگ‌نمایی · کشیدن: جابه‌جایی · دوبار کلیک: بزرگ/اولیه</p>`;
+      bindStage();
+      paint(false);
     };
 
-    const bindEvents = () => {
-      const vp = el.querySelector("#lbVp");
-      if (!vp) return;
-
-      let isDragging = false;
-      let startX, startY, startScrollX, startScrollY;
-
-      vp.addEventListener("mousedown", (e) => {
-        if (zoomLevel <= 1 || e.target.closest("button") || e.target.closest(".lightbox__bar")) return;
-        isDragging = true;
-        vp.style.cursor = "grabbing";
-        startX = e.clientX;
-        startY = e.clientY;
-        startScrollX = vp.scrollLeft;
-        startScrollY = vp.scrollTop;
-      });
-
-      window.addEventListener("mouseup", () => {
-        if (isDragging) {
-          isDragging = false;
-          if (zoomLevel > 1) vp.style.cursor = "grab";
+    const bindStage = () => {
+      const v = vp(); if (!v) return;
+      const ptrs = new Map();
+      let drag = null, pinch = null, moved = false, lastTap = 0;
+      v.addEventListener("pointerdown", (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        v.setPointerCapture(e.pointerId);
+        ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+        moved = false;
+        if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx, ty };
+        if (ptrs.size === 2) {
+          const [a, b] = [...ptrs.values()];
+          const [mx, my] = local((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+          pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z, mx, my, tx, ty };
+          drag = null;
         }
       });
-
-      window.addEventListener("mousemove", (e) => {
-        if (!isDragging || zoomLevel <= 1) return;
+      v.addEventListener("pointermove", (e) => {
+        if (!ptrs.has(e.pointerId)) return;
+        ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pinch && ptrs.size >= 2) {
+          const [a, b] = [...ptrs.values()];
+          const nz = Math.max(MIN, Math.min(MAX, pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d));
+          const k = nz / pinch.z;
+          z = nz; tx = pinch.mx - (pinch.mx - pinch.tx) * k; ty = pinch.my - (pinch.my - pinch.ty) * k;
+          moved = true; paint(false);
+        } else if (drag && z > 1) {
+          const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+          if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+          tx = drag.tx + dx; ty = drag.ty + dy; paint(false);
+        } else if (drag && Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) moved = true;
+      });
+      const up = (e) => {
+        if (!ptrs.has(e.pointerId)) return;
+        ptrs.delete(e.pointerId);
+        if (ptrs.size < 2) pinch = null;
+        if (ptrs.size === 1) { const [p] = [...ptrs.values()]; drag = { x: p[0], y: p[1], tx, ty }; }
+        if (ptrs.size) return;
+        // کشیدن افقی در اندازهٔ اولیه روی موبایل: عکس بعدی/قبلی
+        if (drag && z <= 1 && e.pointerType !== "mouse") {
+          const dx = e.clientX - drag.x;
+          if (Math.abs(dx) > 60) { i = (i + (dx < 0 ? 1 : -1) + n) % n; drag = null; draw(); return; }
+        }
+        drag = null;
+        if (moved) return;
+        // با گرفتن نشانگر، هدف رویداد همیشه کادر است؛ پس روی عکس بودن از روی مختصات سنجیده می‌شود
+        const ir = box().getBoundingClientRect();
+        const onImg = e.clientX >= ir.left && e.clientX <= ir.right && e.clientY >= ir.top && e.clientY <= ir.bottom;
+        const now = Date.now();
+        if (now - lastTap < 300 && onImg) { // دوبار کلیک/لمس: بزرگ‌نمایی در همان نقطه یا بازگشت
+          const [px, py] = local(e.clientX, e.clientY);
+          zoomAt(z > 1.05 ? 1 : 2.5, px, py); lastTap = 0; return;
+        }
+        lastTap = now;
+        if (!onImg && z <= 1) close(false);   // کلیک روی فضای خالی دور عکس: بستن
+      };
+      v.addEventListener("pointerup", up);
+      v.addEventListener("pointercancel", up);
+      v.addEventListener("wheel", (e) => {
         e.preventDefault();
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        vp.scrollLeft = startScrollX - dx;
-        vp.scrollTop = startScrollY - dy;
-      });
-
-      let touchDistanceStart = 0;
-      let touchZoomStart = 1;
-
-      vp.addEventListener("touchstart", (e) => {
-        if (e.touches.length === 2) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          touchDistanceStart = Math.hypot(dx, dy);
-          touchZoomStart = zoomLevel;
-        }
-      }, { passive: true });
-
-      vp.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2 && touchDistanceStart > 0) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          const currentDist = Math.hypot(dx, dy);
-          const ratio = currentDist / touchDistanceStart;
-          setZoom(touchZoomStart * ratio);
-        }
-      }, { passive: true });
+        const [px, py] = local(e.clientX, e.clientY);
+        const f = Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.0022);
+        zoomAt(z * f, px, py, true);
+      }, { passive: false });
+      v.addEventListener("dblclick", (e) => e.preventDefault());
+      // تصویر پس از بارگذاری اندازهٔ تازه می‌گیرد
+      el.querySelectorAll(".lbz__img img").forEach((im) => im.addEventListener("load", () => paint(false), { once: true }));
+      v.querySelectorAll("img").forEach((im) => { im.draggable = false; });
     };
 
     const onKeyDown = (e) => {
-      const vp = el.querySelector("#lbVp");
       if (e.key === "Escape") { close(false); e.preventDefault(); return; }
-      if (e.key === "+" || e.key === "=") { setZoom(zoomLevel + 0.35); e.preventDefault(); return; }
-      if (e.key === "-") { setZoom(zoomLevel - 0.35); e.preventDefault(); return; }
-
-      if (zoomLevel > 1 && vp) {
-        if (e.key === "ArrowUp") { vp.scrollBy({ top: -80, behavior: "smooth" }); e.preventDefault(); }
-        else if (e.key === "ArrowDown") { vp.scrollBy({ top: 80, behavior: "smooth" }); e.preventDefault(); }
-        else if (e.key === "ArrowLeft") { vp.scrollBy({ left: -80, behavior: "smooth" }); e.preventDefault(); }
-        else if (e.key === "ArrowRight") { vp.scrollBy({ left: 80, behavior: "smooth" }); e.preventDefault(); }
-      } else {
-        if (e.key === "ArrowLeft") { i = (i + 1) % n; zoomLevel = 1; draw(); }
-        else if (e.key === "ArrowRight") { i = (i - 1 + n) % n; zoomLevel = 1; draw(); }
-      }
+      if (e.key === "+" || e.key === "=") { zoomAt(z * 1.4); e.preventDefault(); return; }
+      if (e.key === "-") { zoomAt(z / 1.4); e.preventDefault(); return; }
+      if (e.key === "0") { zoomAt(1); e.preventDefault(); return; }
+      if (z > 1) {
+        const step = 90, m = { ArrowUp: [0, step], ArrowDown: [0, -step], ArrowLeft: [step, 0], ArrowRight: [-step, 0] }[e.key];
+        if (m) { tx += m[0]; ty += m[1]; paint(true); e.preventDefault(); }
+      } else if (e.key === "ArrowLeft") { i = (i + 1) % n; draw(); }
+      else if (e.key === "ArrowRight") { i = (i - 1 + n) % n; draw(); }
     };
 
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (e.target.closest("[data-x]")) {
-        close(false);
-      } else if (b?.dataset.d) {
-        i = (i + +b.dataset.d + n) % n;
-        zoomLevel = 1;
-        draw();
-      } else if (b?.dataset.zoom === "in") {
-        setZoom(zoomLevel + 0.4);
-      } else if (b?.dataset.zoom === "out") {
-        setZoom(zoomLevel - 0.4);
-      } else if (b?.dataset.zoom === "reset") {
-        setZoom(1);
-      } else if (e.target.id === "lbVp" || e.target.id === "lbCanvas") {
-        close(false);
-      } else if (e.target.closest("#lbStage")) {
-        setZoom(zoomLevel === 1 ? 2.2 : 1);
-      }
+      if (!b) return;
+      if (b.matches("[data-x]")) close(false);
+      else if (b.dataset.d) { i = (i + +b.dataset.d + n) % n; draw(); }
+      else if (b.dataset.zoom === "in") zoomAt(z * 1.5);            // از مرکز کادر
+      else if (b.dataset.zoom === "out") zoomAt(z / 1.5);
+      else if (b.dataset.zoom === "reset") zoomAt(1);
     });
-
-    el.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      if (e.deltaY < 0) setZoom(zoomLevel + 0.25);
-      else setZoom(zoomLevel - 0.25);
-    }, { passive: false });
-
+    addEventListener("resize", () => !isClosed && paint(false));
     document.addEventListener("keydown", onKeyDown);
     document.body.appendChild(el);
     draw();

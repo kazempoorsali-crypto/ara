@@ -876,7 +876,7 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 }
 /* موبایل: متن معرفی بالای صفحه کوتاه‌تر تا کادر جست‌وجو زودتر دیده شود */
 @media (max-width: 560px) {
-  .hero__lead { font-size: 15.5px; line-height: 1.95; text-align: justify; text-justify: inter-word; text-align-last: start; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .hero__lead { font-size: 15.5px; line-height: 1.95; text-align: justify; text-justify: inter-word; text-align-last: start; }
   .hero h1 { margin: 10px 0 12px; }
   .search-card { margin-top: 18px; }
 }
@@ -2307,3 +2307,21 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .sbar .hs { flex: 0 1 auto; max-width: 100%; }
 .sbar.is-compact .hs { flex: 1 1 100%; width: 100%; }
 .sbar .hs { --hs-bg: var(--paper); }
+
+/* نمایش بزرگ عکس: بزرگ‌نمایی با transform و جابه‌جایی با کشیدن (بدون نوار پیمایش) */
+.lightbox--photo .lbz { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: zoom-in; }
+.lightbox--photo .lbz.is-zoomed { cursor: grab; }
+.lightbox--photo .lbz.is-zoomed:active { cursor: grabbing; }
+.lightbox--photo .lbz__img { display: flex; align-items: center; justify-content: center; transform-origin: 50% 50%; will-change: transform; }
+.lightbox--photo .lbz__img img, .lightbox--photo .lbz__img svg { display: block; max-width: 94vw; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); width: auto; height: auto;
+  object-fit: contain; border-radius: 12px; margin: 0; pointer-events: none; -webkit-user-drag: none; }
+.lightbox--photo .lbz.is-zoomed .lbz__img img { border-radius: 4px; }
+.lbz__tools { display: inline-flex; gap: 4px; margin-inline: 10px; align-items: center; }
+.lbz__tools .btn { min-width: 40px; justify-content: center; }
+.lbz__val { min-width: 64px !important; font-variant-numeric: tabular-nums; }
+.lbz__hint { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 14px; border-radius: 999px; background: rgba(18,33,29,.7);
+  color: rgba(255,255,255,.75); font-size: 12px; pointer-events: none; white-space: nowrap; animation: lbzHint 4s 1.2s forwards; }
+@keyframes lbzHint { to { opacity: 0; } }
+@media (max-width: 600px) { .lbz__hint { display: none; } .lbz__tools { margin-inline: 4px; } }
+.search-card__deals button { white-space: nowrap; flex: none; }

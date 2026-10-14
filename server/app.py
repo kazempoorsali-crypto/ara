@@ -35,6 +35,33 @@ def get_optimized_db(db_path='database.db'):
     conn.row_factory = sqlite3.Row
     return conn
 
+mimetypes.add_type("image/webp", ".webp")   # پایتون‌های قدیمی‌تر WebP را نمی‌شناسند
+_WEBP = {}
+
+
+def webp_ok() -> bool:
+    """تبدیل به WebP فقط اگر کتابخانهٔ Pillow روی سرور نصب باشد (pip install pillow)؛ وگرنه همان عکس اصلی."""
+    if "ok" not in _WEBP:
+        try:
+            from PIL import features, Image  # noqa: F401
+            _WEBP["ok"] = bool(features.check("webp"))
+        except Exception:  # noqa: BLE001
+            _WEBP["ok"] = False
+    return _WEBP["ok"]
+
+
+def to_webp(data: bytes, out: Path, max_w: int = 1600, quality: int = 80):
+    import io
+    from PIL import Image
+    im = Image.open(io.BytesIO(data))
+    im = im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB")
+    if im.width > max_w:
+        im = im.resize((max_w, round(im.height * max_w / im.width)), Image.LANCZOS)
+    tmp = out.with_suffix(".tmp")
+    im.save(tmp, "WEBP", quality=quality, method=4)
+    tmp.replace(out)
+
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
@@ -655,10 +682,21 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             f.write_bytes(data)
         data = f.read_bytes()
+        # عکس JPEG/PNG برای مرورگرهای پشتیبان به WebP تبدیل و جدا کش می‌شود (کم‌حجم‌تر، بارگذاری سریع‌تر)
+        if data[8:12] != b"WEBP" and "image/webp" in (self.headers.get("accept") or ""):
+            wf = f.with_suffix(".webp")
+            if not wf.is_file() and webp_ok():
+                try:
+                    to_webp(data, wf)
+                except Exception:  # noqa: BLE001
+                    pass
+            if wf.is_file():
+                data = wf.read_bytes()
         ctype = "image/webp" if data[8:12] == b"WEBP" else "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
         self.send_response(200)
         self.send_header("content-type", ctype)
         self.send_header("content-length", str(len(data)))
+        self.send_header("vary", "Accept")
         self.send_header("cache-control", "public, max-age=604800")
         self.end_headers()
         self.wfile.write(data)
