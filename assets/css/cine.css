@@ -208,3 +208,9 @@ body.cine-go #view { animation: cineEnter .9s .25s var(--cine-ease) both; }
 :root.cine-home .hero .kicker, :root.cine-home .hero h1, :root.cine-home .hero__lead { translate: calc(var(--hx, 0) * -10px) calc(var(--hy, 0) * -8px); transition: translate .8s var(--cine-ease); }
 :root.cine-home .hero .sky { translate: calc(var(--hx, 0) * 14px) calc(var(--hy, 0) * 10px); transition: transform .6s var(--cine-ease), translate .8s var(--cine-ease); }
 :root.cine-home .hero h1 { font-size: clamp(30px, 4.4vw, 60px); line-height: 1.32; }
+
+/* حالت روشن: ستاره‌های سفید روی کادر روشن دیده نمی‌شوند و هاله ملایم‌تر است */
+:root:not([data-theme="dark"]) .cine-stars { display: none; }
+:root:not([data-theme="dark"]) .cine-halo { background: radial-gradient(circle, transparent 54%, rgba(60,150,110,.16) 62%, rgba(80,140,200,.08) 68%, transparent 74%); }
+:root:not([data-theme="dark"]) .cine-sweep { display: none; }
+:root.cine-home:not([data-theme="dark"]) .sky { box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 40px 90px -45px rgba(60,48,30,.35), 0 0 0 1px var(--line); }

@@ -2325,3 +2325,14 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 @keyframes lbzHint { to { opacity: 0; } }
 @media (max-width: 600px) { .lbz__hint { display: none; } .lbz__tools { margin-inline: 4px; } }
 .search-card__deals button { white-space: nowrap; flex: none; }
+
+/* نمایش بزرگ عکس هم‌رنگ تم: روشن در حالت روشن، تیره در حالت تیره؛ دکمه‌های نوار پایین همیشه خوانا */
+.lightbox .lightbox__bar .btn, :root[data-design="new"] .lightbox .lightbox__bar .btn--line { color: #fff; border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.06); }
+.lightbox .lightbox__bar .btn:hover { background: rgba(255,255,255,.16); border-color: #fff; }
+:root:not([data-theme="dark"]) .lightbox { background: rgba(240,237,230,.97); backdrop-filter: none; -webkit-backdrop-filter: none; }
+:root:not([data-theme="dark"]) .lightbox .lightbox__bar { background: rgba(255,255,255,.94); color: var(--ink); border-top: 1px solid var(--line); }
+:root:not([data-theme="dark"]) .lightbox .lightbox__bar .btn, :root[data-design="new"]:not([data-theme="dark"]) .lightbox .lightbox__bar .btn--line { color: var(--ink); border-color: var(--line-2, rgba(0,0,0,.2)); background: #fff; }
+:root:not([data-theme="dark"]) .lightbox .lightbox__bar .btn:hover { border-color: var(--ink); background: var(--sunk); }
+:root:not([data-theme="dark"]) .lightbox__top-close { background: #fff; color: var(--ink); border-color: var(--line); box-shadow: 0 6px 18px -8px rgba(0,0,0,.3); }
+:root:not([data-theme="dark"]) .lbz__hint { background: rgba(255,255,255,.92); color: var(--ink-2); box-shadow: 0 4px 14px -6px rgba(0,0,0,.25); }
+:root:not([data-theme="dark"]) .lightbox--photo .lbz__img img { box-shadow: 0 30px 70px -30px rgba(40,30,20,.45); }

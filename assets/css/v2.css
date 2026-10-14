@@ -85,8 +85,10 @@
 :root[data-design="new"] .search-card { grid-area: form; border-radius: var(--v2-r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 :root[data-design="new"] .hero__quick { grid-area: quick; margin-top: 16px; }
 :root[data-design="new"] .chip { border-radius: 999px; }
-:root[data-design="new"] .hero .sky { grid-area: sky; border-radius: 36px; margin-top: 4px; position: sticky; top: 96px;
-  background: radial-gradient(120% 90% at 70% 0%, #1d3a2f 0%, #0f1a15 48%, #070c0a 100%); }
+:root[data-design="new"] .hero .sky { grid-area: sky; border-radius: 36px; margin-top: 4px; position: sticky; top: 96px; }
+/* کادر کره هم‌رنگ تم: روشن در حالت روشن، تیره در حالت تیره */
+:root[data-design="new"][data-theme="dark"] .hero .sky { background: radial-gradient(120% 90% at 70% 0%, #1d3a2f 0%, #0f1a15 48%, #070c0a 100%); }
+:root[data-design="new"]:not([data-theme="dark"]) .hero .sky { background: radial-gradient(120% 90% at 70% 0%, #ffffff 0%, var(--surface) 45%, var(--paper-2) 100%); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 :root[data-design="new"] .sky__stage.is-globe { height: min(52vh, 470px); }
 :root[data-design="new"] .search-card__deals button.is-on { background: var(--ink); color: var(--paper); }
 @media (max-width: 1100px) {
@@ -172,3 +174,14 @@
 :root.lite .cine-slab { clip-path: none !important; }
 :root.lite .hero .sky { position: relative; top: 0; }
 :root.lite .cine-scrub .cw__i { opacity: 1 !important; }
+
+/* سربرگ تیره (روی فصل‌های تیره): «ثبت تیکت» روشن و خوانا */
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav .nav__ticket { color: #ff9a6e; border-color: rgba(255,154,110,.6); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav .nav__ticket:hover { background: rgba(255,154,110,.12); }
+/* دکمه‌ها روی کادرهای تیره (درخواست مشاوره و فصل‌های تیره) در هر دو تم خوانا */
+:root[data-design="new"] .consult .btn--gold, :root[data-design="new"] .section--ink .btn--gold { background: var(--v2-slab-ink); color: var(--v2-slab); }
+:root[data-design="new"] .consult .btn--gold:hover, :root[data-design="new"] .section--ink .btn--gold:hover { background: #fff; }
+:root[data-design="new"] .consult .btn--line, :root[data-design="new"] .consult .btn--ghost { color: var(--v2-slab-ink); border-color: rgba(239,236,228,.4); background: transparent; }
+:root[data-design="new"] .consult .btn--line:hover, :root[data-design="new"] .consult .btn--ghost:hover { border-color: var(--v2-slab-ink); background: rgba(239,236,228,.08); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top #accountBtn { background: var(--v2-slab-ink); color: var(--v2-slab); }
+:root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav a.is-on { background: var(--v2-slab-ink); color: var(--v2-slab); }
