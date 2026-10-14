@@ -335,10 +335,11 @@ const DataLayer = (() => {
   async function startPayment(plan, method) {
     return json(await fetch("api/pay/start", { method: "POST", headers: H(), body: JSON.stringify({ plan, method }) }));
   }
+  async function payCheck(pid) { return json(await fetch("api/pay/check?pid=" + encodeURIComponent(pid), { headers: H() })); }
   async function invoice(pid) {
     return json(await fetch("api/pay/invoice?" + qs({ pid }), { headers: H(), cache: "no-store" }));
   }
 
-  return { init, search, get, market, districtMap, districts, verdict, requestOtp, verifyOtp, register, login, resetRequest, resetCode, resetToken, saveProfile, refreshMe, logout, startPayment, invoice, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
+  return { init, search, get, market, districtMap, districts, verdict, requestOtp, verifyOtp, register, login, resetRequest, resetCode, resetToken, saveProfile, refreshMe, logout, startPayment, payCheck, invoice, submitReceipt, flag, tickets, createTicket, replyTicket, seenTicket, ticketImage,
     get config() { return config; }, get server() { return server; }, get samples() { return useSamples; }, get stats() { return stats; }, set stats(v) { if (v && !useSamples) stats = v; }, get me() { return me; }, RENT_RATE };
 })();
