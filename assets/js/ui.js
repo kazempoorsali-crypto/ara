@@ -376,5 +376,30 @@ const UI = (() => {
       '</div>';
   }
 
-  return { combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, dealBadge, profitEstimate, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
+  /* نوار افقی با فلش‌های جابه‌جایی: فلش‌ها فقط وقتی که گزینه‌ها از کادر بیرون می‌زنند دیده می‌شوند */
+  function hscroll(sc) {
+    if (!sc || sc.parentElement?.classList.contains("hs")) { sc?._hsUpdate?.(); return; }
+    const box = document.createElement("div"); box.className = "hs";
+    sc.parentNode.insertBefore(box, sc); box.append(sc); sc.classList.add("hs__sc");
+    const mk = (cls, label) => { const b = document.createElement("button"); b.type = "button"; b.className = "hs__btn " + cls; b.setAttribute("aria-label", label); b.innerHTML = icon("arrow"); b.hidden = true; box.append(b); return b; };
+    const prev = mk("hs__btn--prev", "گزینه‌های قبلی"), next = mk("hs__btn--next", "گزینه‌های بعدی");
+    const rtl = getComputedStyle(sc).direction === "rtl";
+    // در راست‌به‌چپ، «بعدی» یعنی رفتن به چپ؛ مقدار scrollLeft در کروم و فایرفاکس منفی است
+    const pos = () => Math.abs(sc.scrollLeft), max = () => sc.scrollWidth - sc.clientWidth;
+    const update = () => {
+      const over = max() > 2, p = pos();
+      prev.hidden = !over || p < 4; next.hidden = !over || p > max() - 4;
+      box.classList.toggle("has-prev", !prev.hidden); box.classList.toggle("has-next", !next.hidden);
+    };
+    const go = (dir) => sc.scrollBy({ left: (rtl ? -1 : 1) * dir * Math.max(120, sc.clientWidth * 0.8), behavior: "smooth" });
+    prev.addEventListener("click", (e) => { e.stopPropagation(); go(-1); });
+    next.addEventListener("click", (e) => { e.stopPropagation(); go(1); });
+    sc.addEventListener("scroll", update, { passive: true });
+    if ("ResizeObserver" in window) new ResizeObserver(update).observe(sc);
+    new MutationObserver(update).observe(sc, { childList: true });
+    sc._hsUpdate = update;
+    update();
+  }
+
+  return { hscroll, combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, dealBadge, profitEstimate, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
 })();

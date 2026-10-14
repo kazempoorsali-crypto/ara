@@ -129,6 +129,12 @@ p { margin: 0; }
   .top.is-menu .nav { display: flex; }
   .nav a { padding: 12px 14px; font-size: 15.5px; border-radius: 12px; }
 }
+/* منوی پویا: هر وقت منو در عرض صفحه (با هر بزرگ‌نمایی) جا نشود، خودکار به دکمهٔ منو تبدیل می‌شود */
+.top.top--collapse .menu-btn { display: inline-grid; }
+.top.top--collapse .nav { display: none; position: absolute; top: 100%; inset-inline: 0; flex-direction: column; gap: 2px; padding: 10px 16px 16px; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-2); }
+.top.top--collapse .nav .nav__more { display: block; }
+.top.top--collapse.is-menu .nav { display: flex; }
+.top.top--collapse .nav a { padding: 12px 14px; font-size: 15.5px; border-radius: 12px; }
 @media (hover: hover) { .nav a:hover { color: var(--ink); background: var(--sunk); } }
 .nav a.is-on { color: var(--ink); background: var(--surface); box-shadow: var(--shadow-1); }
 .top__act { margin-inline-start: auto; display: flex; align-items: center; gap: 4px; }
@@ -2278,3 +2284,26 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .linkbtn.is-hot { color: var(--narenj); }
 @media (max-height: 700px) { .dlg--auth .dlg__body { padding: 14px 18px; } .auth { gap: 10px; } .af__in { height: 40px; } .auth__go { height: 42px; } }
 .auth__steps { list-style: persian; }
+
+/* نوار افقی با فلش: وقتی گزینه‌ها در عرض جا نشوند، با فلش‌ها جابه‌جا می‌شوند (به‌جای پیمایش سخت) */
+.hs { position: relative; min-width: 0; display: flex; align-items: center; }
+.hs > .hs__sc { flex: 1; min-width: 0; scroll-behavior: smooth; }
+.hs__btn { position: absolute; top: 50%; z-index: 3; width: 32px; height: 32px; margin-top: -16px; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); box-shadow: 0 4px 14px -6px rgba(0,0,0,.35); cursor: pointer; transition: opacity .2s, transform .2s; }
+.hs__btn svg { width: 16px; height: 16px; }
+.hs__btn[hidden] { display: none; }
+.hs__btn:hover { transform: scale(1.08); }
+.hs__btn--prev { inset-inline-start: -4px; }
+.hs__btn--next { inset-inline-end: -4px; }
+.hs__btn--prev svg { transform: scaleX(-1); }
+.hs::before, .hs::after { content: ""; position: absolute; top: 0; bottom: 0; width: 36px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.hs::before { inset-inline-start: 0; background: linear-gradient(to left, var(--hs-bg, var(--paper)), transparent); }
+.hs::after { inset-inline-end: 0; background: linear-gradient(to right, var(--hs-bg, var(--paper)), transparent); }
+.hs.has-prev::before, .hs.has-next::after { opacity: 1; }
+.sky__more .hs { flex: 1; --hs-bg: #fff; }
+[data-theme="dark"] .sky__more .hs { --hs-bg: rgb(20,22,20); }
+.sky__more .hs__btn { width: 28px; height: 28px; margin-top: -14px; background: #fff; color: #1a1a18; border-color: #d9d4c8; }
+.sky__more.is-open .hs__btn, .sky__more.is-open .hs::before, .sky__more.is-open .hs::after { display: none; }
+.sbar .hs { flex: 0 1 auto; max-width: 100%; }
+.sbar.is-compact .hs { flex: 1 1 100%; width: 100%; }
+.sbar .hs { --hs-bg: var(--paper); }
