@@ -27,9 +27,11 @@ function dotTexture(color, ring = false) {
   return t;
 }
 
-export async function mountGlobe(host, { cities = [], textureUrl, day = false, onPick, onArrive } = {}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+export async function mountGlobe(host, { cities = [], textureUrl, day = false, onPick, onArrive, lite = false } = {}) {
+  // سیستم ضعیف یا صفحهٔ کوچک: وضوح کمتر و هندسهٔ سبک‌تر تا نرخ فریم بالا بماند (خود کره همان است)
+  const small = lite || innerWidth < 760;
+  const renderer = new THREE.WebGLRenderer({ antialias: !lite, alpha: true, powerPreference: "low-power" });
+  renderer.setPixelRatio(Math.min(lite ? 1 : small ? 1.5 : 2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
@@ -38,11 +40,11 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   const tex = await new THREE.TextureLoader().loadAsync(textureUrl);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), new THREE.MeshBasicMaterial({ map: tex, color: day ? new THREE.Color(1.05, 1.05, 1.05) : new THREE.Color(1.25, 1.2, 1.1) }));
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, small ? 72 : 128, small ? 72 : 128), new THREE.MeshBasicMaterial({ map: tex, color: day ? new THREE.Color(1.05, 1.05, 1.05) : new THREE.Color(1.25, 1.2, 1.1) }));
   scene.add(earth);
 
   // هالهٔ جو: درخشش لبه با سایه‌زن فرنل، به رنگ سبز برند
-  const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12, 96, 96), new THREE.ShaderMaterial({
+  const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12, small ? 48 : 96, small ? 48 : 96), new THREE.ShaderMaterial({
     side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
     uniforms: { c: { value: new THREE.Color(day ? "#8fd0ff" : "#4fd39a") } },
     vertexShader: "varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
@@ -50,7 +52,7 @@ export async function mountGlobe(host, { cities = [], textureUrl, day = false, o
   }));
   scene.add(atmo);
   // لایهٔ نازک روشن روی سطح رو به بیننده (حس حجم)
-  const rim = new THREE.Mesh(new THREE.SphereGeometry(1.002, 96, 96), new THREE.ShaderMaterial({
+  const rim = new THREE.Mesh(new THREE.SphereGeometry(1.002, small ? 48 : 96, small ? 48 : 96), new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
     vertexShader: "varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
     fragmentShader: "varying vec3 vN; void main(){ float f = pow(1.0 - max(dot(vN, vec3(0.,0.,1.)),0.), 2.5); gl_FragColor = vec4(" + (day ? "0.55,0.8,1.0" : "0.35,0.85,0.65") + ",1.0) * f * " + (day ? "0.45" : "0.35") + "; }",

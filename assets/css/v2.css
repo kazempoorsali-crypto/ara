@@ -185,3 +185,43 @@
 :root[data-design="new"] .consult .btn--line:hover, :root[data-design="new"] .consult .btn--ghost:hover { border-color: var(--v2-slab-ink); background: rgba(239,236,228,.08); }
 :root[data-design="new"].cine-home[data-cine-tone="dark"] .top #accountBtn { background: var(--v2-slab-ink); color: var(--v2-slab); }
 :root[data-design="new"].cine-home[data-cine-tone="dark"] .top .nav a.is-on { background: var(--v2-slab-ink); color: var(--v2-slab); }
+
+/* ==========================================================================
+   پالت نئون (تم شب) و شبکهٔ نامتقارن (Broken Grid) — فقط طراحی تازه
+   ========================================================================== */
+:root[data-design="new"][data-theme="dark"] { --v2-hi: #c8ff3e; --v2-hi-ink: #0e120e; }
+:root[data-design="new"] { --v2-hi-ink: #11160f; }
+/* تأکیدهای نئونی در تم شب: خط برچسب‌ها، پیوند فعال، واژهٔ برجستهٔ تیتر، نوار پیشرفت، عدد فرصت‌ها */
+:root[data-design="new"][data-theme="dark"] .kicker::before { background: var(--v2-hi); box-shadow: 0 0 12px color-mix(in srgb, var(--v2-hi) 70%, transparent); }
+:root[data-design="new"][data-theme="dark"] .nav a.is-on { background: var(--v2-hi); color: var(--v2-hi-ink); }
+:root[data-design="new"][data-theme="dark"] .hero h1 .accent { color: var(--v2-hi); text-shadow: 0 0 40px color-mix(in srgb, var(--v2-hi) 25%, transparent); -webkit-text-fill-color: currentColor; background: none; }
+:root[data-design="new"][data-theme="dark"] .cine-progress { background: linear-gradient(90deg, var(--v2-hi), #7cf5c8); box-shadow: 0 0 10px var(--v2-hi); }
+:root[data-design="new"][data-theme="dark"] .sky__kpis .is-hot b, :root[data-design="new"][data-theme="dark"] .strip > div:nth-child(1) b { color: var(--v2-hi); }
+:root[data-design="new"][data-theme="dark"] .mcur[data-mode="link"] .mcur__ring::before { border-color: var(--v2-hi); background: color-mix(in srgb, var(--v2-hi) 14%, transparent); }
+:root[data-design="new"][data-theme="dark"] .mcur__dot::before { background: var(--v2-hi); }
+:root[data-design="new"][data-theme="dark"] :focus-visible { outline: 2px solid var(--v2-hi); outline-offset: 3px; }
+/* حاشیه‌های ۱ پیکسلی لوکس (گلس) روی کارت‌ها و کادرها در تم شب */
+:root[data-design="new"][data-theme="dark"] .card, :root[data-design="new"][data-theme="dark"] .plan, :root[data-design="new"][data-theme="dark"] .scale5 .s5,
+:root[data-design="new"][data-theme="dark"] .search-card, :root[data-design="new"][data-theme="dark"] .faq details {
+  border: 1px solid rgba(238,234,223,.09); background: linear-gradient(180deg, rgba(238,234,223,.045), rgba(238,234,223,.015)), var(--surface); }
+:root[data-design="new"][data-theme="dark"] .card:hover { border-color: color-mix(in srgb, var(--v2-hi) 40%, transparent); }
+
+/* شبکهٔ نامتقارن: فقط دسکتاپ پهن؛ ستون‌ها و کارت‌ها عمداً از خط هم بیرون می‌زنند */
+@media (min-width: 1100px) {
+  :root[data-design="new"] .sec-head { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); display: grid; align-items: end; }
+  :root[data-design="new"] .sec-head > div:first-child p { margin-inline-start: 18%; }
+  :root[data-design="new"] .story__grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 72px; }
+  :root[data-design="new"] .story__list { margin-top: 140px; }
+  :root[data-design="new"] .solution__grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
+  :root[data-design="new"] .solution__grid > :last-child { transform: translateY(60px); }
+  :root[data-design="new"] .cards { align-items: start; }
+  :root[data-design="new"] #view .section .cards > .card:nth-child(4n+2) { margin-top: 56px; }
+  :root[data-design="new"] #view .section .cards > .card:nth-child(4n+4) { margin-top: 28px; }
+  :root[data-design="new"] .scale5 .s5:nth-child(even) { transform: translateY(26px); }
+  :root[data-design="new"] .trust__items { grid-template-columns: 1.15fr .85fr; }
+  :root[data-design="new"] .trust__items > div:nth-child(even) { padding-inline-start: 40px; }
+  :root[data-design="new"] .plans { align-items: start; }
+  :root[data-design="new"] .plans > .plan:nth-child(2) { transform: translateY(-28px); }
+  :root[data-design="new"] .strip > div:nth-child(even) { padding-top: 44px; }
+}
+:root.lite .scale5 .s5, :root.lite .solution__grid > :last-child, :root.lite .plans > .plan { transform: none !important; }

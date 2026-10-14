@@ -412,6 +412,11 @@ const App = (() => {
     const mode = opts.mode || "home";
     if (!webglOK() || matchMedia("(prefers-reduced-motion: reduce)").matches) { drawSky(st, opts.sel || {}); return; }
     const V = (($('script[src*="assets/js/app.js"]') || {}).src || "").split("?v=")[1] || "";
+    // نمایش آنی: تا کرهٔ سه‌بعدی آماده شود، تصویر سبک همان کره (۱۰۲۴ پیکسلی) با چرخش آرام نشان داده می‌شود
+    const tone = dark() ? "night" : "day", liteGlobe = document.documentElement.classList.contains("lite");
+    const posterUrl = `/assets/vendor/globe/earth-${tone}-1024.${IMGX}`;
+    const putPoster = () => { const st0 = $("#skyStage"); if (st0 && !st0.querySelector(".globe-poster")) st0.insertAdjacentHTML("beforeend", `<div class="globe-poster" aria-hidden="true"><i style="background-image:url('${posterUrl}')"></i></div>`); };
+    putPoster();
     try {
       const mod = await import("/assets/js/globe.js" + (V ? "?v=" + V : ""));
       if (!$("#sky")) return;
@@ -422,12 +427,15 @@ const App = (() => {
         <button type="button" class="sky__back" id="skyBack" hidden>${icon("arrow")} کرهٔ زمین</button>
         <button type="button" class="sky__full" id="skyFull" title="نمایش تمام صفحه" aria-label="نمایش تمام صفحه">${icon("expand")}</button>`;
       stage.classList.add("is-globe");
+      putPoster();
       skyFullInit();
       const cities = CITIES.filter((c) => (st.cities || {})[c.id]?.n).map((c) => ({ ...c, n: st.cities[c.id].n }));
       const L0 = { st, mode, opts, sel: null, map: null, token: 0, listings: [] };
       live = L0;
       L0.globe = await mod.mountGlobe($("#skyGlobe"), {
-        cities, day: !dark(), textureUrl: `/assets/vendor/globe/earth-${dark() ? "night" : "day"}.${IMGX}`,
+        cities, day: !dark(), lite: liteGlobe,
+        // صفحهٔ کوچک یا سیستم ضعیف: بافت ۲۰۴۸ پیکسلی (سبک‌تر)؛ دسکتاپ: بافت کامل
+        textureUrl: liteGlobe || innerWidth < 760 ? `/assets/vendor/globe/earth-${tone}-2048.${IMGX}` : `/assets/vendor/globe/earth-${tone}.${IMGX}`,
         // بار اول: شهر انتخاب و فیلتر می‌شود و نقشه‌اش همین‌جا باز می‌شود؛ زدن دوباره روی همان شهر: صفحهٔ فرصت‌های آن شهر
         onPick: (c) => {
           if (L0.sel && L0.sel.ids.length === 1 && L0.sel.ids[0] === c.id) return liveOpenCity(L0, c.id);
@@ -437,6 +445,7 @@ const App = (() => {
       });
       $("#skyBack").addEventListener("click", () => liveHome(L0));
       $("#sky").classList.add("is-ready");
+      const pst = stage.querySelector(".globe-poster"); if (pst) { pst.classList.add("is-out"); setTimeout(() => pst.remove(), 700); }
       if (opts.sel && liveIds(st, opts.sel).length) liveSelect(st, opts.sel);
       else $("#skyTitle").textContent = "بازار ملک ایران، از نگاه ماهواره";
     } catch (e) {

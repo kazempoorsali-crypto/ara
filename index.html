@@ -22,8 +22,10 @@
       if (location.pathname === "/" && (!location.hash || location.hash === "#/")) {
         var dark = false; try { dark = JSON.parse(localStorage.getItem("ara:theme_v2") || '"light"') === "dark"; } catch (e) {}
         var webp = false; try { webp = document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0; } catch (e) {}
-        var l = document.createElement("link"); l.rel = "preload"; l.as = "image"; l.crossOrigin = "anonymous";
-        l.href = "/assets/vendor/globe/earth-" + (dark ? "night" : "day") + (webp ? ".webp" : ".jpg"); document.head.appendChild(l);
+        var tone = dark ? "night" : "day", ext = webp ? ".webp" : ".jpg", small = innerWidth < 760 || r.classList.contains("lite");
+        var pre = function (href, cors) { var l = document.createElement("link"); l.rel = "preload"; l.as = "image"; if (cors) l.crossOrigin = "anonymous"; l.href = href; document.head.appendChild(l); };
+        pre("/assets/vendor/globe/earth-" + tone + "-1024" + ext, false);   // تصویر آنی کره
+        pre("/assets/vendor/globe/earth-" + tone + (small && webp ? "-2048.webp" : ext), true);
       }
     })();
   </script>
@@ -153,5 +155,6 @@
   <script src="assets/js/ribbons.js"></script>
   <script src="assets/js/app.js"></script>
   <script src="assets/js/cine.js"></script>
+  <script src="assets/js/fx.js"></script>
 </body>
 </html>

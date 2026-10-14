@@ -214,3 +214,40 @@ body.cine-go #view { animation: cineEnter .9s .25s var(--cine-ease) both; }
 :root:not([data-theme="dark"]) .cine-halo { background: radial-gradient(circle, transparent 54%, rgba(60,150,110,.16) 62%, rgba(80,140,200,.08) 68%, transparent 74%); }
 :root:not([data-theme="dark"]) .cine-sweep { display: none; }
 :root.cine-home:not([data-theme="dark"]) .sky { box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 40px 90px -45px rgba(60,48,30,.35), 0 0 0 1px var(--line); }
+
+/* پژواک تیترها با اسکرول کمی افقی جابه‌جا می‌شود (GSAP، فقط دسکتاپ قوی) */
+.cine-echo::after { translate: var(--echo-x, 0) 0; }
+
+/* ---------- نشانگر آهنربایی ماوس (طراحی تازه، دسکتاپ) ---------- */
+.mcur { position: fixed; inset: 0; z-index: 9999; pointer-events: none; }
+.mcur__ring, .mcur__dot { position: fixed; left: 0; top: 0; border-radius: 50%; will-change: transform; }
+.mcur__ring { width: 0; height: 0; }
+.mcur__ring::before { content: ""; position: absolute; left: -18px; top: -18px; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  transition: width .35s var(--cine-ease), height .35s var(--cine-ease), left .35s var(--cine-ease), top .35s var(--cine-ease), background-color .3s, border-color .3s, opacity .25s; }
+.mcur__dot::before { content: ""; position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--narenj); transition: opacity .2s, transform .2s; }
+.mcur__label { position: absolute; transform: translate(-50%, -50%); font: 800 12px/1 Vazirmatn, sans-serif; color: #fff; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+.mcur[data-mode="link"] .mcur__ring::before { left: -28px; top: -28px; width: 56px; height: 56px; border-color: var(--narenj); background: color-mix(in srgb, var(--narenj) 12%, transparent); }
+.mcur[data-mode="link"] .mcur__dot::before { transform: scale(0); }
+.mcur[data-mode="view"] .mcur__ring::before, .mcur[data-mode="drag"] .mcur__ring::before { left: -42px; top: -42px; width: 84px; height: 84px; border-color: transparent; background: color-mix(in srgb, var(--ink) 82%, transparent); }
+.mcur[data-mode="view"] .mcur__label, .mcur[data-mode="drag"] .mcur__label { opacity: 1; }
+:root[data-theme="dark"] .mcur[data-mode="view"] .mcur__label, :root[data-theme="dark"] .mcur[data-mode="drag"] .mcur__label { color: var(--paper); }
+.mcur[data-mode="view"] .mcur__dot::before, .mcur[data-mode="drag"] .mcur__dot::before { opacity: 0; }
+.mcur[data-mode="hide"] .mcur__ring::before, .mcur[data-mode="hide"] .mcur__dot::before, .mcur.is-off .mcur__ring::before, .mcur.is-off .mcur__dot::before { opacity: 0; }
+.mcur.is-down .mcur__ring::before { transform: scale(.85); }
+:root[data-cine-tone="dark"] .mcur:not([data-mode]) .mcur__ring::before, :root[data-cine-tone="dark"] .mcur[data-mode=""] .mcur__ring::before { border-color: rgba(239,236,228,.6); }
+/* نشانگر سیستم فقط جایی پنهان است که نشانگر سفارشی جایش را می‌گیرد؛ فیلدها، نقشه، پنجره‌ها و نمایش عکس همان نشانگر عادی */
+html.has-mcur body, html.has-mcur a, html.has-mcur button, html.has-mcur .chip, html.has-mcur label, html.has-mcur summary, html.has-mcur .card { cursor: none; }
+html.has-mcur :is(input, textarea, [contenteditable]) { cursor: text; }
+html.has-mcur :is(dialog, .lightbox, .leaflet-container, #skyStage) { cursor: auto; }
+html.has-mcur :is(dialog, .lightbox, .leaflet-container) :is(a, button, label) { cursor: pointer; }
+html.has-mcur #skyStage { cursor: grab; }
+html.has-mcur .lightbox--photo .lbz { cursor: zoom-in; }
+html.has-mcur .lightbox--photo .lbz.is-zoomed { cursor: grab; }
+
+/* عکس‌های صحنه با نقشهٔ عمق: بوم WebGL جای عکس را می‌گیرد و همان ماسک و فیلترها رویش اعمال می‌شود */
+.scene__pic canvas.fx-depth { position: absolute; inset: 0; width: 100%; height: 100%; transform: scale(calc(1.1 - var(--p) * .1)); }
+.scene__pic img.fx-hidden { visibility: hidden; }
+/* Lenis */
+html.has-lenis, html.has-lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
