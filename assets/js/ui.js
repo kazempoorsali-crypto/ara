@@ -158,7 +158,7 @@ const UI = (() => {
         <b class="pbar__exp" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;box-shadow:0 0 3px rgba(0,0,0,0.5);border-radius:2px;right:${X(exp)}%;" title="میانه محله: ${money(exp)}"></b>
         <b class="pbar__me" style="position:absolute;top:50%;width:${opts.mini ? "10px" : "16px"};height:${opts.mini ? "10px" : "16px"};border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);transform:translate(50%, -50%);right:${X(me)}%;" title="این آگهی: ${money(me)}"></b>
       </div>
-      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;align-items:center;width:100%;font-size:10.5px;color:var(--ink-2);font-family:monospace;white-space:nowrap;margin-top:2px;">
+      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;align-items:center;width:100%;font-size:10.5px;color:var(--ink-2);font-family:monospace;white-space:nowrap;direction:rtl;margin-top:2px;">
         <span>کف: ${money(Math.round(lo))}</span>
         <span>سقف: ${money(Math.round(hi))}</span>
       </div>`}
