@@ -775,7 +775,6 @@ const App = (() => {
     };
     // چرخ موس روی فهرست: پیمایش افقی
     const ml = $("#skyMoreList");
-    if (ml) ml.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !more.classList.contains("is-open")) { ml.scrollLeft -= e.deltaY; e.preventDefault(); } }, { passive: false });
     box.classList.add("is-on");
     $("#skyStage")?.classList.add("map-on");
     if (L0.globe && L0.globe.pause) L0.globe.pause(true);
@@ -1033,7 +1032,7 @@ const App = (() => {
       st.classList.add("is-hover");
     }, { passive: true });
     addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
-    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); });
+    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
     tick();
   }
   function depthFX() {
@@ -2205,6 +2204,8 @@ const App = (() => {
                         ((!l.has_elevator && !l.elevator) && Number(l.floor || 1) >= 2);
     if (score != null && isDefective) {
       score = Math.min(68, score);
+    }
+    if ((score != null && score <= 68) || isDefective) {
       if (v.label === "gold") { v.label = "good"; }
     }
     const locked = l.locked;
@@ -2347,7 +2348,7 @@ const App = (() => {
       <ol class="cmps">${rows.slice(0, 7).map((x) => `<li class="${x._self ? "is-self" : ""}">
         <span>${x._self ? "<b>همین آگهی</b>" : `<a href="#/ad/${encodeURIComponent(x.id)}">${fa(x.area)} متر، ${money(x.pp)}</a>`}<small>${esc(x.district || "")}${x.rooms != null ? "، " + (x.rooms ? fa(x.rooms) + " خواب" : "استودیو") : ""}</small></span>
         <span>متری ${money(ppm(x))}</span>
-        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #f43f5e 0%, #38bdf8 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
+        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #ef4444 0%, #d97706 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
           <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
           <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
         </span>
@@ -3164,7 +3165,7 @@ const App = (() => {
       setTimeout(() => state.map && state.map.invalidateSize(), 260);
     };
     addEventListener("scroll", onScroll, { passive: true });
-    addEventListener("resize", measure);
+    addEventListener("resize", measure, { passive: true });
     if (window.ResizeObserver) new ResizeObserver(measure).observe(document.body);
     $("#menuBtn").addEventListener("click", () => { const on = top.classList.toggle("is-menu"); $("#menuBtn").setAttribute("aria-expanded", on); });
     // منوی پویا: اگر سربرگ در عرض واقعی صفحه (با هر بزرگ‌نمایی مرورگر) جا نشود، منو به دکمهٔ «منو» جمع می‌شود
@@ -3187,6 +3188,18 @@ const App = (() => {
     fitNav();
     $$(".nav a").forEach((a) => a.addEventListener("click", () => { top.classList.remove("is-menu"); $("#menuBtn").setAttribute("aria-expanded", "false"); }));
     document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });
+    const shareBtn = document.getElementById("shareBtn");
+    if (shareBtn) {
+      shareBtn.onclick = async () => {
+        const data = { title: document.title, url: window.location.href };
+        if (navigator.share) {
+          try { await navigator.share(data); } catch(e) {}
+        } else {
+          await navigator.clipboard.writeText(window.location.href);
+          if (typeof toast === "function") toast("لینک صفحه در حافظه کپی شد");
+        }
+      };
+    }
     $("#themeBtn").addEventListener("click", () => {
       const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme_v2", t);
     });
