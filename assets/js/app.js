@@ -3145,3 +3145,73 @@ const App = (() => {
   return { get favs() { return state.favs; }, get compare() { return state.compare; } };
 })();
 
+function renderPriceSpectrumGauge(data) {
+  /*
+    data شامل: price_per_sqm (این آگهی)، fair_sqm (منصفانه)، median_sqm (میانه محله)،
+    min_sqm (کف محله)، max_sqm (سقف محله) و state ('opportunity' | 'balanced' | 'overpriced')
+  */
+  const min = data.min_sqm || (data.median_sqm * 0.65);
+  const max = data.max_sqm || (data.median_sqm * 1.35);
+  const current = data.price_per_sqm || 48;
+  const fair = data.fair_sqm || 50.8;
+  const median = data.median_sqm || 68.6;
+
+  // محاسبه درصد موقعیت روی محور (بین ۵٪ تا ۹۵٪)
+  const range = Math.max(1, max - min);
+  const currentPct = Math.min(95, Math.max(5, ((current - min) / range) * 100));
+  const fairPct = Math.min(95, Math.max(5, ((fair - min) / range) * 100));
+  const medianPct = Math.min(95, Math.max(5, ((median - min) / range) * 100));
+
+  // رنگ و پیام نشانگر بر اساس وضعیت ملک
+  let badgeColor = 'bg-emerald-600 text-white';
+  let badgeTitle = 'زیر قیمت منصفانه';
+  if (data.state === 'balanced') {
+    badgeColor = 'bg-blue-600 text-white';
+    badgeTitle = 'قیمت منصفانه عرف';
+  } else if (data.state === 'overpriced') {
+    badgeColor = 'bg-rose-600 text-white';
+    badgeTitle = 'بالاتر از ارزش واقعی';
+  } else if (data.state === 'opportunity_defective') {
+    badgeColor = 'bg-sky-600 text-white';
+    badgeTitle = 'مناسب با کسر امکانات';
+  }
+
+  return `
+    <div class="spectrum-gauge-box p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-right my-3" dir="rtl">
+      <div class="flex items-center justify-between text-xs mb-3">
+        <span class="font-bold text-slate-200">طیف قیمت کارشناسی در مقایسه با محله</span>
+        <span class="px-2 py-0.5 rounded text-[11px] font-bold ${badgeColor}">
+          ${badgeTitle}
+        </span>
+      </div>
+
+      <!-- نوار طیف ۳ رنگ استاندارد -->
+      <div class="relative w-full h-3 rounded-full bg-slate-800 overflow-visible my-5">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-l from-rose-500 via-sky-500 to-emerald-500 opacity-80"></div>
+
+        <!-- نشانگر آگهی فعلی -->
+        <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center z-20 pointer-events-none" style="right: ${currentPct}%;">
+          <div class="w-4 h-4 rounded-full bg-white border-2 border-slate-950 shadow-md"></div>
+          <span class="absolute -top-6 whitespace-nowrap text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white border border-slate-700 shadow">
+            این آگهی: ${current} م
+          </span>
+        </div>
+
+        <!-- نشانگر ارزش عادلانه کارشناسی همین ملک -->
+        <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center z-10 opacity-75" style="right: ${fairPct}%;">
+          <div class="w-2 h-5 bg-sky-300 rounded-sm"></div>
+          <span class="absolute -bottom-5 whitespace-nowrap text-[9px] text-sky-300">
+            کارشناسی: ${fair} م
+          </span>
+        </div>
+      </div>
+
+      <!-- برچسب‌های راهنما در زیر نوار -->
+      <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono pt-3 border-t border-slate-800/80">
+        <span>کف محله: ${Math.round(min)} م</span>
+        <span>میانه فول: ${Math.round(median)} م</span>
+        <span>سقف محله: ${Math.round(max)} م</span>
+      </div>
+    </div>
+  `;
+}

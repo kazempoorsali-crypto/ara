@@ -890,3 +890,145 @@ def evaluate_deal(ad_data, neighborhood_benchmark):
         "potential_profit_billion": profit_billion,
         "flags": flags
     }
+
+
+def get_feature_impacts(ad, base_sqm):
+    """
+    محاسبه صحیح اثرات (رفع باگ نشان دادن +۱۱٪ سبز برای بی‌پارکینگ)
+    """
+    impacts = []
+
+    # ۱. اثر پارکینگ
+    if not ad.get('has_parking', False):
+        impacts.append({
+            'key': 'parking',
+            'title': 'کسری پارکینگ اختصاصی',
+            'pct': -11.0,
+            'color': 'red',
+            'is_positive': False,
+            'text': '۱۱٪- کاهش ارزش نسبت به عرف محله'
+        })
+    else:
+        impacts.append({
+            'key': 'parking',
+            'title': 'دارای پارکینگ اختصاصی',
+            'pct': +8.0,
+            'color': 'green',
+            'is_positive': True,
+            'text': '۸٪+ ارزش‌افزوده پارکینگ'
+        })
+
+    # ۲. اثر طبقه و آسانسور
+    floor = int(ad.get('floor', 1) or 1)
+    has_elevator = bool(ad.get('has_elevator', False))
+    if not has_elevator and floor >= 2:
+        penalty = -6.0 if floor == 2 else -12.0
+        impacts.append({
+            'key': 'elevator',
+            'title': f'طبقه {floor} بدون آسانسور',
+            'pct': penalty,
+            'color': 'red',
+            'is_positive': False,
+            'text': f'{abs(penalty)}٪- جریمه تردد طبقه بالا'
+        })
+    elif has_elevator:
+        impacts.append({
+            'key': 'elevator',
+            'title': 'دارای آسانسور',
+            'pct': +4.0,
+            'color': 'green',
+            'is_positive': True,
+            'text': '۴٪+ رفاه آسانسور'
+        })
+
+    # ۳. اثر متراژ
+    area = float(ad.get('area', 100) or 100)
+    if 85 <= area <= 115:
+        impacts.append({
+            'key': 'area',
+            'title': 'خوش‌متراژ (تقاضای بالا)',
+            'pct': +2.0,
+            'color': 'green',
+            'is_positive': True,
+            'text': '۲٪+ نقدشوندگی مطلوب'
+        })
+
+    return impacts
+
+
+def evaluate_property_deal(ad, neighborhood_stats):
+    """
+    محاسبه نمره فرصت و سقف امتیاز (Cap) برای املاک بدون پارکینگ و آسانسور
+    """
+    area = max(1, float(ad.get('area', 100) or 100))
+    price_per_sqm = float(ad.get('price_per_sqm', 0) or 0)
+    if price_per_sqm == 0 and ad.get('price'):
+        price_per_sqm = (float(ad['price']) * 1000) / area if float(ad['price']) < 1000 else float(ad['price']) / area
+
+    median_sqm = float(neighborhood_stats.get('median_sqm', 68.6) or 68.6)
+    min_sqm = float(neighborhood_stats.get('min_sqm', median_sqm * 0.65))
+    max_sqm = float(neighborhood_stats.get('max_sqm', median_sqm * 1.35))
+
+    # ۱. محاسبه ارزش عادلانه اختصاصی همین خانه (با کسر امکانات)
+    fair_sqm = median_sqm
+    if not ad.get('has_parking', False):
+        fair_sqm *= 0.89  # ۱۱٪ افت به دلیل نبود پارکینگ
+    if not ad.get('has_elevator', False) and int(ad.get('floor', 1) or 1) >= 2:
+        fair_sqm *= 0.94  # ۶٪ افت برای طبقه ۲ بدون آسانسور
+    if ad.get('document_type') == 'نامشخص' or not ad.get('has_document', True):
+        fair_sqm *= 0.92  # ۸٪ افت ریسک سند
+
+    fair_sqm = round(fair_sqm, 1)
+
+    # ۲. درصد فاصله با ارزش کارشناسی واقعی همین ملک
+    discount_pct = round(((fair_sqm - price_per_sqm) / fair_sqm) * 100, 1) if fair_sqm > 0 else 0
+
+    # ۳. محاسبه نمره خام
+    raw_score = 50 + (discount_pct * 1.3)
+
+    # ۴. قانون قطعی سقف نمره (Score Cap):
+    # ملکی که پارکینگ یا آسانسور یا سند رسمی ندارد، هرگز نباید امتیاز بالای ۷۲ بگیرد!
+    has_defects = (not ad.get('has_parking', False)) or \
+                  (not ad.get('has_elevator', False) and int(ad.get('floor', 1) or 1) >= 2) or \
+                  (ad.get('document_type') == 'نامشخص')
+
+    max_allowed = 70 if has_defects else 98
+    deal_score = max(10, min(max_allowed, int(raw_score)))
+
+    # ۵. تعیین وضعیت و برچسب
+    if discount_pct >= 12 and not has_defects:
+        verdict = "فرصت طلایی (اکازیون کامل)"
+        state = "opportunity"
+        color = "emerald"
+    elif discount_pct >= 5 and has_defects:
+        verdict = "قیمت مناسب با کسر امکانات"
+        state = "opportunity_defective"
+        color = "sky"
+    elif -6 <= discount_pct < 5:
+        verdict = "قیمت منصفانه عرف بازار"
+        state = "balanced"
+        color = "blue"
+    elif discount_pct < -6:
+        verdict = "گران‌تر از ارزش واقعی (حباب)"
+        state = "overpriced"
+        color = "red"
+    else:
+        verdict = "فرصت خوب سرمایه‌گذاری"
+        state = "opportunity"
+        color = "teal"
+
+    impacts = get_feature_impacts(ad, median_sqm)
+
+    return {
+        'deal_score': deal_score,
+        'verdict': verdict,
+        'state': state,
+        'color': color,
+        'price_per_sqm': round(price_per_sqm, 1),
+        'fair_sqm': fair_sqm,
+        'median_sqm': round(median_sqm, 1),
+        'min_sqm': round(min_sqm, 1),
+        'max_sqm': round(max_sqm, 1),
+        'discount_pct': discount_pct,
+        'impacts': impacts
+    }
