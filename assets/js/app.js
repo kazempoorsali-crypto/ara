@@ -234,35 +234,73 @@ const App = (() => {
         <div class="scene__dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       </div>
     </section>
-    <section class="section story">
-      <div class="wrap story__grid">
-        <div class="story__q"><span class="kicker">مشکل بازار</span><h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
-          <p data-scrub>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی، کمتر در دسترس مردم است.</p></div>
-        <ol class="story__list">
-          <li><b>قیمت مالک</b><span>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</span></li>
-          <li><b>قیمت مشاور</b><span>ممکن است زیر اثر شرایط معامله و کمیسیون باشد.</span></li>
-          <li><b>قیمت آگهی‌ها</b><span>قیمت پیشنهادی است، نه ارزش بازار؛ گاهی چند دلال هماهنگ آن را بالا می‌برند.</span></li>
-          <li><b>مقایسهٔ دستی</b><span>بدون در نظر گرفتن سن بنا، طبقه، متراژ و امکانات، مقایسه گمراه‌کننده است.</span></li>
-        </ol>
-      </div>
-    </section>
-    <section class="section section--ink solution">
-      <div class="wrap solution__grid">
-        <div><span class="kicker">راه‌حل فرصت ملک</span><h2>لایهٔ هوشمند تحلیل،<br>پیش از خرید.</h2>
-          <p data-scrub>ما جایگزین مشاور املاک نیستیم. همان کاری را برای ملک می‌کنیم که کارشناس خودرو پیش از خرید ماشین یا تحلیلگر پیش از سرمایه‌گذاری می‌کند: ارزش واقعی را از دادهٔ بازار می‌سازیم و فاصلهٔ قیمت را شفاف نشان می‌دهیم.</p>
-          <a class="btn btn--gold" href="#/method">روش ارزش‌گذاری</a></div>
-        <div class="analysis" id="sample"><div class="skeleton" style="height:320px"></div></div>
-      </div>
-    </section>
-    <section class="section scale-sec">
-      <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">امتیاز فرصت ملک</span><h2>هر آگهی، یک حکم روشن</h2><p>امتیاز ۰ تا ۱۰۰ از قیمت محله، متراژ، سن بنا، امکانات، آگهی‌های مشابه، روند قیمت و قاعده‌های ضد تبانی و ضد اشتباه ساخته می‌شود.</p></div></div>
-        <div class="scale5">
-          <div class="s5 s5--over"><i></i><b>قیمت غیرمنطقی</b><span>دست‌کم ${pct(cfg.thresholds?.over || 0.3)} بالاتر از ارزش، یا ارزانیِ باورنکردنی</span></div>
-          <div class="s5 s5--high"><i></i><b>بالاتر از ارزش واقعی</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} گران‌تر از محله</span></div>
-          <div class="s5 s5--fair"><i></i><b>قیمت متعادل</b><span>نزدیک قیمت محله</span></div>
-          <div class="s5 s5--good"><i></i><b>فرصت مناسب</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} فاصله با برآورد بازار</span></div>
-          <div class="s5 s5--gold"><i></i><b>فرصت طلایی</b><span>دست‌کم ${pct(cfg.thresholds?.gold || 0.22)} فاصله با برآورد بازار، با اطمینان کافی</span></div>
+    <section class="section unified-market-sec">
+      <div class="wrap unified-grid">
+        <!-- ستون راست: مشکل بازار مسکن -->
+        <div class="market-col-problem">
+          <span class="kicker">چالش بازار مسکن</span>
+          <h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
+          <p class="unified-desc">خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس خریدار است.</p>
+
+          <div class="problem-cards-list">
+            <div class="prob-card">
+              <span class="prob-num">۱</span>
+              <div><b>قیمت مالک</b><p>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۲</span>
+              <div><b>قیمت مشاور</b><p>ممکن است زیر اثر شرایط معامله و درصد کمیسیون باشد.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۳</span>
+              <div><b>قیمت آگهی‌ها</b><p>قیمت پیشنهادی است نه ارزش بازار؛ گاهی چند دلال هماهنگ آن را بالا می‌برند.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۴</span>
+              <div><b>مقایسهٔ دستی</b><p>بدون در نظر گرفتن سن بنا، طبقه، متراژ و امکانات، مقایسه گمراه‌کننده است.</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ستون چپ: راه‌حل و ۵ حکم فرصت ملک با دیزاین ۳ بعدی سه‌لایه -->
+        <div class="market-col-solution">
+          <div class="sol-header">
+            <span class="kicker">پاسخ هوشمند فرصت ملک</span>
+            <h2>هر آگهی، یک حکم روشن</h2>
+            <p>امتیاز ۰ تا ۱۰۰ بر پایه مدل آماری محله، سن بنا، طبقه و الگوریتم‌های ضدتبانی</p>
+          </div>
+
+          <div class="tiers-stack">
+            <!-- ۱. فرصت طلایی -->
+            <div class="tier-card tier-card--gold">
+              <div class="tier-badge">فرصت طلایی</div>
+              <div class="tier-info"><b>نمره ۸۵ تا ۱۰۰</b><span>دست‌کم ۲۲٪ زیر قیمت کارشناسی محله، با اطمینان کافی و فول‌امکانات</span></div>
+            </div>
+
+            <!-- ۲. فرصت مناسب -->
+            <div class="tier-card tier-card--good">
+              <div class="tier-badge">فرصت مناسب</div>
+              <div class="tier-info"><b>نمره ۶۵ تا ۸۴</b><span>دست‌کم ۱۵٪ فاصله با برآورد بازار (یا قیمت عالی با کسر برخی امکانات)</span></div>
+            </div>
+
+            <!-- ۳. قیمت متعادل -->
+            <div class="tier-card tier-card--fair">
+              <div class="tier-badge">قیمت متعادل</div>
+              <div class="tier-info"><b>نمره ۵۰ تا ۶۴</b><span>هم‌سطح ارزش کارشناسی و عرف منصفانه محله</span></div>
+            </div>
+
+            <!-- ۴. بالاتر از ارزش واقعی -->
+            <div class="tier-card tier-card--high">
+              <div class="tier-badge">بالاتر از ارزش واقعی</div>
+              <div class="tier-info"><b>نمره ۳۵ تا ۴۹</b><span>دست‌کم ۱۵٪ گران‌تر از ارزش واقعی محله</span></div>
+            </div>
+
+            <!-- ۵. قیمت غیرمنطقی -->
+            <div class="tier-card tier-card--over">
+              <div class="tier-badge">قیمت غیرمنطقی</div>
+              <div class="tier-info"><b>نمره زیر ۳۵</b><span>دست‌کم ۳۰٪ حباب قیمتی یا ارزانی غیرعادی و مشکوک</span></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -2162,12 +2200,12 @@ const App = (() => {
   /* ---------- صفحه آگهی ---------- */
   function valuationCard(l) {
     const v = l.verdict || {}, ex = l.explain || {}, ask = l.price;
-    // سقف نمره برای املاک دارای کسر امکانات (بی‌پارکینگ، طبقه ۲ بدون آسانسور)
     let score = l.score;
     const isDefective = (!l.has_parking && !l.parking) ||
                         ((!l.has_elevator && !l.elevator) && Number(l.floor || 1) >= 2);
     if (score != null && isDefective) {
       score = Math.min(68, score);
+      if (v.label === "gold") { v.label = "good"; }
     }
     const locked = l.locked;
     if (l.label === "sus") {
@@ -3065,7 +3103,12 @@ const App = (() => {
   /* ---------- رویدادهای سراسری ---------- */
   function applyTheme(t) {
     if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
-    // کادر زنده با تم عوض می‌شود (کرهٔ روز یا شب)
+    const isDark = document.documentElement.dataset.theme === "dark";
+    const btn = $("#themeBtn") || document.querySelector(".theme-btn, [data-theme-btn]");
+    if (btn) {
+      btn.innerHTML = isDark ? UI.icon("moon") : UI.icon("sun");
+      btn.setAttribute("title", isDark ? "حالت روشن" : "حالت تاریک");
+    }
     if (live && live.globe && $("#sky")) { const o = live.opts, sel = live.sel; initLive(DataLayer.stats, { ...o, sel: sel ? { cities: sel.ids } : o.sel }); }
   }
   /* ---------- انیمیشن ورود تدریجی و تعاملات بصری (مشکل ۳) ---------- */
