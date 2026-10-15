@@ -2161,7 +2161,14 @@ const App = (() => {
 
   /* ---------- صفحه آگهی ---------- */
   function valuationCard(l) {
-    const v = l.verdict, ex = l.explain || {};
+    const v = l.verdict || {}, ex = l.explain || {}, ask = l.price;
+    // سقف نمره برای املاک دارای کسر امکانات (بی‌پارکینگ، طبقه ۲ بدون آسانسور)
+    let score = l.score;
+    const isDefective = (!l.has_parking && !l.parking) ||
+                        ((!l.has_elevator && !l.elevator) && Number(l.floor || 1) >= 2);
+    if (score != null && isDefective) {
+      score = Math.min(68, score);
+    }
     const locked = l.locked;
     if (l.label === "sus") {
       return `<div class="vcard vcard--sus"><h3>${UI.labelPill({ label: "sus" })} امتیاز فرصت نمی‌گیرد</h3>
@@ -2172,17 +2179,17 @@ const App = (() => {
     if (l.excluded) {
       return `<div class="vcard vcard--warn"><h3>این آگهی کنار رفت</h3><ul class="check-list">${(l.excluded_reasons || []).map((r) => `<li>${esc(r)}</li>`).join("") || "<li>اطلاعات قیمت برای مقایسه کافی نیست</li>"}</ul><p class="small muted">این آگهی در محاسبهٔ قیمت محله هم شرکت داده نشده است.</p></div>`;
     }
-    if (!v) {
+    if (!v || !v.label) {
       return `<div class="vcard"><h3>${UI.labelPill({ label: "pending" })} هنوز سنجیده نشده</h3><p class="muted small">در این محله و شهر هنوز آگهی کافی برای مقایسه نیست. با دریافت آگهی‌های بیشتر، این آگهی خودکار سنجیده می‌شود.</p></div>`;
     }
-    const ask = l.deal === "daily" ? l.price : l.pp;
-    const meM = l.deal === "daily" ? ask : l.area ? ask / l.area : null;
+    const askVal = l.deal === "daily" ? l.price : l.pp;
+    const meM = l.deal === "daily" ? askVal : l.area ? askVal / l.area : null;
     // برای غیرمشترک فاصله فقط بازه‌ای است؛ قیمت مورد انتظار و مبلغ اختلاف از آن ساخته نمی‌شود
     const expM = meM && v.delta != null && !v.approx ? meM / (1 + v.delta) : null;
-    const diff = ask && v.delta != null && !v.approx ? ask - ask / (1 + v.delta) : null;
+    const diff = askVal && v.delta != null && !v.approx ? askVal - askVal / (1 + v.delta) : null;
     return `<div class="vcard">
       <div class="vcard__top">
-        ${l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
+        ${score != null ? `<span class="score score--${score >= 85 ? "hi" : score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(score))}</b><i>از ۱۰۰</i></span>` : ""}
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? `، رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
       ${claimNote(l, v)}
@@ -2374,8 +2381,24 @@ const App = (() => {
     $("#mini")?.addEventListener("dblclick", () => openMapModal(l, pos, cc));
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
-    $("#adShare").addEventListener("click", async () => {
-      try { if (navigator.share) await navigator.share({ title: l.title, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("پیوند کپی شد"); } } catch { /* لغو */ }
+    $("#adShare")?.addEventListener("click", async () => {
+      const url = window.location.href;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          toast("پیوند آگهی در حافظه کپی شد");
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          toast("پیوند آگهی در حافظه کپی شد");
+        }
+      } catch (e) {
+        toast("پیوند آگهی کپی شد");
+      }
     });
     const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
     $("#divarBtn")?.addEventListener("click", paywall);
