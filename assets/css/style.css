@@ -14,7 +14,7 @@
   --forest: #1d4a3c; --forest-2: #2c6a55; --moss: #e0ebe4;
   --narenj: #e0531f; --narenj-2: #c0410f; --narenj-soft: #fde6db;
   --sea: #2a6d8c; --sea-soft: #dcebf1; --gold: #a87a10;
-  --great: #17784a; --good: #4c9a5c; --fair: #8b8f86; --high: #c97a1f; --over: #bf3a2b;
+  --great: #10b981; --good: #10b981; --fair: #d97706; --high: #b45309; --over: #ef4444;
   --sale: #1d4a3c; --rent: #6d3fb4; --daily: #c8366b;
   --on-dark: #fffdf9;
   --r-xl: 28px; --r-lg: 20px; --r: 14px; --r-sm: 10px;
@@ -25,6 +25,11 @@
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   color-scheme: light;
 }
+[data-theme="dark"] .theme-icon-moon { display: none !important; }
+[data-theme="dark"] .theme-icon-sun { display: inline-block !important; }
+:root:not([data-theme="dark"]) .theme-icon-sun { display: none !important; }
+:root:not([data-theme="dark"]) .theme-icon-moon { display: inline-block !important; }
+
 /* تم پیش‌فرض روشن است؛ تیره فقط با دکمهٔ تغییر تم */
 :root[data-theme="dark"] {
   --paper: #0d1311; --paper-2: #121a17; --surface: #151e1b; --sunk: #101714;
@@ -39,7 +44,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-padding-top: 88px; -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; scroll-padding-top: 88px; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--paper) var(--grain); color: var(--ink);
   font: 400 15px/1.8 Vazirmatn, Tahoma, system-ui, sans-serif;
@@ -666,7 +671,7 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .pbar--mini .pbar__track {
   height: 8px !important;
   border-radius: 999px;
-  background: linear-gradient(to left, #f43f5e 0%, #38bdf8 50%, #10b981 100%) !important;
+  background: linear-gradient(to left, #ef4444 0%, #d97706 50%, #10b981 100%) !important;
   opacity: 0.85;
 }
 .pbar--mini .pbar__gap { display: none !important; }
@@ -1055,6 +1060,16 @@ button, .btn, .chip, .seg, .dd > button, .ai-fab { -webkit-user-select: none; us
   }
   body.has-mcta .ai-fab {
     bottom: 88px !important;
+  }
+  .hero-layout, .hero, .scene-wrapper, .home-top, .main-hero {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .filters, .search-box, .filter-box, .home-filters, [data-role="filters"] {
+    order: 1 !important;
+  }
+  #sky, .scene, .globe-container, .hero__globe, canvas#sky {
+    order: 2 !important;
   }
 }
 
