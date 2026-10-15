@@ -2420,3 +2420,110 @@ html {
     max-height: 320px !important;
   }
 }
+
+/* استایل سکشن ادغام‌شده ۲ ستونه (مشکل بازار + احکام فرصت ملک) */
+.unified-market-sec {
+  padding: 60px 0;
+  background: var(--paper-2);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.unified-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .unified-grid { grid-template-columns: 1fr; gap: 30px; }
+}
+
+/* ستون مشکل بازار */
+.market-col-problem h2 { font-size: 32px; margin: 8px 0 12px; line-height: 1.3; }
+.unified-desc { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+.problem-cards-list { display: grid; gap: 12px; }
+.prob-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.prob-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--sunk);
+  color: var(--narenj);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.prob-card b { display: block; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+.prob-card p { font-size: 12.5px; color: var(--ink-2); margin: 0; }
+
+/* ستون سه‌بعدی احکام ۵ گانه */
+.market-col-solution {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-2);
+}
+.sol-header h2 { font-size: 26px; margin: 4px 0 6px; }
+.sol-header p { font-size: 12.5px; color: var(--muted); margin-bottom: 18px; }
+.tiers-stack { display: grid; gap: 10px; }
+
+.tier-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--r);
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.tier-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+
+.tier-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tier-info b { display: block; font-size: 13px; color: var(--ink); }
+.tier-info span { font-size: 11px; color: var(--ink-2); }
+
+/* پالت رنگی هماهنگ احکام */
+.tier-card--gold { border-right: 4px solid var(--gold); }
+.tier-card--gold .tier-badge { background: var(--gold); }
+
+.tier-card--good { border-right: 4px solid var(--good); }
+.tier-card--good .tier-badge { background: var(--good); }
+
+.tier-card--fair { border-right: 4px solid var(--fair); }
+.tier-card--fair .tier-badge { background: var(--fair); }
+
+.tier-card--high { border-right: 4px solid var(--high); }
+.tier-card--high .tier-badge { background: var(--high); }
+
+.tier-card--over { border-right: 4px solid var(--over); }
+.tier-card--over .tier-badge { background: var(--over); }
+
+/* تنظیم ارتفاع نشانگر نقطه‌ای در زوم ۱۰۰٪ لپ‌تاپ */
+.scene__dots {
+  max-height: 50vh !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  gap: 8px !important;
+}
