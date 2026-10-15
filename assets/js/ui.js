@@ -149,20 +149,19 @@ const UI = (() => {
     const tag = below ? (diffPct >= 15 ? "زیر قیمت منصفانه" : "قیمت مناسب") : (diffPct <= 4 ? "متعادل عرف بازار" : "بالاتر از ارزش واقعی");
     const tagColor = below ? "#10b981" : (diffPct <= 4 ? "#38bdf8" : "#f43f5e");
 
-    return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت محله متری ${money(exp)}" style="display:grid;gap:6px;margin:8px 0;">
-      ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;">
-        <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی در محله</span>
-        <span style="font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;color:#fff;background:${tagColor};">${tag}</span>
+    return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت محله متری ${money(exp)}" style="display:grid;gap:6px;margin:6px 0;">
+      ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:2px;">
+        <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی</span>
+        <span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;color:#fff;background:${tagColor};">${tag}</span>
       </div>`}
-      <div class="pbar__track" style="position:relative;height:12px;border-radius:999px;background:linear-gradient(to left, #f43f5e 0%, #38bdf8 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);">
+      <div class="pbar__track" style="position:relative;height:${opts.mini ? "8px" : "12px"};border-radius:999px;background:linear-gradient(to left, #f43f5e 0%, #38bdf8 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);">
         <b class="pbar__exp" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;box-shadow:0 0 3px rgba(0,0,0,0.5);border-radius:2px;right:${X(exp)}%;" title="میانه محله: ${money(exp)}"></b>
-        <b class="pbar__me" style="position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);transform:translate(50%, -50%);right:${X(me)}%;" title="این آگهی: ${money(me)}"></b>
+        <b class="pbar__me" style="position:absolute;top:50%;width:${opts.mini ? "10px" : "16px"};height:${opts.mini ? "10px" : "16px"};border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);transform:translate(50%, -50%);right:${X(me)}%;" title="این آگهی: ${money(me)}"></b>
       </div>
-      <div class="pbar__labs" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);font-family:monospace;">
+      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;align-items:center;width:100%;font-size:10.5px;color:var(--ink-2);font-family:monospace;white-space:nowrap;margin-top:2px;">
         <span>کف: ${money(Math.round(lo))}</span>
-        <span style="font-weight:700;color:var(--ink);">این آگهی: ${money(me)} م</span>
         <span>سقف: ${money(Math.round(hi))}</span>
-      </div>
+      </div>`}
     </div>`;
   }
   function typePill(l) {
