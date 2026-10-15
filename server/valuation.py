@@ -633,8 +633,18 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             merged = {}
             for k, c in contrib.items():  # سن و مجذور سن (و متراژ و مجذورش) یک برچسب دارند
                 merged[LABELS.get(k, k)] = merged.get(LABELS.get(k, k), 0) + c
-            l["_contrib"] = sorted(((lab, round(math.exp(c) - 1, 3)) for lab, c in merged.items() if abs(c) >= 0.01),
-                                   key=lambda t: -abs(t[1]))[:6]
+            raw_contrib = sorted(((lab, round(math.exp(c) - 1, 3)) for lab, c in merged.items() if abs(c) >= 0.01),
+                                 key=lambda t: -abs(t[1]))[:6]
+            # اصلاح علامت اثر: اگر ملک پارکینگ ندارد، اثر پارکینگ نباید مثبت چاپ شود
+            fixed_contrib = []
+            f_data = l.get("feat") or {}
+            for lab, val in raw_contrib:
+                if "پارکینگ" in str(lab) and not f_data.get("parking"):
+                    val = -abs(val)
+                elif "آسانسور" in str(lab) and not f_data.get("elevator") and int(f_data.get("floor") or 1) >= 2:
+                    val = -abs(val)
+                fixed_contrib.append((lab, val))
+            l["_contrib"] = fixed_contrib
             l["_model"] = {"n": model["n"], "r2": round(model["r2"], 2)} if model else None
         _presale_fair(items, deal, th)
         if acc:
@@ -745,6 +755,11 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 score = round(65 + 35 * (0.5 * p_rank + 0.5 * depth), 1)
             else:
                 score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
+
+            # سقف امتیاز (Cap): خانه‌ای که پارکینگ یا آسانسور در طبقات بالا یا سند تک‌برگ ندارد هرگز ۱۰۰ نگیرد
+            f_dict = feat.get("features") or []
+            if (not feat.get("parking")) or (not feat.get("elevator") and int(feat.get("floor") or 1) >= 2) or ("deed_single" not in f_dict):
+                score = min(68.0, score)
         # سود تخمینی خرید به تومان و شاخص اعتبار (فاز ۱ و ۲)
         # محافظه‌کارانه: کران پایین قیمت منصفانه منهای قیمت درخواستی، فقط برای فرصت‌ها
         fair_lo = fair * math.exp(-(l.get("_unc") or 0.15)) if fair else None
