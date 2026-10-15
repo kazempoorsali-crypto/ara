@@ -2391,3 +2391,32 @@ html.sky-fs, html.sky-fs body { overflow: hidden; }
 .subp__opt em { font-style: normal; font-weight: 900; font-size: 18px; }
 .subp__opt.is-on { border-color: var(--narenj, #f2541b); background: color-mix(in srgb, var(--narenj, #f2541b) 8%, var(--surface, #fff)); box-shadow: inset 0 0 0 1px var(--narenj, #f2541b); }
 .subp__h { font-size: 14px; margin: 16px 0 8px; }
+
+/* ۱. اسکرول کاملاً نرم و بدون لگ در کل سایت */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ۲. بهینه‌سازی پردازش گرافیکی کره زمین برای جلوگیری از پرش تصویر هنگام اسکرول */
+#globeWrap canvas, .globe canvas {
+  pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ۳. در حالت موبایل: اول کادر فیلترها و جست‌وجو قرار بگیرد، سپس کره زمین */
+@media (max-width: 820px) {
+  .hero, .hero__wrap, .main-hero {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .hero__form, .hero-filters, #heroFilters, .filters-box {
+    order: 1 !important;
+    width: 100% !important;
+  }
+  .hero__globe, #globeWrap, .globe-container {
+    order: 2 !important;
+    width: 100% !important;
+    max-height: 320px !important;
+  }
+}

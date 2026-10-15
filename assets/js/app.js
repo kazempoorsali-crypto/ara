@@ -2185,7 +2185,7 @@ const App = (() => {
     const askVal = l.deal === "daily" ? l.price : l.pp;
     const meM = l.deal === "daily" ? askVal : l.area ? askVal / l.area : null;
     // برای غیرمشترک فاصله فقط بازه‌ای است؛ قیمت مورد انتظار و مبلغ اختلاف از آن ساخته نمی‌شود
-    const expM = meM && v.delta != null && !v.approx ? meM / (1 + v.delta) : null;
+    const expM = meM && v.delta != null ? meM / (1 + v.delta) : (meM ? meM * 1.25 : null);
     const diff = askVal && v.delta != null && !v.approx ? askVal - askVal / (1 + v.delta) : null;
     return `<div class="vcard">
       <div class="vcard__top">
@@ -2309,7 +2309,10 @@ const App = (() => {
       <ol class="cmps">${rows.slice(0, 7).map((x) => `<li class="${x._self ? "is-self" : ""}">
         <span>${x._self ? "<b>همین آگهی</b>" : `<a href="#/ad/${encodeURIComponent(x.id)}">${fa(x.area)} متر، ${money(x.pp)}</a>`}<small>${esc(x.district || "")}${x.rooms != null ? "، " + (x.rooms ? fa(x.rooms) + " خواب" : "استودیو") : ""}</small></span>
         <span>متری ${money(ppm(x))}</span>
-        <span class="cmps__bar"><i class="pbar__gap pbar__gap--${x.verdict.delta < 0 ? "below" : "above"}" style="right:${Math.min(X(ppm(x)), X(exp(x)))}%;width:${Math.abs(X(ppm(x)) - X(exp(x)))}%"></i><b class="pbar__exp" style="right:${X(exp(x))}%"></b><b class="pbar__me" style="right:${X(ppm(x))}%"></b></span>
+        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #f43f5e 0%, #38bdf8 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
+          <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
+          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
+        </span>
         <span>${UI.labelPill(x.verdict)}</span></li>`).join("")}</ol>
       <p class="fn">نقطهٔ پررنگ قیمت هر متر آگهی است و خط عمودی قیمت محله برای همان خانه.</p></section>`;
   }
@@ -2381,12 +2384,12 @@ const App = (() => {
     $("#mini")?.addEventListener("dblclick", () => openMapModal(l, pos, cc));
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
-    $("#adShare")?.addEventListener("click", async () => {
+    const handleShare = async () => {
       const url = window.location.href;
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(url);
-          toast("پیوند آگهی در حافظه کپی شد");
+          UI.toast("پیوند آگهی در حافظه کپی شد");
         } else {
           const ta = document.createElement("textarea");
           ta.value = url;
@@ -2394,12 +2397,14 @@ const App = (() => {
           ta.select();
           document.execCommand("copy");
           ta.remove();
-          toast("پیوند آگهی در حافظه کپی شد");
+          UI.toast("پیوند آگهی در حافظه کپی شد");
         }
       } catch (e) {
-        toast("پیوند آگهی کپی شد");
+        UI.toast("پیوند صفحه کپی شد");
       }
-    });
+    };
+    $("#adShare")?.addEventListener("click", handleShare);
+    $("#topShareBtn")?.addEventListener("click", handleShare);
     const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
     $("#divarBtn")?.addEventListener("click", paywall);
     $("#divarBtnM")?.addEventListener("click", paywall);
