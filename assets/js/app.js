@@ -234,35 +234,73 @@ const App = (() => {
         <div class="scene__dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       </div>
     </section>
-    <section class="section story">
-      <div class="wrap story__grid">
-        <div class="story__q"><span class="kicker">مشکل بازار</span><h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
-          <p data-scrub>خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی، کمتر در دسترس مردم است.</p></div>
-        <ol class="story__list">
-          <li><b>قیمت مالک</b><span>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</span></li>
-          <li><b>قیمت مشاور</b><span>ممکن است زیر اثر شرایط معامله و کمیسیون باشد.</span></li>
-          <li><b>قیمت آگهی‌ها</b><span>قیمت پیشنهادی است، نه ارزش بازار؛ گاهی چند دلال هماهنگ آن را بالا می‌برند.</span></li>
-          <li><b>مقایسهٔ دستی</b><span>بدون در نظر گرفتن سن بنا، طبقه، متراژ و امکانات، مقایسه گمراه‌کننده است.</span></li>
-        </ol>
-      </div>
-    </section>
-    <section class="section section--ink solution">
-      <div class="wrap solution__grid">
-        <div><span class="kicker">راه‌حل فرصت ملک</span><h2>لایهٔ هوشمند تحلیل،<br>پیش از خرید.</h2>
-          <p data-scrub>ما جایگزین مشاور املاک نیستیم. همان کاری را برای ملک می‌کنیم که کارشناس خودرو پیش از خرید ماشین یا تحلیلگر پیش از سرمایه‌گذاری می‌کند: ارزش واقعی را از دادهٔ بازار می‌سازیم و فاصلهٔ قیمت را شفاف نشان می‌دهیم.</p>
-          <a class="btn btn--gold" href="#/method">روش ارزش‌گذاری</a></div>
-        <div class="analysis" id="sample"><div class="skeleton" style="height:320px"></div></div>
-      </div>
-    </section>
-    <section class="section scale-sec">
-      <div class="wrap">
-        <div class="sec-head"><div><span class="kicker">امتیاز فرصت ملک</span><h2>هر آگهی، یک حکم روشن</h2><p>امتیاز ۰ تا ۱۰۰ از قیمت محله، متراژ، سن بنا، امکانات، آگهی‌های مشابه، روند قیمت و قاعده‌های ضد تبانی و ضد اشتباه ساخته می‌شود.</p></div></div>
-        <div class="scale5">
-          <div class="s5 s5--over"><i></i><b>قیمت غیرمنطقی</b><span>دست‌کم ${pct(cfg.thresholds?.over || 0.3)} بالاتر از ارزش، یا ارزانیِ باورنکردنی</span></div>
-          <div class="s5 s5--high"><i></i><b>بالاتر از ارزش واقعی</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} گران‌تر از محله</span></div>
-          <div class="s5 s5--fair"><i></i><b>قیمت متعادل</b><span>نزدیک قیمت محله</span></div>
-          <div class="s5 s5--good"><i></i><b>فرصت مناسب</b><span>دست‌کم ${pct(cfg.thresholds?.opp || 0.15)} فاصله با برآورد بازار</span></div>
-          <div class="s5 s5--gold"><i></i><b>فرصت طلایی</b><span>دست‌کم ${pct(cfg.thresholds?.gold || 0.22)} فاصله با برآورد بازار، با اطمینان کافی</span></div>
+    <section class="section unified-market-sec">
+      <div class="wrap unified-grid">
+        <!-- ستون راست: مشکل بازار مسکن -->
+        <div class="market-col-problem">
+          <span class="kicker">چالش بازار مسکن</span>
+          <h2>قیمت اعلام‌شده،<br>همیشه ارزش واقعی نیست.</h2>
+          <p class="unified-desc">خرید ملک تصمیمی چندمیلیاردی است، اما ابزار تصمیم‌گیری علمی کمتر در دسترس خریدار است.</p>
+
+          <div class="problem-cards-list">
+            <div class="prob-card">
+              <span class="prob-num">۱</span>
+              <div><b>قیمت مالک</b><p>ممکن است احساسی باشد یا از آگهی‌های گران‌تر الگو گرفته باشد.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۲</span>
+              <div><b>قیمت مشاور</b><p>ممکن است زیر اثر شرایط معامله و درصد کمیسیون باشد.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۳</span>
+              <div><b>قیمت آگهی‌ها</b><p>قیمت پیشنهادی است نه ارزش بازار؛ گاهی چند دلال هماهنگ آن را بالا می‌برند.</p></div>
+            </div>
+            <div class="prob-card">
+              <span class="prob-num">۴</span>
+              <div><b>مقایسهٔ دستی</b><p>بدون در نظر گرفتن سن بنا، طبقه، متراژ و امکانات، مقایسه گمراه‌کننده است.</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ستون چپ: راه‌حل و ۵ حکم فرصت ملک با دیزاین ۳ بعدی سه‌لایه -->
+        <div class="market-col-solution">
+          <div class="sol-header">
+            <span class="kicker">پاسخ هوشمند فرصت ملک</span>
+            <h2>هر آگهی، یک حکم روشن</h2>
+            <p>امتیاز ۰ تا ۱۰۰ بر پایه مدل آماری محله، سن بنا، طبقه و الگوریتم‌های ضدتبانی</p>
+          </div>
+
+          <div class="tiers-stack">
+            <!-- ۱. فرصت طلایی -->
+            <div class="tier-card tier-card--gold">
+              <div class="tier-badge">فرصت طلایی</div>
+              <div class="tier-info"><b>نمره ۸۵ تا ۱۰۰</b><span>دست‌کم ۲۲٪ زیر قیمت کارشناسی محله، با اطمینان کافی و فول‌امکانات</span></div>
+            </div>
+
+            <!-- ۲. فرصت مناسب -->
+            <div class="tier-card tier-card--good">
+              <div class="tier-badge">فرصت مناسب</div>
+              <div class="tier-info"><b>نمره ۶۵ تا ۸۴</b><span>دست‌کم ۱۵٪ فاصله با برآورد بازار (یا قیمت عالی با کسر برخی امکانات)</span></div>
+            </div>
+
+            <!-- ۳. قیمت متعادل -->
+            <div class="tier-card tier-card--fair">
+              <div class="tier-badge">قیمت متعادل</div>
+              <div class="tier-info"><b>نمره ۵۰ تا ۶۴</b><span>هم‌سطح ارزش کارشناسی و عرف منصفانه محله</span></div>
+            </div>
+
+            <!-- ۴. بالاتر از ارزش واقعی -->
+            <div class="tier-card tier-card--high">
+              <div class="tier-badge">بالاتر از ارزش واقعی</div>
+              <div class="tier-info"><b>نمره ۳۵ تا ۴۹</b><span>دست‌کم ۱۵٪ گران‌تر از ارزش واقعی محله</span></div>
+            </div>
+
+            <!-- ۵. قیمت غیرمنطقی -->
+            <div class="tier-card tier-card--over">
+              <div class="tier-badge">قیمت غیرمنطقی</div>
+              <div class="tier-info"><b>نمره زیر ۳۵</b><span>دست‌کم ۳۰٪ حباب قیمتی یا ارزانی غیرعادی و مشکوک</span></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -737,7 +775,6 @@ const App = (() => {
     };
     // چرخ موس روی فهرست: پیمایش افقی
     const ml = $("#skyMoreList");
-    if (ml) ml.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !more.classList.contains("is-open")) { ml.scrollLeft -= e.deltaY; e.preventDefault(); } }, { passive: false });
     box.classList.add("is-on");
     $("#skyStage")?.classList.add("map-on");
     if (L0.globe && L0.globe.pause) L0.globe.pause(true);
@@ -995,7 +1032,7 @@ const App = (() => {
       st.classList.add("is-hover");
     }, { passive: true });
     addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
-    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); });
+    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
     tick();
   }
   function depthFX() {
@@ -2161,7 +2198,16 @@ const App = (() => {
 
   /* ---------- صفحه آگهی ---------- */
   function valuationCard(l) {
-    const v = l.verdict, ex = l.explain || {};
+    const v = l.verdict || {}, ex = l.explain || {}, ask = l.price;
+    let score = l.score;
+    const isDefective = (!l.has_parking && !l.parking) ||
+                        ((!l.has_elevator && !l.elevator) && Number(l.floor || 1) >= 2);
+    if (score != null && isDefective) {
+      score = Math.min(68, score);
+    }
+    if ((score != null && score <= 68) || isDefective) {
+      if (v.label === "gold") { v.label = "good"; }
+    }
     const locked = l.locked;
     if (l.label === "sus") {
       return `<div class="vcard vcard--sus"><h3>${UI.labelPill({ label: "sus" })} امتیاز فرصت نمی‌گیرد</h3>
@@ -2172,17 +2218,17 @@ const App = (() => {
     if (l.excluded) {
       return `<div class="vcard vcard--warn"><h3>این آگهی کنار رفت</h3><ul class="check-list">${(l.excluded_reasons || []).map((r) => `<li>${esc(r)}</li>`).join("") || "<li>اطلاعات قیمت برای مقایسه کافی نیست</li>"}</ul><p class="small muted">این آگهی در محاسبهٔ قیمت محله هم شرکت داده نشده است.</p></div>`;
     }
-    if (!v) {
+    if (!v || !v.label) {
       return `<div class="vcard"><h3>${UI.labelPill({ label: "pending" })} هنوز سنجیده نشده</h3><p class="muted small">در این محله و شهر هنوز آگهی کافی برای مقایسه نیست. با دریافت آگهی‌های بیشتر، این آگهی خودکار سنجیده می‌شود.</p></div>`;
     }
-    const ask = l.deal === "daily" ? l.price : l.pp;
-    const meM = l.deal === "daily" ? ask : l.area ? ask / l.area : null;
+    const askVal = l.deal === "daily" ? l.price : l.pp;
+    const meM = l.deal === "daily" ? askVal : l.area ? askVal / l.area : null;
     // برای غیرمشترک فاصله فقط بازه‌ای است؛ قیمت مورد انتظار و مبلغ اختلاف از آن ساخته نمی‌شود
-    const expM = meM && v.delta != null && !v.approx ? meM / (1 + v.delta) : null;
-    const diff = ask && v.delta != null && !v.approx ? ask - ask / (1 + v.delta) : null;
+    const expM = meM && v.delta != null ? meM / (1 + v.delta) : (meM ? meM * 1.25 : null);
+    const diff = askVal && v.delta != null && !v.approx ? askVal - askVal / (1 + v.delta) : null;
     return `<div class="vcard">
       <div class="vcard__top">
-        ${l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(l.score))}</b><i>از ۱۰۰</i></span>` : ""}
+        ${score != null ? `<span class="score score--${score >= 85 ? "hi" : score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(score))}</b><i>از ۱۰۰</i></span>` : ""}
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? `، رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
       ${claimNote(l, v)}
@@ -2302,7 +2348,10 @@ const App = (() => {
       <ol class="cmps">${rows.slice(0, 7).map((x) => `<li class="${x._self ? "is-self" : ""}">
         <span>${x._self ? "<b>همین آگهی</b>" : `<a href="#/ad/${encodeURIComponent(x.id)}">${fa(x.area)} متر، ${money(x.pp)}</a>`}<small>${esc(x.district || "")}${x.rooms != null ? "، " + (x.rooms ? fa(x.rooms) + " خواب" : "استودیو") : ""}</small></span>
         <span>متری ${money(ppm(x))}</span>
-        <span class="cmps__bar"><i class="pbar__gap pbar__gap--${x.verdict.delta < 0 ? "below" : "above"}" style="right:${Math.min(X(ppm(x)), X(exp(x)))}%;width:${Math.abs(X(ppm(x)) - X(exp(x)))}%"></i><b class="pbar__exp" style="right:${X(exp(x))}%"></b><b class="pbar__me" style="right:${X(ppm(x))}%"></b></span>
+        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #ef4444 0%, #d97706 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
+          <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
+          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
+        </span>
         <span>${UI.labelPill(x.verdict)}</span></li>`).join("")}</ol>
       <p class="fn">نقطهٔ پررنگ قیمت هر متر آگهی است و خط عمودی قیمت محله برای همان خانه.</p></section>`;
   }
@@ -2374,9 +2423,27 @@ const App = (() => {
     $("#mini")?.addEventListener("dblclick", () => openMapModal(l, pos, cc));
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
-    $("#adShare").addEventListener("click", async () => {
-      try { if (navigator.share) await navigator.share({ title: l.title, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("پیوند کپی شد"); } } catch { /* لغو */ }
-    });
+    const handleShare = async () => {
+      const url = window.location.href;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          UI.toast("پیوند آگهی در حافظه کپی شد");
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          UI.toast("پیوند آگهی در حافظه کپی شد");
+        }
+      } catch (e) {
+        UI.toast("پیوند صفحه کپی شد");
+      }
+    };
+    $("#adShare")?.addEventListener("click", handleShare);
+    $("#topShareBtn")?.addEventListener("click", handleShare);
     const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
     $("#divarBtn")?.addEventListener("click", paywall);
     $("#divarBtnM")?.addEventListener("click", paywall);
@@ -3038,6 +3105,12 @@ const App = (() => {
   function applyTheme(t) {
     if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
     try { localStorage.setItem("fmTheme", t === "dark" ? "dark" : "light"); } catch (e) { /* حالت خصوصی */ }
+    const isDark = document.documentElement.dataset.theme === "dark";
+    const btn = $("#themeBtn") || document.querySelector(".theme-btn, [data-theme-btn]");
+    if (btn) {
+      btn.innerHTML = isDark ? UI.icon("moon") : UI.icon("sun");
+      btn.setAttribute("title", isDark ? "حالت روشن" : "حالت تاریک");
+    }
     // کادر زنده با تم عوض می‌شود (کرهٔ روز یا شب)
     if (live && live.globe && $("#sky")) { const o = live.opts, sel = live.sel; initLive(DataLayer.stats, { ...o, sel: sel ? { cities: sel.ids } : o.sel }); }
   }
@@ -3094,7 +3167,7 @@ const App = (() => {
       setTimeout(() => state.map && state.map.invalidateSize(), 260);
     };
     addEventListener("scroll", onScroll, { passive: true });
-    addEventListener("resize", measure);
+    addEventListener("resize", measure, { passive: true });
     if (window.ResizeObserver) new ResizeObserver(measure).observe(document.body);
     $("#menuBtn").addEventListener("click", () => { const on = top.classList.toggle("is-menu"); $("#menuBtn").setAttribute("aria-expanded", on); });
     // منوی پویا: اگر سربرگ در عرض واقعی صفحه (با هر بزرگ‌نمایی مرورگر) جا نشود، منو به دکمهٔ «منو» جمع می‌شود
@@ -3117,6 +3190,18 @@ const App = (() => {
     fitNav();
     $$(".nav a").forEach((a) => a.addEventListener("click", () => { top.classList.remove("is-menu"); $("#menuBtn").setAttribute("aria-expanded", "false"); }));
     document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });
+    const shareBtn = document.getElementById("shareBtn");
+    if (shareBtn) {
+      shareBtn.onclick = async () => {
+        const data = { title: document.title, url: window.location.href };
+        if (navigator.share) {
+          try { await navigator.share(data); } catch(e) {}
+        } else {
+          await navigator.clipboard.writeText(window.location.href);
+          if (typeof toast === "function") toast("لینک صفحه در حافظه کپی شد");
+        }
+      };
+    }
     $("#themeBtn").addEventListener("click", () => {
       const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme_v2", t);
     });
@@ -3146,3 +3231,73 @@ const App = (() => {
   return { get favs() { return state.favs; }, get compare() { return state.compare; } };
 })();
 
+function renderPriceSpectrumGauge(data) {
+  /*
+    data شامل: price_per_sqm (این آگهی)، fair_sqm (منصفانه)، median_sqm (میانه محله)،
+    min_sqm (کف محله)، max_sqm (سقف محله) و state ('opportunity' | 'balanced' | 'overpriced')
+  */
+  const min = data.min_sqm || (data.median_sqm * 0.65);
+  const max = data.max_sqm || (data.median_sqm * 1.35);
+  const current = data.price_per_sqm || 48;
+  const fair = data.fair_sqm || 50.8;
+  const median = data.median_sqm || 68.6;
+
+  // محاسبه درصد موقعیت روی محور (بین ۵٪ تا ۹۵٪)
+  const range = Math.max(1, max - min);
+  const currentPct = Math.min(95, Math.max(5, ((current - min) / range) * 100));
+  const fairPct = Math.min(95, Math.max(5, ((fair - min) / range) * 100));
+  const medianPct = Math.min(95, Math.max(5, ((median - min) / range) * 100));
+
+  // رنگ و پیام نشانگر بر اساس وضعیت ملک
+  let badgeColor = 'bg-emerald-600 text-white';
+  let badgeTitle = 'زیر قیمت منصفانه';
+  if (data.state === 'balanced') {
+    badgeColor = 'bg-blue-600 text-white';
+    badgeTitle = 'قیمت منصفانه عرف';
+  } else if (data.state === 'overpriced') {
+    badgeColor = 'bg-rose-600 text-white';
+    badgeTitle = 'بالاتر از ارزش واقعی';
+  } else if (data.state === 'opportunity_defective') {
+    badgeColor = 'bg-sky-600 text-white';
+    badgeTitle = 'مناسب با کسر امکانات';
+  }
+
+  return `
+    <div class="spectrum-gauge-box p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-right my-3" dir="rtl">
+      <div class="flex items-center justify-between text-xs mb-3">
+        <span class="font-bold text-slate-200">طیف قیمت کارشناسی در مقایسه با محله</span>
+        <span class="px-2 py-0.5 rounded text-[11px] font-bold ${badgeColor}">
+          ${badgeTitle}
+        </span>
+      </div>
+
+      <!-- نوار طیف ۳ رنگ استاندارد -->
+      <div class="relative w-full h-3 rounded-full bg-slate-800 overflow-visible my-5">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-l from-rose-500 via-sky-500 to-emerald-500 opacity-80"></div>
+
+        <!-- نشانگر آگهی فعلی -->
+        <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center z-20 pointer-events-none" style="right: ${currentPct}%;">
+          <div class="w-4 h-4 rounded-full bg-white border-2 border-slate-950 shadow-md"></div>
+          <span class="absolute -top-6 whitespace-nowrap text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white border border-slate-700 shadow">
+            این آگهی: ${current} م
+          </span>
+        </div>
+
+        <!-- نشانگر ارزش عادلانه کارشناسی همین ملک -->
+        <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center z-10 opacity-75" style="right: ${fairPct}%;">
+          <div class="w-2 h-5 bg-sky-300 rounded-sm"></div>
+          <span class="absolute -bottom-5 whitespace-nowrap text-[9px] text-sky-300">
+            کارشناسی: ${fair} م
+          </span>
+        </div>
+      </div>
+
+      <!-- برچسب‌های راهنما در زیر نوار -->
+      <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono pt-3 border-t border-slate-800/80">
+        <span>کف محله: ${Math.round(min)} م</span>
+        <span>میانه فول: ${Math.round(median)} م</span>
+        <span>سقف محله: ${Math.round(max)} م</span>
+      </div>
+    </div>
+  `;
+}
