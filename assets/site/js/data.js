@@ -165,3 +165,14 @@ window.FM = window.FM || {};
     return '<article class="level" style="--st:' + l.color + '" data-reveal><i class="level__dot"></i><b>' + l.name + "</b><em>" + l.rule + '</em><span class="level__bar"></span></article>';
   }).join("");
 })();
+
+/* فیلتر انتخاب‌شده (مقدار غیرخالی) نشان «is-set» می‌گیرد تا در تم تاریک سبز فسفری شود */
+(function () {
+  function mark() {
+    document.querySelectorAll(".searchbar__field select").forEach(function (s) {
+      var f = s.closest(".searchbar__field"); if (f) f.classList.toggle("is-set", !!s.value);
+    });
+  }
+  ["change", "click"].forEach(function (ev) { document.addEventListener(ev, function () { setTimeout(mark, 0); }); });
+  document.addEventListener("DOMContentLoaded", mark);
+})();

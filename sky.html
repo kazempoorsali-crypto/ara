@@ -17,7 +17,7 @@
     (function () {
       var t = null;
       try { t = localStorage.getItem("fmTheme"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      if (t !== "light" && t !== "dark") t = "dark";   // تم اصلی: تیره
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>
@@ -75,16 +75,10 @@
     </section>
 
     <!-- کرهٔ زمین سه‌بعدی و زیر آن نقشهٔ مسطح (دوبعدی / ماهواره) با برج‌های قیمت محله‌ها -->
-    <section class="skylive" aria-label="کرهٔ زمین و نقشهٔ قیمت محله‌ها">
-      <div class="skylive__frame">
-        <iframe id="skyLive" src="/app.html?embed=1#/sky" title="کرهٔ زمین و نقشهٔ قیمت محله‌ها" loading="eager" allowfullscreen></iframe>
-      </div>
-      <p class="skylive__hint">کره را بکشید تا بچرخد؛ روی نقطهٔ نورانی هر شهر بزنید تا به آن پرواز کنیم و نقشهٔ محله‌ها زیر کره باز شود. ارتفاع هر برج میانهٔ قیمت هر متر محله است و برج سبز یعنی فرصت شناسایی‌شده دارد؛ با دکمه‌های بالای نقشه بین نمای ساده و ماهواره جابه‌جا شوید.</p>
-    </section>
-
     <!-- قیمت محله‌ها با فیلتر -->
     <section class="sky-filterbar">
-      <h2 class="section-title is-center" data-reveal>قیمت هر متر محله‌ها</h2>
+      <h2 class="section-title is-center">قیمت هر متر محله‌ها</h2>
+      <p class="sky-filterbar__hint">استان، شهر و محله را انتخاب کنید؛ کرهٔ زمین و نقشهٔ پایین همان‌جا را نشان می‌دهند.</p>
       <div class="searchbar" role="group" aria-label="فیلتر منطقه">
         <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
         <i class="searchbar__arrow" aria-hidden="true">←</i>
@@ -95,6 +89,13 @@
       </div>
       <p class="sky-status" id="skyStatus" aria-live="polite">نمایش همهٔ مناطق تحت پوشش</p>
       <div class="skymap__stats" data-map-stats></div>
+    </section>
+
+    <section class="skylive" aria-label="کرهٔ زمین و نقشهٔ قیمت محله‌ها">
+      <div class="skylive__frame">
+        <iframe id="skyLive" src="/app.html?embed=1#/sky" title="کرهٔ زمین و نقشهٔ قیمت محله‌ها" loading="eager" allowfullscreen></iframe>
+      </div>
+      <p class="skylive__hint">کره را بکشید تا بچرخد؛ روی نقطهٔ نورانی هر شهر بزنید تا به آن پرواز کنیم و نقشهٔ محله‌ها زیر کره باز شود. ارتفاع هر برج میانهٔ قیمت هر متر محله است و برج سبز یعنی فرصت شناسایی‌شده دارد؛ با دکمه‌های بالای نقشه بین نمای ساده و ماهواره جابه‌جا شوید.</p>
     </section>
 
     <!-- کارت‌های محله‌های نمای فعلی -->

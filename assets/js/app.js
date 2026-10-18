@@ -13,7 +13,7 @@ const App = (() => {
   async function boot() {
     depthFX();
     navSpotlight();
-    applyTheme(store.get("theme_v2", "light"));
+    applyTheme(store.get("theme_v2", "dark"));   // تم اصلی: تیره
     const info = await DataLayer.init();
     cfg = info.config;
     // استان‌هایی که به‌تدریج اضافه می‌شوند (تهران، خراسان رضوی و ...) از سرور می‌آیند
@@ -179,8 +179,24 @@ const App = (() => {
           <div><b data-live="excluded">${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
         </div>
       </aside></section>`;
-    initLive(st, {});
+    initLive(st, skyOpts);
   }
+  /* صفحهٔ «از دید آسمان» سایت اصلی این کادر را جاسازی می‌کند و فیلتر استان/شهر/محله‌اش را با پیام می‌فرستد:
+     کره به همان شهرها پرواز می‌کند و نقشه روی همان محله می‌رود */
+  const skyOpts = {};
+  function skyApply(m) {
+    const sel = m.city ? { cities: [m.city] } : m.province ? { provs: [m.province] } : {};
+    skyOpts.sel = sel;
+    skyOpts.query = m.district ? { district: m.district, dcity: m.city } : {};
+    if (!live || !live.globe) { if (!webglOK() && $("#skySvg")) drawSky(DataLayer.stats, sel); return; }
+    live.dsel = new Set(m.district ? [m.district] : []); live.dselFor = m.city || "";
+    if (!liveIds(live.st, sel).length) return liveHome(live);
+    liveSelect(live.st, sel);
+  }
+  window.addEventListener("message", (e) => {
+    if (e.origin !== location.origin || !e.data || !e.data.fmSky) return;
+    skyApply(e.data);
+  });
 
   /* ---------- صفحه اصلی ---------- */
   let boardTimer = null;

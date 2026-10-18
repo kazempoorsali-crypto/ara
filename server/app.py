@@ -375,11 +375,35 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     # ---------------------------------------------------------- io
+    # فشرده‌سازی gzip برای متن (HTML، CSS، JS، JSON، SVG): حجم دانلود چند برابر کمتر، به‌ویژه روی اینترنت کند
+    _GZ_CACHE = {}
+
+    def gz(self, body: bytes, ctype: str, key=None) -> bytes:
+        if len(body) < 1200 or "gzip" not in (self.headers.get("accept-encoding") or "") or not (
+                ctype.startswith(("text/", "application/javascript", "application/json", "image/svg+xml", "application/xml"))):
+            return body
+        if key and key in Handler._GZ_CACHE:
+            out = Handler._GZ_CACHE[key]
+        else:
+            import gzip as _gzip
+            out = _gzip.compress(body, 6)
+            if key:
+                if len(Handler._GZ_CACHE) > 400:
+                    Handler._GZ_CACHE.clear()
+                Handler._GZ_CACHE[key] = out
+        self._gzipped = True
+        return out
+
     def send_json(self, obj, status=200):
         body = json.dumps(obj, ensure_ascii=False, default=str).encode()
+        self._gzipped = False
+        body = self.gz(body, "application/json")
         self.send_response(status)
         self.send_header("content-type", "application/json; charset=utf-8")
         self.send_header("cache-control", "no-store")
+        if self._gzipped:
+            self.send_header("content-encoding", "gzip")
+            self.send_header("vary", "Accept-Encoding")
         self.send_header("content-length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -429,8 +453,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def send_text(self, text: str, ctype: str, status=200, cache="public, max-age=600"):
         body = text.encode()
+        self._gzipped = False
+        body = self.gz(body, ctype)
         self.send_response(status)
         self.send_header("content-type", ctype)
+        if self._gzipped:
+            self.send_header("content-encoding", "gzip")
+            self.send_header("vary", "Accept-Encoding")
         self.send_header("content-length", str(len(body)))
         self.send_header("cache-control", cache)
         self.end_headers()
@@ -516,7 +545,10 @@ class Handler(BaseHTTPRequestHandler):
             # صفحه‌های سایت اصلی: دادهٔ واقعی (آمار، محله‌ها، فرصت‌ها) در خود HTML گذاشته می‌شود
             SITE_PAGES = {"/": ("index.html", "home"), "/index.html": ("index.html", "home"),
                           "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property")}
-            mad = re.fullmatch(r"/ad/([\w-]+)", url.path)
+            # صفحهٔ هر آگهی همان صفحهٔ کامل سایت قبلی است (مشخصات، ارزش‌گذاری، نمودارها، نمایشگر عکس)
+            if url.path == "/property.html" and qs.get("id"):
+                return self.redirect("/ad/" + urllib.parse.quote(qs["id"]))
+            mad = None
             if url.path in SITE_PAGES or mad:
                 fname, page = SITE_PAGES[url.path] if not mad else ("property.html", "property")
                 if mad:
@@ -582,8 +614,13 @@ class Handler(BaseHTTPRequestHandler):
             data = self.page_html(data)
         elif rel.endswith(".html"):
             data = self.versioned(data)
+        self._gzipped = False
+        data = self.gz(data, ctype, key=None if rel.endswith(".html") else (rel, target.stat().st_mtime_ns))
         self.send_response(200)
         self.send_header("content-type", ctype)
+        if self._gzipped:
+            self.send_header("content-encoding", "gzip")
+            self.send_header("vary", "Accept-Encoding")
         self.send_header("content-length", str(len(data)))
         # فایل‌های نسخه‌دار (?v=) و کتابخانه‌ها یک سال در مرورگر می‌مانند؛ بقیه هر بار بازبینی می‌شوند
         long = (versioned and not rel.endswith(".html")) or rel.startswith("assets/vendor/") or rel.startswith("assets/img/")

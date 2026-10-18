@@ -17,7 +17,7 @@
     (function () {
       var t = null;
       try { t = localStorage.getItem("fmTheme"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      if (t !== "light" && t !== "dark") t = "dark";   // تم اصلی: تیره
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>

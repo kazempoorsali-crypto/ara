@@ -75,7 +75,18 @@
     renderPins(true);
     renderStats();
     if (globeApi) globeApi.focus(FM.region);
+    sendLive();
   }
+  /* فیلتر به کرهٔ زمین و نقشهٔ زندهٔ زیر آن فرستاده می‌شود */
+  function sendLive() {
+    var f = document.getElementById("skyLive");
+    if (!f || !f.contentWindow) return;
+    try { f.contentWindow.postMessage({ fmSky: 1, province: FM.region.province || "", city: FM.region.city || "", district: FM.region.district || "" }, location.origin); } catch (e) { /* هنوز بار نشده */ }
+  }
+  (function () {
+    var f = document.getElementById("skyLive");
+    if (f) f.addEventListener("load", function () { sendLive(); setTimeout(sendLive, 1500); });
+  })();
 
   selProvince.addEventListener("change", function () {
     FM.region = { province: selProvince.value, city: "", district: "" };
