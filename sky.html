@@ -70,12 +70,21 @@
       <div class="sky-hero__inner">
         <p class="eyebrow is-center" data-reveal>سفر داده‌ای فرصت ملک</p>
         <h1 class="sky-hero__title" data-reveal>قیمت از دید <em>آسمان</em></h1>
-        <p class="sky-hero__sub" data-reveal>کرهٔ زندهٔ بازار ایران را تماشا کنید؛ استان، شهر و محله را انتخاب کنید تا هم کره و هم نقشهٔ زیر آن، همان لحظه به منطقهٔ شما نزدیک شود.</p>
+        <p class="sky-hero__sub" data-reveal>کرهٔ زندهٔ بازار ملک را بچرخانید، شهر را انتخاب کنید و نقشهٔ محله‌ها را با برج‌های قیمت، دقیقاً زیر کره ببینید.</p>
       </div>
     </section>
 
-    <!-- فیلترها: بالای کره و نقشه -->
+    <!-- کرهٔ زمین سه‌بعدی و زیر آن نقشهٔ مسطح (دوبعدی / ماهواره) با برج‌های قیمت محله‌ها -->
+    <section class="skylive" aria-label="کرهٔ زمین و نقشهٔ قیمت محله‌ها">
+      <div class="skylive__frame">
+        <iframe id="skyLive" src="/app.html?embed=1#/sky" title="کرهٔ زمین و نقشهٔ قیمت محله‌ها" loading="eager" allowfullscreen></iframe>
+      </div>
+      <p class="skylive__hint">کره را بکشید تا بچرخد؛ روی نقطهٔ نورانی هر شهر بزنید تا به آن پرواز کنیم و نقشهٔ محله‌ها زیر کره باز شود. ارتفاع هر برج میانهٔ قیمت هر متر محله است و برج سبز یعنی فرصت شناسایی‌شده دارد؛ با دکمه‌های بالای نقشه بین نمای ساده و ماهواره جابه‌جا شوید.</p>
+    </section>
+
+    <!-- قیمت محله‌ها با فیلتر -->
     <section class="sky-filterbar">
+      <h2 class="section-title is-center" data-reveal>قیمت هر متر محله‌ها</h2>
       <div class="searchbar" role="group" aria-label="فیلتر منطقه">
         <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
         <i class="searchbar__arrow" aria-hidden="true">←</i>
@@ -85,34 +94,6 @@
         <button class="searchbar__reset" id="fReset" type="button" hidden>پاک‌کردن ✕</button>
       </div>
       <p class="sky-status" id="skyStatus" aria-live="polite">نمایش همهٔ مناطق تحت پوشش</p>
-    </section>
-
-    <!-- کرهٔ زنده -->
-    <section class="globe3d" data-globe>
-      <div class="globe3d__halo" aria-hidden="true"></div>
-      <canvas class="globe3d__canvas" id="globeCanvas" aria-label="کرهٔ زندهٔ بازار ملک ایران"></canvas>
-      <div class="globe3d__label" id="globeLabel">ایران — نمای کل</div>
-      <p class="globe3d__hint">برای توقف چرخش، ماوس را روی کره نگه دارید</p>
-    </section>
-
-    <!-- نقشهٔ محله‌ها: دقیقاً زیر کره، هماهنگ با فیلتر -->
-    <section class="skymap" data-skymap>
-      <div class="skymap__head">
-        <p class="eyebrow" data-reveal>همان منطقه، از نزدیک‌تر</p>
-        <h2 class="section-title" data-reveal>بازار <span id="mapScope">ایران</span> از دید آسمان</h2>
-        <p class="section-sub" data-reveal>هر پین یک محله است و عدد روی آن میانهٔ قیمت هر متر آگهی‌های فعلی همان محله (میلیون تومان). تصویر زمینه نمادین است و جای پین‌ها موقعیت جغرافیایی دقیق نیست؛ <a href="/app.html#/market" class="link-gold">نقشهٔ دقیق محله‌ها</a>.</p>
-      </div>
-      <div class="skymap__stage" data-map-stage>
-        <figure class="skymap__frame">
-          <img src="/assets/img/rebuild/market-map-v17.webp" alt="نقشه داده‌ای بازار محله‌ها" data-map-img />
-          <div class="skymap__beam" aria-hidden="true"></div>
-        </figure>
-        <div class="skymap__pins" data-map-pins aria-hidden="true"></div>
-        <div class="skymap__legend" aria-hidden="true">
-          <span><i class="is-gold"></i>داغ — گران‌ترین</span>
-          <span><i></i>میانه</span>
-        </div>
-      </div>
       <div class="skymap__stats" data-map-stats></div>
     </section>
 

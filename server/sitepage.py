@@ -48,6 +48,23 @@ def regions(store):
     return sorted(out.values(), key=lambda p: -sum(c["n"] for c in p["cities"]))
 
 
+def market_of(store, d):
+    """آمار قیمت هر متر بازار همین ملک: اول محلهٔ خودش (همان نوع و معامله)، در نبود دادهٔ کافی کل شهر."""
+    kind, deal = d.get("kind") or "apartment", d.get("deal") or "sale"
+    if d.get("district"):
+        r = store.q("SELECT n, median, p25, p75 FROM market WHERE city_key=? AND district=? AND kind=? AND deal=?",
+                    (d["city_key"], d["district"], kind, deal), one=True)
+        if r and r["n"] and r["n"] >= 3 and r["median"]:
+            return {"scope": "district", "name": d["district"], "n": r["n"], "median": round(r["median"]),
+                    "p25": round(r["p25"] or 0), "p75": round(r["p75"] or 0)}
+    rows = store.q("SELECT n, median, p25, p75 FROM market WHERE city_key=? AND kind=? AND deal=? AND median > 0", (d["city_key"], kind, deal))
+    n = sum(r["n"] for r in rows)
+    if n >= 3:
+        w = lambda k: round(sum((r[k] or 0) * r["n"] for r in rows) / n)
+        return {"scope": "city", "name": d.get("city_name") or "", "n": n, "median": w("median"), "p25": w("p25"), "p75": w("p75")}
+    return None
+
+
 def common(app):
     store = app.store
     st = store.stats()
@@ -80,6 +97,7 @@ def boot(handler, page, qs):
             d["verdict"] = app.store.verdict(d)
             d["history"] = app.store.history(d["id"])
             d["similar"] = [_trim(handler.gate(dict(x), None)) for x in handler.similar(d)]
+            data["market"] = market_of(app.store, d)
             data["property"] = _trim(handler.gate(d, None, full=True))
     return data
 

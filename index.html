@@ -13,7 +13,7 @@
       // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
       var h = location.hash, m;
       if (/^#\//.test(h) && h !== "#/") {
-        if ((m = h.match(/^#\/ad\/([^?]+)/))) { location.replace("/property.html?id=" + m[1]); return; }
+        if ((m = h.match(/^#\/ad\/([^?]+)/))) { location.replace("/ad/" + m[1]); return; }
         if ((m = h.match(/^#\/invoice\/([^?]+)/))) { location.replace("/account.html?invoice=" + m[1]); return; }
         if (/^#\/(account|reset)/.test(h)) { location.replace("/account.html" + (h.indexOf("?") > -1 ? h.slice(h.indexOf("?")) : "")); return; }
         location.replace("/app.html" + h); return;

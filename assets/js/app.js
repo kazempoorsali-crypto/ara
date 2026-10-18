@@ -138,6 +138,7 @@ const App = (() => {
     else if (page === "faq") faqPage();
     else if (page === "support") supportPage(params);
     else if (page === "p") contentPage("/" + path.split("/").slice(1).join("/"));
+    else if (page === "sky") skyPage();
     else homePage();
     // متن «دربارهٔ بازار» که سرور برای همین نشانی ساخته، فقط روی همان صفحه دیده می‌شود
     const st = $("#seoText");
@@ -162,6 +163,24 @@ const App = (() => {
   const go = (hash) => { location.hash = hash; };
   const toQuery = (f) => new URLSearchParams(Object.entries(f).filter(([, v]) => v !== "" && v != null && v !== 0 && v !== false)).toString();
   const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : 0; };
+
+  /* ---------- کرهٔ زمین و نقشهٔ محله‌ها به‌تنهایی (برای صفحهٔ «قیمت از دید آسمان») ---------- */
+  function skyPage() {
+    clearInterval(boardTimer);
+    const st = DataLayer.stats;
+    view().innerHTML = `<section class="skypage">
+      <aside class="sky sky--wide" id="sky" aria-label="کرهٔ زمین و نقشهٔ قیمت محله‌ها">
+        <div class="sky__head"><span class="sky__live"><i></i>زنده</span><b id="skyTitle">بازار ملک ایران، از نگاه ماهواره</b><small id="skySub">روی نقطهٔ نورانی هر شهر بزنید تا به آن پرواز کنیم؛ ارتفاع هر ستون میانهٔ قیمت هر متر محله است و ستون سبز یعنی فرصت شناسایی‌شده دارد.</small></div>
+        <div class="sky__stage" id="skyStage"><svg id="skySvg" viewBox="-300 -230 600 420" role="img" aria-label="برج‌های قیمت محله‌ها"></svg></div>
+        <div class="sky__tip" id="skyTip" hidden></div>
+        <div class="sky__kpis">
+          <div><b data-live="total">${fa(st.total || 0)}</b><span>آگهی بررسی‌شده</span></div>
+          <div class="is-hot"><b data-live="deals">${fa(st.deals || 0)}</b><span>فرصت شناسایی‌شده</span></div>
+          <div><b data-live="excluded">${fa(st.excluded || 0)}</b><span>مشکوک یا کنار رفت</span></div>
+        </div>
+      </aside></section>`;
+    initLive(st, {});
+  }
 
   /* ---------- صفحه اصلی ---------- */
   let boardTimer = null;

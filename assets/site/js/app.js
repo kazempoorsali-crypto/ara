@@ -399,27 +399,40 @@
       });
     });
 
-    /* برچسب‌های زنده: سه ملک با بالاترین امتیاز — قابل کلیک تا صفحهٔ ملک */
-    var beam = document.querySelector("[data-beam]");
-    var topProps = (FM.data.properties || []).slice().sort(function (x, y) { return y.score - x.score; }).slice(0, 3);
-    var tagPos = [
-      { left: "3%", bottom: "30%" },
-      { left: "22%", bottom: "16%" },
-      { left: "8%", bottom: "50%" },
-    ];
-    if (near && topProps.length) {
-      topProps.forEach(function (p, i) {
+    /* نورافکن فرصت‌ها: برترین ملک‌ها یکی‌یکی بالای ساختمان‌ها ظاهر و پس از چند ثانیه محو می‌شوند (قابل کلیک) */
+    var topProps = (FM.data.properties || []).filter(function (p) { return p.score != null; })
+      .sort(function (x, y) { return y.score - x.score; }).slice(0, 8);
+    if (topProps.length) {
+      var spots = document.createElement("div");
+      spots.className = "hspots";
+      stage.appendChild(spots);
+      var SLOTS = [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
+      var mobile = matchMedia("(max-width: 760px)").matches;
+      var slotIdx = 0, propIdx = 0, paused = false, live = [];
+      var spawn = function () {
+        if (paused || document.hidden) return;
+        var p = topProps[propIdx++ % topProps.length];
+        var slot = mobile ? { r: 50, b: 5 } : SLOTS[slotIdx++ % SLOTS.length];
         var a = document.createElement("a");
-        a.className = "hero__tag hero__tag--live";
+        a.className = "hspot";
+        a.dataset.status = p.status;
         a.href = FM.propUrl(p.id);
-        var pos = tagPos[i % tagPos.length];
-        a.style.left = pos.left || "auto";
-        a.style.bottom = pos.bottom;
-        a.style.animationDelay = (2.6 + i * 0.7) + "s";
-        a.innerHTML = FM.esc(p.title) + (p.score != null ? "<b> · " + FM.fa(p.score) + "</b>" : "");
-        near.parentElement.appendChild(a);
-      });
+        a.style.right = slot.r + "%"; a.style.bottom = slot.b + "%";
+        if (mobile) a.style.transform = "translateX(50%)";
+        a.innerHTML = '<span class="hspot__img"><img src="' + FM.esc(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
+          '<span class="hspot__txt"><b>' + FM.esc(p.title) + '</b><small>' + FM.esc(p.diffText || p.tag) + '</small></span>' +
+          '<span class="hspot__score">' + FM.fa(p.score) + '</span><i class="hspot__beam" aria-hidden="true"></i>';
+        spots.appendChild(a);
+        live.push(a);
+        requestAnimationFrame(function () { a.classList.add("is-on"); });
+        setTimeout(function () { a.classList.remove("is-on"); a.classList.add("is-out"); setTimeout(function () { a.remove(); live = live.filter(function (x) { return x !== a; }); }, 700); }, mobile ? 3600 : 5600);
+      };
+      spots.addEventListener("pointerenter", function () { paused = true; });
+      spots.addEventListener("pointerleave", function () { paused = false; });
+      setTimeout(function () { spawn(); setTimeout(spawn, 900); }, LITE ? 300 : 2400);
+      setInterval(spawn, mobile ? 4200 : 2600);
     }
+    var beam = document.querySelector("[data-beam]");
     var tags = document.querySelectorAll(".hero__tag");
     if (beam && tags.length) {
       var sweep = gsap.fromTo(beam, { x: "0vw" }, {
