@@ -61,9 +61,16 @@
 ## ساختار
 
 ```
-index.html, admin.html     سایت و پنل مدیریت
-assets/js/app.js           صفحه‌ها: خانه، فرصت‌ها، آگهی، بازار محله‌ها، روش، حساب و اشتراک
-assets/js/api.js           لایه داده و حساب کاربری (حالت نمونه برای پیش‌نمایش)
+index.html                 صفحهٔ اصلی (طراحی سینمایی): ویترین، گالری، طبقات، روش، دستیار
+property.html              صفحهٔ تحلیل هر ملک (property.html?id=…)
+sky.html                   قیمت از دید آسمان: کره و قیمت محله‌ها
+account.html               حساب من: ورود، اشتراک (بله‌پی و بزن به کارت)، فاکتور
+assets/site/js/            data.js (دادهٔ واقعی از FM_BOOT)، api.js، account.js و جلوه‌های صفحه‌ها
+assets/site/css/           main.css، pages.css، account.css
+server/sitepage.py         دادهٔ آغازین صفحه‌ها (آمار، محله‌ها، فرصت‌ها) که در خود HTML گذاشته می‌شود
+app.html                   موتور جست‌وجو، نقشه، بازار محله‌ها و پشتیبانی (تا انتقال کامل به طراحی تازه)
+admin.html                 پنل مدیریت
+assets/js/app.js, api.js   برنامهٔ app.html
 server/app.py              سرور HTTP، API، قفل محتوا، پنل
 server/valuation.py        موتور ارزش‌گذاری و امتیاز
 server/features.py         استخراج ویژگی از آگهی
