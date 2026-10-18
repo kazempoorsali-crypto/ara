@@ -29,7 +29,7 @@
       try { var ft = localStorage.getItem("fmTheme"); if (ft === "light" || ft === "dark") localStorage.setItem("ara:theme_v2", JSON.stringify(ft)); } catch (e) {}
       var r = document.documentElement, d = null, q = new URLSearchParams(location.search).get("design");
       try { if (q === "new" || q === "classic") localStorage.setItem("fmDesign", q); d = localStorage.getItem("fmDesign"); } catch (e) { d = q; }
-      if (d === "new") r.setAttribute("data-design", "new"); else if (d === "classic") r.removeAttribute("data-design");
+      if (d === "classic") r.removeAttribute("data-design"); else r.setAttribute("data-design", "new");   // طراحی تازه پیش‌فرض است
       var n = navigator, c = n.connection || {};
       if ((n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || c.saveData || /(^|-)2g/.test(c.effectiveType || "") ||
           matchMedia("(prefers-reduced-motion: reduce)").matches) r.classList.add("lite");

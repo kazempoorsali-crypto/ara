@@ -21,7 +21,7 @@
       try { history.scrollRestoration = "manual"; } catch (e) {}
       var t = null;
       try { t = localStorage.getItem("fmTheme"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      if (t !== "light" && t !== "dark") t = "dark";   // تم اصلی: تیره
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>
@@ -272,6 +272,8 @@
           <div class="masonry__col" data-col-speed="0.55"></div>
           <div class="masonry__col" data-col-speed="0.8"></div>
           <div class="masonry__col" data-col-speed="0.65"></div>
+          <div class="masonry__col" data-col-speed="0.8"></div>
+          <div class="masonry__col" data-col-speed="0.6"></div>
         </div>
         <div class="masonry__mask masonry__mask--top" aria-hidden="true"></div>
         <div class="masonry__mask masonry__mask--bottom" aria-hidden="true"></div>

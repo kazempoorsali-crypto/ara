@@ -223,3 +223,33 @@
   :root[data-design="new"] .strip > div:nth-child(even) { padding-top: 44px; }
 }
 :root.lite .scale5 .s5, :root.lite .solution__grid > :last-child, :root.lite .plans > .plan { transform: none !important; }
+
+/* تم تاریک: متن کادرها روشن، گزینهٔ انتخاب‌شده سبز فسفری */
+:root[data-design="new"][data-theme="dark"] .chip,
+:root[data-design="new"][data-theme="dark"] .dd > button,
+:root[data-design="new"][data-theme="dark"] .seg button,
+:root[data-design="new"][data-theme="dark"] .vtab,
+:root[data-design="new"][data-theme="dark"] .sky__t,
+:root[data-design="new"][data-theme="dark"] [data-um],
+:root[data-design="new"][data-theme="dark"] select,
+:root[data-design="new"][data-theme="dark"] input,
+:root[data-design="new"][data-theme="dark"] textarea { color: #eeeadf; }
+:root[data-design="new"][data-theme="dark"] .chip.is-on,
+:root[data-design="new"][data-theme="dark"] .dd > button.is-set,
+:root[data-design="new"][data-theme="dark"] .seg button.is-on,
+:root[data-design="new"][data-theme="dark"] .vtab.is-on,
+:root[data-design="new"][data-theme="dark"] .sky__t.is-on,
+:root[data-design="new"][data-theme="dark"] [data-um].is-on {
+  color: var(--v2-hi); border-color: var(--v2-hi); background: color-mix(in srgb, var(--v2-hi) 12%, transparent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--v2-hi) 45%, transparent);
+}
+:root[data-design="new"][data-theme="dark"] select:focus,
+:root[data-design="new"][data-theme="dark"] input:focus { border-color: var(--v2-hi); }
+
+/* تاریخچهٔ قیمت: هر تغییر با تاریخ */
+.spark-steps { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; font-size: .88rem; }
+.spark-steps li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.spark-steps time { color: var(--ink-soft, inherit); opacity: .85; }
+.spark-steps em { font-style: normal; font-size: .8rem; opacity: .8; min-width: 70px; text-align: left; }
+.spark-steps em.is-down { color: #3ecf8e; opacity: 1; }
+.spark-steps em.is-up { color: #ff7a59; opacity: 1; }

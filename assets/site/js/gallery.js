@@ -55,7 +55,7 @@
     if (allBtn) allBtn.href = searchUrl();
     if (!(r.province || r.city || r.district) || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); return; }
     statusEl.textContent = "در حال جست‌وجو…";
-    FM.api.search({ province: r.province, city: r.city, district: r.district, ranked: 1, sort: "score", limit: 12 }).then(function (res) {
+    FM.api.search({ province: r.province, city: r.city, district: r.district, ranked: 1, sort: "score", limit: 30 }).then(function (res) {
       if (my !== seq) return;
       current = (res.items || []).map(FM.mapListing);
       current.total = res.total || current.length;
@@ -117,13 +117,36 @@
     a.innerHTML =
       '<span class="ncard__media">' +
       '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
-      (p.imgs.length > 1 ? '<img class="ncard__alt" src="' + E(p.img2) + '" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="ncard__swap">عکس دیگر</span>' : "") +
+      (p.imgs.length > 1 ? '<span class="ncard__swap">' + FM.fa(p.imgs.length) + " عکس</span>" + '<span class="ncard__dots">' + p.imgs.slice(0, 8).map(function (_, i) { return "<i" + (i ? "" : ' class="is-on"') + "></i>"; }).join("") + "</span>" : "") +
       "</span>" +
       '<span class="ncard__body"><b>' + E(p.title) + "</b>" +
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span></span>";
+    if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
     return a;
+  }
+
+  /* با رفتن موس روی کارت، بقیهٔ عکس‌های همان ملک یکی‌یکی نشان داده می‌شوند */
+  function slideshow(a, imgs) {
+    var timer = null, i = 0, img, dots;
+    function show(n) {
+      i = n % imgs.length;
+      var pre = new Image();
+      pre.onload = function () { if (timer !== null || n === 0) img.src = imgs[i]; };
+      pre.src = imgs[i];
+      Array.prototype.forEach.call(dots, function (d, k) { d.classList.toggle("is-on", k === i); });
+    }
+    a.addEventListener("mouseenter", function () {
+      img = a.querySelector(".ncard__media img"); dots = a.querySelectorAll(".ncard__dots i");
+      clearInterval(timer);
+      timer = setInterval(function () { show(i + 1); }, 1100);
+      show(1);
+    });
+    a.addEventListener("mouseleave", function () {
+      clearInterval(timer); timer = null;
+      if (img) show(0);
+    });
   }
 
   function clearColTweens() {
@@ -146,8 +169,11 @@
     if (gal) gal.classList.toggle("is-empty", !items.length);
 
     clearColTweens();
-    var perCol = [[], [], []];
-    items.forEach(function (p, i) { perCol[i % 3].push(p); });
+    /* فقط ستون‌های دیده‌شده (در صفحهٔ باریک ستون‌های کمتری نمایش داده می‌شود) */
+    var vis = Array.prototype.filter.call(cols, function (c) { return getComputedStyle(c).display !== "none"; });
+    if (!vis.length) vis = Array.prototype.slice.call(cols);
+    var perCol = Array.prototype.map.call(cols, function () { return []; });
+    items.forEach(function (p, i) { perCol[Array.prototype.indexOf.call(cols, vis[i % vis.length])].push(p); });
 
     cols.forEach(function (col, ci) {
       col.innerHTML = "";

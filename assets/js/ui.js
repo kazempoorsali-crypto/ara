@@ -224,10 +224,13 @@ const UI = (() => {
     const Y = (v) => H - P - ((v - y0) / (y1 - y0 || 1)) * (H - 2 * P);
     const d = pts.map((p, i) => `${i ? "L" : "M"}${X(p.at).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(" ");
     const day = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
+    const fullDay = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
     const last = pts[pts.length - 1], first = pts[0];
     const ch = (last.v - first.v) / first.v;
-    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr"><path class="area" d="${d} L${X(last.at)} ${H} L${X(first.at)} ${H}Z"/><path class="line" d="${d}" vector-effect="non-scaling-stroke"/>${pts.map((p) => `<circle cx="${X(p.at)}" cy="${Y(p.v)}" r="4.5" vector-effect="non-scaling-stroke"/>`).join("")}</svg>
-      <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? `، ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>`;
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr"><path class="area" d="${d} L${X(last.at)} ${H} L${X(first.at)} ${H}Z"/><path class="line" d="${d}" vector-effect="non-scaling-stroke"/>${pts.map((p) => `<circle cx="${X(p.at)}" cy="${Y(p.v)}" r="4.5" vector-effect="non-scaling-stroke"><title>${day(p.at)}: ${money(p.v)}</title></circle>`).join("")}</svg>
+      <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? `، ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>
+      <ol class="spark-steps">${pts.map((p, i) => { const prev = i ? pts[i - 1].v : 0, c = prev ? (p.v - prev) / prev : 0;
+        return `<li><time>${fullDay(p.at)}</time><b>${money(p.v)}</b>${i ? `<em class="${c < 0 ? "is-down" : c > 0 ? "is-up" : ""}">${c ? `${c < 0 ? "▼" : "▲"} ${fa(Math.abs(Math.round(c * 1000) / 10))}٪` : "بدون تغییر"}</em>` : "<em>اولین ثبت</em>"}</li>`; }).reverse().join("")}</ol>`;
   }
 
   /* ---------- نقشه ---------- */
