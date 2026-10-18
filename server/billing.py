@@ -30,6 +30,8 @@ DEFAULT_BILLING = {
     "pay_methods": [],
     # «بزن به کارت»: کارت‌به‌کارت با مبلغ یکتا و تأیید خودکار؛ بدون درگاه بانکی و نماد اعتماد (کلید API از داشبورد bezanbecard.ir)
     "bezan_api_key": "", "bezan_expiry": 30,
+    # تا کلید API برسد: لینک پرداخت ثابت «بزن به کارت»؛ کاربر پرداخت می‌کند و کد پیگیری را ثبت می‌کند (مثل کارت‌به‌کارت)
+    "bezan_link": "https://bezanbecard.ir/pay/link/tSwM5reKIc",
 }
 PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان بله)"), ("bezan", "کارت‌به‌کارت خودکار (بزن به کارت)"),
                ("zarinpal", "درگاه زرین‌پال"), ("card", "کارت‌به‌کارت با ثبت رسید")]
@@ -157,8 +159,11 @@ class Billing:
         if m == "card":
             return len(c["card_number"].replace("-", "").replace(" ", "")) == 16
         if m == "bezan":
-            return len(str(c.get("bezan_api_key") or "")) >= 8
+            return len(str(c.get("bezan_api_key") or "")) >= 8 or self.bezan_link_ok()
         return False
+
+    def bezan_link_ok(self) -> bool:
+        return str(self.cfg().get("bezan_link") or "").startswith("https://bezanbecard.ir/")
 
     def methods_public(self):
         return [{"id": m, "name": n, "ready": self.method_ready(m)} for m, n in PAY_METHODS]
@@ -322,6 +327,8 @@ class Billing:
                                    (phone, plan_id, plan["price"], "bale", int(time.time()))).lastrowid
                 return {"ok": True, "bale": self.bale.start_pay(pid), "payment_id": pid}
             if m == "bezan":
+                if len(str(c.get("bezan_api_key") or "")) < 8:   # هنوز کلید API نیست: لینک پرداخت + ثبت کد پیگیری
+                    return self._bezan_link_start(phone, plan)
                 return self._bezan_start(phone, plan, callback_url)
             c["gateway"] = m
         if c["test_mode"] and not local:  # پرداخت آزمایشی فقط روی همین رایانه
@@ -392,6 +399,14 @@ class Billing:
         self.store.x("UPDATE payments SET authority=?, note=? WHERE id=?",
                      (r["payment_token"], f"مبلغ یکتا {uniq:,} ریال؛ در انتظار واریز", pid))
         return {"ok": True, "redirect": r["payment_url"], "payment_id": pid, "unique_amount": uniq}
+
+    def _bezan_link_start(self, phone, plan):
+        if not self.bezan_link_ok():
+            raise ValueError("لینک پرداخت «بزن به کارت» هنوز در پنل وارد نشده است")
+        pid = self.store.x("INSERT INTO payments(phone, plan, amount, gateway, created, note) VALUES(?,?,?,?,?,?)",
+                           (phone, plan["id"], plan["price"], "bezan", int(time.time()), "لینک پرداخت؛ در انتظار کد پیگیری")).lastrowid
+        return {"ok": True, "link": self.cfg()["bezan_link"], "payment_id": pid, "amount": plan["price"], "plan": plan["name"],
+                "auto": bool(self.cfg()["card_auto_activate"])}
 
     def bezan_check(self, pid) -> str:
         """وضعیت یک پرداخت «بزن به کارت» را از خود سرویس می‌خواند و در صورت پرداخت، اشتراک را فعال می‌کند.
@@ -475,7 +490,7 @@ class Billing:
         threading.Thread(target=run, daemon=True).start()
 
     def card_receipt(self, phone, pid, tracking, image: bytes | None, receipts_dir) -> dict:
-        pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=? AND gateway='card'", (int(pid or 0), phone), one=True)
+        pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=? AND (gateway='card' OR (gateway='bezan' AND authority IS NULL))", (int(pid or 0), phone), one=True)
         if not pay:
             raise ValueError("پرداخت پیدا نشد")
         if pay["status"] not in ("pending",):

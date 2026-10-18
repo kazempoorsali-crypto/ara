@@ -447,6 +447,8 @@
         راه‌اندازی: در <a href="https://bezanbecard.ir/login" target="_blank" rel="noopener">bezanbecard.ir</a> ثبت‌نام کنید، کارت دریافت وجه را در داشبورد ثبت کنید، از بخش کلیدهای API یک کلید بسازید و این‌جا وارد کنید، سپس «کارت‌به‌کارت خودکار» را در روش‌های پرداخت روشن کنید. (ساخت سفارش با API در طرح‌های دارای API عمومی ممکن است.)</p>
       <div class="grid2">
         <label class="field"><span>کلید API (x-api-key)</span><input class="input input--ltr" name="bezan_api_key" value="${esc(b.bezan_api_key || "")}" placeholder="کلید را از داشبورد بزن به کارت بسازید" autocomplete="off"></label>
+        <label class="field"><span>لینک پرداخت (تا وقتی کلید API ندارید)</span><input class="input input--ltr" name="bezan_link" value="${esc(b.bezan_link || "")}" placeholder="https://bezanbecard.ir/pay/link/..." autocomplete="off"></label>
+        <p class="hint">بدون کلید API، کاربر با همین لینک پرداخت می‌کند و کد پیگیری را در سایت ثبت می‌کند؛ پرداخت در «پرداخت‌های در انتظار بررسی» تأیید یا رد می‌شود (طبق تنظیم «فعال‌سازی فوری» کارت‌به‌کارت). با وارد کردن کلید API، تأیید خودکار جای آن را می‌گیرد.</p>
         <label class="field"><span>مهلت واریز (دقیقه، ۱۵ تا ۱۲۰)</span><input class="input" name="bezan_expiry" type="number" min="15" max="120" value="${b.bezan_expiry || 30}"></label>
       </div>
       <div style="margin-top:8px"><button type="button" class="btn btn--line btn--sm" id="bezanTest">آزمون اتصال</button> <span class="hint" id="bezanRes"></span></div>
@@ -538,7 +540,7 @@
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked && +f.trial_days.value > 0, trial_days: f.trial_days.value === "" ? 3 : Math.max(0, +f.trial_days.value),
-          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
+          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },

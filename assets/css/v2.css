@@ -253,3 +253,16 @@
 .spark-steps em { font-style: normal; font-size: .8rem; opacity: .8; min-width: 70px; text-align: left; }
 .spark-steps em.is-down { color: #3ecf8e; opacity: 1; }
 .spark-steps em.is-up { color: #ff7a59; opacity: 1; }
+
+/* طیف قیمت: نقطهٔ چشمک‌زن همین ملک، خط میانه، کف و سقف */
+.pbar__me.is-blink { box-shadow: 0 0 0 0 var(--dot); animation: pbarBlink 1.6s ease-out infinite; }
+@keyframes pbarBlink {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dot) 85%, transparent), 0 0 10px var(--dot); }
+  70% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--dot) 0%, transparent), 0 0 18px var(--dot); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 10px var(--dot); }
+}
+@media (prefers-reduced-motion: reduce) { .pbar__me.is-blink { animation: none; box-shadow: 0 0 10px var(--dot); } }
+.pbar__tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,.55); transform: translateX(50%); border-radius: 1px; }
+.pbar__cap { position: absolute; right: 50%; transform: translateX(50%); white-space: nowrap; font-size: 10.5px; font-weight: 700; font-style: normal; }
+.pbar__cap--top { bottom: calc(100% + 2px); color: var(--ink); }
+.pbar__cap--bot { top: calc(100% + 4px); }

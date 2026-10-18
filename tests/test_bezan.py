@@ -59,7 +59,14 @@ bill = Billing(st)
 PH = "09121234567"
 st.x("INSERT INTO users(phone, created) VALUES(?, 0)", (PH,))
 st.set_setting("billing", {"daily_price": 0, "monthly_price": 900000, "monthly_days": 30, "pay_methods": ["bale", "bezan"], "trial_enabled": False})
-ok(not {m["id"]: m["ready"] for m in bill.methods_public()}["bezan"], "بدون کلید API، «کارت‌به‌کارت خودکار» فعلاً فعال نیست")
+# بدون کلید API: با لینک پرداخت ثابت آماده است و کاربر کد پیگیری ثبت می‌کند
+ok({m["id"]: m["ready"] for m in bill.methods_public()}["bezan"], "بدون کلید API، با لینک پرداخت آماده است")
+r0 = bill.start(PH, "monthly", "http://x/api/pay/callback", local=False, method="bezan")
+ok(r0.get("link", "").startswith("https://bezanbecard.ir/") and r0.get("payment_id"), "لینک پرداخت و شمارهٔ پرداخت برمی‌گردد")
+rc = bill.card_receipt(PH, r0["payment_id"], "123456", None, Path(tempfile.mkdtemp()))
+ok(rc["ok"] and st.q("SELECT status FROM payments WHERE id=?", (r0["payment_id"],), one=True)["status"] == "review", "کد پیگیری لینک پرداخت ثبت و به بررسی می‌رود")
+st.set_setting("billing", {**st.get_setting("billing"), "bezan_link": ""})
+ok(not {m["id"]: m["ready"] for m in bill.methods_public()}["bezan"], "بدون کلید API و بدون لینک، «کارت‌به‌کارت خودکار» فعلاً فعال نیست")
 st.set_setting("billing", {**st.get_setting("billing"), "bezan_api_key": "KEY-12345678", "bezan_expiry": 30})
 ok({m["id"]: m["ready"] for m in bill.methods_public()}["bezan"], "با کلید API، روش آماده است")
 bale_on = st.get_setting("billing")["pay_methods"]
