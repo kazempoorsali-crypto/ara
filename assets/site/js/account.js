@@ -269,7 +269,7 @@
     try {
       const r = await API.startPayment(plan, method);
       if (r.redirect) { location.href = r.redirect; return; }
-      if (r.card) { cardDialog(r); return; }
+      if (r.card || r.link) { cardDialog(r); return; }
       if (r.bale) { balePayDialog(r.bale); return; }
       if (r.activated) { await API.refreshMe(); updateAccount(); if (r.payment_id) showInvoice(r.payment_id); else { toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); } }
     } catch (err) { toast(err.message); }
@@ -372,20 +372,24 @@
   }
   /* کارت‌به‌کارت: مبلغ یکتا، رسید یا کد پیگیری، فعال‌سازی فوری */
   function cardDialog(r) {
-    const num16 = r.card.number.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1-");
-    openDialog(`<div class="dlg__head"><h2>پرداخت کارت‌به‌کارت</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <ol class="pay-steps">
+    const num16 = r.card ? r.card.number.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1-") : "";
+    openDialog(`<div class="dlg__head"><h2>${r.link ? "پرداخت با بزن به کارت" : "پرداخت کارت‌به‌کارت"}</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      ${r.link ? `<ol class="pay-steps">
+        <li><span>مبلغ اشتراک ${esc(r.plan)}:</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
+        <li><span>صفحهٔ پرداخت «بزن به کارت» را باز کن و همین مبلغ را بپرداز.</span><a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener">باز کردن صفحهٔ پرداخت ${icon("arrow")}</a></li>
+        <li><span>بعد از پرداخت، کد پیگیری یا عکس رسید را همین‌جا ثبت کن. ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و پرداخت بعداً بررسی می‌شود.` : `پس از تأیید پرداخت، اشتراک ${esc(r.plan)} باز می‌شود.`}</span></li>
+      </ol>` : `<ol class="pay-steps">
         <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
         <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button>${r.card.holder ? `<span class="pay-holder">به نام <b>${esc(r.card.holder)}</b></span>` : ""}</li>
         <li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="/app.html#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>
-      </ol>
+      </ol>`}
       <form class="form-grid" id="rcForm">
         <label class="field"><span>کد پیگیری یا شمارهٔ مرجع</span><input class="input input--ltr" id="rcTrack" inputmode="numeric" autocomplete="off"></label>
         <label class="field"><span>عکس رسید (اختیاری، تا ۵ مگابایت)</span><input class="input" type="file" id="rcFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
         <button class="btn btn--hot btn--lg" id="rcBtn">${icon("upload")} ${r.auto ? "ثبت رسید و فعال‌سازی" : "ثبت رسید"}</button>
         <p class="small muted">اگر واریز با مبلغ و رسید نخواند، روزهای اشتراک پس گرفته می‌شود. تمدید خودکار نداریم.</p>
       </form>`);
-    $("#cpCard").addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
+    $("#cpCard")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
     $("#rcForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = $("#rcBtn"); btn.disabled = true;

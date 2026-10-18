@@ -1157,7 +1157,7 @@ const App = (() => {
     try {
       const r = await DataLayer.startPayment(plan, method);
       if (r.redirect) { location.href = r.redirect; return; }
-      if (r.card) { cardDialog(r); return; }
+      if (r.card || r.link) { cardDialog(r); return; }
       if (r.bale) { balePayDialog(r.bale); return; }
       if (r.activated) { await DataLayer.refreshMe(); updateAccount(); if (r.payment_id) go("#/invoice/" + r.payment_id); else { toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); } }
     } catch (err) { toast(err.message); }
@@ -1260,20 +1260,24 @@ const App = (() => {
   }
   /* کارت‌به‌کارت: مبلغ یکتا، رسید یا کد پیگیری، فعال‌سازی فوری */
   function cardDialog(r) {
-    const num16 = r.card.number.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1-");
-    openDialog(`<div class="dlg__head"><h2>پرداخت کارت‌به‌کارت</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <ol class="pay-steps">
+    const num16 = r.card ? r.card.number.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1-") : "";
+    openDialog(`<div class="dlg__head"><h2>${r.link ? "پرداخت با بزن به کارت" : "پرداخت کارت‌به‌کارت"}</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      ${r.link ? `<ol class="pay-steps">
+        <li><span>مبلغ اشتراک ${esc(r.plan)}:</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
+        <li><span>صفحهٔ پرداخت «بزن به کارت» را باز کن و همین مبلغ را بپرداز.</span><a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener">باز کردن صفحهٔ پرداخت ${icon("arrow")}</a></li>
+        <li><span>بعد از پرداخت، کد پیگیری یا عکس رسید را همین‌جا ثبت کن. ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و پرداخت بعداً بررسی می‌شود.` : `پس از تأیید پرداخت، اشتراک ${esc(r.plan)} باز می‌شود.`}</span></li>
+      </ol>` : `<ol class="pay-steps">
         <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
         <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button>${r.card.holder ? `<span class="pay-holder">به نام <b>${esc(r.card.holder)}</b></span>` : ""}</li>
         <li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>
-      </ol>
+      </ol>`}
       <form class="form-grid" id="rcForm">
         <label class="field"><span>کد پیگیری یا شمارهٔ مرجع</span><input class="input input--ltr" id="rcTrack" inputmode="numeric" autocomplete="off"></label>
         <label class="field"><span>عکس رسید (اختیاری، تا ۵ مگابایت)</span><input class="input" type="file" id="rcFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
         <button class="btn btn--hot btn--lg" id="rcBtn">${icon("upload")} ${r.auto ? "ثبت رسید و فعال‌سازی" : "ثبت رسید"}</button>
         <p class="small muted">اگر واریز با مبلغ و رسید نخواند، روزهای اشتراک پس گرفته می‌شود. تمدید خودکار نداریم.</p>
       </form>`);
-    $("#cpCard").addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
+    $("#cpCard")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
     $("#rcForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = $("#rcBtn"); btn.disabled = true;
@@ -2169,7 +2173,7 @@ const App = (() => {
               <p class="muted">${esc([UI.cityOf(picked.city_key)?.name, picked.district].filter(Boolean).join("، "))}</p>
               <div class="picked__price">${UI.priceHTML(picked)}</div>
               ${v.label ? `<p>${UI.dealPill(v)}</p>` : ""}
-              ${picked.deal === "sale" && picked.ppm && v.delta != null && !v.approx ? UI.priceBar(picked.ppm, picked.ppm / (1 + v.delta)) : ""}
+              ${picked.deal === "sale" && picked.ppm && v.delta != null && !v.approx ? UI.priceBar(picked.ppm, picked.ppm / (1 + v.delta), { label: v.label }) : ""}
               <div class="card__specs">${specs.map((x) => `<span>${esc(x)}</span>`).join("")}</div>
               <div class="picked__act"><a class="btn btn--gold" href="#/ad/${encodeURIComponent(picked.id)}">شناسنامهٔ کامل قیمت ${icon("arrow")}</a>
                 <a class="btn btn--line" href="#/s?${toQuery(moreQ)}">فرصت‌های بیشتر در ${esc(where)}</a></div>
@@ -2234,15 +2238,7 @@ const App = (() => {
   /* ---------- صفحه آگهی ---------- */
   function valuationCard(l) {
     const v = l.verdict || {}, ex = l.explain || {}, ask = l.price;
-    let score = l.score;
-    const isDefective = (!l.has_parking && !l.parking) ||
-                        ((!l.has_elevator && !l.elevator) && Number(l.floor || 1) >= 2);
-    if (score != null && isDefective) {
-      score = Math.min(68, score);
-    }
-    if ((score != null && score <= 68) || isDefective) {
-      if (v.label === "gold") { v.label = "good"; }
-    }
+    const score = l.score;   // امتیاز و برچسب هر دو از سرور می‌آیند و با هم هماهنگ‌اند
     const locked = l.locked;
     if (l.label === "sus") {
       return `<div class="vcard vcard--sus"><h3>${UI.labelPill({ label: "sus" })} امتیاز فرصت نمی‌گیرد</h3>
@@ -2267,7 +2263,7 @@ const App = (() => {
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? `، رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
       ${claimNote(l, v)}
-      ${expM ? UI.priceBar(meM, expM) : ""}
+      ${expM ? UI.priceBar(meM, expM, { label: v.approx ? null : v.label, lo: ex.fair_low && !v.approx ? ex.fair_low / (l.deal === "daily" ? 1 : l.area || 1) : 0, hi: ex.fair_high && !v.approx ? ex.fair_high / (l.deal === "daily" ? 1 : l.area || 1) : 0 }) : ""}
       ${ex.fair_low && ex.fair_high && !v.approx ? `<p class="small">بازهٔ قیمت منصفانه برای همین خانه: <b>${money(ex.fair_low)}</b> تا <b>${money(ex.fair_high)}</b> تومان (با در نظر گرفتن پراکندگی قیمت‌های این محله).</p>` : ""}
       ${ex.disagree ? `<p class="small note-soft">${icon("info", 'width="16"')} فرصت اعلام نشد: مدل قیمت فاصلهٔ زیادی نشان می‌دهد، ولی نزدیک‌ترین آگهی‌های مشابه همین محله این فاصله را تأیید نمی‌کنند.</p>` : ""}
       ${v.wide ? `<p class="small note-soft">${icon("info", 'width="16"')} منصفانه با این فاصله: قیمت‌های این محله خیلی پراکنده‌اند و این فاصله هنوز در دامنهٔ عادی محله است.</p>` : ""}
@@ -2383,9 +2379,9 @@ const App = (() => {
       <ol class="cmps">${rows.slice(0, 7).map((x) => `<li class="${x._self ? "is-self" : ""}">
         <span>${x._self ? "<b>همین آگهی</b>" : `<a href="#/ad/${encodeURIComponent(x.id)}">${fa(x.area)} متر، ${money(x.pp)}</a>`}<small>${esc(x.district || "")}${x.rooms != null ? "، " + (x.rooms ? fa(x.rooms) + " خواب" : "استودیو") : ""}</small></span>
         <span>متری ${money(ppm(x))}</span>
-        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #ef4444 0%, #d97706 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
+        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #10b981 0%, #d4a017 50%, #ef4444 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
           <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
-          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
+          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:${({ gold: "#f5c542", good: "#22c55e", fair: "#a8743f", high: "#ef4444", over: "#dc2626" })[x.verdict.label] || "#94a3b8"};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
         </span>
         <span>${UI.labelPill(x.verdict)}</span></li>`).join("")}</ol>
       <p class="fn">نقطهٔ پررنگ قیمت هر متر آگهی است و خط عمودی قیمت محله برای همان خانه.</p></section>`;

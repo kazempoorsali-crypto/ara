@@ -65,6 +65,7 @@ DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.2
 MIN_TREND_N = 80          # کمترین آگهی پاک برای برآورد روند قیمت از داده
 TREND_CLIP = (-0.03, 0.08)  # بازهٔ مجاز روند ماهانهٔ لگاریتمی
 SUS_FLAGS = {"outlier_low", "too_cheap", "cheap_flagged", "scam_text", "ppm_as_total", "zero_typo_low"}
+GOLD_MIN_SCORE = 80   # «فرصت طلایی» فقط با امتیاز ۸۰ و بالاتر
 
 FEATURE_SETS = {
     "apartment": ["age", "age2", "floor", "ground", "top", "floor_noelev", "log_area", "log_area2", "rooms_density", "elevator", "parking", "warehouse",
@@ -742,7 +743,14 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             conf = "high" if dn >= 15 and filled >= 0.5 else "medium" if dn >= 8 else "low"
             if l["_age"] > 30:  # قیمت آگهی قدیمی‌تر ممکن است دیگر معتبر نباشد
                 conf = {"high": "medium", "medium": "low", "low": "low"}[conf]
+            # نوع سند در آگهی گفته نشده: امتیاز کم نمی‌شود، فقط اطمینان یک پله پایین می‌آید
+            if label in ("gold", "good") and feat.get("deed_single") is None and conf == "high":
+                conf = "medium"
             if label == "gold" and conf == "low":  # فرصت طلایی با اطمینان کم اعلام نمی‌شود
+                label = l["_label"] = "good"
+            # فاصلهٔ خیلی نزدیک به مرز «مشکوک» باورپذیر نیست: طلایی اعلام نمی‌شود و استعلام لازم است
+            l["_near_sus"] = label in ("gold", "good") and d is not None and d >= th["sus"] - 0.05
+            if label == "gold" and l["_near_sus"]:
                 label = l["_label"] = "good"
             if label in ("gold", "good"):
                 p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]
@@ -756,10 +764,10 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             else:
                 score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
 
-            # سقف امتیاز (Cap): خانه‌ای که پارکینگ یا آسانسور در طبقات بالا یا سند تک‌برگ ندارد هرگز ۱۰۰ نگیرد
-            f_dict = feat.get("features") or []
-            if (not feat.get("parking")) or (not feat.get("elevator") and int(feat.get("floor") or 1) >= 2) or ("deed_single" not in f_dict):
-                score = min(68.0, score)
+            # اثر پارکینگ، آسانسور و سند پیش‌تر در برآورد قیمت منصفانه حساب شده؛ سقف جداگانه‌ای روی امتیاز نیست.
+            # برچسب با امتیاز هماهنگ است: «فرصت طلایی» فقط با امتیاز بالا
+            if label == "gold" and score < GOLD_MIN_SCORE:
+                label = l["_label"] = "good"
         # سود تخمینی خرید به تومان و شاخص اعتبار (فاز ۱ و ۲)
         # محافظه‌کارانه: کران پایین قیمت منصفانه منهای قیمت درخواستی، فقط برای فرصت‌ها
         fair_lo = fair * math.exp(-(l.get("_unc") or 0.15)) if fair else None
@@ -771,9 +779,9 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             t_score -= 15
         if set(sig) & {"fake_photos", "multi_price", "scam"}:
             t_score -= 20
-        if "deed_single" in (feat.get("features") or []):
+        if feat.get("deed_single") == 1:
             t_score += 10
-        if "renovated" in (feat.get("features") or []):
+        if feat.get("renovated") == 1:
             t_score += 4
         trust_score = max(15, min(98, t_score))
 
@@ -795,6 +803,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                    "ctx": [SIGNAL_TEXT[k] for k in feat.get("ctx", []) if k in SIGNAL_TEXT],
                    "caution": [SIGNAL_TEXT[k] for k in feat.get("caution", []) if k in SIGNAL_TEXT]
                               + (["چند کاربر این آگهی را گزارش کرده‌اند؛ در حال بررسی"] if l.get("user_review") else [])
+                              + (["فاصله با برآورد بازار خیلی زیاد و نزدیک مرز قیمت‌های مشکوک است؛ پیش از هر اقدامی قیمت، سند و واقعی بودن آگهی را استعلام کن"] if l.get("_near_sus") else [])
                               + (["پیش‌فروش: قرارداد رسمی پیش‌فروش ساختمان، پروانهٔ ساخت، بیمهٔ تکمیل پروژه و سابقهٔ سازنده را استعلام کن"] if l["_presale"] else []),
                    "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
         updates.append((round(l["_fair_v"]) if l.get("_fair_v") else None, round(fair) if fair else None,

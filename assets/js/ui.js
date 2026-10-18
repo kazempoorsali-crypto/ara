@@ -139,28 +139,38 @@ const UI = (() => {
   const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
   const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"}" title="امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
   const seen = { has: (id) => store.get("seen", []).includes(id), add: (id) => { const s = store.get("seen", []); if (!s.includes(id)) { s.unshift(id); store.set("seen", s.slice(0, 400)); } } };
-  /* نوار طیف قیمت کارشناسی در سراسر سایت */
+  /* نوار طیف قیمت کارشناسی در سراسر سایت:
+     کف و سقف قیمت منصفانهٔ همین ملک، خط میانه (قیمت تعادلی)، و نقطهٔ چشمک‌زن همین آگهی؛
+     رنگ نوار از سبز (نزدیک کف) به قرمز (نزدیک سقف) و رنگ نقطه بر پایهٔ حکم: طلایی، سبز، قهوه‌ای یا قرمز */
+  const DOT = { gold: "#f5c542", good: "#22c55e", fair: "#a8743f", high: "#ef4444", over: "#dc2626", sus: "#a78bfa" };
   function priceBar(me, exp, opts = {}) {
     if (!me || !exp) return "";
-    const lo = Math.min(me, exp) * 0.75, hi = Math.max(me, exp) * 1.25;
-    const X = (v) => Math.min(96, Math.max(4, ((v - lo) / (hi - lo)) * 100));
-    const below = me < exp;
-    const diffPct = Math.round(Math.abs((me - exp) / exp) * 100);
-    const tag = below ? (diffPct >= 15 ? "زیر قیمت منصفانه" : "قیمت مناسب") : (diffPct <= 4 ? "متعادل عرف بازار" : "بالاتر از ارزش واقعی");
-    const tagColor = below ? "#10b981" : (diffPct <= 4 ? "#d97706" : "#ef4444");
-
-    return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت محله متری ${money(exp)}" style="display:grid;gap:6px;margin:6px 0;">
-      ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:2px;">
-        <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی</span>
-        <span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;color:#fff;background:${tagColor};">${tag}</span>
+    const hasRange = opts.lo > 0 && opts.hi > opts.lo;
+    const floor = hasRange ? opts.lo : null, ceil = hasRange ? opts.hi : null;
+    const lo = Math.min(me, floor || exp * 0.8) * 0.92, hi = Math.max(me, ceil || exp * 1.2) * 1.08;
+    const X = (v) => Math.min(97, Math.max(3, ((v - lo) / (hi - lo)) * 100));
+    const diff = (me - exp) / exp, diffPct = Math.round(Math.abs(diff) * 100);
+    const label = opts.label || (diff <= -0.15 ? "good" : diff <= 0.04 && diff >= -0.04 ? "fair" : diff > 0 ? "high" : "good");
+    const TAG = { gold: "فرصت طلایی", good: "فرصت مناسب", fair: "نزدیک قیمت تعادلی", high: "بالاتر از ارزش واقعی", over: "قیمت غیرمنطقی", sus: "قیمت مشکوک" };
+    const dot = DOT[label] || (diff < 0 ? DOT.good : DOT.high);
+    const xF = floor ? X(floor) : X(exp * 0.9), xM = X(exp), xC = ceil ? X(ceil) : X(exp * 1.1);
+    // جهت راست‌به‌چپ: سمت راست ارزان (سبز) و سمت چپ گران (قرمز)
+    const grad = `linear-gradient(to left, #10b981 0%, #10b981 ${xF}%, #d4a017 ${xM}%, #ef4444 ${xC}%, #b91c1c 100%)`;
+    const H = opts.mini ? 8 : 12, D = opts.mini ? 10 : 16;
+    // برچسب نزدیک لبه به داخل نوار تکیه می‌کند تا بریده نشود
+    const capPos = (x) => (x > 78 ? "right:-4px;transform:none" : x < 22 ? "right:auto;left:-4px;transform:none" : "");
+    return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت تعادلی متری ${money(exp)}${hasRange ? `، کف ${money(floor)} و سقف ${money(ceil)}` : ""}" style="display:grid;gap:6px;margin:${opts.mini ? "6px 0" : "10px 0 4px"};">
+      ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی همین ملک</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;color:#111;background:${dot};">${TAG[label] || ""}${diffPct ? ` · ${fa(diffPct)}٪ ${diff < 0 ? "زیر" : "بالای"} تعادل` : ""}</span>
       </div>`}
-      <div class="pbar__track" style="position:relative;height:${opts.mini ? "8px" : "12px"};border-radius:999px;background:linear-gradient(to left, #ef4444 0%, #d97706 50%, #10b981 100%);opacity:0.9;border:1px solid var(--line);">
-        <b class="pbar__exp" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;box-shadow:0 0 3px rgba(0,0,0,0.5);border-radius:2px;right:${X(exp)}%;" title="میانه محله: ${money(exp)}"></b>
-        <b class="pbar__me" style="position:absolute;top:50%;width:${opts.mini ? "10px" : "16px"};height:${opts.mini ? "10px" : "16px"};border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);transform:translate(50%, -50%);right:${X(me)}%;" title="این آگهی: ${money(me)}"></b>
+      <div class="pbar__track" style="position:relative;height:${H}px;border-radius:999px;background:${grad};border:1px solid var(--line);margin:${opts.mini ? "0" : "18px 0 20px"};">
+        ${hasRange && !opts.mini ? `<b class="pbar__tick" style="right:${xF}%" title="کف قیمت منصفانه"></b><b class="pbar__tick" style="right:${xC}%" title="سقف قیمت منصفانه"></b>` : ""}
+        <b class="pbar__exp" style="position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.6);border-radius:2px;right:${xM}%;transform:translateX(50%);" title="میانه / قیمت تعادلی: ${money(exp)}">${opts.mini ? "" : `<span class="pbar__cap pbar__cap--top" style="${capPos(xM)}">میانه ${money(Math.round(exp))}</span>`}</b>
+        <b class="pbar__me${opts.mini ? "" : " is-blink"}" style="--dot:${dot};position:absolute;top:50%;width:${D}px;height:${D}px;border-radius:50%;background:${dot};border:2px solid #fff;transform:translate(50%, -50%);right:${X(me)}%;z-index:2;" title="این آگهی: ${money(me)}">${opts.mini ? "" : `<span class="pbar__cap pbar__cap--bot" style="color:${dot};${capPos(X(me))}">این ملک ${money(Math.round(me))}</span>`}</b>
       </div>
-      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;align-items:center;width:100%;font-size:10.5px;color:var(--ink-2);font-family:monospace;white-space:nowrap;direction:rtl;margin-top:2px;">
-        <span>کف: ${money(Math.round(lo))}</span>
-        <span>سقف: ${money(Math.round(hi))}</span>
+      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);white-space:nowrap;">
+        ${hasRange ? `<span><i style="color:#10b981">●</i> کف: ${money(Math.round(floor))}</span><span><i style="color:#ef4444">●</i> سقف: ${money(Math.round(ceil))}</span>` : `<span><i style="color:#10b981">●</i> ارزان‌تر</span><span>کف و سقف دقیق برای مشترکان</span><span><i style="color:#ef4444">●</i> گران‌تر</span>`}
       </div>`}
     </div>`;
   }

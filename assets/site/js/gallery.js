@@ -43,24 +43,101 @@
   var E = FM.esc;
   /* نتیجهٔ فیلتر منطقه از خود سرور خوانده می‌شود (همهٔ آگهی‌های سنجیده‌شدهٔ آن منطقه، نه فقط ویترین) */
   var current = (FM.data.properties || []).slice(), seq = 0;
-  function searchUrl() {
-    var r = FM.region, q = [];
-    if (r.province) q.push("province=" + encodeURIComponent(r.province));
-    if (r.city) q.push("city=" + encodeURIComponent(r.city));
-    if (r.district) q.push("district=" + encodeURIComponent(r.district));
-    return "/app.html#/s" + (q.length ? "?" + q.join("&") : "");
+  /* ---------- فیلتر پیشرفته: همان فیلترهای جست‌وجوی کامل سایت ---------- */
+  var ADV = {};   // { deal, kinds, min, max, depMax, rentMax, areaMin, areaMax, rooms, ageMax, fresh, settle, amenities, opp, drop }
+  var advPanel = document.getElementById("advPanel"), advToggle = document.getElementById("advToggle"), advCount = document.getElementById("advCount");
+  function toNum(t) {
+    t = String(t || "").replace(/[۰-۹]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); }).replace(/[٠-٩]/g, function (d) { return "٠١٢٣٤٥٦٧٨٩".indexOf(d); }).replace(/[,٬،\s]/g, "").replace("٫", ".");
+    var m = t.match(/[\d.]+/); if (!m) return "";
+    var n = parseFloat(m[0]); if (!n) return "";
+    if (/میلیارد/.test(t)) n *= 1e9; else if (/میلیون/.test(t)) n *= 1e6; else if (/هزار/.test(t)) n *= 1e3;
+    else if (n < 1000) n *= 1e6;   // عدد خالی کوچک: میلیون تومان
+    return Math.round(n);
   }
+  function digits(t) { var m = String(t || "").replace(/[۰-۹]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); }).match(/\d+/); return m ? +m[0] : ""; }
+  function advParams() {
+    var q = {}, d = ADV.deal || "";
+    if (d === "presale") { q.deal = "sale"; q.presale = 1; } else if (d) q.deal = d;
+    ["kinds", "rooms", "amenities"].forEach(function (k) { if (ADV[k] && ADV[k].length) q[k] = ADV[k].join(","); });
+    ["min", "max", "depMax", "rentMax", "areaMin", "areaMax", "ageMax", "fresh", "settle", "opp", "drop"].forEach(function (k) { if (ADV[k]) q[k] = ADV[k]; });
+    return q;
+  }
+  function advActive() { return Object.keys(advParams()).filter(function (k) { return k !== "presale"; }).length; }
+  function anyFilter() { var r = FM.region; return !!(r.province || r.city || r.district || advActive()); }
+  function queryOf(extra) {
+    var r = FM.region, q = Object.assign({ province: r.province, city: r.city, district: r.district }, advParams(), extra || {});
+    Object.keys(q).forEach(function (k) { if (q[k] === "" || q[k] == null) delete q[k]; });
+    return q;
+  }
+  function searchUrl() {
+    var q = queryOf({ sort: "score" });
+    return "/app.html#/s?" + Object.keys(q).map(function (k) { return k + "=" + encodeURIComponent(q[k]); }).join("&");
+  }
+  if (advPanel && advToggle) {
+    advToggle.addEventListener("click", function () {
+      var open = advPanel.hidden;
+      advPanel.hidden = !open; advToggle.setAttribute("aria-expanded", open); advToggle.classList.toggle("is-open", open);
+      if (window.ScrollTrigger) setTimeout(function () { ScrollTrigger.refresh(); }, 50);
+    });
+    var tmr = null;
+    var later = function () { clearTimeout(tmr); tmr = setTimeout(refresh, 350); };
+    advPanel.addEventListener("click", function (e) {
+      var b = e.target.closest(".advf__chips button"); if (!b) return;
+      var box = b.parentNode, k = box.dataset.adv, v = b.dataset.v;
+      if (box.hasAttribute("data-one")) {
+        ADV[k] = v;
+        box.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+        if (k === "deal") {
+          var rent = v === "rent";
+          document.getElementById("advRent").hidden = !rent;
+          document.getElementById("advPriceH").textContent = rent ? "رهن کامل (تومان)" : v === "daily" ? "اجارهٔ هر شب (تومان)" : "بودجه (تومان)";
+        }
+      } else if (k === "drop") {
+        ADV.drop = ADV.drop ? "" : 1; b.classList.toggle("is-on", !!ADV.drop);
+      } else {
+        var arr = ADV[k] = ADV[k] || [], i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1); else arr.push(v);
+        b.classList.toggle("is-on", i < 0);
+      }
+      later();
+    });
+    [["advMin", "min", toNum], ["advMax", "max", toNum], ["advDep", "depMax", toNum], ["advRentMax", "rentMax", toNum],
+     ["advAMin", "areaMin", digits], ["advAMax", "areaMax", digits]].forEach(function (x) {
+      var el = document.getElementById(x[0]);
+      if (el) el.addEventListener("input", function () { ADV[x[1]] = x[2](el.value); later(); });
+    });
+    document.getElementById("advClear").addEventListener("click", function () {
+      ADV = {};
+      advPanel.querySelectorAll(".advf__chips button").forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === "" ); });
+      advPanel.querySelectorAll("input").forEach(function (x) { x.value = ""; });
+      document.getElementById("advRent").hidden = true; document.getElementById("advPriceH").textContent = "بودجه (تومان)";
+      refresh();
+    });
+    document.getElementById("advDone").addEventListener("click", function () {
+      var g = document.getElementById("gallery");
+      if (g) (FM.scrollToEl ? FM.scrollToEl(g, { offset: -80 }) : g.scrollIntoView({ behavior: "smooth" }));
+    });
+  }
+
   function refresh() {
-    var r = FM.region, my = ++seq;
+    var my = ++seq;
     if (allBtn) allBtn.href = searchUrl();
-    if (!(r.province || r.city || r.district) || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); return; }
+    var n = advActive();
+    if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
+    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); renderHunts(bootHunts()); return; }
     statusEl.textContent = "در حال جست‌وجو…";
-    FM.api.search({ province: r.province, city: r.city, district: r.district, ranked: 1, sort: "score", limit: 30 }).then(function (res) {
+    var scoredOnly = !ADV.deal || ADV.deal === "sale" || ADV.deal === "presale";
+    FM.api.search(queryOf({ ranked: scoredOnly ? 1 : "", sort: "score", limit: 30, imgs: 1 })).then(function (res) {
       if (my !== seq) return;
       current = (res.items || []).map(FM.mapListing);
       current.total = res.total || current.length;
+      current.locked = res.locked_more || 0;
       applyFilterUI(); renderMasonry(true);
     }).catch(function () { if (my === seq) statusEl.textContent = "ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید."; });
+    /* شکارهای بازار هم با همین فیلتر: فقط فرصت‌ها، بیشترین فاصله با برآورد بازار */
+    FM.api.search(queryOf({ opp: 1, sort: "deal", limit: 12, imgs: 1 })).then(function (res) {
+      if (my === seq) renderHunts((res.items || []).map(FM.mapListing));
+    }).catch(function () {});
   }
 
   function matchesRegion(p) {
@@ -73,10 +150,10 @@
 
   function applyFilterUI() {
     if (!hasFilters) return;
-    var label = FM.regionLabel(FM.region);
-    var any = FM.region.province || FM.region.city || FM.region.district;
-    statusEl.innerHTML = any ? "گالری محدود به <b>" + label + "</b>" : "نمایش همهٔ املاک ویترین";
-    btnReset.hidden = !any;
+    var label = FM.regionLabel(FM.region) || "همهٔ مناطق";
+    var reg = FM.region.province || FM.region.city || FM.region.district, any = anyFilter();
+    statusEl.innerHTML = any ? "گالری و شکارهای بازار با فیلتر <b>" + E(label) + "</b>" + (advActive() ? " + " + FM.fa(advActive()) + " فیلتر پیشرفته" : "") : "نمایش همهٔ املاک ویترین";
+    btnReset.hidden = !reg;
     if (allCount) allCount.textContent = any ? "همهٔ آگهی‌های " + label + " با فیلتر کامل" : "جست‌وجوی کامل با فیلتر و نقشه";
     if (allBtn) allBtn.querySelector("b").textContent = any ? "مشاهدهٔ همه در جست‌وجوی فرصت‌ها" : "جست‌وجوی همهٔ فرصت‌ها";
   }
@@ -157,11 +234,11 @@
   function renderMasonry(animate) {
     if (!wrap || !cols.length) return;
     var items = current;
-    var limited = FM.region.province || FM.region.city || FM.region.district;
+    var limited = anyFilter();
     if (limited) {
       statusEl.innerHTML = items.length
-        ? "بهترین‌های <b>" + E(FM.regionLabel(FM.region)) + "</b> بر پایهٔ امتیاز فرصت" + (current.total > items.length ? "؛ " + FM.fa(current.total) + " آگهی سنجیده‌شده" : "")
-        : "در <b>" + E(FM.regionLabel(FM.region)) + "</b> هنوز آگهی سنجیده‌شده‌ای نداریم.";
+        ? "بهترین‌های <b>" + E(FM.regionLabel(FM.region) || "همهٔ مناطق") + "</b> با این فیلترها" + (current.total > items.length ? "؛ " + FM.fa(current.total) + " آگهی پیدا شد" : "") + (current.locked ? " — بقیه با اشتراک در جست‌وجوی کامل" : "")
+        : "با این فیلترها آگهی سنجیده‌شده‌ای پیدا نشد؛ فیلترها را کمتر کنید.";
     } else {
       statusEl.innerHTML = items.length ? "بهترین فرصت‌های امروز بر پایهٔ امتیاز فرصت" : "هنوز آگهی سنجیده‌شده‌ای نداریم.";
     }
@@ -207,14 +284,19 @@
   /* ---------- اسکرول افقی: فرصت‌های واقعی زیر برآورد بازار ---------- */
   var hpin = document.querySelector("[data-hscroll-pin]");
   var htrack = document.querySelector("[data-hscroll-track]");
-  var hunts = (FM.data.properties || []).filter(function (p) { return p.label === "gold" || p.label === "good"; }).slice(0, 8);
-  if (htrack) {
-    htrack.innerHTML = hunts.map(function (p) {
+  function bootHunts() { return (FM.data.properties || []).filter(function (p) { return p.label === "gold" || p.label === "good"; }).slice(0, 8); }
+  function renderHunts(hunts) {
+    if (!htrack) return;
+    htrack.innerHTML = hunts.length ? hunts.map(function (p) {
       return '<a class="hcard" href="' + FM.propUrl(p.id) + '"><img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
         (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.diffText || p.tag) + "</small></figcaption></a>";
-    }).join("");
-    if (hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) hs.hidden = true; hpin = null; }
+    }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً شکاری (فروش زیر برآورد بازار) پیدا نشد.</p>';
+    var hs = document.querySelector("[data-hscroll]"); if (hs && hunts.length) hs.hidden = false;
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
   }
+  var hunts = bootHunts();
+  renderHunts(hunts);
+  if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = true; hs.classList.add("is-static"); } hpin = null; }
   if (hpin && htrack && !FM.lite && !matchMedia("(max-width: 860px)").matches) {
     /* ورود از راست: کل تراک ابتدا بیرونِ لبهٔ راست است و با اسکرول تا fit کامل در صفحه می‌آید */
     gsap.fromTo(htrack,

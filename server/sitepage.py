@@ -101,10 +101,10 @@ def _common(app):
 def _top(handler):
     """برترین فرصت‌ها برای ویترین و گالری؛ ترجیحاً با عکس."""
     app = handler.app
-    top = app.store.search({"opp": 1, "sort": "score", "limit": 40})["items"]
+    top = app.store.search({"opp": 1, "sort": "score", "limit": 40, "imgs": 1})["items"]
     if len(top) < 24:  # فرصت کم است: بهترین‌های سنجیده‌شده (نه مشکوک) هم می‌آیند
         seen = {x["id"] for x in top}
-        top += [x for x in app.store.search({"ranked": 1, "sort": "score", "limit": 40})["items"] if x["id"] not in seen][: 24 - len(top)]
+        top += [x for x in app.store.search({"ranked": 1, "sort": "score", "limit": 40, "imgs": 1})["items"] if x["id"] not in seen][: 24 - len(top)]
     top.sort(key=lambda x: (not (x.get("images") or x.get("image")),))   # با عکس‌ها جلوتر (ترتیب امتیاز حفظ می‌شود)
     return [_trim(handler.gate(dict(x), None)) for x in top[:24]]
 

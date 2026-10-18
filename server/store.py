@@ -321,7 +321,7 @@ class Store:
         points = [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score,label FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
         for d in items:
             d.pop("description", None)
-            d["images"] = d["images"][:1]
+            d["images"] = d["images"][:8 if f.get("imgs") else 1]   # imgs=1: عکس‌های بیشتر برای نمایش چرخشی گالری
         return {"total": total, "items": items, "points": points}
 
     # ---------------------------------------------------------- stats
