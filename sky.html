@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>قیمت از دید آسمان | فرصت ملک</title>
+  <meta name="description" content="کرهٔ زندهٔ بازار ملک ایران؛ استان و شهر را انتخاب کنید و نقشهٔ قیمت محله‌ها را دقیقاً زیر کره ببینید." />
+  <meta name="theme-color" content="#070c09" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta property="og:title" content="قیمت از دید آسمان | فرصت ملک" />
+  <meta property="og:description" content="کرهٔ زندهٔ بازار ملک ایران؛ استان و شهر را انتخاب کنید و نقشهٔ قیمت محله‌ها را ببینید." />
+  <meta property="og:image" content="/assets/img/og.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="fa_IR" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("fmTheme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/assets/site/css/main.css?v=51" />
+  <link rel="stylesheet" href="/assets/site/css/pages.css?v=51" />
+  <link rel="stylesheet" href="/assets/site/css/account.css?v=51" />
+  <!--FM_BOOT-->
+</head>
+<body data-page="sky">
+
+  <button class="totop" id="toTop" type="button" aria-label="بازگشت به ابتدا" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+  </button>
+  <div class="scroll-progress" aria-hidden="true"><i id="scrollBar"></i></div>
+
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a class="nav__brand" href="/" aria-label="فرصت ملک">
+        <span class="logo-badge">
+          <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="10" r="5" fill="#e0531f"/>
+          </svg>
+        </span>
+        <span class="nav__txt"><b>فرصت ملک</b><small>قیمت از دید آسمان</small></span>
+      </a>
+      <nav class="nav__links" aria-label="ناوبری">
+        <a href="/">خانه</a>
+        <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+        <a href="/app.html#/market">بازار محله‌ها</a>
+        <a href="/sky.html">قیمت از دید آسمان</a>
+        <a href="/app.html#/support" class="nav__ticket">ثبت تیکت</a>
+      </nav>
+      <div class="nav__act">
+        <button class="nav__iconbtn" id="themeBtn" type="button" aria-label="تغییر حالت روشن/تیره">
+          <svg class="theme-ico--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+          <svg class="theme-ico--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="btn btn--gold nav__cta" id="accountBtn" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- سرصفحهٔ سورئال -->
+    <section class="sky-hero">
+      <div class="sky-hero__stars" aria-hidden="true"></div>
+      <div class="sky-hero__inner">
+        <p class="eyebrow is-center" data-reveal>سفر داده‌ای فرصت ملک</p>
+        <h1 class="sky-hero__title" data-reveal>قیمت از دید <em>آسمان</em></h1>
+        <p class="sky-hero__sub" data-reveal>کرهٔ زندهٔ بازار ایران را تماشا کنید؛ استان، شهر و محله را انتخاب کنید تا هم کره و هم نقشهٔ زیر آن، همان لحظه به منطقهٔ شما نزدیک شود.</p>
+      </div>
+    </section>
+
+    <!-- فیلترها: بالای کره و نقشه -->
+    <section class="sky-filterbar">
+      <div class="searchbar" role="group" aria-label="فیلتر منطقه">
+        <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
+        <i class="searchbar__arrow" aria-hidden="true">←</i>
+        <label class="searchbar__field"><span>شهر</span><select id="fCity" disabled><option value="">همهٔ شهرها</option></select></label>
+        <i class="searchbar__arrow" aria-hidden="true">←</i>
+        <label class="searchbar__field"><span>محله</span><select id="fDistrict" disabled><option value="">همهٔ محله‌ها</option></select></label>
+        <button class="searchbar__reset" id="fReset" type="button" hidden>پاک‌کردن ✕</button>
+      </div>
+      <p class="sky-status" id="skyStatus" aria-live="polite">نمایش همهٔ مناطق تحت پوشش</p>
+    </section>
+
+    <!-- کرهٔ زنده -->
+    <section class="globe3d" data-globe>
+      <div class="globe3d__halo" aria-hidden="true"></div>
+      <canvas class="globe3d__canvas" id="globeCanvas" aria-label="کرهٔ زندهٔ بازار ملک ایران"></canvas>
+      <div class="globe3d__label" id="globeLabel">ایران — نمای کل</div>
+      <p class="globe3d__hint">برای توقف چرخش، ماوس را روی کره نگه دارید</p>
+    </section>
+
+    <!-- نقشهٔ محله‌ها: دقیقاً زیر کره، هماهنگ با فیلتر -->
+    <section class="skymap" data-skymap>
+      <div class="skymap__head">
+        <p class="eyebrow" data-reveal>همان منطقه، از نزدیک‌تر</p>
+        <h2 class="section-title" data-reveal>بازار <span id="mapScope">ایران</span> از دید آسمان</h2>
+        <p class="section-sub" data-reveal>هر پین یک محله است و عدد روی آن میانهٔ قیمت هر متر آگهی‌های فعلی همان محله (میلیون تومان). تصویر زمینه نمادین است و جای پین‌ها موقعیت جغرافیایی دقیق نیست؛ <a href="/app.html#/market" class="link-gold">نقشهٔ دقیق محله‌ها</a>.</p>
+      </div>
+      <div class="skymap__stage" data-map-stage>
+        <figure class="skymap__frame">
+          <img src="/assets/img/rebuild/market-map-v17.webp" alt="نقشه داده‌ای بازار محله‌ها" data-map-img />
+          <div class="skymap__beam" aria-hidden="true"></div>
+        </figure>
+        <div class="skymap__pins" data-map-pins aria-hidden="true"></div>
+        <div class="skymap__legend" aria-hidden="true">
+          <span><i class="is-gold"></i>داغ — گران‌ترین</span>
+          <span><i></i>میانه</span>
+        </div>
+      </div>
+      <div class="skymap__stats" data-map-stats></div>
+    </section>
+
+    <!-- کارت‌های محله‌های نمای فعلی -->
+    <h3 class="skycards-title" data-reveal>محله‌های همین نما</h3>
+    <div class="skycards" data-skycards></div>
+
+    <!-- فراخوان -->
+    <section class="skymap__cta">
+      <a class="btn btn--gold btn--lg" href="/app.html#/s?opp=1" data-sky-cta><span class="btn__label" data-flip><span>دیدن فرصت‌های این منطقه‌ها</span><span aria-hidden="true">دیدن فرصت‌های این منطقه‌ها</span></span></a>
+    </section>
+  </main>
+
+  <footer class="foot foot--mini">
+    <div class="foot__legal" style="border:0">
+      <span>© فرصت ملک — قیمت‌ها میانهٔ آگهی‌های فعلی هر محله است، نه قیمت قطعی معامله.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/vendor/fx/gsap.min.js"></script>
+  <script src="/assets/vendor/fx/ScrollTrigger.min.js"></script>
+  <script src="/assets/vendor/fx/lenis.min.js"></script>
+  <script src="/assets/site/js/api.js?v=51"></script>
+  <script src="/assets/site/js/data.js?v=51"></script>
+  <script src="/assets/site/js/app.js?v=51"></script>
+  <script src="/assets/site/js/sky.js?v=51"></script>
+  <script src="/assets/site/js/account.js?v=51"></script>
+</body>
+</html>

@@ -186,7 +186,7 @@ def run(mode):
         sm = raw("/sitemap.xml")[1]
         check("/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
         hs0, hh0 = raw("/")
-        vs = re.findall(r'assets/(?:css|js)/[a-z]+\.(?:css|js)\?v=([^"]+)"', hh0)
+        vs = re.findall(r'assets/(?:site/)?(?:css|js)/[a-z]+\.(?:css|js)\?v=([^"]+)"', hh0)
         check(len(vs) >= 6 and len(set(vs)) == 1 and not vs[0].startswith("20261009"), f"[{mode}] همهٔ فایل‌های css و js با نسخهٔ واقعی (شکستن کش): {sorted(set(vs))}")
         cs, ch = raw("/melk/rasht")
         check(cs == 200 and "<title>قیمت روز ملک در رشت" in ch and 'rel="canonical"' in ch and 'src="/assets/js/app.js' in ch and "/ad/" in ch, f"[{mode}] صفحهٔ سئوی شهر رشت")

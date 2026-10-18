@@ -42,7 +42,9 @@ threading.Thread(target=srv.serve_forever, daemon=True).start()
 os.environ["ARA_BEZAN_API"] = f"http://127.0.0.1:{srv.server_port}/api/v1"
 os.environ["ARA_PROXY"] = "none"
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "server"))
+import billing  # noqa: E402
 from billing import Billing  # noqa: E402
+billing.BEZAN_API = os.environ["ARA_BEZAN_API"]   # اگر billing پیش‌تر (در pytest) بارگذاری شده باشد
 from store import Store  # noqa: E402
 
 

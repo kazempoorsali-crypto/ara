@@ -3104,12 +3104,14 @@ const App = (() => {
   /* ---------- رویدادهای سراسری ---------- */
   function applyTheme(t) {
     if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    try { localStorage.setItem("fmTheme", t === "dark" ? "dark" : "light"); } catch (e) { /* حالت خصوصی */ }
     const isDark = document.documentElement.dataset.theme === "dark";
     const btn = $("#themeBtn") || document.querySelector(".theme-btn, [data-theme-btn]");
     if (btn) {
       btn.innerHTML = isDark ? UI.icon("moon") : UI.icon("sun");
       btn.setAttribute("title", isDark ? "حالت روشن" : "حالت تاریک");
     }
+    // کادر زنده با تم عوض می‌شود (کرهٔ روز یا شب)
     if (live && live.globe && $("#sky")) { const o = live.opts, sel = live.sel; initLive(DataLayer.stats, { ...o, sel: sel ? { cities: sel.ids } : o.sel }); }
   }
   /* ---------- انیمیشن ورود تدریجی و تعاملات بصری (مشکل ۳) ---------- */

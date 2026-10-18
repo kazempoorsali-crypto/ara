@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ملک | فرصت ملک</title>
+  <meta name="description" content="جزئیات کامل ملک، تحلیل قیمت در برابر ارزش منصفانهٔ محله و گالری تصاویر." />
+  <meta name="theme-color" content="#0b120e" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta property="og:title" content="جزئیات ملک | فرصت ملک" />
+  <meta property="og:description" content="تحلیل قیمت در برابر ارزش منصفانهٔ محله، گالری تصاویر و برآورد شفاف." />
+  <meta property="og:image" content="/assets/img/og.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="fa_IR" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("fmTheme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/assets/site/css/main.css?v=51" />
+  <link rel="stylesheet" href="/assets/site/css/pages.css?v=51" />
+  <link rel="stylesheet" href="/assets/site/css/account.css?v=51" />
+  <!--FM_BOOT-->
+</head>
+<body data-page="property">
+
+  <div class="scroll-progress" aria-hidden="true"><i id="scrollBar"></i></div>
+
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a class="nav__brand" href="/" aria-label="فرصت ملک">
+        <span class="logo-badge">
+          <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="10" r="5" fill="#e0531f"/>
+          </svg>
+        </span>
+        <span class="nav__txt"><b>فرصت ملک</b><small>تحلیل قیمت ملک</small></span>
+      </a>
+      <nav class="nav__links" aria-label="ناوبری">
+        <a href="/">خانه</a>
+        <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+        <a href="/app.html#/market">بازار محله‌ها</a>
+        <a href="/sky.html">قیمت از دید آسمان</a>
+        <a href="/app.html#/support" class="nav__ticket">ثبت تیکت</a>
+      </nav>
+      <div class="nav__act">
+        <button class="nav__iconbtn" id="themeBtn" type="button" aria-label="تغییر حالت روشن/تیره">
+          <svg class="theme-ico--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+          <svg class="theme-ico--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="btn btn--gold nav__cta" id="accountBtn" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="phero">
+      <div class="phero__inner">
+           
+        <div class="pinfo">
+          <a class="pback" href="/#golden">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            بازگشت به ویترین فرصت‌ها
+          </a>
+          <div class="pinfo__top">
+            <div>
+              <h1 data-ptitle>—</h1>
+              <p class="pinfo__loc" data-ploc>—</p>
+            </div>
+            <div class="pshare">
+              <button class="sharebtn" id="pShare" type="button">اشتراک‌گذاری<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg></button>
+              <button class="sharebtn" id="pSave" type="button">ذخیره ♡</button>
+            </div>
+          </div>
+
+          <div class="pscore">
+            <div class="pscore__ring" data-pscore style="--sp:0"><span>۰</span></div>
+            <div class="pscore__txt">
+              <b data-pscore-label>امتیاز فرصت</b>
+              <small data-pscore-desc>—</small>
+            </div>
+          </div>
+
+          <div class="pprice">
+            <b data-pprice>—</b>
+            <span class="st-text" data-pdiff>—</span>
+          </div>
+
+          <div class="pspecs">
+            <div><b data-parea>—</b><small>متراژ</small></div>
+            <div><b data-prooms>—</b><small>خواب</small></div>
+            <div><b data-pyear>—</b><small>سال ساخت</small></div>
+            <div><b data-pfloor>—</b><small>طبقه</small></div>
+          </div>
+
+          <p class="pdesc" data-pdesc>—</p>
+          <div class="pfeatures" data-pfeatures></div>
+        </div>
+     
+        <div class="pgallery" data-gallery>
+          <div class="pgallery__main" data-pmain>
+            <span class="ink-bp" aria-hidden="true"><img data-inkbp src="" alt=""><i class="ink-grid"></i></span>
+            <svg class="pgallery__ink" viewBox="0 0 1000 625" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <mask id="inkMaskP" maskContentUnits="userSpaceOnUse">
+                  <path class="ink-path-p" fill="#fff" style="filter:url(#inkDispP)" d="M 0 30 Q 500 55 1000 20 L 1000 0 L 0 0 Z" data-final="M 0 700 Q 500 880 1000 700 L 1000 0 L 0 0 Z"/>
+                </mask>
+                <filter id="inkDispP" x="-20%" y="-20%" width="140%" height="140%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.045 0.055" numOctaves="4" seed="7" result="noise"/>
+                  <feDisplacementMap in="SourceGraphic" in2="noise" scale="50" xChannelSelector="R" yChannelSelector="G"/>
+                  <feGaussianBlur stdDeviation="1.5" result="bl"/>
+                  <feComponentTransfer in="bl" result="ct"><feFuncA type="linear" slope="2.2" intercept="-0.6"/></feComponentTransfer>
+                </filter>
+              </defs>
+              <image data-inkimg href="" x="0" y="0" width="1000" height="625" preserveAspectRatio="xMidYMid slice" mask="url(#inkMaskP)"/>
+            </svg>
+            <img data-main-img src="" alt="تصویر ملک" />
+            <span class="pgallery__badge" data-pbadge>فرصت طلایی</span>
+          </div>
+          <div class="pgallery__thumbs" data-pthumbs></div>
+        </div>
+     
+
+        <!-- زیر عکس: تحلیل و منبع -->
+        <div class="pgallery__side">
+          <div class="pnb">
+          <div class="pnb__head">
+            <i>◍</i>
+            <div><b data-pnb-name>محله</b><small>میانهٔ قیمت هر متر آگهی‌های فعلی</small></div>
+            <a href="/sky.html" class="pnb__link">دیدن روی نقشه</a>
+          </div>
+          <div class="pnb__stats">
+            <div><b data-pnb-price>—</b><small>هر متر (م.ت)</small></div>
+            <div><b data-pnb-trend>—</b><small>آگهی سنجیده‌شده</small></div>
+            <div><b data-pnb-rank>—</b><small>رتبه در شهر</small></div>
+          </div>
+        </div>
+     
+
+                <div class="psource">
+        <p data-psource-note>این صفحه تحلیل فرصت ملک است؛ اطلاعات نهایی و تماس با فروشنده در آگهی اصلی است.</p>
+        <a class="btn btn--gold" href="#" data-psource rel="noopener"><span class="btn__label" data-flip><span data-psource-txt>مشاهدهٔ آگهی اصلی</span><span aria-hidden="true" data-psource-txt2>مشاهدهٔ آگهی اصلی</span></span></a>
+       </div>
+        </div>
+     
+        <div class="ptrend phero__trend" hidden>
+          <h3>روند برآورد بازارِ محله (۱۲ ماه اخیر)</h3>
+          <svg class="ptrend__chart" viewBox="0 0 560 140" preserveAspectRatio="none" aria-hidden="true">
+            <path class="ptrend__area" data-trend-area d="" fill="currentColor" opacity=".14"/>
+            <path class="ptrend__line" data-trend-line d="" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <div class="ptrend__meta"><span data-trend-start>—</span><b data-trend-growth>—</b><span data-trend-end>—</span></div>
+        </div>
+
+     </div>
+    </section>
+
+    <!-- جزئیات کامل: مشخصات، روند قیمت، محله، تحلیل، منبع -->
+    <section class="pdetails">
+      
+      <div class="pdetails__grid">
+        
+        <div class="panalysis">
+          <h3>تحلیل قیمت در برابر محله</h3>
+          <div class="pbar-row"><small>قیمت آگهی هر متر</small><b data-pb1v>—</b><span class="pbar"><i data-pb1></i></span></div>
+          <div class="pbar-row"><small>میانهٔ هر متر محله</small><b data-pb2v>—</b><span class="pbar"><i data-pb2 style="--st:#20976A"></i></span></div>
+          <div class="pbar-row" data-pb3row><small>برآورد بازار برای همین ملک</small><b data-pb3v>—</b><span class="pbar"><i data-pb3 style="--st:#E59B32"></i></span></div>
+          
+          <div class="pgauge">
+            <div class="pgauge__track"><i class="pgauge__avg" data-gavg></i><i class="pgauge__dot" data-gdot><b></b></i></div>
+            <div class="pgauge__legend">
+              <span>چارک پایین<b data-gmin>—</b></span>
+              <span>میانهٔ محله<b data-gavgv>—</b></span>
+              <span>چارک بالا<b data-gmax>—</b></span>
+            </div>
+          </div>
+          <p class="panalysis__note">«برآورد بازار» برآورد آماری فرصت ملک از آگهی‌های مشابه همین محله است، نه قیمت قطعی معامله؛ پیش از معامله بازدید حضوری و استعلام سند الزامی است.</p>
+        </div>
+
+    
+        
+        <div class="ptrend pchart" data-pchart hidden>
+          <h3>تاریخچهٔ قیمت این آگهی</h3>
+          <svg class="ptrend__chart" viewBox="0 0 560 150" preserveAspectRatio="none" aria-hidden="true">
+            <path class="ptrend__area" data-hist-area d="" fill="currentColor" opacity=".12"/>
+            <path class="ptrend__line" data-hist-line d="" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <g data-hist-dots></g>
+          </svg>
+          <div class="pchart__events" data-hist-events></div>
+        </div>
+
+        <table class="ptable" data-ptable>
+          <caption>مشخصات تفصیلی</caption>
+          <tbody><!-- با JS --></tbody>
+        </table>
+
+        
+      </div>
+    </section>
+
+    <section class="prelated">
+      <h3 data-prelated-title>آگهی‌های مشابه همین محله</h3>
+      <div class="prelated__row" data-prelated></div>
+    </section>
+  </main>
+
+  <footer class="foot foot--mini">
+    <div class="foot__legal" style="border:0">
+      <span>© فرصت ملک — تحلیل آماری آگهی‌های عمومی؛ اطلاعات نهایی در آگهی اصلی است.</span>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="نمایش تصویر با بزرگ‌نمایی">
+    <button class="lightbox__close" id="lightboxClose" type="button" aria-label="بستن">✕</button>
+    <img id="lightboxImg" src="" alt="نمای بزرگ‌شدهٔ ملک" />
+    <span class="lightbox__hint">برای بزرگ‌نمایی روی تصویر کلیک کنید</span>
+  </div>
+
+  <script src="/assets/vendor/fx/gsap.min.js"></script>
+  <script src="/assets/vendor/fx/ScrollTrigger.min.js"></script>
+  <script src="/assets/vendor/fx/lenis.min.js"></script>
+  <script src="/assets/site/js/api.js?v=51"></script>
+  <script src="/assets/site/js/data.js?v=51"></script>
+  <script src="/assets/site/js/property.js?v=51"></script>
+  <script src="/assets/site/js/account.js?v=51"></script>
+</body>
+</html>

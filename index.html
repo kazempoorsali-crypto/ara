@@ -1,164 +1,493 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>فرصت ملک | ارزش واقعی ملک، محله به محله</title>
-  <meta name="description" content="آگهی‌های ملک ایران، شهر به شهر و محله به محله، با قیمت منصفانهٔ هر محله سنجیده و رتبه‌بندی می‌شوند؛ فرصت‌های ملک، آپارتمان، ویلا و زمین برای خرید و اجاره را پیش از بقیه پیدا کنید." />
-  <meta name="theme-color" content="#13201c" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/img/icon-180.png" />
-  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="description" content="هر ملک یک قیمت دارد؛ ما ارزش واقعی آن را پیدا می‌کنیم. تجربه‌ای سینمایی از بازار ملک ایران." />
+  <meta name="theme-color" content="#0c1712" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <!--FM_BOOT-->
   <script>
-    /* طراحی (پیش‌نمایش ?design=new فقط در همین مرورگر) و حالت سبک برای سیستم‌های ضعیف، پیش از نقاشی صفحه */
     (function () {
-      var r = document.documentElement, d = null, q = new URLSearchParams(location.search).get("design");
-      try { if (q === "new" || q === "classic") localStorage.setItem("fmDesign", q); d = localStorage.getItem("fmDesign"); } catch (e) { d = q; }
-      if (d === "new") r.setAttribute("data-design", "new"); else if (d === "classic") r.removeAttribute("data-design");
-      var n = navigator, c = n.connection || {};
-      if ((n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || c.saveData || /(^|-)2g/.test(c.effectiveType || "") ||
-          matchMedia("(prefers-reduced-motion: reduce)").matches) r.classList.add("lite");
-      // نقشهٔ کرهٔ صفحهٔ اصلی (روز یا شب، بسته به تم) از همان ابتدا بارگذاری می‌شود تا کره سریع‌تر ظاهر شود
-      if (location.pathname === "/" && (!location.hash || location.hash === "#/")) {
-        var dark = false; try { dark = JSON.parse(localStorage.getItem("ara:theme_v2") || '"light"') === "dark"; } catch (e) {}
-        var webp = false; try { webp = document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0; } catch (e) {}
-        var tone = dark ? "night" : "day", ext = webp ? ".webp" : ".jpg", small = innerWidth < 760 || r.classList.contains("lite");
-        var pre = function (href, cors) { var l = document.createElement("link"); l.rel = "preload"; l.as = "image"; if (cors) l.crossOrigin = "anonymous"; l.href = href; document.head.appendChild(l); };
-        pre("/assets/vendor/globe/earth-" + tone + "-1024" + ext, false);   // تصویر آنی کره
-        pre("/assets/vendor/globe/earth-" + tone + (small && webp ? "-2048.webp" : ext), true);
+      // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
+      var h = location.hash, m;
+      if (/^#\//.test(h) && h !== "#/") {
+        if ((m = h.match(/^#\/ad\/([^?]+)/))) { location.replace("/property.html?id=" + m[1]); return; }
+        if ((m = h.match(/^#\/invoice\/([^?]+)/))) { location.replace("/account.html?invoice=" + m[1]); return; }
+        if (/^#\/(account|reset)/.test(h)) { location.replace("/account.html" + (h.indexOf("?") > -1 ? h.slice(h.indexOf("?")) : "")); return; }
+        location.replace("/app.html" + h); return;
       }
+      try { history.scrollRestoration = "manual"; } catch (e) {}
+      var t = null;
+      try { t = localStorage.getItem("fmTheme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", t);
     })();
   </script>
-  <link rel="preload" href="assets/vendor/vazirmatn/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/style.css" />
-  <link rel="stylesheet" href="assets/css/cine.css" />
-  <link rel="stylesheet" href="assets/css/v2.css" />
+  <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/assets/site/css/main.css?v=51" />
+  <link rel="stylesheet" href="/assets/site/css/account.css?v=51" />
 </head>
-<body>
-  <nav class="dock" aria-label="ناوبری سریع">
-    <a href="#/" data-dock="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>خانه</span></a>
-    <a href="#/s?sort=score&opp=1" data-dock="s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-6 4 3 7-8"/><path d="M15 6h5v5"/></svg><span>فرصت‌ها</span></a>
-    <a href="#/market" data-dock="market"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>بازار</span></a>
-    <a href="#/saved" data-dock="saved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.6-9.4-9.4C1.4 7.9 3.5 4.5 7 4.5c2 0 3.4 1 5 3 1.6-2 3-3 5-3 3.5 0 5.6 3.4 4.4 6.6-1.8 4.8-9.4 9.4-9.4 9.4z"/></svg><span>ذخیره</span></a>
-    <a href="#/account" data-dock="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>حساب</span></a>
-  </nav>
-  <div id="demoBar" class="demo-bar" hidden></div>
+<body data-page="home">
 
-  <header class="top" id="top">
-    <div class="wrap top__in">
-      <a class="brand" href="#/" aria-label="صفحه اصلی">
-        <svg class="brand__mark" viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#2c6a55" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-          <path d="M10 25l13-13 13 13" stroke="currentColor" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="39" cy="10" r="4.2" fill="#e0531f"/>
-        </svg>
-        <span class="brand__txt"><b data-site="name">فرصت ملک</b><small data-site="tagline">ارزش واقعی ملک، محله به محله</small></span>
+  <!-- ══════════ Intro: طلوع خورشید و ساخته‌شدن ساختمان ══════════ -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro__sun-track"><div class="intro__sun" data-intro-sun></div></div>
+    <svg class="intro__build" viewBox="0 0 320 340" fill="none" aria-hidden="true">
+      <g class="ib-strokes" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path class="ib-s" data-s="roof" d="M60 150 160 70l100 80"/>
+        <path class="ib-s" data-s="body" d="M80 150v160h160V150"/>
+        <path class="ib-s" data-s="win1" d="M100 180h36v32h-36zM142 180h36v32h-36zM184 180h36v32h-36z"/>
+        <path class="ib-s" data-s="win2" d="M100 232h36v32h-36zM142 232h36v32h-36zM184 232h36v32h-36z"/>
+        <path class="ib-s" data-s="win3" d="M142 284h36v26h-36z"/>
+      </g>
+      <g class="ib-fill">
+        <rect class="ib-f" data-f="f3" x="80" y="150" width="160" height="52" rx="3"/>
+        <rect class="ib-f" data-f="f2" x="80" y="206" width="160" height="52" rx="3"/>
+        <rect class="ib-f" data-f="f1" x="80" y="258" width="160" height="52" rx="3"/>
+      </g>
+    </svg>
+    <div class="intro__brand" data-intro-brand>
+      <span class="intro__word">فرصت ملک</span>
+      <small>ارزش واقعی ملک، محله به محله</small>
+    </div>
+    <div class="intro__bar"><i id="introBar"></i></div>
+    <button class="intro__skip" id="introSkip" type="button">رد کردن</button>
+  </div>
+
+  <!-- بازگشت به ابتدا -->
+  <button class="totop" id="toTop" type="button" aria-label="بازگشت به ابتدای صفحه" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+  </button>
+
+  <div class="scroll-progress" aria-hidden="true"><i id="scrollBar"></i></div>
+
+  <!-- ══════════ ناوبری ══════════ -->
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a class="nav__brand" href="#hero" data-scroll-to aria-label="فرصت ملک">
+        <span class="logo-badge">
+          <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="10" r="5" fill="#e0531f"/>
+          </svg>
+        </span>
+        <span class="nav__txt"><b>فرصت ملک</b><small>ارزش واقعی ملک</small></span>
       </a>
-      <nav class="nav" aria-label="ناوبری اصلی">
-        <a href="#/s?sort=score&opp=1" data-nav="top">فرصت‌ها</a>
-        <a href="#/s?deal=sale" data-nav="estate-sale">خرید</a>
-        <a href="#/s?deal=sale&presale=1&sort=score" data-nav="estate-presale">پیش‌فروش</a>
-        <a href="#/s?deal=rent" data-nav="estate-rent">رهن و اجاره</a>
-        <a href="#/s?deal=daily" data-nav="estate-daily">اقامت روزانه</a>
-        <a href="#/market" data-nav="market">بازار محله‌ها</a>
-        <a href="#/method" data-nav="method">روش ارزش‌گذاری</a>
-        <a href="#/support" data-nav="support" class="nav__ticket">ثبت تیکت</a>
+      <nav class="nav__links" aria-label="ناوبری">
+        <a href="#golden" data-scroll-to>ویترین فرصت‌ها</a>
+        <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+        <a href="/app.html#/market">بازار محله‌ها</a>
+        <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
+        <a href="#problem" data-scroll-to>روش ما</a>
+        <a href="/app.html#/support" class="nav__ticket">ثبت تیکت</a>
       </nav>
-      <div class="top__act">
-        <button class="icon-btn menu-btn" id="menuBtn" aria-label="منو" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <div class="nav__act">
+        <a class="btn btn--gold nav__cta" id="accountBtn" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span></a>
+        <button class="nav__iconbtn" id="themeBtn" type="button" aria-label="تغییر حالت روشن/تیره">
+          <svg class="theme-ico--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+          <svg class="theme-ico--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <a class="icon-btn" href="#/saved" aria-label="ذخیره‌شده‌ها" title="ذخیره‌شده‌ها">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.5s-7.6-4.6-9.4-9.4C1.4 7.9 3.5 4.5 7 4.5c2 0 3.4 1 5 3 1.6-2 3-3 5-3 3.5 0 5.6 3.4 4.4 6.6-1.8 4.8-9.4 9.4-9.4 9.4z"/></svg>
-          <span class="dot-count" id="favCount" hidden>0</span>
-        </a>
-        <button class="icon-btn" id="shareBtn" aria-label="اشتراک‌گذاری" title="اشتراک‌گذاری این صفحه">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        </button>
-        <button class="icon-btn" id="themeBtn" aria-label="حالت روشن یا تیره" title="حالت روشن/تیره">
-          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
-        <a class="btn btn--ink" id="accountBtn" href="#/account">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span>
-        </a>
+        <button class="nav__ham" id="menuBtn" type="button" aria-label="منو" aria-expanded="false"><i></i><i></i></button>
       </div>
     </div>
   </header>
 
-  <main id="view" tabindex="-1"></main>
-
-  <footer class="foot">
-    <div class="wrap">
-      <div class="foot__grid">
-        <div>
-          <b style="font-size:22px;font-weight:900" data-site="name">فرصت ملک</b>
-          <p class="muted" style="margin-top:8px;max-width:440px" id="footAbout">موتور هوشمند پردازش و تحلیل آماری آگهی‌های عمومی بازار مسکن. ما آگهی‌های منتشرشده در پلتفرم‌های مرجع را با الگوریتم‌های آماری پالایش و رتبه‌بندی می‌کنیم تا مناسب‌ترین فرصت‌ها شناسایی شوند و کاربران برای اطلاعات نهایی به منبع اصلی ارجاع داده می‌شوند.</p>
+  <!-- ══════════ منوی تمام‌صفحه ══════════ -->
+  <div class="menu" id="menu" aria-hidden="true" role="dialog" aria-label="منوی اصلی">
+    <div class="menu__bg"></div>
+    <div class="menu__grid">
+      <div class="menu__visual" aria-hidden="true">
+        <div class="menu__imgs-track" data-menu-track>
+          <figure class="menu__img is-1"><img src="/assets/img/cards/idea-1.jpeg" alt=""></figure>
+          <figure class="menu__img is-2"><img src="/assets/img/scene/living-1280.webp" alt=""></figure>
+          <figure class="menu__img is-3"><img src="/assets/img/cards/penthouse-view.jpg" alt=""></figure>
+          <figure class="menu__img is-4"><img src="/assets/img/cards/forest-house.jpg" alt=""></figure>
         </div>
-        <div><h4>جست‌وجو</h4><ul>
-          <li><a href="#/s?sort=score&ranked=1">فرصت‌های برتر</a></li>
-          <li><a href="#/s?deal=sale&kinds=apartment">آپارتمان</a></li>
-          <li><a href="#/s?deal=sale&kinds=villa">ویلا</a></li>
-          <li><a href="#/s?kinds=land,garden">زمین و باغ</a></li>
-          <li><a href="#/s?presale=1&deal=sale&sort=score">پیش‌فروش</a></li>
-          <li><a href="#/support">پشتیبانی و تیکت</a></li>
-          <li><a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a></li>
-          <li><a href="/maghale">مقاله‌ها و راهنماها</a></li>
-        </ul></div>
-        <div><h4>بازار</h4><ul>
-          <li><a href="#/market">بازار محله‌ها</a></li>
-          <li><a href="#/s?drop=1&sort=drop">کاهش قیمت‌ها</a></li>
-          <li><a href="#/method">روش ارزش‌گذاری</a></li>
-          <li><a href="/rahnama/pish-forosh">راهنمای پیش‌فروش</a></li>
-          <li><a href="/rahnama/melk-arzan">چطور ملک ارزان پیدا کنیم؟</a></li>
-          <li><a href="/about">دربارهٔ فرصت ملک</a></li>
-        </ul></div>
-        <div><h4>حساب و راهنما</h4><ul>
-          <li><a href="#/account">ورود و اشتراک</a></li>
-          <li><a href="#/saved">ذخیره‌شده‌ها</a></li>
-          <li><a href="#/faq">پرسش‌ها و پاسخ‌ها</a></li>
-          <li><a href="#/tools">ارزیابی ملک و ابزارها</a></li>
-        </ul></div>
-        <div id="footOwner" hidden><h4>پشتیبانی و هویت</h4><ul id="footOwnerList"></ul></div>
       </div>
-      <div class="foot__legal">
-        <span><span data-site="name">فرصت ملک</span> یک موتور مستقل پردازش و رتبه‌بندی آماری آگهی‌های عمومی املاک است. کلیه آگهی‌ها از پایگاه‌های مرجع عمومی پالایش و رتبه‌بندی می‌شوند تا بهترین فرصت‌های سرمایه‌گذاری کشف گردند؛ جهت اطلاعات تکمیلی و تماس، کاربر مستقیماً به سایت منبع اصلی هدایت می‌شود. فرصت ملک مشاور املاک نیست؛ «قیمت محله» برآورد آماری است و پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</span>
-        <span>© <span data-site="name">فرصت ملک</span> <small class="muted" id="siteVer" dir="ltr"></small></span>
+      <div class="menu__links-w">
+        <div class="menu__head">
+          <span class="logo-badge"><svg viewBox="0 0 48 48" fill="none"><path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="10" r="5" fill="#e0531f"/></svg></span>
+          <span>فرصت ملک</span>
+          <i></i>
+          <button class="menu__close" id="menuClose" type="button">بستن ✕</button>
+        </div>
+        <nav class="menu__links">
+          <a class="menu__link" href="#golden" data-scroll-to><span class="menu__txt">ویترین فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/s"><span class="menu__txt">جست‌وجوی فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/market"><span class="menu__txt">بازار محله‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/sky.html" data-navpage><span class="menu__txt">قیمت از دید آسمان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="#floors" data-scroll-to><span class="menu__txt">هر طبقه، یک داستان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/account.html"><span class="menu__txt">حساب من و اشتراک</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/support"><span class="menu__txt">پشتیبانی و تیکت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="#assistant" data-scroll-to><span class="menu__txt">دستیار هوشمند</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </nav>
+        <div class="menu__foot" data-menu-foot><span data-stat-text="cities"></span><i></i><span data-stat-text="districts"></span><i></i><span>به‌روزرسانی روزانه</span></div>
       </div>
     </div>
-  </footer>
-
-  <div class="cmpbar" id="cmpbar" hidden>
-    <span id="cmpText"></span>
-    <button class="btn btn--hot btn--sm" id="cmpGo">مقایسه</button>
-    <button class="btn btn--ghost btn--sm" id="cmpClear">پاک کردن</button>
   </div>
 
-  <button class="ai-fab" id="aiFab" aria-label="دستیار هوشمند">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg><b>دستیار</b>
-  </button>
-  <section class="ai" id="ai" hidden aria-label="دستیار هوشمند">
-    <header class="ai__head">
-      <div><b>دستیار فرصت ملک</b><small>بنویس دنبال چه ملکی هستی؛ بهترین فرصت‌ها را پیدا می‌کنم</small></div>
-      <button class="icon-btn" id="aiClose" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <main id="main">
+
+    <!-- ══════════ Hero ══════════ -->
+    <section class="hero" id="hero" data-hero>
+      <div class="hero__stage" data-hero-stage>
+        <div class="hero__topo" aria-hidden="true">
+          <svg class="topo-lines" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+            <g fill="none" stroke="currentColor" stroke-width="1" opacity=".5">
+              <path d="M-60 700c180-90 340 40 520-30s300-150 520-90 340 120 520 60"/>
+              <path d="M-60 750c190-100 350 30 530-40s300-140 520-80 340 110 520 50"/>
+              <path d="M-60 800c200-110 360 20 540-50s300-130 520-70 340 100 520 40"/>
+              <path d="M-60 850c210-120 370 10 550-60s300-120 520-60 340 90 520 30"/>
+              <path d="M-60 650c170-80 330 50 510-20s300-160 520-100 340 130 520 70"/>
+              <path d="M-60 600c160-70 320 60 500-10s300-170 520-110 340 140 520 80"/>
+            </g>
+          </svg>
+          <div class="blob blob--a"></div>
+          <div class="blob blob--b"></div>
+          <div class="blob blob--c"></div>
+          <div class="hero__spark" aria-hidden="true"></div>
+        </div>
+
+        <div class="hero__sun" data-hero-sun aria-hidden="true"><i class="hero__sun-core"></i></div>
+        <div class="hero__cloud hero__cloud--a" data-cloud aria-hidden="true"></div>
+        <div class="hero__cloud hero__cloud--b" data-cloud aria-hidden="true"></div>
+
+        <div class="hero__skyline hero__skyline--far" data-sky-far aria-hidden="true">
+          <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="skyFarG" x1="0" y1="0" x2="0" y2="1">
+                <stop class="sky-far-a" offset="0"/>
+                <stop class="sky-far-b" offset="1"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#skyFarG)" d="M0 320V210h48v-40h40v40h36v-70h52v70h44v-30h60v30h40v-90h56v90h48v-45h64v45h40v-60h70v60h44v-38h58v38h46v-80h62v80h40v-42h66v42h44v-66h56v66h50v-36h70v36H1440v110z"/>
+          </svg>
+        </div>
+        <div class="hero__skyline hero__skyline--near" data-sky-near aria-hidden="true">
+          <svg viewBox="0 0 1440 300" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="skyNearG" x1="0" y1="0" x2="0" y2="1">
+                <stop class="sky-near-a" offset="0"/>
+                <stop class="sky-near-b" offset="1"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#skyNearG)" d="M0 300V150h90v-52h70v52h84V96h96v54h70v-84h98v84h84v-44h92v44h80v-70h100v70h86v-40h94v40h76V120h96v180z"/>
+            <g class="win-lights">
+              <rect x="110" y="170" width="10" height="14" rx="2"/><rect x="132" y="170" width="10" height="14" rx="2"/><rect x="110" y="196" width="10" height="14" rx="2"/>
+              <rect x="196" y="170" width="10" height="14" rx="2"/><rect x="218" y="196" width="10" height="14" rx="2"/>
+              <rect x="300" y="130" width="12" height="16" rx="2"/><rect x="324" y="130" width="12" height="16" rx="2"/><rect x="300" y="160" width="12" height="16" rx="2"/><rect x="324" y="190" width="12" height="16" rx="2"/>
+              <rect x="452" y="120" width="12" height="16" rx="2"/><rect x="476" y="150" width="12" height="16" rx="2"/><rect x="452" y="180" width="12" height="16" rx="2"/>
+              <rect x="620" y="100" width="14" height="18" rx="2"/><rect x="644" y="130" width="14" height="18" rx="2"/><rect x="620" y="160" width="14" height="18" rx="2"/>
+              <rect x="800" y="140" width="12" height="16" rx="2"/><rect x="824" y="140" width="12" height="16" rx="2"/><rect x="800" y="170" width="12" height="16" rx="2"/>
+              <rect x="988" y="120" width="12" height="16" rx="2"/><rect x="1012" y="150" width="12" height="16" rx="2"/>
+              <rect x="1176" y="100" width="14" height="18" rx="2"/><rect x="1200" y="130" width="14" height="18" rx="2"/><rect x="1176" y="160" width="14" height="18" rx="2"/>
+              <rect x="1350" y="140" width="12" height="16" rx="2"/><rect x="1350" y="170" width="12" height="16" rx="2"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- اسکن هولوگرافیک شهر -->
+        <div class="hero__holo" aria-hidden="true">
+          <div class="hero__grid-floor"></div>
+          <div class="hero__beam" data-beam><i class="hero__beam-head"></i></div>
+        </div>
+
+        <div class="hero__scrim" aria-hidden="true"></div>
+
+        <div class="hero__content">
+          <p class="hero__eyebrow" data-hero-eyebrow><span class="dot-live"></span>موتور هوشمند کشف فرصت ملک در ایران</p>
+          <h1 class="hero__title">
+            <span class="hero__line"><span class="hero__words" data-hero-words>هر ملک یک قیمت دارد؛</span></span>
+            <span class="hero__line is-accent"><span class="hero__words" data-hero-words2>ما <em class="hero__em">ارزش واقعی<svg class="hero__underline" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M4 10 C 60 2 160 2 216 8" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></em> آن را پیدا می‌کنیم.</span></span>
+          </h1>
+          <p class="hero__lead" data-hero-lead>آیا این ملک واقعاً ارزش خرید دارد؟</p>
+          <p class="hero__sub" data-hero-sub>پیش از یک تصمیم چندمیلیاردی، قیمت هر آگهی را با محلهٔ خودش، سن بنا، متراژ، طبقه و امکانات می‌سنجیم و نشان می‌دهیم کجا فرصت است و کجا گران.</p>
+          <div class="hero__cta" data-hero-cta>
+            <a class="btn btn--gold btn--lg" href="#golden" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
+            <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
+          </div>
+        </div>
+
+        <div class="hero__stats" data-hero-stats>
+          <a href="#golden" data-scroll-to class="hero__stat"><b data-count="0" data-stat="total" data-suffix="">۰</b><small>آگهی سنجیده‌شده</small></a>
+          <a href="/sky.html" data-navpage class="hero__stat"><b data-count="0" data-stat="cities" data-suffix="">۰</b><small>شهر دارای آگهی</small></a>
+          <a href="/sky.html" data-navpage class="hero__stat"><b data-count="0" data-stat="districts" data-suffix="">۰</b><small>محله با برآورد قیمت</small></a>
+        </div>
+
+        <div class="hero__hint" data-hero-hint><span>اسکرول کنید</span><i></i></div>
+      </div>
+    </section>
+
+    <!-- نوار متحرک -->
+    <div class="marquee" data-marquee aria-hidden="true">
+      <div class="marquee__track" data-marquee-track>
+        <span>برترین فرصت‌های امروز</span><i>✦</i><span>برآورد بازار، محله به محله</span><i>✦</i><span>هر فروشنده یک رأی</span><i>✦</i><span>کشف فرصت طلایی</span><i>✦</i><span>قیمت منصفانه</span><i>✦</i>
+        <span>برترین فرصت‌های امروز</span><i>✦</i><span>برآورد بازار، محله به محله</span><i>✦</i><span>هر فروشنده یک رأی</span><i>✦</i><span>کشف فرصت طلایی</span><i>✦</i><span>قیمت منصفانه</span><i>✦</i>
+      </div>
+    </div>
+
+    <!-- ══════════ ۱) ویترین فرصت‌ها — دستهٔ بازشوندهٔ پین‌شده ══════════ -->
+    <section class="golden" id="golden" data-golden>
+      <div class="golden__head">
+        <p class="eyebrow" data-reveal>گنجینه بازار</p>
+        <h2 class="section-title" data-split>ویترین فرصت‌های طلایی</h2>
+        <p class="section-sub" data-reveal>کارت‌ها به‌صورت یک دسته جمع شده‌اند؛ با اسکرول، در همان‌جا باز می‌شوند و با کلیک، صفحهٔ اختصاصی هر ملک باز می‌شود.</p>
+      </div>
+      <div class="deck" data-deck>
+        <div class="deck__pinwrap" data-deck-pin>
+          <div class="deck__stage" data-deck-stage><!-- کارت‌ها با JS --></div>
+          <div class="deck__hint" data-deck-hint>برای باز شدن دسته، اسکرول کنید</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ فیلتر منطقه — گالری زیر آن را تغییر می‌دهد ══════════ -->
+    <section class="homefilter" id="homefilter">
+      <div class="homefilter__inner">
+        <div class="searchbar" role="group" aria-label="فیلتر منطقه">
+          <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
+          <i class="searchbar__arrow" aria-hidden="true">←</i>
+          <label class="searchbar__field"><span>شهر</span><select id="fCity" disabled><option value="">همهٔ شهرها</option></select></label>
+          <i class="searchbar__arrow" aria-hidden="true">←</i>
+          <label class="searchbar__field"><span>محله</span><select id="fDistrict" disabled><option value="">همهٔ محله‌ها</option></select></label>
+          <button class="searchbar__reset" id="fReset" type="button" hidden>پاک‌کردن ✕</button>
+        </div>
+        <p class="homefilter__status" id="homeFilterStatus" aria-live="polite">نمایش همهٔ املاک ویترین</p>
+      </div>
+    </section>
+
+    <!-- ══════════ گالری ستونی پلکانی + اسکرول افقی ══════════ -->
+    <section class="gallery" id="gallery" data-gallery>
+      <div class="gallery__head">
+        <div>
+          <p class="eyebrow" data-reveal>گالری املاک</p>
+          <h2 class="section-title" data-split>عمقِ یک انتخاب درست</h2>
+        </div>
+      </div>
+      <div class="masonry-wrap" data-masonry-wrap>
+        <div class="masonry" data-masonry>
+          <div class="masonry__col" data-col-speed="0.55"></div>
+          <div class="masonry__col" data-col-speed="0.8"></div>
+          <div class="masonry__col" data-col-speed="0.65"></div>
+        </div>
+        <div class="masonry__mask masonry__mask--top" aria-hidden="true"></div>
+        <div class="masonry__mask masonry__mask--bottom" aria-hidden="true"></div>
+      </div>
+      <a class="masonry__all" href="#gallery" data-show-all>
+        <b>مشاهدهٔ همهٔ املاک ویترین</b>
+        <small id="allCount"></small>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+
+      <div class="hscroll" data-hscroll>
+        <div class="hscroll__pin" data-hscroll-pin>
+          <div class="hscroll__head">
+            <p class="eyebrow">فروش‌های زیر برآورد بازار</p>
+            <h3 class="hscroll__title">شکارهای بازار — با اسکرول ببینید <i>←</i></h3>
+          </div>
+          <div class="hscroll__track" data-hscroll-track><!-- فرصت‌های واقعی با JS --></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ ۳) هر طبقه یک داستان — روی برش سه‌بعدی ساختمان ══════════ -->
+    <section class="floors" id="floors" data-floors>
+      <div class="floors__pin" data-floors-pin>
+        <div class="floors__head">
+          <p class="eyebrow">هر طبقه، یک داستان</p>
+          <h2 class="section-title">آسانسورِ ارزش، روی برجِ نمونه</h2>
+          <p class="section-sub">با اسکرول، نشانگر روی برش سه‌بعدی ساختمان بالا می‌رود؛ وضعیت هر گروه طبقه با مزایا و معایبش روشن می‌شود.</p>
+        </div>
+        <div class="floors__body">
+          <div class="floors__visual" data-floors-visual>
+            <figure class="floors__figure">
+              <!-- لایهٔ بلوپرینت (زیر) -->
+              <span class="ink-bp" aria-hidden="true">
+                <img src="/assets/img/rebuild/building-cutaway-v17.webp" alt="" loading="lazy">
+                <i class="ink-grid"></i>
+              </span>
+              <!-- لایهٔ واقعی که با ماسک جوهر ظاهر می‌شود -->
+              <svg class="floors__ink" viewBox="0 0 1000 625" preserveAspectRatio="none" role="img" aria-label="برش سه‌بعدی ساختمان نمونه">
+                <defs>
+                  <mask id="inkMaskF" maskContentUnits="userSpaceOnUse">
+                    <path class="ink-path-f" fill="#fff" style="filter:url(#inkDispF)" d="M 0 30 Q 500 55 1000 20 L 1000 0 L 0 0 Z" data-final="M 0 700 Q 500 880 1000 700 L 1000 0 L 0 0 Z"/>
+                  </mask>
+                  <filter id="inkDispF" x="-20%" y="-20%" width="140%" height="140%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.045 0.055" numOctaves="4" seed="5" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G"/>
+                    <feGaussianBlur stdDeviation="1.6" result="bl"/>
+                    <feComponentTransfer in="bl" result="ct"><feFuncA type="linear" slope="2.2" intercept="-0.6"/></feComponentTransfer>
+                  </filter>
+                </defs>
+                <image href="/assets/img/rebuild/building-cutaway-v17.webp" x="0" y="0" width="1000" height="625" preserveAspectRatio="xMidYMid slice" mask="url(#inkMaskF)"/>
+              </svg>
+              <i class="floors__sun" aria-hidden="true"></i>
+              <!-- برج خط‌وبند (سبک مرجع) — پایهٔ همیشگی -->
+              <svg class="floors__wire" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <g fill="none" stroke="#3a3a34" stroke-width="1.4">
+                  <rect x="150" y="30" width="100" height="270"/>
+                  <line x1="150" y1="60" x2="250" y2="60"/><line x1="150" y1="95" x2="250" y2="95"/>
+                  <line x1="150" y1="130" x2="250" y2="130"/><line x1="150" y1="165" x2="250" y2="165"/>
+                  <line x1="150" y1="200" x2="250" y2="200"/><line x1="150" y1="235" x2="250" y2="235"/>
+                  <line x1="150" y1="270" x2="250" y2="270"/>
+                  <line x1="183" y1="30" x2="183" y2="300"/><line x1="216" y1="30" x2="216" y2="300"/>
+                  <rect x="60" y="240" width="90" height="60"/>
+                  <line x1="60" y1="270" x2="150" y2="270"/>
+                  <rect x="250" y="255" width="90" height="45"/>
+                  <line x1="250" y1="285" x2="340" y2="285"/>
+                  <path d="M60 240 L105 205 L150 240"/>
+                  <path d="M10 300 L10 265 L60 265"/>
+                </g>
+              </svg>
+            </figure>
+            <i class="floors__cursor" data-floors-cursor aria-hidden="true"></i>
+            <span class="floors__cursor-label" data-cursor-label>طبقه اول</span>
+          </div>
+          <div class="floors__panels" data-floors-panels><!-- پنل‌ها با JS --></div>
+          <div class="floors__aspect">
+          <article class="faspect" style="--fa:#20976A">
+            <b><i>☀</i> واحد جنوبی</b>
+            <ul><li>نور کامل روز در همهٔ فصل‌ها</li><li>قبض انرژی کمتر در زمستان</li><li>تقاضا و قیمت هر متر بالاتر</li></ul>
+            <small>معمولاً تقاضای بیشتری از واحد شمالیِ هم‌طبقه دارد</small>
+          </article>
+          <article class="faspect" style="--fa:#5b8bd0">
+            <b><i>☁</i> واحد شمالی</b>
+            <ul><li>خنک‌تر در تابستان</li><li>قیمت ورودی پایین‌تر</li><li>مناسب دفتر و کارگاه هنری</li></ul>
+            <small>نور مستقیم کمتر؛ در مناطق مرطوب به تهویه بیشتر نیاز دارد</small>
+          </article>
+          </div>
+        </div>
+        <div class="floors__progress"><i data-floors-bar></i></div>
+      </div>
+    </section>
+
+    <!-- ══════════ ۴) مسئله و راه‌حل + پنج سطح ══════════ -->
+    <section class="problem" id="problem">
+      <div class="problem__inner">
+        <p class="eyebrow is-center" data-reveal>مسئله و راه‌حل</p>
+        <h2 class="section-title is-center" data-split>چرا قیمت آگهی، لزوماً برآورد بازار نیست؟</h2>
+        <div class="problem__cols">
+          <article class="problem__card is-bad" data-reveal>
+            <header><i></i><b>مسئله</b></header>
+            <p>قیمت آگهی را نویسندهٔ آگهی می‌نویسد، نه بازار. آگهی تکراری، قیمت هیجانی و واسطه، سیگنال بازار را گل‌آلود می‌کنند.</p>
+            <ul><li>میانگین خام قربانی آگهی‌های پرت است</li><li>قیمت‌های قدیمی تصویر امروز نمی‌دهند</li><li>مقایسهٔ ملک‌های ناهم‌جنس گمراه می‌کند</li></ul>
+          </article>
+          <article class="problem__card is-good" data-reveal>
+            <header><i></i><b>راه‌حل فرصت ملک</b></header>
+            <p>هر آگهی فقط با آگهی‌های مشابه همان محله — هم‌متراژ، هم‌سن، هم‌طبقه — سنجیده می‌شود؛ «هر فروشنده یک رأی» و آگهی مشکوک از مدل حذف می‌شود.</p>
+            <ul><li>سنجش هم‌جنس‌به‌هم‌جنس</li><li>به‌روزرسانی پیوسته از آگهی‌های عمومی</li><li>امتیاز فرصت ۰ تا ۱۰۰ برای هر آگهی</li></ul>
+          </article>
+        </div>
+        <div class="levels__row" data-levels><!-- پنج سطح با آستانه‌های واقعی موتور ارزش‌گذاری --></div>
+      </div>
+    </section>
+
+    <!-- ══════════ ۵) ورودی «قیمت از دید آسمان» ══════════ -->
+    <section class="skygateway" id="skygateway">
+      <a class="skygateway__card" href="/sky.html" data-navpage data-reveal>
+        <div class="skygateway__glow" aria-hidden="true"></div>
+        <div class="skygateway__text">
+          <p class="eyebrow">سفر داده‌ای</p>
+          <h2>قیمت از دید آسمان</h2>
+          <p>کرهٔ زندهٔ بازار ایران را بچرخانید، استان و شهر را انتخاب کنید و نقشهٔ محله‌ها را دقیقاً زیر کره ببینید.</p>
+          <span class="skygateway__go">ورود به تجربه <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="skygateway__globe" aria-hidden="true">
+          <img src="/assets/img/rebuild/data-globe-v17.webp" alt="" loading="lazy" decoding="async">
+        </div>
+      </a>
+    </section>
+
+    
+    <!-- ══════════ ۶) دستیار ══════════ -->
+    <section class="assistant" id="assistant">
+      <div class="assistant__inner">
+        <p class="eyebrow is-center" data-reveal>دستیار هوشمند فرصت ملک</p>
+        <h2 class="section-title is-center" data-split>هر سؤالی دربارهٔ ملک دارید، بپرسید.</h2>
+        <p class="section-sub is-center" data-reveal>دستیار، نیاز شما را می‌پرسد، در املاک سایت جست‌وجو می‌کند و به بخش درست راهنمایی‌تان می‌کند.</p>
+        <div class="assistant__cta" data-reveal>
+          <button class="btn btn--gold btn--lg" id="assistantOpen" type="button"><span class="btn__label" data-flip><span>گفت‌وگو با دستیار</span><span aria-hidden="true">گفت‌وگو با دستیار</span></span></button>
+          <span class="assistant__sep"></span>
+          <a class="btn btn--ghost btn--lg" href="#golden" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
+          <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- فوتر -->
+    <footer class="foot" id="foot">
+      <div class="foot__topo" aria-hidden="true">
+        <svg viewBox="0 0 1440 400" preserveAspectRatio="xMidYMid slice">
+          <g fill="none" stroke="currentColor" stroke-width="1" opacity=".35">
+            <path d="M-60 320c180-90 340 40 520-30s300-150 520-90 340 120 520 60"/>
+            <path d="M-60 360c190-100 350 30 530-40s300-140 520-80 340 110 520 50"/>
+            <path d="M-60 400c200-110 360 20 540-50s300-130 520-70 340 100 520 40"/>
+          </g>
+        </svg>
+      </div>
+      <div class="foot__grid">
+        <div class="foot__about">
+          <span class="logo-badge logo-badge--lg"><svg viewBox="0 0 48 48" fill="none"><path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="10" r="5" fill="#e0531f"/></svg></span>
+          <b>فرصت ملک</b>
+          <p>موتور مستقل پردازش و رتبه‌بندی آماری آگهی‌های عمومی املاک. فرصت ملک مشاور املاک نیست؛ «برآورد بازار» برآورد آماری است و پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
+        </div>
+        <nav aria-label="املاک"><h4>املاک</h4>
+          <a href="#golden" data-scroll-to>ویترین فرصت‌ها</a>
+          <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+          <a href="/app.html#/market">بازار محله‌ها</a>
+          <a href="/app.html#/estimate">ارزیابی یک ملک</a>
+        </nav>
+        <nav aria-label="تجربه"><h4>تجربه</h4>
+          <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
+          <a href="#floors" data-scroll-to>هر طبقه، یک داستان</a>
+          <a href="#assistant" data-scroll-to>دستیار هوشمند</a>
+        </nav>
+        <nav aria-label="روش"><h4>روش</h4>
+          <a href="#problem" data-scroll-to>مسئله و راه‌حل</a>
+          <a href="/#problem" data-scroll-to>پنج سطح ارزش‌گذاری</a>
+          <a href="/account.html">حساب من و اشتراک</a>
+          <a href="/app.html#/support">پشتیبانی و تیکت</a>
+        </nav>
+      </div>
+      <div class="foot__legal">
+        <span>© فرصت ملک — همهٔ آگهی‌ها از آگهی‌های عمومی پالایش و سنجیده می‌شوند.</span>
+        <span id="siteVer" dir="ltr"></span>
+      </div>
+    </footer>
+  </main>
+
+  <!-- دستیار شناور -->
+  <section class="chat" id="chat" aria-hidden="true" role="dialog" aria-label="دستیار هوشمند">
+    <header class="chat__head">
+      <span class="chat__avatar" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M9 15c0-3.3 2.7-6 6-6h18c3.3 0 6 2.7 6 6v11c0 3.3-2.7 6-6 6H21l-8.5 7.5V32H15c-3.3 0-6-2.7-6-6V15z" stroke="#f6f3ea" stroke-width="2.8" stroke-linejoin="round"/><path d="M27 14.5l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill="#e0b64e"/><circle cx="18.5" cy="18.5" r="2" fill="#3fa184"/></svg></span>
+      <div><b>دستیار فرصت ملک</b><small id="chatStatus">آنلاین — آمادهٔ پاسخ</small></div>
+      <button class="chat__close" id="chatClose" type="button" aria-label="بستن">✕</button>
     </header>
-    <div class="ai__log" id="aiLog" aria-live="polite"></div>
-    <div class="ai__sugs" id="aiSugs"></div>
-    <form class="ai__form" id="aiForm"><input id="aiInput" placeholder="مثلاً: فرصت آپارتمان در گلسار رشت" autocomplete="off" /><button class="btn btn--ink">ارسال</button></form>
+    <div class="chat__log" id="chatLog" aria-live="polite"></div>
+    <div class="chat__chips" id="chatChips"></div>
+    <form class="chat__form" id="chatForm">
+      <input id="chatInput" type="text" placeholder="مثلاً: آپارتمان زیر قیمت در رشت تا ۵ میلیارد" autocomplete="off" />
+      <button class="btn btn--gold" type="submit">ارسال</button>
+    </form>
   </section>
+  <button class="chat-fab" id="chatFab" type="button" aria-label="دستیار هوشمند">
+    <svg viewBox="0 0 48 48" fill="none"><path d="M9 15c0-3.3 2.7-6 6-6h18c3.3 0 6 2.7 6 6v11c0 3.3-2.7 6-6 6H21l-8.5 7.5V32H15c-3.3 0-6-2.7-6-6V15z" stroke="#f6f3ea" stroke-width="2.8" stroke-linejoin="round"/><path d="M27 14.5l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill="#e0b64e"/><circle cx="18.5" cy="18.5" r="2" fill="#3fa184"/></svg>
+    <i class="chat-fab__ping" aria-hidden="true"></i>
+  </button>
 
-  <dialog class="dlg" id="dlg"><div class="dlg__body" id="dlgBody"></div></dialog>
-  <div class="toast" id="toast" role="status"></div>
-
-  <script src="assets/vendor/leaflet/leaflet.js"></script>
-  <script src="assets/js/data.js"></script>
-  <script src="assets/js/nlp.js"></script>
-  <script src="assets/js/api.js"></script>
-  <script src="assets/js/ui.js"></script>
-  <script src="assets/js/ribbons.js"></script>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/cine.js"></script>
-  <script src="assets/js/fx.js"></script>
+  <script src="/assets/vendor/fx/gsap.min.js"></script>
+  <script src="/assets/vendor/fx/ScrollTrigger.min.js"></script>
+  <script src="/assets/vendor/fx/lenis.min.js"></script>
+  <script src="/assets/site/js/api.js?v=51"></script>
+  <script src="/assets/site/js/data.js?v=51"></script>
+  <script src="/assets/site/js/app.js?v=51"></script>
+  <script src="/assets/site/js/deck.js?v=51"></script>
+  <script src="/assets/site/js/gallery.js?v=51"></script>
+  <script src="/assets/site/js/floors.js?v=51"></script>
+  <script src="/assets/site/js/assistant.js?v=51"></script>
+  <script src="/assets/site/js/account.js?v=51"></script>
 </body>
 </html>

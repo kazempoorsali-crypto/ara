@@ -71,6 +71,7 @@ from billing import DEFAULT_BILLING, DEFAULT_SMS, Billing  # noqa: E402
 from support import DEFAULT_SUPPORT, Support  # noqa: E402
 from flags import Flags  # noqa: E402
 import seo  # noqa: E402
+import sitepage  # noqa: E402
 from features import clean_title  # noqa: E402
 from ingest import DEFAULT_INGEST, Ingestor  # noqa: E402
 from report import market_report  # noqa: E402
@@ -85,7 +86,7 @@ DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address":
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
 DEFAULT_OWNER = {"support_url": "", "support_label": "", "legal_name": "", "refund_text": "", "enamad_url": ""}
 PUBLIC_DIRS = ("assets",)
-PUBLIC_FILES = ("index.html", "admin.html", "favicon.svg", "manifest.webmanifest")
+PUBLIC_FILES = ("index.html", "app.html", "sky.html", "property.html", "account.html", "admin.html", "favicon.svg", "manifest.webmanifest")
 SESSIONS: dict[str, float] = {}
 LOGIN_FAILS: dict[str, list] = {}
 LOCKED_FIELDS = ("url", "token")
@@ -416,7 +417,7 @@ class Handler(BaseHTTPRequestHandler):
         """هر نسخهٔ تازه، فایل‌های تازه را از مرورگر می‌خواهد (شکستن کش)."""
         tag = re.sub(r"\W", "", VERSION.split("|")[0])
         # نسخهٔ دستی (?v=...) هم با نسخهٔ واقعی جایگزین می‌شود تا هیچ فایلی در کش مرورگر نماند
-        return re.sub(rb'((?:src|href)="assets/[^"?]+\.(?:js|css))(?:\?v=[^"]*)?"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
+        return re.sub(rb'((?:src|href)="/?assets/[^"?]+\.(?:js|css))(?:\?v=[^"]*)?"', lambda m: m.group(1) + b"?v=" + tag.encode() + b'"', data)
 
     def page_html(self, data: bytes) -> bytes:
         """صفحهٔ اصلی با نسخهٔ فایل‌ها و طراحی انتخاب‌شده در پنل (بدون پرش ظاهر هنگام بارگذاری)."""
@@ -512,12 +513,24 @@ class Handler(BaseHTTPRequestHandler):
                 if SITEMAP.get("key") != key or time.time() - SITEMAP.get("at", 0) > 600:
                     SITEMAP.update(key=key, at=time.time(), xml=seo.sitemap(self.app, key))
                 return self.send_text(SITEMAP["xml"], "application/xml; charset=utf-8")
+            # صفحه‌های سایت اصلی: دادهٔ واقعی (آمار، محله‌ها، فرصت‌ها) در خود HTML گذاشته می‌شود
+            SITE_PAGES = {"/": ("index.html", "home"), "/index.html": ("index.html", "home"),
+                          "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property")}
+            if url.path in SITE_PAGES:
+                fname, page = SITE_PAGES[url.path]
+                body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), sitepage.boot(self, page, qs)).decode()
+                if page == "home":  # سربرگ سئو، دادهٔ ساختاریافته و متن «دربارهٔ بازار» برای خزنده‌ها
+                    sp = seo.page(self.app, self.base_url(), "/")
+                    if sp:
+                        body = seo.render(body, sp, VERSION).replace('<footer class="foot" id="foot">',
+                                                                     f'<section class="seo-text" id="seoText"><div class="wrap">{sp["body"]}</div></section>\n    <footer class="foot" id="foot">', 1)
+                return self.send_text(body, "text/html; charset=utf-8", cache="no-cache")
             p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
             if p is not None:
-                tpl = self.page_html((ROOT / "index.html").read_bytes()).decode()
+                tpl = self.page_html((ROOT / "app.html").read_bytes()).decode()
                 return self.send_text(seo.render(tpl, p, VERSION), "text/html; charset=utf-8", cache="no-cache")
             if re.fullmatch(r"/(melk|ad|rahnama|maghale)/.*", url.path):
-                tpl = self.page_html((ROOT / "index.html").read_bytes()).decode()
+                tpl = self.page_html((ROOT / "app.html").read_bytes()).decode()
                 body = seo.render(tpl, {"title": "یافت نشد", "desc": "این صفحه پیدا نشد.", "canonical": self.base_url() + "/",
                                         "body": "<h1>این صفحه پیدا نشد</h1><p><a href=\"/\">بازگشت به صفحهٔ اصلی</a></p>",
                                         "ld": [], "hash": "", "noindex": True}, VERSION)
@@ -554,7 +567,7 @@ class Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or ctype in ("application/javascript", "image/svg+xml"):
             ctype += "; charset=utf-8"
         data = target.read_bytes()
-        if rel == "index.html":
+        if rel == "app.html":
             data = self.page_html(data)
         elif rel.endswith(".html"):
             data = self.versioned(data)
@@ -706,8 +719,8 @@ class Handler(BaseHTTPRequestHandler):
         ok = self.app.billing.callback(params)
         pid = params.get("pid") or params.get("order_id")
         if ok == "pending":   # کارت‌به‌کارت خودکار: واریز هنوز تطبیق نشده؛ صفحهٔ حساب منتظر می‌ماند و خودکار بررسی می‌کند
-            return self.redirect(f"/#/account?pending={int(pid or 0)}")
-        return self.redirect(f"/#/invoice/{pid}" if ok and pid else "/#/account?" + ("paid=1" if ok else "failed=1"))
+            return self.redirect(f"/account.html?pending={int(pid or 0)}")
+        return self.redirect(f"/account.html?invoice={pid}" if ok and pid else "/account.html?" + ("paid=1" if ok else "failed=1"))
 
     # ---------------------------------------------------------- public api
     def gate(self, d: dict, user, full=False):
