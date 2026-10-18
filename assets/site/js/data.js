@@ -87,6 +87,7 @@ window.FM = window.FM || {};
     }),
     properties: (B.properties || []).map(FM.mapListing),
     property: B.property ? FM.mapListing(B.property) : null,
+    market: B.market || null,
     /* پنج سطح، با آستانه‌های واقعی موتور ارزش‌گذاری */
     levels: [
       { id: "gold", name: "فرصت طلایی", rule: P(th.gold) + " و بیشتر زیر برآورد بازار", color: "#D5A626" },
@@ -149,7 +150,7 @@ window.FM = window.FM || {};
     if (FM.data.property && FM.data.property.id === id) return FM.data.property;
     return (FM.data.properties || []).filter(function (p) { return p.id === id; })[0] || null;
   };
-  FM.propUrl = function (id) { return "/property.html?id=" + encodeURIComponent(id); };
+  FM.propUrl = function (id) { return "/ad/" + encodeURIComponent(id); };
 
   /* پر کردن عددهای صفحه از دادهٔ واقعی (اسکریپت‌ها در پایان body اجرا می‌شوند) */
   var st = FM.data.stats || {};

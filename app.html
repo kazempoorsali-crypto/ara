@@ -13,6 +13,15 @@
     /* طراحی (پیش‌نمایش ?design=new فقط در همین مرورگر) و حالت سبک برای سیستم‌های ضعیف، پیش از نقاشی صفحه */
     (function () {
       // صفحهٔ اصلی سایت اکنون «/» است؛ این صفحه فقط موتور جست‌وجو، نقشه، بازار و پشتیبانی است
+      // حالت جاسازی (کره و نقشهٔ صفحهٔ «قیمت از دید آسمان»): بدون سربرگ و پانویس؛ پیوندها در صفحهٔ اصلی باز می‌شوند
+      if (/(^|[?&])embed=1/.test(location.search)) {
+        document.documentElement.classList.add("embed");
+        addEventListener("hashchange", function () {
+          var h = location.hash, m = h.match(/^#\/ad\/([^?]+)/);
+          if (/^#\/sky/.test(h)) return;
+          try { window.top.location.href = m ? "/ad/" + m[1] : "/app.html" + h; } catch (e) { location.href = "/app.html" + h; }
+        });
+      }
       var onApp = location.pathname === "/app.html";
       if (onApp && (!location.hash || location.hash === "#/" || location.hash === "#")) { location.replace("/"); return; }
       addEventListener("hashchange", function () { if (location.hash === "#/" || (!location.hash && location.pathname === "/app.html")) location.href = "/"; });
@@ -40,6 +49,14 @@
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/cine.css" />
   <link rel="stylesheet" href="assets/css/v2.css" />
+  <style>
+    html.embed .top, html.embed .dock, html.embed .foot, html.embed #aiFab, html.embed #ai, html.embed .seo-text, html.embed .mcta { display: none !important; }
+    html.embed body { padding: 0 !important; margin: 0; background: transparent; }
+    html.embed #view { padding: 0 !important; margin: 0 !important; }
+    html.embed .skypage { padding: 0; }
+    html.embed .skypage .sky { position: relative; margin: 0; height: 100vh; max-height: none; border-radius: 0; border: 0; display: flex; flex-direction: column; }
+    html.embed .skypage .sky__stage { flex: 1; height: auto !important; min-height: 0; }
+  </style>
 </head>
 <body>
   <nav class="dock" aria-label="ناوبری سریع">

@@ -17,7 +17,6 @@
     FM.setTheme(FM.theme === "dark" ? "light" : "dark");
   });
 
-  var id = new URLSearchParams(location.search).get("id");
   var p = FM.data.property;
   var $ = function (s) { return document.querySelector(s); };
   var E = FM.esc;
@@ -98,11 +97,21 @@
     });
 
     /* محله */
-    var dd = districtOf(p.region);
-    $("[data-pnb-name]").textContent = dd ? dd.d.name + "، " + dd.city.name : (p.loc || "محلهٔ ملک");
-    $("[data-pnb-price]").textContent = dd ? mt(dd.d.ppm) : "—";
-    $("[data-pnb-trend]").textContent = dd ? FM.fa(dd.d.n) : "—";
+    var dd = districtOf(p.region), mk = FM.data.market;
+    $("[data-pnb-name]").textContent = mk && mk.scope === "city" ? "کل " + (mk.name || "شهر") + " (دادهٔ محله کافی نیست)" : dd ? dd.d.name + "، " + dd.city.name : (p.loc || "محلهٔ ملک");
+    $("[data-pnb-price]").textContent = mk ? mt(mk.median) : dd ? mt(dd.d.ppm) : "—";
+    $("[data-pnb-trend]").textContent = mk ? FM.fa(mk.n) : dd ? FM.fa(dd.d.n) : "—";
     $("[data-pnb-rank]").textContent = dd ? "رتبهٔ " + FM.fa(dd.rank) + " از " + FM.fa(dd.of) : "—";
+
+    /* خلاصهٔ حکم به زبان ساده */
+    var vtxt = { gold: "در سنجش ما فرصت طلایی است: قیمتش به‌طور معناداری زیر برآورد بازار همین محله است.", good: "در سنجش ما فرصت مناسبی است: قیمتش زیر برآورد بازار محله است.",
+      fair: "قیمتش نزدیک برآورد بازار است؛ فرصت ویژه‌ای نیست ولی گران هم نیست.", high: "بالاتر از برآورد بازار است و جای چانه‌زنی دارد.",
+      over: "به‌طور معناداری بالاتر از برآورد بازار است.", sus: "احتیاط: ارزانی‌اش باورپذیر نیست؛ پیش از هر اقدامی استعلام کنید.", pending: "هنوز آگهی مشابه کافی برای سنجش دقیق این ملک نداریم." }[p.label] || "";
+    var pv = $("[data-pverdict]");
+    if (pv && vtxt) {
+      var extra = v.estimated_profit ? " فاصلهٔ برآوردی تا قیمت بازار: حدود " + FM.money(v.estimated_profit) + "." : l.locked && (p.label === "gold" || p.label === "good") ? " درصد دقیق، برآورد بازار همین ملک و پیوند آگهی اصلی ویژهٔ مشترکان است." : "";
+      pv.textContent = vtxt + extra; pv.dataset.status = p.status; pv.hidden = false;
+    }
 
     /* پیوند آگهی اصلی: فقط برای مشترکان (برای بقیه، پنجرهٔ اشتراک) */
     var src = $("[data-psource]");
@@ -136,8 +145,9 @@
     });
 
     /* تحلیل قیمت: هر متر آگهی، میانهٔ محله، و برآورد بازار همین ملک (برای مشترکان) */
-    var ppm = l.ppm || 0, med = dd ? dd.d.ppm : 0, fair = l.fair_ppm || v.fair_ppm || 0;
-    var top = Math.max(ppm, med, fair, dd && dd.d.p75 || 0) * 1.08 || 1;
+    var ppm = l.ppm || 0, med = mk ? mk.median : dd ? dd.d.ppm : 0, fair = l.fair_ppm || v.fair_ppm || 0;
+    var q25 = mk ? mk.p25 : dd ? dd.d.p25 : 0, q75 = mk ? mk.p75 : dd ? dd.d.p75 : 0;
+    var top = Math.max(ppm, med, fair, q75 || 0) * 1.08 || 1;
     $("[data-pb1v]").textContent = ppm ? mt(ppm) + " م.ت" : "—";
     $("[data-pb2v]").textContent = med ? mt(med) + " م.ت" : "—";
     $("[data-pb3v]").textContent = fair ? mt(fair) + " م.ت" : l.locked ? "ویژهٔ مشترکان" : "—";
@@ -149,12 +159,13 @@
 
     /* گیج: چارک پایین / میانه / چارک بالای محله + نقطهٔ این ملک */
     var gauge = $(".pgauge");
-    if (dd && dd.d.p25 && dd.d.p75 && ppm) {
-      var gMin = Math.min(dd.d.p25, ppm) * 0.95, gMax = Math.max(dd.d.p75, ppm) * 1.05;
+    if (q25 && q75 && ppm) {
+      gauge.hidden = false;
+      var gMin = Math.min(q25, ppm) * 0.95, gMax = Math.max(q75, ppm) * 1.05;
       var pos = function (x) { return Math.max(2, Math.min(98, (x - gMin) / (gMax - gMin) * 100)); };
-      $("[data-gmin]").textContent = mt(dd.d.p25) + " م.ت";
+      $("[data-gmin]").textContent = mt(q25) + " م.ت";
       $("[data-gavgv]").textContent = mt(med) + " م.ت";
-      $("[data-gmax]").textContent = mt(dd.d.p75) + " م.ت";
+      $("[data-gmax]").textContent = mt(q75) + " م.ت";
       $("[data-gavg]").style.right = pos(med) + "%";
       var dot = $("[data-gdot]");
       dot.style.setProperty("--dot", { gold: "#D5A626", ok: "#20976A", mid: "#E59B32", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#D5A626");
@@ -191,7 +202,29 @@
         }
         ev.appendChild(li);
       });
-    } else box.hidden = true;
+    } else if (box) {
+      box.hidden = false;
+      var cur = l.pp || l.price;
+      $("[data-hist-line]").setAttribute("d", "M14 75 L546 75");
+      $("[data-hist-area]").setAttribute("d", "");
+      $("[data-hist-dots]").innerHTML = '<circle cx="546" cy="75" r="6" fill="#D5A626" stroke="#fff" stroke-width="2"></circle>';
+      $("[data-hist-events]").innerHTML = '<li class="first"><b>بدون تغییر قیمت</b><span>' + (l.first_seen ? "از " + new Date(l.first_seen * 1000).toLocaleDateString("fa-IR", { month: "long", day: "numeric" }) + " تا امروز" : "از نخستین مشاهده") + (cur ? " — " + E(FM.money(cur)) : "") + "</span></li>";
+    }
+
+    /* نقشهٔ موقعیت (برای مهمان تقریبی) */
+    var mbox = $("[data-pmapbox]");
+    if (mbox && window.L && l.lat != null && l.lng != null) {
+      mbox.hidden = false;
+      $("[data-pmap-note]").textContent = l.latlng_exact ? "دقیق" : "تقریبی";
+      $("[data-pmap-hint]").hidden = !!l.latlng_exact;
+      setTimeout(function () {
+        if (FM._pmap) { FM._pmap.remove(); FM._pmap = null; }
+        var map = FM._pmap = L.map("pMap", { scrollWheelZoom: false, attributionControl: false }).setView([l.lat, l.lng], l.latlng_exact ? 16 : 14);
+        L.tileLayer("/tiles/osm/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+        if (l.latlng_exact) L.marker([l.lat, l.lng]).addTo(map);
+        else L.circle([l.lat, l.lng], { radius: 700, color: "#D5A626", weight: 2, fillOpacity: .15 }).addTo(map);
+      }, 60);
+    }
 
     /* مشابه‌ها */
     var row = $("[data-prelated]");

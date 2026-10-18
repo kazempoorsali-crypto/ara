@@ -69,8 +69,8 @@
   function apply() {
     var label = FM.regionLabel(FM.region) || "ایران";
     statusEl.innerHTML = label === "ایران" ? "نمایش همهٔ مناطق تحت پوشش" : "نمایش بازار <b>" + label + "</b>";
-    mapScope.textContent = label;
-    globeLabel.textContent = label + (FM.region.city ? " — نمای نزدیک" : " — نمای کل");
+    if (mapScope) mapScope.textContent = label;
+    if (globeLabel) globeLabel.textContent = label + (FM.region.city ? " — نمای نزدیک" : " — نمای کل");
     btnReset.hidden = !(FM.region.province || FM.region.city || FM.region.district);
     renderPins(true);
     renderStats();
@@ -335,6 +335,11 @@
 
   fillProvinces(); fillCities(); fillDistricts();
   initGlobe();
+  /* با تغییر تم، کره و نقشهٔ زنده با همان تم دوباره بارگذاری می‌شوند */
+  document.documentElement.addEventListener("fm:theme", function () {
+    var f = document.getElementById("skyLive");
+    if (f) setTimeout(function () { f.src = "/app.html?embed=1&t=" + Date.now() + "#/sky"; }, 120);
+  });
   initMisc();
   apply();
   renderPins(true);

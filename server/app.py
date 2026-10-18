@@ -516,14 +516,25 @@ class Handler(BaseHTTPRequestHandler):
             # صفحه‌های سایت اصلی: دادهٔ واقعی (آمار، محله‌ها، فرصت‌ها) در خود HTML گذاشته می‌شود
             SITE_PAGES = {"/": ("index.html", "home"), "/index.html": ("index.html", "home"),
                           "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property")}
-            if url.path in SITE_PAGES:
-                fname, page = SITE_PAGES[url.path]
-                body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), sitepage.boot(self, page, qs)).decode()
-                if page == "home":  # سربرگ سئو، دادهٔ ساختاریافته و متن «دربارهٔ بازار» برای خزنده‌ها
-                    sp = seo.page(self.app, self.base_url(), "/")
-                    if sp:
-                        body = seo.render(body, sp, VERSION).replace('<footer class="foot" id="foot">',
-                                                                     f'<section class="seo-text" id="seoText"><div class="wrap">{sp["body"]}</div></section>\n    <footer class="foot" id="foot">', 1)
+            mad = re.fullmatch(r"/ad/([\w-]+)", url.path)
+            if url.path in SITE_PAGES or mad:
+                fname, page = SITE_PAGES[url.path] if not mad else ("property.html", "property")
+                if mad:
+                    qs = {**qs, "id": mad.group(1)}
+                data = sitepage.boot(self, page, qs)
+                if page == "property" and mad and not data.get("property"):
+                    return self.send_text("<!doctype html><meta charset=utf-8><title>یافت نشد</title><p>این آگهی پیدا نشد. <a href='/'>صفحهٔ اصلی</a></p>",
+                                          "text/html; charset=utf-8", status=404, cache="no-cache")
+                body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
+                # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
+                # متن برای کاربر جمع است و با یک کلیک باز می‌شود
+                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "")
+                if sp:
+                    body = seo.render(body, {**sp, "hash": ""}, VERSION)
+                    fold = (f'<section class="seo-text" id="seoText"><div class="wrap"><details class="seo-fold"><summary>'
+                            f'{"دربارهٔ بازار ملک و فرصت‌های امروز" if page == "home" else "خلاصهٔ تحلیل این آگهی"}'
+                            f'<small>برای خواندن کامل بزنید</small></summary><div class="seo-fold__body">{sp["body"]}</div></details></div></section>\n')
+                    body = body.replace('<footer class="foot', fold + '    <footer class="foot', 1)
                 return self.send_text(body, "text/html; charset=utf-8", cache="no-cache")
             p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
             if p is not None:

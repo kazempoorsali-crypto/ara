@@ -26,6 +26,7 @@
   <link rel="stylesheet" href="/assets/site/css/pages.css?v=51" />
   <link rel="stylesheet" href="/assets/site/css/account.css?v=51" />
   <!--FM_BOOT-->
+  <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css" />
 </head>
 <body data-page="property">
 
@@ -100,6 +101,7 @@
             <div><b data-pfloor>—</b><small>طبقه</small></div>
           </div>
 
+          <p class="pverdict" data-pverdict hidden></p>
           <p class="pdesc" data-pdesc>—</p>
           <div class="pfeatures" data-pfeatures></div>
         </div>
@@ -196,6 +198,12 @@
           <div class="pchart__events" data-hist-events></div>
         </div>
 
+        <div class="pmapbox" data-pmapbox hidden>
+          <h3>موقعیت <span data-pmap-note>تقریبی</span></h3>
+          <div class="pmap" id="pMap" aria-label="نقشهٔ موقعیت ملک"></div>
+          <p class="pmapbox__note" data-pmap-hint>برای حفظ حریم فروشنده، موقعیت دقیق فقط برای مشترکان نشان داده می‌شود؛ این نقشه حدود یک کیلومتری محل را نشان می‌دهد.</p>
+        </div>
+
         <table class="ptable" data-ptable>
           <caption>مشخصات تفصیلی</caption>
           <tbody><!-- با JS --></tbody>
@@ -226,6 +234,7 @@
   <script src="/assets/vendor/fx/gsap.min.js"></script>
   <script src="/assets/vendor/fx/ScrollTrigger.min.js"></script>
   <script src="/assets/vendor/fx/lenis.min.js"></script>
+  <script src="/assets/vendor/leaflet/leaflet.js"></script>
   <script src="/assets/site/js/api.js?v=51"></script>
   <script src="/assets/site/js/data.js?v=51"></script>
   <script src="/assets/site/js/property.js?v=51"></script>

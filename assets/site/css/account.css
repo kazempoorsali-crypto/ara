@@ -273,3 +273,83 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 .seo-text h1, .seo-text h2, .seo-text h3 { color: var(--ink); font-size: 1.15rem; margin: 1.2em 0 .4em; line-height: 1.6; }
 .seo-text a { color: var(--gold-text); text-decoration: underline; text-underline-offset: 3px; }
 .seo-text ul { padding-inline-start: 1.2em; } .seo-text details { margin: .4em 0; } .seo-text summary { cursor: pointer; color: var(--ink); font-weight: 700; }
+
+/* ---------- قیمت از دید آسمان: کره و نقشهٔ زنده ---------- */
+.skylive { max-width: 1240px; margin: 0 auto 40px; padding: 0 16px; }
+.skylive__frame { position: relative; border-radius: 28px; overflow: hidden; border: 1px solid var(--line-strong); background: var(--bg-3);
+  box-shadow: 0 40px 90px -40px rgba(0,0,0,.55); height: min(86vh, 860px); min-height: 560px; }
+.skylive__frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.skylive__hint { max-width: 820px; margin: 14px auto 0; text-align: center; color: var(--ink-dim); font-size: .9rem; line-height: 1.9; }
+@media (max-width: 760px) { .skylive { padding: 0 10px; } .skylive__frame { height: 78vh; min-height: 480px; border-radius: 20px; } }
+.sky-filterbar .section-title { margin-bottom: 18px; }
+
+/* ---------- نورافکن فرصت‌ها بالای ساختمان‌های صفحهٔ اول ---------- */
+.hspots { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.hspot { position: absolute; pointer-events: auto; display: flex; align-items: center; gap: .55rem; max-width: min(300px, 80vw);
+  padding: .38rem .45rem .38rem .7rem; border-radius: 999px; text-decoration: none;
+  background: rgba(10, 18, 14, .78); color: #f7f4ec; border: 1px solid rgba(247, 244, 236, .22);
+  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, .6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  opacity: 0; translate: 0 14px; scale: .96; transition: opacity .6s var(--ease), translate .7s var(--ease), scale .7s var(--ease), border-color .3s, box-shadow .3s; }
+.hspot.is-on { opacity: 1; translate: 0 0; scale: 1; }
+.hspot.is-out { opacity: 0; translate: 0 -10px; }
+.hspot:hover { border-color: var(--gold); box-shadow: 0 18px 46px -12px rgba(213, 166, 38, .55); }
+.hspot__img { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex: none; border: 2px solid rgba(255,255,255,.35); background: #12231b; }
+.hspot__img img { width: 100%; height: 100%; object-fit: cover; }
+.hspot__txt { display: grid; min-width: 0; line-height: 1.45; }
+.hspot__txt b { font-size: .8rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hspot__txt small { font-size: .68rem; color: #ecd07c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hspot__score { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 900; font-size: .8rem;
+  background: var(--st-gold); color: #191307; }
+.hspot[data-status="ok"] .hspot__score { background: var(--st-ok); color: #fff; }
+.hspot[data-status="mid"] .hspot__score { background: var(--st-mid); color: #191307; }
+.hspot__beam { position: absolute; top: 100%; right: 50%; width: 2px; height: 46px; translate: 50% 0; pointer-events: none;
+  background: linear-gradient(to bottom, var(--gold), transparent); opacity: .8; }
+.hspot__beam::after { content: ""; position: absolute; bottom: -4px; right: 50%; translate: 50% 0; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 14px var(--gold); }
+[data-theme="light"] .hspot { background: rgba(255, 253, 248, .92); color: #1c241e; border-color: rgba(28, 36, 30, .14); box-shadow: 0 16px 40px -16px rgba(60, 70, 60, .45); }
+[data-theme="light"] .hspot__txt small { color: #8a6a14; }
+[data-theme="light"] .hspot__img { border-color: #fff; }
+@media (max-width: 760px) { .hspot { max-width: 86vw; } .hspot__beam { height: 30px; } }
+
+/* ---------- صفحهٔ اول در تم روشن: آسمان سحرگاهی گرم و شهر سنگی با پنجره‌های روشن ---------- */
+[data-theme="light"] {
+  --sky-far-a: #eadbc4; --sky-far-b: #d9c4a4;
+  --sky-near-a: #c9a77c; --sky-near-b: #8a6a45;
+  --win: #ffcf73; --win-glow: rgba(255, 196, 92, .75);
+  --hero-ink: #1f2a22; --hero-em: #a8780c;
+}
+[data-theme="light"] .hero__stage {
+  background:
+    radial-gradient(60% 50% at 12% 22%, rgba(255, 196, 140, .55), transparent 70%),
+    radial-gradient(70% 60% at 88% 10%, rgba(178, 214, 236, .55), transparent 72%),
+    linear-gradient(180deg, #f7dcc0 0%, #f6e9d8 36%, #eef1ec 64%, var(--bg) 100%);
+}
+[data-theme="light"] .hero__title { color: #1f2a22; }
+[data-theme="light"] .hero__line.is-accent em { background: linear-gradient(90deg, #b8860b, #e0a526 55%, #c4791a); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+[data-theme="light"] .hero__underline { color: #e0a526; }
+[data-theme="light"] .hero__lead { background: rgba(255, 253, 248, .82); color: #1f2a22; border: 1px solid rgba(184, 134, 11, .45); box-shadow: 0 12px 30px -16px rgba(140, 100, 30, .45); text-shadow: none; }
+[data-theme="light"] .hero__sub { background: rgba(255, 253, 248, .7); border-color: rgba(184, 134, 11, .22); box-shadow: 0 18px 40px -26px rgba(90, 70, 40, .45); backdrop-filter: blur(8px); }
+[data-theme="light"] .hero__cloud { background: rgba(255, 250, 244, .9); box-shadow: 0 14px 40px rgba(200, 150, 110, .18); }
+[data-theme="light"] .hero__stats { background: rgba(255, 253, 248, .78); border-color: rgba(184, 134, 11, .25); box-shadow: 0 18px 44px -24px rgba(90, 70, 40, .45); }
+[data-theme="light"] .hero__stat b { color: #8a6a14; }
+[data-theme="light"] .hero__skyline--near svg path:first-of-type { stroke: rgba(255, 236, 200, .8); }
+/* متن سئو: جمع‌شده، با یک کلیک باز می‌شود */
+.seo-text { padding: 28px 16px; }
+.seo-fold { border: 1px solid var(--line); border-radius: 20px; background: var(--panel); padding: 0; }
+.seo-fold > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 22px; font-weight: 800; color: var(--ink); }
+.seo-fold > summary::-webkit-details-marker { display: none; }
+.seo-fold > summary small { font-weight: 600; font-size: .8rem; color: var(--gold-text); }
+.seo-fold > summary::after { content: "+"; font-size: 1.3rem; color: var(--gold-text); }
+.seo-fold[open] > summary::after { content: "–"; }
+.seo-fold__body { padding: 0 22px 22px; border-top: 1px solid var(--line); }
+
+/* ---------- صفحهٔ ملک: حکم، نقشه ---------- */
+.pverdict { margin: 14px 0 6px; padding: 12px 16px; border-radius: 16px; font-weight: 700; line-height: 1.9; font-size: .95rem;
+  background: color-mix(in srgb, var(--st-mid) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--st-mid) 35%, transparent); color: var(--ink); }
+.pverdict[data-status="gold"] { background: color-mix(in srgb, var(--st-gold) 12%, var(--panel)); border-color: color-mix(in srgb, var(--st-gold) 45%, transparent); }
+.pverdict[data-status="ok"] { background: color-mix(in srgb, var(--st-ok) 10%, var(--panel)); border-color: color-mix(in srgb, var(--st-ok) 40%, transparent); }
+.pverdict[data-status="warm"], .pverdict[data-status="bad"] { background: color-mix(in srgb, var(--st-bad) 9%, var(--panel)); border-color: color-mix(in srgb, var(--st-bad) 35%, transparent); }
+.pmapbox { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+.pmapbox h3 { margin-bottom: 10px; font-size: 1.05rem; }
+.pmap { height: 300px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); z-index: 0; }
+.pmapbox__note { margin-top: 10px; font-size: .82rem; color: var(--ink-faint); }
+[data-theme="dark"] .pmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5); }
