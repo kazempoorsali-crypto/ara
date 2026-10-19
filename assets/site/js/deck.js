@@ -82,8 +82,9 @@
     /* باز شدن پین‌شده: بخش تا پایان بازشدن سر جایش می‌ماند */
     var tl = gsap.timeline({
       scrollTrigger: {
-        trigger: pinWrap,
-        start: "top top+=90",
+        // کل بخش (عنوان + کارت‌ها) با هم ثابت می‌ماند تا عنوان و کارت‌های بادبزنی در یک نگاه دیده شوند
+        trigger: section || pinWrap,
+        start: "top top",
         end: "+=" + innerHeight * 1.35,
         pin: true,
         scrub: 0.65,

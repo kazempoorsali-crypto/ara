@@ -645,3 +645,100 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 .hero__topo { will-change: transform; contain: strict; }
 [data-theme="light"] .hero__skyline--near { filter: none; }
 [data-theme="light"] .hero__stage::before { filter: none; opacity: .92; }
+
+/* ویترین فرصت‌های طلایی (رایانه): عنوان و کارت‌های بادبزنی در یک صفحه */
+@media (min-width: 861px) {
+  .golden { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--nav-h) + .6rem) 0 .8rem; }
+  .golden__head { margin-bottom: .2rem; }
+  .golden__head .section-title { font-size: clamp(2rem, 3.2vw, 2.9rem); }
+  .golden__head .section-sub { font-size: .92rem; margin-top: .35rem; }
+  .deck__pinwrap { height: auto; padding-top: 0; }
+  .deck__stage { flex: none; height: min(56vh, 480px); max-height: none; }
+  .dcard { width: clamp(176px, 15.5vw, 228px); }
+  .deck__hint { padding: .6rem 0 0; }
+}
+
+/* ═════════════ نمای گوشی (فقط زیر ۸۶۰ پیکسل؛ رایانه دست نمی‌خورد) ═════════════ */
+@media (max-width: 860px) {
+  /* ویترین: بدون فضای خالی صفحه‌ای؛ ردیف کارت‌ها با کشیدن افقی */
+  .golden { padding: 3.2rem 0 1.4rem; }
+  .golden__head .section-title { font-size: clamp(1.55rem, 6.4vw, 2.1rem); line-height: 1.45; }
+  .golden__head .section-sub { font-size: .88rem; }
+  .deck__pinwrap { height: auto; padding-top: .6rem; }
+  .deck__stage { max-height: none; }
+  .deck__stage.is-row .dcard { flex: 0 0 min(72%, 280px); width: auto; aspect-ratio: 3/4; transform: none !important; }
+  .deck__hint { display: none; }
+  .dcard__info b { font-size: .92rem; }
+  .dcard .cacts { opacity: 1; transform: none; }
+
+  /* طبقه‌ها: بدون پین؛ همهٔ پنل‌ها زیر هم */
+  .floors.is-static .floors__pin { height: auto; overflow: visible; padding: 3rem 0 2rem; display: block; }
+  .floors.is-static .floors__body { display: flex; flex-direction: column; gap: 1.2rem; }
+  .floors.is-static .floors__visual { order: 0; max-width: 420px; margin: 0 auto; width: 100%; }
+  .floors.is-static .floors__cursor, .floors.is-static .floors__cursor-label, .floors.is-static .floors__rail { display: none !important; }
+  .floors.is-static .floors__panels { display: flex; flex-direction: column; gap: 1rem; min-height: 0 !important; }
+  .floors.is-static .fpanel { visibility: visible; opacity: 1; padding: 1.1rem 1.1rem; transform: none !important; }
+  .floors.is-static .fpanel__head, .floors.is-static .fpanel__col { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+
+  /* شکارهای بازار: سرتیتر روی هم نیفتد؛ کشیدن افقی طبیعی */
+  .hscroll { margin-top: 3rem; }
+  .hscroll__head { flex-direction: column; align-items: flex-start; gap: .3rem; padding: 0 1.25rem; }
+  .hscroll__pin { height: auto !important; }
+  .hscroll__track { overflow-x: auto; scroll-snap-type: x mandatory; transform: none !important; padding: 1rem 1.25rem; scrollbar-width: none; }
+  .hscroll__track::-webkit-scrollbar { display: none; }
+  .hscroll__track .hcard { scroll-snap-align: center; }
+}
+@media (max-width: 560px) {
+  /* سربرگ: نام سایت یک خط، بدون زیرنویس؛ دکمه‌ها جمع‌وجور */
+  .nav__inner { gap: .5rem; padding: 0 .75rem; }
+  .nav__txt small { display: none; }
+  .nav__txt b { font-size: .95rem; white-space: nowrap; }
+  .nav__iconbtn { width: 38px; height: 38px; }
+  .nav__extra { gap: 5px; }
+  #accountLabel { display: none; }
+
+  /* بخش اول: ماه/خورشید کوچک‌تر و دور از متن */
+  .hero__sun { width: 92px !important; left: 10% !important; top: 9% !important; }
+  .hero__title { font-size: clamp(1.7rem, 8.4vw, 2.3rem); }
+  .hero__lead { font-size: .95rem; padding: .55rem 1rem; }
+  .hero__sub { font-size: .86rem; line-height: 1.9; }
+
+  /* گالری دوستونه: متن خوانا، بدون شکستن نامرتب */
+  .masonry-wrap .ncard__body { padding: .55rem .6rem .7rem; }
+  .masonry-wrap .ncard__body > b, .cgroup__grid .ncard__body > b { font-size: .8rem; line-height: 1.6; }
+  .ncard__meta { flex-direction: column; gap: .15rem; }
+  .ncard__meta small { font-size: .68rem; line-height: 1.6; }
+  .ncard__price { font-size: .8rem; }
+  .lbadge { font-size: .62rem; padding: 2px 7px; }
+  .cact { width: 28px; height: 28px; }
+
+  /* فیلتر صفحهٔ اول: سه کادر زیر هم، تمام‌عرض */
+  .searchbar { flex-direction: column; align-items: stretch; gap: .5rem; padding: .6rem; }
+  .searchbar__arrow { display: none; }
+  .searchbar__field { width: 100%; }
+  .cpick { width: calc(100vw - 32px); right: 0; }
+  .advf { padding: 14px 12px 10px; }
+  .advf__chips button { padding: 6px 11px; font-size: .8rem; }
+
+  /* بخش‌ها: عنوان‌ها اندازهٔ گوشی */
+  .section-title { font-size: clamp(1.45rem, 6.2vw, 1.9rem); line-height: 1.5; }
+  .section-sub { font-size: .88rem; }
+}
+@media (max-width: 560px) {
+  .searchbar__field { flex: none; min-width: 0; padding: .4rem .8rem; }
+  .hero__sun { width: 78px !important; left: 7% !important; top: 6% !important; opacity: .9; }
+  .foot { padding-top: 3rem; }
+  .foot__grid { grid-template-columns: 1fr 1fr !important; gap: 1.6rem 1rem; padding: 2rem 1.25rem; }
+  .foot__grid > :first-child { grid-column: 1 / -1; }
+  .totop { top: auto !important; bottom: 1rem; right: .9rem; transform: none !important; width: 42px; height: 42px; }
+  .hscroll__title { font-size: 1rem; }
+}
+@media (max-width: 560px) { .hero__sun { width: 66px !important; left: 5% !important; top: 10% !important; } }
+@media (max-width: 560px) {
+  .skymap__stats { display: grid !important; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .skymap__stats > div { min-width: 0; padding: .7rem .5rem; }
+  .skycards { display: grid !important; grid-template-columns: 1fr 1fr; gap: .6rem; padding-inline: 1rem; }
+  .skycard { padding: .7rem .75rem; min-width: 0; }
+  .skycard b { font-size: .88rem; }
+  .skylive__frame { height: 72vh; min-height: 440px; }
+}
