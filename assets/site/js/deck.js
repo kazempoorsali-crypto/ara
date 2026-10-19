@@ -38,6 +38,11 @@
   function fanTarget(i, n) {
     var mid = (n - 1) / 2;
     var off = i - mid;
+    if (matchMedia("(max-width: 860px)").matches) {   // گوشی: بادبزن فشرده که در عرض صفحه جا می‌شود
+      var cw = (cards[0] && cards[0].offsetWidth) || 150;
+      var step = Math.max(24, (stage.clientWidth - cw - 20) / Math.max(1, n - 1));
+      return { x: off * step, y: Math.abs(off) * 8 - 6, rotation: off * -4.5, scale: 1.04 - Math.abs(off) * 0.06, z: 10 - Math.abs(off) };
+    }
     var shrink = Math.min(1, stage.clientWidth / 1240);
     return {
       x: off * 248 * shrink,
@@ -57,7 +62,7 @@
     });
     var n = cards.length;
 
-    if (FM.lite || matchMedia("(max-width: 860px)").matches) {
+    if (FM.lite) {
       stage.classList.add("is-row");
       cards.forEach(function (c) { gsap.set(c, { clearProps: "all" }); });
       return;
@@ -85,7 +90,7 @@
         // کل بخش (عنوان + کارت‌ها) با هم ثابت می‌ماند تا عنوان و کارت‌های بادبزنی در یک نگاه دیده شوند
         trigger: section || pinWrap,
         start: "top top",
-        end: "+=" + innerHeight * 1.35,
+        end: "+=" + innerHeight * (matchMedia("(max-width: 860px)").matches ? 0.8 : 1.35),
         pin: true,
         scrub: 0.65,
         anticipatePin: 1,

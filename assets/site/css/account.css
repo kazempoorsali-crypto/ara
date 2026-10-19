@@ -742,3 +742,47 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
   .skycard b { font-size: .88rem; }
   .skylive__frame { height: 72vh; min-height: 440px; }
 }
+
+/* ═══ گوشی، دور دوم: بادبزن ویترین، برج طبقه‌ها با انیمیشن، بخش اول زیر نوار ═══ */
+@media (max-width: 860px) {
+  /* ویترین: عنوان و بادبزن در یک صفحه */
+  .golden { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--nav-h) + .4rem) 0 .6rem; }
+  .golden__head { margin-bottom: .2rem; }
+  .golden__head .eyebrow { display: none; }
+  .golden__head .section-sub { font-size: .8rem; line-height: 1.8; margin-top: .2rem; }
+  .deck__stage:not(.is-row) { height: min(52svh, 360px); flex: none; }
+  .deck__stage:not(.is-row) .dcard { width: min(42vw, 176px); }
+  .dcard__score { transform: scale(.85); }
+  .dcard__tag.lbadge { font-size: .58rem; }
+
+  /* طبقه‌ها: ثابت با اسکرول، چیدمان فشرده */
+  .floors.is-mob .floors__pin { height: 100vh; height: 100svh; display: flex; flex-direction: column; justify-content: flex-start; padding: calc(var(--nav-h) + .3rem) 0 .5rem; overflow: hidden; }
+  .floors.is-mob .floors__head { margin-bottom: .4rem; }
+  .floors.is-mob .floors__head .eyebrow, .floors.is-mob .floors__head .section-sub { display: none; }
+  .floors.is-mob .floors__head .section-title { font-size: 1.15rem; }
+  .floors.is-mob .floors__body { display: flex; flex-direction: column; gap: .55rem; padding: 0 .9rem; flex: 1; min-height: 0; }
+  .floors.is-mob .floors__visual { order: 0; width: min(88vw, 420px); max-width: none; margin: 0 auto; flex: none; }
+  .floors.is-mob .floors__aspect { display: none; }
+  .floors.is-mob .floors__panels { order: 1; display: grid; flex: 1; min-height: 0; }
+  .floors.is-mob .fpanel { padding: .75rem .85rem; overflow: hidden; }
+  .floors.is-mob .fpanel__head { margin-bottom: .45rem; }
+  .floors.is-mob .fpanel__head h3 { font-size: 1rem; }
+  .floors.is-mob .fpanel__head p { font-size: .74rem; line-height: 1.7; }
+  .floors.is-mob .fpanel__cols { grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .floors.is-mob .fpanel__col { padding: .5rem .6rem; }
+  .floors.is-mob .fpanel__col b { font-size: .76rem; }
+  .floors.is-mob .fpanel__col li { font-size: .7rem; line-height: 1.7; }
+  .floors.is-mob .floors__cursor-label { font-size: .66rem; padding: .12rem .6rem; }
+}
+/* دکمه‌های طبقه برای دستگاه‌های بدون انیمیشن */
+.floors__tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: .6rem; }
+.floors__tabs button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: .78rem; cursor: pointer; }
+.floors__tabs button.is-on { border-color: var(--gold); color: var(--gold-text, var(--gold)); }
+[data-theme="dark"] .floors__tabs button.is-on { border-color: var(--neon); color: var(--neon); }
+
+@media (max-width: 560px) {
+  /* بخش اول: متن زیر نوار بالا (با در نظر گرفتن ناچ آیفون) */
+  .hero__content { padding-top: calc(var(--nav-h) + env(safe-area-inset-top, 0px) + .8rem); align-self: start; }
+  .hero__eyebrow { font-size: .7rem; padding: .25rem .8rem; margin-bottom: .8rem; }
+}
+@media (max-width: 560px) and (max-height: 760px) { .hero__eyebrow { display: none; } .hero__sub { display: none; } }
