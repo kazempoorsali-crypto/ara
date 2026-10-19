@@ -563,7 +563,7 @@ const App = (() => {
       L0.globe = await mod.mountGlobe($("#skyGlobe"), {
         cities, day: !dark(), lite: liteGlobe,
         // صفحهٔ کوچک یا سیستم ضعیف: بافت ۲۰۴۸ پیکسلی (سبک‌تر)؛ دسکتاپ: بافت کامل
-        textureUrl: liteGlobe || innerWidth < 760 ? `/assets/vendor/globe/earth-${tone}-2048.${IMGX}` : `/assets/vendor/globe/earth-${tone}.${IMGX}`,
+        textureUrl: liteGlobe || innerWidth < 760 || document.documentElement.classList.contains("embed") ? `/assets/vendor/globe/earth-${tone}-2048.${IMGX}` : `/assets/vendor/globe/earth-${tone}.${IMGX}`,
         // بار اول: شهر انتخاب و فیلتر می‌شود و نقشه‌اش همین‌جا باز می‌شود؛ زدن دوباره روی همان شهر: صفحهٔ فرصت‌های آن شهر
         onPick: (c) => {
           if (L0.sel && L0.sel.ids.length === 1 && L0.sel.ids[0] === c.id) return liveOpenCity(L0, c.id);
@@ -1155,13 +1155,30 @@ const App = (() => {
     const methods = cfg.pay_methods || [];
     // انتخاب روش پرداخت: همهٔ روش‌ها دیده می‌شوند؛ روش آماده‌نشده پیام «فعلاً فعال نیست» می‌دهد
     if (!method && !cfg.test_payments) { payMethodDialog(plan); return; }
+    // اگر درگاه پاسخ ندهد یا صفحهٔ پرداخت باز نشود، کاربر بی‌خبر نمی‌ماند
+    payFail.plan = plan;
+    const name = ((cfg.pay_methods || []).find((x) => x.id === method) || {}).name || "درگاه پرداخت";
+    const fail = () => payFail(`پاسخی از «${name}» نرسید. لطفاً روش پرداخت دیگری را انتخاب کنید، یا اگر فیلترشکن (VPN) روشن است خاموشش کنید و دوباره امتحان کنید.`);
+    toast("در حال اتصال به درگاه پرداخت…");
     try {
-      const r = await DataLayer.startPayment(plan, method);
-      if (r.redirect) { location.href = r.redirect; return; }
+      const r = await Promise.race([DataLayer.startPayment(plan, method), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 20000))]);
+      if (r.redirect) {
+        location.href = r.redirect;
+        setTimeout(() => { if (!document.hidden) fail(); }, 9000);   // صفحهٔ درگاه باز نشد
+        return;
+      }
       if (r.card || r.link) { cardDialog(r); return; }
       if (r.bale) { balePayDialog(r.bale); return; }
+      if (!r.activated) { fail(); return; }
       if (r.activated) { await DataLayer.refreshMe(); updateAccount(); if (r.payment_id) go("#/invoice/" + r.payment_id); else { toast(r.test ? "اشتراک در حالت آزمایشی فعال شد" : "اشتراک فعال شد"); route(); } }
-    } catch (err) { toast(err.message); }
+    } catch (err) { if (err.message === "timeout" || /fetch|network|Failed/i.test(err.message)) fail(); else payFail(err.message + " — می‌توانید روش پرداخت دیگری را انتخاب کنید."); }
+  }
+  function payFail(msg) {
+    openDialog(`<div class="dlg__head"><h2>پرداخت انجام نشد</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      <p style="line-height:2">${esc(msg)}</p>
+      <ul class="small muted" style="line-height:2;padding-inline-start:18px"><li>روش پرداخت دیگری را امتحان کنید.</li><li>اگر فیلترشکن (VPN) روشن است، خاموشش کنید.</li><li>اگر مشکل ماند، از بخش پشتیبانی تیکت ثبت کنید.</li></ul>
+      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn--hot" type="button" id="payOther">انتخاب روش دیگر</button><a class="btn btn--line" href="/app.html#/support">پشتیبانی</a></div>`);
+    const b = document.getElementById("payOther"); if (b) b.addEventListener("click", () => { document.getElementById("dlg").close(); if (payFail.plan) payMethodDialog(payFail.plan); });
   }
   const PAY_ICON = { bale: "chat", bezan: "copy", zarinpal: "lock", card: "copy" };
   const PAY_NOTE = { bale: "پرداخت در پیام‌رسان بله؛ تأیید و فعال‌سازی کاملاً خودکار و فوری", bezan: "کارت‌به‌کارت با اپ بانک خودتان؛ مبلغ یکتا، تأیید و فعال‌سازی خودکار", zarinpal: "درگاه بانکی آنلاین؛ فعال‌سازی خودکار پس از پرداخت", card: "واریز مبلغ یکتا و ثبت رسید؛ فعال‌سازی فوری" };
@@ -1188,7 +1205,9 @@ const App = (() => {
         <li><span>در بله روی «پرداخت» بزنید. پرداخت مستقیم از طریق بله انجام و همان لحظه تأیید می‌شود.</span></li>
         <li><span>این صفحه را باز نگه دارید؛ به‌محض تأیید، اشتراک فعال و فاکتور نمایش داده می‌شود. رسید در بله هم می‌آید.</span></li>
       </ol>
-      <p class="paywait" id="payWait"><i></i> در انتظار پرداخت…</p>`);
+      <p class="paywait" id="payWait"><i></i> در انتظار پرداخت…</p>
+      <p class="small muted" style="margin-top:10px">اگر بله باز نشد یا صورت‌حساب نیامد، فیلترشکن (VPN) را خاموش کنید یا <button type="button" class="linkbtn" id="payOther2">روش پرداخت دیگری</button> را انتخاب کنید.</p>`);
+    const o2 = document.getElementById("payOther2"); if (o2) o2.addEventListener("click", () => { document.getElementById("dlg").close(); if (payFail.plan) payMethodDialog(payFail.plan); });
     let n = 0;
     const t = setInterval(async () => {
       if (!$("#payWait") || ++n > 400) { clearInterval(t); return; }
@@ -1265,7 +1284,7 @@ const App = (() => {
     openDialog(`<div class="dlg__head"><h2>${r.link ? "پرداخت با بزن به کارت" : "پرداخت کارت‌به‌کارت"}</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       ${r.link ? `<ol class="pay-steps">
         <li><span>مبلغ اشتراک ${esc(r.plan)}:</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
-        <li><span>صفحهٔ پرداخت «بزن به کارت» را باز کن و همین مبلغ را بپرداز.</span><a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener">باز کردن صفحهٔ پرداخت ${icon("arrow")}</a></li>
+        <li><span>صفحهٔ پرداخت «بزن به کارت» را باز کن و همین مبلغ را بپرداز.</span><a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener">باز کردن صفحهٔ پرداخت ${icon("arrow")}</a><small class="muted">اگر صفحهٔ پرداخت باز نشد، فیلترشکن (VPN) را خاموش کنید یا روش دیگری را انتخاب کنید.</small></li>
         <li><span>بعد از پرداخت، کد پیگیری یا عکس رسید را همین‌جا ثبت کن. ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و پرداخت بعداً بررسی می‌شود.` : `پس از تأیید پرداخت، اشتراک ${esc(r.plan)} باز می‌شود.`}</span></li>
       </ol>` : `<ol class="pay-steps">
         <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>

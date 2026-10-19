@@ -266,3 +266,4 @@
 .pbar__cap { position: absolute; right: 50%; transform: translateX(50%); white-space: nowrap; font-size: 10.5px; font-weight: 700; font-style: normal; }
 .pbar__cap--top { bottom: calc(100% + 2px); color: var(--ink); }
 .pbar__cap--bot { top: calc(100% + 4px); }
+.linkbtn{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit}
