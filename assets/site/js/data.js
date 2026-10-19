@@ -31,7 +31,10 @@ window.FM = window.FM || {};
     if (!u) return "";
     return /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "/img?u=" + encodeURIComponent(u) : u;
   };
-  FM.NOIMG = "/assets/site/img/noimg.svg";
+  // جای عکسِ خالی هم‌رنگ تم: روشن در تم روشن، تیره در تم تیره
+  Object.defineProperty(FM, "NOIMG", { configurable: true, get: function () {
+    return document.documentElement.getAttribute("data-theme") === "light" ? "/assets/site/img/noimg-light.svg" : "/assets/site/img/noimg.svg";
+  } });
 
   /* فاصله با برآورد بازار؛ برای غیرمشترکان بازهٔ ۵ درصدی */
   FM.gapText = function (v) {

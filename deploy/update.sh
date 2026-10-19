@@ -16,10 +16,14 @@ echo "شاخهٔ نصب‌شده: $BR"
 if ! python3 -c "import PIL" >/dev/null 2>&1; then
   (DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y -qq python3-pil >/dev/null 2>&1 && echo "Pillow نصب شد (تبدیل عکس به WebP فعال است).") || echo "Pillow نصب نشد؛ عکس‌ها بدون تبدیل نمایش داده می‌شوند."
 fi
+# پایداری: سقف فایل‌های باز بالاتر و راه‌اندازی دوبارهٔ سریع‌تر سرویس در صورت توقف
+mkdir -p /etc/systemd/system/forsatyab.service.d
+printf '[Service]\nLimitNOFILE=65536\nRestartSec=2\nTasksMax=4096\n' > /etc/systemd/system/forsatyab.service.d/stability.conf
+systemctl daemon-reload
 systemctl restart forsatyab
-# یک‌بار: پیکربندی تازهٔ Caddy (تغییر مسیر www به نشانی اصلی، فشرده‌سازی بهتر)؛ اگر نامعتبر بود، نسخهٔ قبلی برمی‌گردد
-if [ -f /etc/caddy/Caddyfile ] && grep -q ', www\.' /etc/caddy/Caddyfile; then
-  DOMAIN=$(grep -m1 -oE '^[a-z0-9.-]+\.[a-z]{2,}' /etc/caddy/Caddyfile || true)
+# پیکربندی تازهٔ Caddy (تغییر مسیر www، فشرده‌سازی، تحمل راه‌اندازی دوباره)؛ اگر نامعتبر بود، نسخهٔ قبلی برمی‌گردد
+if [ -f /etc/caddy/Caddyfile ] && { grep -q ', www\.' /etc/caddy/Caddyfile || ! grep -q 'fm-caddy-v2' /etc/caddy/Caddyfile; }; then
+  DOMAIN=$(grep -v '^#' /etc/caddy/Caddyfile | grep -m1 -oE '^(www\.)?[a-z0-9.-]+\.[a-z]{2,}' | sed 's/^www\.//' || true)
   if [ -n "$DOMAIN" ]; then
     cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
     sed "s/__DOMAIN__/$DOMAIN/g" /opt/forsatyab/deploy/Caddyfile.template > /etc/caddy/Caddyfile
