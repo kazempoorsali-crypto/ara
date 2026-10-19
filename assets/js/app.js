@@ -139,6 +139,8 @@ const App = (() => {
     else if (page === "support") supportPage(params);
     else if (page === "p") contentPage("/" + path.split("/").slice(1).join("/"));
     else if (page === "sky") skyPage();
+    // صفحهٔ اصلیِ سایت قبلی دیگر نمایش داده نمی‌شود: مستقیم به صفحهٔ اصلی سایت جدید (بدون بار شدن دوبارهٔ نسخهٔ قدیمی)
+    else if (!document.documentElement.classList.contains("embed") && (location.pathname === "/app.html" || location.hash === "#/" || !location.hash)) { location.replace("/"); return; }
     else homePage();
     // متن «دربارهٔ بازار» که سرور برای همین نشانی ساخته، فقط روی همان صفحه دیده می‌شود
     const st = $("#seoText");
@@ -1237,7 +1239,7 @@ const App = (() => {
     const status = ok ? (paid ? "پرداخت موفق؛ اشتراک شما فعال است" : "رسید ثبت شد؛ اشتراک شما فعال است") : inv.status === "failed" ? "پرداخت انجام نشد" : "در انتظار پرداخت";
     view().innerHTML = `<section class="section--tight"><div class="wrap"><div class="rp" id="rp" data-stage="${ok ? "processing" : "idle"}">
       <div class="rp__printer">
-        <div class="rp__top"><svg class="rp__logo" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3aa37c" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M10 25l13-13 13 13" stroke="#ece6da" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="39" cy="10" r="4.2" fill="#e0531f"/></svg><a class="rp__home" href="#/">${icon("home", 'width="14"')} خانه</a></div>
+        <div class="rp__top"><svg class="rp__logo" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3aa37c" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M10 25l13-13 13 13" stroke="#ece6da" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="39" cy="10" r="4.2" fill="#e0531f"/></svg><a class="rp__home" href="/">${icon("home", 'width="14"')} خانه</a></div>
         <div class="rp__panel">
           <div class="rp__row"><div><b>اشتراک ${esc(inv.plan)}</b><small>${inv.days ? fa(inv.days) + " روز دسترسی کامل" : ""}</small></div><div class="rp__total"><small>مبلغ</small><b>${fa(inv.amount)} <i>تومان</i></b></div></div>
           <p class="rp__status"><i class="rp__dot"></i><span id="rpStatus">${ok ? "در حال تأیید پرداخت…" : esc(status)}</span></p>
@@ -1350,7 +1352,7 @@ const App = (() => {
       view().innerHTML = `<article class="wrap seo-page">${r.body}</article>`;
       document.title = r.title;
     } catch {
-      view().innerHTML = `<div class="wrap empty"><h3>این صفحه پیدا نشد</h3><a class="btn btn--ink" href="#/">صفحهٔ اصلی</a></div>`;
+      view().innerHTML = `<div class="wrap empty"><h3>این صفحه پیدا نشد</h3><a class="btn btn--ink" href="/">صفحهٔ اصلی</a></div>`;
     }
   }
 
@@ -2410,7 +2412,7 @@ const App = (() => {
   async function adPage(id) {
     view().innerHTML = `<div class="wrap ad"><div class="skeleton" style="height:440px"></div></div>`;
     const l = await DataLayer.get(id);
-    if (!l) { view().innerHTML = `<div class="wrap ad"><div class="empty"><h3>این آگهی پیدا نشد</h3><p>ممکن است آگهی اصلی حذف شده باشد.</p><a class="btn btn--ink" href="#/">بازگشت به خانه</a></div></div>`; return; }
+    if (!l) { view().innerHTML = `<div class="wrap ad"><div class="empty"><h3>این آگهی پیدا نشد</h3><p>ممکن است آگهی اصلی حذف شده باشد.</p><a class="btn btn--ink" href="/">بازگشت به خانه</a></div></div>`; return; }
     const c = UI.cityOf(l.city_key);
     UI.seen.add(l.id);
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
@@ -2427,7 +2429,7 @@ const App = (() => {
       : l.url ? `<a class="btn btn--hot btn--block btn--lg" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">${icon("arrow")} مشاهده آگهی اصلی</a><p class="agent__note">اطلاعات تماس و جزئیات بیشتر در آگهی اصلی است.</p>` : "";
     view().innerHTML = `
     <article class="wrap ad">
-      <nav class="crumbs"><a href="#/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
+      <nav class="crumbs"><a href="/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
       <div class="gallery" id="gal">${gal}</div>
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
@@ -2809,7 +2811,7 @@ const App = (() => {
     if (!$("#mBody")) return;
     const o = R && R.overview;
     if (!R || !o.valid) {
-      $("#mBody").innerHTML = `<div class="empty"><h3>هنوز داده‌ای برای ${KG[kind]} ${UI.dealName(deal)} ${esc(cname)} جمع نشده</h3><p>آگهی‌ها به‌تدریج دریافت می‌شوند؛ کمی بعد دوباره سر بزنید.</p><a class="btn btn--ink" href="#/">بازگشت به صفحهٔ اول</a></div>`;
+      $("#mBody").innerHTML = `<div class="empty"><h3>هنوز داده‌ای برای ${KG[kind]} ${UI.dealName(deal)} ${esc(cname)} جمع نشده</h3><p>آگهی‌ها به‌تدریج دریافت می‌شوند؛ کمی بعد دوباره سر بزنید.</p><a class="btn btn--ink" href="/">بازگشت به صفحهٔ اول</a></div>`;
       return;
     }
     const rentWord = deal === "rent" ? "رهن کامل " : "";

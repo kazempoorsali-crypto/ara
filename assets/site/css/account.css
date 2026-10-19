@@ -803,3 +803,26 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
   .advf__toggle { padding: 8px 16px; font-size: .9rem; }
 }
 .cpick__btn { padding-left: 22px !important; background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%), linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%); background-position: 6px calc(50% - 1px), 11px calc(50% - 1px); background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* گوشی، دور سوم: چرخ‌فلک ویترین، فاصلهٔ کمتر بین بخش‌ها، نقطه‌های عکس همیشه پیدا */
+@media (max-width: 860px) {
+  .golden { justify-content: flex-start; padding-top: calc(var(--nav-h) + 1rem); }
+  .deck__stage:not(.is-row) { height: min(56svh, 420px); margin-top: .6rem; }
+  .deck__stage:not(.is-row) .dcard { width: min(60vw, 236px); }
+  .gallery { padding-top: 2.2rem; }
+  .gallery__head { margin-bottom: 1.2rem; }
+  .problem { padding: 2.6rem 0 2.2rem; }
+  .skygateway { padding: 2.4rem 1rem; }
+  .assistant { padding: 2.8rem 1rem; }
+  .trust { padding: 3rem 0; }
+  .hscroll { margin-top: 2rem; }
+  .hscroll__pin { padding: 1.2rem 0 !important; }
+  .masonry__all { margin-top: 1rem; }
+  .homefilter { padding-bottom: .4rem; }
+  .homefilter__status { margin-top: .6rem; }
+}
+@media (hover: none) { .ncard__dots { opacity: 1; } .ncard__swap { opacity: .9; } }
+@media (max-width: 860px) {
+  .golden { min-height: 0; padding-bottom: 1rem; }
+  .deck__stage:not(.is-row) { height: calc(min(60vw, 236px) * 1.38 + 40px); }
+}
