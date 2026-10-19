@@ -929,3 +929,14 @@ html.is-sub .ncard__lock, html.is-sub .lockteaser { display: none !important; }
   background: rgba(10, 18, 14, .72); color: #f3efe4; border: 1px solid rgba(255, 255, 255, .22); pointer-events: none; }
 .seen-tag::before { content: "👁 "; font-size: .62rem; }
 .seen-tag[hidden] { display: none !important; }
+
+/* اینترو: خورشید پشت سقف خانه (کمی بیرون‌زده از بالای سقف)، نه کنار آن */
+.intro__stage { position: relative; display: grid; place-items: center; }
+.intro__stage .intro__sun-track { position: absolute; left: 50%; top: 13%; width: 0; height: 0; transform: none; z-index: 0; }
+.intro__stage .intro__sun { width: calc(clamp(220px, 34vw, 330px) * .52); left: 0; top: 0; transform: none;
+  margin-left: calc(clamp(220px, 34vw, 330px) * -.26); margin-top: calc(clamp(220px, 34vw, 330px) * -.26); }
+.intro__stage .intro__build { position: relative; z-index: 1; }
+.intro__build .ib-bg { fill: var(--bg); stroke: none; }
+
+/* «مشاهدهٔ فرصت‌ها» به فیلترها می‌رود؛ زیر سربرگ ثابت نرود */
+#homefilter { scroll-margin-top: calc(var(--nav-h, 64px) + 12px); }

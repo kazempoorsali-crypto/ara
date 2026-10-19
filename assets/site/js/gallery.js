@@ -231,6 +231,17 @@
 
   if (hasFilters) {
     fillProvinces(); fillCities(); fillDistricts(); applyFilterUI();
+    /* کادر شهر: هر بار که فیلتر به دید می‌آید یا کاربر به صفحه برمی‌گردد، کادر وارسی و دوباره نقاشی می‌شود؛
+       اگر به هر دلیلی از صفحه افتاده بود، از نو ساخته می‌شود */
+    var healCity = function () {
+      if (!picker) return;
+      if (!document.contains(picker.field)) { picker = null; fillCities(); return; }
+      picker.repaint();
+    };
+    var hf = document.getElementById("homefilter");
+    if (hf && "IntersectionObserver" in window) new IntersectionObserver(function (es) { if (es[0].isIntersecting) healCity(); }, { threshold: 0.05 }).observe(hf);
+    addEventListener("pageshow", healCity);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) healCity(); });
 
     selProvince.addEventListener("change", function () {
       FM.region.province = selProvince.value;
