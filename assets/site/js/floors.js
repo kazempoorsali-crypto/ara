@@ -61,11 +61,17 @@
     }
   }
 
-  if (FM.lite) { show(0); return; }
-  // گوشی: بدون ثابت‌ماندن بخش (هفت صفحه اسکرول و برچسب‌های بریده)؛ همهٔ طبقه‌ها زیر هم نمایش داده می‌شوند
-  if (matchMedia("(max-width: 860px)").matches) {
-    section.classList.add("is-static");
-    panels.forEach(function (p) { p.classList.add("is-active"); });
+  var mobile = matchMedia("(max-width: 860px)").matches;
+  if (mobile) section.classList.add("is-mob");   // چیدمان فشردهٔ گوشی: برج بالا، پنل طبقه پایین
+  if (FM.lite) {
+    // دستگاه ضعیف یا «کاهش حرکت»: بدون انیمیشن اسکرول؛ با دکمهٔ هر طبقه، همان طبقه روی برج نشان داده می‌شود
+    var tabs = document.createElement("div");
+    tabs.className = "floors__tabs";
+    tabs.innerHTML = view.map(function (f, i) { return '<button type="button" data-fi="' + i + '">' + f.name + "</button>"; }).join("");
+    panelsBox.parentNode.insertBefore(tabs, panelsBox);
+    var paint = function (i) { tabs.querySelectorAll("button").forEach(function (b) { b.classList.toggle("is-on", +b.dataset.fi === i); }); };
+    tabs.addEventListener("click", function (e) { var b = e.target.closest("[data-fi]"); if (b) { show(+b.dataset.fi); paint(+b.dataset.fi); } });
+    show(0); paint(0);
     return;
   }
 
@@ -77,7 +83,7 @@
   var fsun = section.querySelector(".floors__sun");
   if (inkPath) gsap.set(inkPath, { attr: { d: inkPath.getAttribute("d") } });
 
-  var D = innerHeight * 1.1;
+  var D = innerHeight * (mobile ? 0.6 : 1.1);
   var tl = gsap.timeline({
     scrollTrigger: {
       trigger: section.querySelector("[data-floors-pin]"),

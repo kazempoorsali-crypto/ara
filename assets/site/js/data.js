@@ -331,3 +331,10 @@ FM.cityPicker = function (sel, onChange) {
     get: function () { return picked.slice(); },
   };
 };
+
+/* گوشی: اول فیلترها (ساده و پیشرفته)، بعد ویترین و بقیهٔ صفحه */
+(function () {
+  if (!matchMedia("(max-width: 860px)").matches) return;
+  var f = document.getElementById("homefilter"), g = document.getElementById("golden");
+  if (f && g && g.parentNode) g.parentNode.insertBefore(f, g);
+})();
