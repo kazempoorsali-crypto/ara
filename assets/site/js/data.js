@@ -224,8 +224,34 @@ window.FM = window.FM || {};
   FM.cardActs = function (p) {
     var on = FM.favs.has(p.id);
     return '<span class="cacts"><button type="button" class="cact cact--fav' + (on ? " is-on" : "") + '" data-fav="' + FM.esc(p.id) + '" aria-pressed="' + on + '" aria-label="افزودن به علاقه‌مندی‌ها" title="علاقه‌مندی">' + HEART + "</button>" +
-      '<button type="button" class="cact" data-share="' + FM.esc(location.origin + FM.propUrl(p.id)) + '" data-share-title="' + FM.esc(p.title) + '" aria-label="اشتراک‌گذاری" title="کپی نشانی">' + SHARE + "</button></span>";
+      '<button type="button" class="cact" data-share="' + FM.esc(location.origin + FM.propUrl(p.id)) + '" data-share-title="' + FM.esc(p.title) + '" aria-label="اشتراک‌گذاری" title="کپی نشانی">' + SHARE + "</button></span>" +
+      '<span class="seen-tag" data-seen="' + FM.esc(p.id) + '"' + (FM.seen.has(p.id) ? "" : " hidden") + ">دیده‌ای</span>";
   };
+  /* «دیده‌ای»: هر ملکی که صفحه‌اش باز شده در حافظهٔ همین مرورگر می‌ماند (همان کلید موتور جست‌وجو، ۴۰۰ مورد آخر)
+     و روزهای بعد هم روی کارتش برچسب «دیده‌ای» می‌خورد */
+  var SEEN = "ara:seen";
+  FM.seen = {
+    all: function () { try { return JSON.parse(localStorage.getItem(SEEN) || "[]"); } catch (e) { return []; } },
+    has: function (id) { return FM.seen.all().indexOf(id) >= 0; },
+    add: function (id) {
+      var a = FM.seen.all(); if (a.indexOf(id) >= 0) return;
+      a.unshift(id);
+      try { localStorage.setItem(SEEN, JSON.stringify(a.slice(0, 400))); } catch (e) { /* حالت خصوصی */ }
+    },
+  };
+  FM.paintSeen = function () {
+    var a = FM.seen.all();
+    document.querySelectorAll("[data-seen]").forEach(function (t) { t.hidden = a.indexOf(t.getAttribute("data-seen")) < 0; });
+  };
+  /* با کلیک روی کارت همان لحظه «دیده‌ای» ثبت می‌شود؛ برگشت با دکمهٔ Back (حتی از حافظهٔ مرورگر) هم برچسب را نشان می‌دهد */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest('a[href*="/ad/"]');
+    if (!a || e.target.closest("[data-fav],[data-share]")) return;
+    var m = a.getAttribute("href").match(/\/ad\/([^/?#]+)/);
+    if (m) FM.seen.add(decodeURIComponent(m[1]));
+  }, true);
+  addEventListener("pageshow", function () { FM.paintSeen(); });
+  addEventListener("storage", function (e) { if (e.key === SEEN) FM.paintSeen(); });
   function toast(m) {
     if (FM.toast) return FM.toast(m);
     var t = document.createElement("div"); t.className = "fm-toast is-on"; t.textContent = m; document.body.appendChild(t);
