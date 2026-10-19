@@ -194,6 +194,7 @@
 
     window.addEventListener("popstate", function (e) {
       var st = e.state || {};
+      if (FM.chatOpen && FM.chatOpen()) return;   // برگشت فقط دستیار را می‌بندد (assistant.js)
       if (menuOpen) { closeMenu(); return; }
       if (st.fm === "menu") { openMenu(); return; }
       if (st.fm === "sec" && st.id) {
@@ -415,15 +416,27 @@
       var spots = document.createElement("div");
       spots.className = "hspots";
       stage.appendChild(spots);
-      var SLOTS = [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
       var mobile = matchMedia("(max-width: 760px)").matches;
+      /* گوشی: کارت‌های کوچک‌تر و چندتایی هم‌زمان (مثل رایانه)، در جاهایی که روی دکمهٔ دستیار نیفتند */
+      var SLOTS = mobile ? [{ r: 28, b: 3 }, { r: 72, b: 12 }, { r: 28, b: 12 }]
+        : [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
+      if (mobile) spots.classList.add("is-mini");
       var slotIdx = 0, propIdx = 0, paused = false, live = [];
       var spawn = function () {
         if (paused || document.hidden || !topProps.length) return;
+        /* جایی که هنوز کارت قبلی رویش است رد می‌شود تا دو کارت روی هم نیفتند */
+        var si = -1;
+        for (var k = 0; k < SLOTS.length; k++) {
+          var c = (slotIdx + k) % SLOTS.length;
+          if (!live.some(function (x) { return x._slot === c && !x.classList.contains("is-out"); })) { si = c; break; }
+        }
+        if (si < 0) return;
+        slotIdx = si + 1;
         var p = topProps[propIdx++ % topProps.length];
-        var slot = mobile ? { r: 50, b: 5 } : SLOTS[slotIdx++ % SLOTS.length];
+        var slot = SLOTS[si];
         var a = document.createElement("a");
         a.className = "hspot";
+        a._slot = si;
         a.dataset.status = p.status;
         a.href = FM.propUrl(p.id);
         a.style.right = slot.r + "%"; a.style.bottom = slot.b + "%";
@@ -434,12 +447,12 @@
         spots.appendChild(a);
         live.push(a);
         requestAnimationFrame(function () { a.classList.add("is-on"); });
-        setTimeout(function () { a.classList.remove("is-on"); a.classList.add("is-out"); setTimeout(function () { a.remove(); live = live.filter(function (x) { return x !== a; }); }, 700); }, mobile ? 3600 : 5600);
+        setTimeout(function () { a.classList.remove("is-on"); a.classList.add("is-out"); setTimeout(function () { a.remove(); live = live.filter(function (x) { return x !== a; }); }, 700); }, mobile ? 5000 : 5600);
       };
       spots.addEventListener("pointerenter", function () { paused = true; });
       spots.addEventListener("pointerleave", function () { paused = false; });
       setTimeout(function () { spawn(); setTimeout(spawn, 900); }, LITE ? 300 : 2400);
-      setInterval(spawn, mobile ? 4200 : 2600);
+      setInterval(spawn, mobile ? 1900 : 2600);
     }
     var beam = document.querySelector("[data-beam]");
     var tags = document.querySelectorAll(".hero__tag");

@@ -329,12 +329,25 @@
       setChips(exampleChips());
     }
     input.focus();
+    /* یک ورودی در تاریخچه: دکمهٔ «برگشت» گوشی فقط دستیار را می‌بندد و صفحهٔ زیرش تکان نمی‌خورد */
+    if (!chatPushed) { try { history.pushState({ fm: "chat" }, "", location.href); chatPushed = true; } catch (e) { /* بی‌تاریخچه */ } }
   }
-  function close() {
+  function shut() {
     panel.classList.remove("is-open");
     panel.setAttribute("aria-hidden", "true");
     fab.classList.remove("is-hidden");
   }
+  function close() {
+    if (chatPushed) { history.back(); return; }   // بستن در popstate انجام می‌شود
+    shut();
+  }
+  var chatPushed = false;
+  FM.chatOpen = function () { return panel.classList.contains("is-open"); };
+  window.addEventListener("popstate", function () {
+    if (!chatPushed) return;
+    chatPushed = false;
+    shut();
+  });
 
   fab.addEventListener("click", open);
   openBtn && openBtn.addEventListener("click", open);
