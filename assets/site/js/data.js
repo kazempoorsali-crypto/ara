@@ -6,6 +6,14 @@ window.FM = window.FM || {};
   var B = window.FM_BOOT || {};
   var fa = function (n) { return String(n).replace(/\d/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹"[d]; }); };
   FM.fa = fa;
+  /* صفحه با دکمهٔ برگشت (یا تازه‌سازی) باز شده؟ آن‌وقت موقعیت اسکرول و فیلترهای قبلی برمی‌گردند */
+  FM.backNav = (function () {
+    try {
+      var n = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+      var t = n ? n.type : (performance.navigation && performance.navigation.type === 2 ? "back_forward" : "");
+      return t === "back_forward" || t === "reload";
+    } catch (e) { return false; }
+  })();
   /* متن آگهی‌ها از کاربران است؛ پیش از گذاشتن در HTML امن می‌شود */
   FM.esc = function (t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   FM.faDec = function (n, dec) { return fa(Number(n).toFixed(dec === undefined ? 2 : dec)); };

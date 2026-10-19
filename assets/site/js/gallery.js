@@ -136,8 +136,46 @@
     });
   }
 
+  /* فیلترها در همین زبانه نگه داشته می‌شوند تا با «برگشت» از صفحهٔ ملک، همان نتیجه‌ها دوباره بیایند */
+  var ADV_INPUTS = ["advMin", "advMax", "advDep", "advRentMax", "advAMin", "advAMax"];
+  function saveFilters() {
+    try {
+      var inp = {};
+      ADV_INPUTS.forEach(function (id) { var el = document.getElementById(id); if (el && el.value) inp[id] = el.value; });
+      sessionStorage.setItem("fmHomeFilter", JSON.stringify({ region: FM.region, adv: ADV, inp: inp }));
+    } catch (e) { /* حالت خصوصی */ }
+  }
+  function loadFilters() {
+    if (!hasFilters || !FM.backNav) return false;
+    var st = null;
+    try { st = JSON.parse(sessionStorage.getItem("fmHomeFilter") || "null"); } catch (e) { return false; }
+    if (!st || !st.region) return false;
+    FM.region = { province: st.region.province || "", city: st.region.city || "", district: st.region.district || "" };
+    ADV = st.adv || {};
+    if (!anyFilter()) return false;
+    selProvince.value = FM.region.province;
+    fillCities(); fillDistricts();
+    selDistrict.value = FM.region.district;
+    if (selCity.dataset.plain) selCity.value = FM.region.city;
+    if (advPanel) {
+      advPanel.querySelectorAll(".advf__chips").forEach(function (box) {
+        var k = box.dataset.adv, v = ADV[k];
+        box.querySelectorAll("button").forEach(function (b) {
+          var on = box.hasAttribute("data-one") ? String(v || "") === b.dataset.v : Array.isArray(v) ? v.indexOf(b.dataset.v) >= 0 : !!v;
+          b.classList.toggle("is-on", on);
+        });
+      });
+      var rentBox = document.getElementById("advRent"), priceH = document.getElementById("advPriceH");
+      if (rentBox) rentBox.hidden = ADV.deal !== "rent";
+      if (priceH) priceH.textContent = ADV.deal === "rent" ? "رهن کامل (تومان)" : ADV.deal === "daily" ? "اجارهٔ هر شب (تومان)" : "بودجه (تومان)";
+      Object.keys(st.inp || {}).forEach(function (id) { var el = document.getElementById(id); if (el) el.value = st.inp[id]; });
+    }
+    return true;
+  }
+
   function refresh() {
     var my = ++seq;
+    saveFilters();
     if (allBtn) allBtn.href = searchUrl();
     var n = advActive();
     if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
@@ -357,7 +395,10 @@
   var hunts = bootHunts();
   renderHunts(hunts);
   if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = true; hs.classList.add("is-static"); } hpin = null; }
-  if (hpin && htrack && !FM.lite && !matchMedia("(max-width: 860px)").matches) {
+  var hfree = !hpin || !htrack || FM.lite || matchMedia("(max-width: 860px)").matches;
+  /* بدون پین (گوشی، دستگاه ضعیف): نوار با انگشت یا اسکرول افقی خودش جابه‌جا می‌شود */
+  if (hfree) { var hsx = document.querySelector("[data-hscroll]"); if (hsx) hsx.classList.add("is-free"); }
+  if (!hfree) {
     /* ورود از راست: کل تراک ابتدا بیرونِ لبهٔ راست است و با اسکرول تا fit کامل در صفحه می‌آید */
     gsap.fromTo(htrack,
       { x: function () { return innerWidth + 160; } },
@@ -376,4 +417,6 @@
       }
     );
   }
+  /* برگشت از صفحهٔ ملک: همان فیلترها و نتیجه‌ها دوباره ساخته می‌شوند */
+  if (loadFilters()) { FM.filterRestoring = true; refresh(); }
 })();
