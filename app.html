@@ -9,6 +9,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/img/icon-180.png" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <script src="/assets/site/js/theme-auto.js"></script>
   <script>
     /* طراحی (پیش‌نمایش ?design=new فقط در همین مرورگر) و حالت سبک برای سیستم‌های ضعیف، پیش از نقاشی صفحه */
     (function () {
@@ -26,7 +27,7 @@
       if (onApp && (!location.hash || location.hash === "#/" || location.hash === "#")) { location.replace("/"); return; }
       addEventListener("hashchange", function () { if (location.hash === "#/" || (!location.hash && location.pathname === "/app.html")) location.href = "/"; });
       // تم مشترک با صفحه‌های تازه (کلید fmTheme)
-      try { var ft = localStorage.getItem("fmTheme"); if (ft === "light" || ft === "dark") localStorage.setItem("ara:theme_v2", JSON.stringify(ft)); } catch (e) {}
+      try { var ft = window.FMTheme ? FMTheme.current() : localStorage.getItem("fmTheme"); if (ft === "light" || ft === "dark") localStorage.setItem("ara:theme_v2", JSON.stringify(ft)); } catch (e) {}
       var r = document.documentElement, d = null, q = new URLSearchParams(location.search).get("design");
       try { if (q === "new" || q === "classic") localStorage.setItem("fmDesign", q); d = localStorage.getItem("fmDesign"); } catch (e) { d = q; }
       if (d === "classic") r.removeAttribute("data-design"); else r.setAttribute("data-design", "new");   // طراحی تازه پیش‌فرض است

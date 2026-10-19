@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#0c1712" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <!--FM_BOOT-->
+  <script src="/assets/site/js/theme-auto.js"></script>
   <script>
     (function () {
       // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
@@ -19,9 +20,8 @@
         location.replace("/app.html" + h); return;
       }
       try { history.scrollRestoration = "manual"; } catch (e) {}
-      var t = null;
-      try { t = localStorage.getItem("fmTheme"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = "dark";   // تم اصلی: تیره
+      // تم خودکار: روز روشن و شب تیره بر پایهٔ طلوع و غروب ایران (مگر کاربر دستی انتخاب کرده باشد)
+      var t = window.FMTheme ? FMTheme.current() : "dark";
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>

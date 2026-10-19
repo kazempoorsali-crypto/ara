@@ -14,7 +14,7 @@
   };
   var themeBtn = document.getElementById("themeBtn");
   themeBtn && themeBtn.addEventListener("click", function () {
-    FM.setTheme(FM.theme === "dark" ? "light" : "dark");
+    FM.setTheme(FM.theme === "dark" ? "light" : "dark"); window.FMTheme && FMTheme.choose(FM.theme);
   });
 
   var p = FM.data.property;

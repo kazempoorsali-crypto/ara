@@ -46,7 +46,7 @@
     if (btn && !btn.dataset.fmThemeBound) {
       btn.dataset.fmThemeBound = "1";
       btn.addEventListener("click", function () {
-        FM.setTheme(FM.theme === "dark" ? "light" : "dark", true);
+        FM.setTheme(FM.theme === "dark" ? "light" : "dark", true); window.FMTheme && FMTheme.choose(FM.theme);
       });
     }
   })();
