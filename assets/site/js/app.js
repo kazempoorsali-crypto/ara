@@ -616,7 +616,30 @@
     });
   }
 
+  /* برگشت از صفحهٔ فرعی (ملک، اشتراک و …): به همان نقطه‌ای از صفحه که کاربر از آن رفته بود */
+  function restoreBackY(y) {
+    if (!FM.backNav || y < 40) return;
+    var touched = false;
+    var stop = function () { touched = true; };
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (ev) { window.addEventListener(ev, stop, { once: true, passive: true }); });
+    var go = function () {
+      if (touched || Math.abs(window.scrollY - y) < 4) return;
+      ScrollTrigger.refresh();
+      if (FM.lenis) FM.lenis.scrollTo(y, { immediate: true, force: true });
+      else window.scrollTo(0, y);
+    };
+    go();
+    /* محتوای دیررس (نتیجهٔ فیلترِ برگشته، تصاویر) ارتفاع صفحه را عوض می‌کند؛ چند بار دیگر هم تنظیم شود */
+    document.addEventListener("fm:filtered", function () { setTimeout(go, 80); }, { once: true });
+    if (document.readyState !== "complete") window.addEventListener("load", function () { setTimeout(go, 80); });
+    setTimeout(go, 700);
+    setTimeout(go, 1600);
+    setTimeout(function () { touched = true; }, 4000);
+  }
+
   function boot() {
+    var backY = 0;
+    try { backY = parseInt(sessionStorage.getItem("fmScroll:" + location.pathname) || "0", 10) || 0; } catch (e) {}
     initLenis();
     initNav();
     initMenu();
@@ -631,7 +654,8 @@
       FM.startScroll();
       FM.playHero && FM.playHero();
       ScrollTrigger.refresh();
-      if (location.hash && location.hash.length > 1) {
+      if (FM.backNav && backY >= 40) restoreBackY(backY);
+      else if (location.hash && location.hash.length > 1) {
         var t = document.querySelector(location.hash);
         if (t) {
           ScrollTrigger.refresh();
