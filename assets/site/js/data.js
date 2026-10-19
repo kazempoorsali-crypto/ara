@@ -116,8 +116,17 @@ window.FM = window.FM || {};
     ],
   };
 
+  FM.cityIds = function (r) { return String((r || FM.region || {}).city || "").split(",").filter(Boolean); };
+  FM.cityById = function (id) {
+    var hit = null;
+    (FM.data.regions || []).forEach(function (p) { p.cities.forEach(function (c) { if (c.id === id) hit = Object.assign({ province: p.id, provinceName: p.name }, c); }); });
+    return hit;
+  };
   FM.regionLabel = function (r) {
     r = r || FM.region || {};
+    var ids = FM.cityIds(r);
+    if (ids.length > 1) return ids.map(function (id) { var c = FM.cityById(id); return c ? c.name : id; }).join("، ");
+    if (ids.length === 1 && !r.province) { var c1 = FM.cityById(ids[0]); r = Object.assign({}, r, { province: c1 ? c1.province : "" }); }
     var parts = [];
     (FM.data.regions || []).forEach(function (p) {
       if (p.id !== r.province) return;
@@ -135,9 +144,10 @@ window.FM = window.FM || {};
     r = r || FM.region || {};
     var list = [];
     (FM.data.regions || []).forEach(function (p) {
-      if (r.province && p.id !== r.province) return;
+      var ids = FM.cityIds(r);
+      if (r.province && !ids.length && p.id !== r.province) return;
       p.cities.forEach(function (c) {
-        if (r.city && c.id !== r.city) return;
+        if (ids.length && ids.indexOf(c.id) < 0) return;
         c.districts.forEach(function (d) { if (!r.district || d.id === r.district) list.push(d); });
       });
     });
@@ -170,9 +180,151 @@ window.FM = window.FM || {};
 (function () {
   function mark() {
     document.querySelectorAll(".searchbar__field select").forEach(function (s) {
+      if (s.hidden) return;   // کادر چندشهری خودش وضعیتش را نشان می‌دهد
       var f = s.closest(".searchbar__field"); if (f) f.classList.toggle("is-set", !!s.value);
     });
   }
   ["change", "click"].forEach(function (ev) { document.addEventListener(ev, function () { setTimeout(mark, 0); }); });
   document.addEventListener("DOMContentLoaded", mark);
 })();
+
+/* برچسب حکم، اشتراک‌گذاری و علاقه‌مندی‌ها (مشترک همهٔ صفحه‌ها؛ فهرست علاقه‌مندی با سایت جست‌وجو یکی است) */
+(function () {
+  var LB = { gold: "فرصت طلایی", good: "فرصت مناسب", fair: "قیمت متعادل", high: "بالاتر از ارزش", over: "قیمت غیرمنطقی" };
+  FM.badge = function (p, cls) {
+    var t = LB[p.label]; if (!t) return "";
+    return '<span class="lbadge lbadge--' + p.label + (cls ? " " + cls : "") + '">' + (p.label === "gold" ? "✦ " : "") + t + "</span>";
+  };
+  var KEY = "ara:favs";
+  FM.favs = {
+    all: function () { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { return []; } },
+    has: function (id) { return FM.favs.all().indexOf(id) >= 0; },
+    toggle: function (id) {
+      var a = FM.favs.all(), i = a.indexOf(id);
+      if (i >= 0) a.splice(i, 1); else a.unshift(id);
+      try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 500))); } catch (e) { /* حالت خصوصی */ }
+      return i < 0;
+    },
+  };
+  var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
+  var SHARE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.8 15.7 6.3M8.3 13.2l7.4 4.5"/></svg>';
+  FM.cardActs = function (p) {
+    var on = FM.favs.has(p.id);
+    return '<span class="cacts"><button type="button" class="cact cact--fav' + (on ? " is-on" : "") + '" data-fav="' + FM.esc(p.id) + '" aria-pressed="' + on + '" aria-label="افزودن به علاقه‌مندی‌ها" title="علاقه‌مندی">' + HEART + "</button>" +
+      '<button type="button" class="cact" data-share="' + FM.esc(location.origin + FM.propUrl(p.id)) + '" data-share-title="' + FM.esc(p.title) + '" aria-label="اشتراک‌گذاری" title="کپی نشانی">' + SHARE + "</button></span>";
+  };
+  function toast(m) {
+    if (FM.toast) return FM.toast(m);
+    var t = document.createElement("div"); t.className = "fm-toast is-on"; t.textContent = m; document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 2200);
+  }
+  FM.share = function (url, title) {
+    url = url || location.href;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) { navigator.share({ title: title || document.title, url: url }).catch(function () {}); return; }
+    var done = function () { toast("نشانی صفحه کپی شد"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () { prompt("نشانی را کپی کنید:", url); });
+    else prompt("نشانی را کپی کنید:", url);
+  };
+  function paintFavs() {
+    var a = FM.favs.all();
+    document.querySelectorAll("[data-fav]").forEach(function (b) { var on = a.indexOf(b.dataset.fav) >= 0; b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on); });
+    document.querySelectorAll("[data-fav-count]").forEach(function (c) { c.textContent = a.length ? FM.fa(a.length) : ""; c.hidden = !a.length; });
+  }
+  FM.paintFavs = paintFavs;
+  document.addEventListener("click", function (e) {
+    var f = e.target.closest("[data-fav]"), s = e.target.closest("[data-share]");
+    if (!f && !s) return;
+    e.preventDefault(); e.stopPropagation();
+    if (s) return FM.share(s.dataset.share || location.href, s.dataset.shareTitle);
+    var id = f.dataset.fav;
+    var go = function () { var on = FM.favs.toggle(id); paintFavs(); toast(on ? "به علاقه‌مندی‌ها اضافه شد" : "از علاقه‌مندی‌ها حذف شد"); };
+    // علاقه‌مندی برای اعضاست: مهمان اول وارد می‌شود و بعد همان ملک ذخیره می‌شود
+    if (FM.api && !FM.api.me && FM.account) { toast("برای ذخیره در علاقه‌مندی‌ها وارد شوید"); FM.account.login(go); return; }
+    go();
+  }, true);
+  /* دکمه‌های سربرگ: اشتراک‌گذاری صفحه و علاقه‌مندی‌ها */
+  document.addEventListener("DOMContentLoaded", function () {
+    var act = document.querySelector(".nav__act");
+    if (act && !document.getElementById("navShare")) {
+      var theme = document.getElementById("themeBtn");
+      var wrap = document.createElement("span"); wrap.className = "nav__extra";
+      wrap.innerHTML = '<a class="nav__iconbtn nav__fav" id="navFav" href="/app.html#/saved" aria-label="علاقه‌مندی‌ها" title="علاقه‌مندی‌ها">' + HEART + '<b data-fav-count hidden></b></a>' +
+        '<button class="nav__iconbtn" id="navShare" type="button" data-share aria-label="اشتراک‌گذاری این صفحه" title="کپی نشانی این صفحه">' + SHARE + "</button>";
+      act.insertBefore(wrap, theme || act.firstChild);
+    }
+    paintFavs();
+  });
+  window.addEventListener("storage", function (e) { if (e.key === KEY) paintFavs(); });
+})();
+/* پیوندهای منو: خرید اشتراک و ورود، پنجرهٔ همان کار را باز می‌کنند */
+document.addEventListener("click", function (e) {
+  var a = e.target.closest("[data-fm-sub],[data-fm-login]");
+  if (!a || !window.FM || !FM.account) return;
+  e.preventDefault();
+  var mb = document.getElementById("menuClose"); if (mb && document.body.classList.contains("menu-open")) mb.click();
+  if (a.hasAttribute("data-fm-sub")) {
+    if (FM.api && FM.api.me) FM.account.subscribe(); else FM.account.login(function () { FM.account.subscribe(); });
+  } else if (FM.api && FM.api.me) location.href = "/account.html";
+  else FM.account.login();
+});
+
+/* انتخاب چند شهر (از هر استانی): ترتیب انتخاب، اولویت نمایش نتیجه‌هاست */
+FM.cityPicker = function (sel, onChange) {
+  if (!sel) return null;
+  var picked = [], prov = "";
+  var field = sel.closest(".searchbar__field") || sel.parentNode;
+  sel.hidden = true; sel.disabled = true;
+  var btn = document.createElement("button");
+  btn.type = "button"; btn.className = "cpick__btn"; btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
+  sel.after(btn);
+  var panel = document.createElement("div");
+  panel.className = "cpick fmx"; panel.hidden = true;
+  field.style.position = "relative"; field.appendChild(panel);
+  // کلیک روی برچسب نباید پنجره را دوباره ببندد
+  field.addEventListener("click", function (e) { if (field.tagName === "LABEL" && !e.target.closest(".cpick, .cpick__btn")) e.preventDefault(); });
+  function name(id) { var c = FM.cityById(id); return c ? c.name : id; }
+  function paintBtn() {
+    btn.innerHTML = picked.length ? picked.map(name).join("، ") + (picked.length > 1 ? ' <small>' + FM.fa(picked.length) + " شهر</small>" : "") : "همهٔ شهرها";
+    field.classList.toggle("is-set", !!picked.length);
+  }
+  function render() {
+    var q = (panel.querySelector(".cpick__q") || {}).value || "";
+    var regs = (FM.data.regions || []).slice().sort(function (a, b) { return (b.id === prov) - (a.id === prov); });
+    panel.innerHTML = '<input class="cpick__q" placeholder="نام شهر را بنویسید…" value="' + FM.esc(q) + '">' +
+      '<p class="cpick__hint">چند شهر را با هم انتخاب کنید؛ نتیجه به ترتیب انتخاب شما نمایش داده می‌شود.</p><div class="cpick__list">' +
+      regs.map(function (p) {
+        var cs = p.cities.filter(function (c) { return !q || c.name.indexOf(q) >= 0; });
+        if (!cs.length) return "";
+        return '<div class="cpick__g"><b>' + FM.esc(p.name) + "</b><div>" + cs.map(function (c) {
+          var i = picked.indexOf(c.id);
+          return '<button type="button" data-c="' + FM.esc(c.id) + '" class="' + (i >= 0 ? "is-on" : "") + '">' + (i >= 0 ? "<i>" + FM.fa(i + 1) + "</i>" : "") + FM.esc(c.name) + " <small>" + FM.fa(c.n || 0) + "</small></button>";
+        }).join("") + "</div></div>";
+      }).join("") + '</div><div class="cpick__foot"><button type="button" class="cpick__clear">پاک کردن شهرها</button><button type="button" class="cpick__ok">تأیید</button></div>';
+    var inp = panel.querySelector(".cpick__q");
+    inp.addEventListener("input", function () { var pos = inp.selectionStart; render(); var n = panel.querySelector(".cpick__q"); n.focus(); n.setSelectionRange(pos, pos); });
+  }
+  function open(on) {
+    panel.hidden = !on; btn.setAttribute("aria-expanded", on); field.classList.toggle("is-open", on);
+    if (on) { render(); setTimeout(function () { var i = panel.querySelector(".cpick__q"); if (i && matchMedia("(pointer: fine)").matches) i.focus(); }, 30); }
+  }
+  btn.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); open(panel.hidden); });
+  panel.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var c = e.target.closest("[data-c]");
+    if (c) {
+      var i = picked.indexOf(c.dataset.c);
+      if (i >= 0) picked.splice(i, 1); else if (picked.length < 8) picked.push(c.dataset.c);
+      render(); paintBtn(); onChange(picked.slice()); return;
+    }
+    if (e.target.closest(".cpick__clear")) { picked = []; render(); paintBtn(); onChange([]); return; }
+    if (e.target.closest(".cpick__ok")) open(false);
+  });
+  document.addEventListener("click", function (e) { if (!panel.hidden && !field.contains(e.target)) open(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !panel.hidden) open(false); });
+  paintBtn();
+  return {
+    set: function (ids) { picked = (ids || []).slice(); paintBtn(); if (!panel.hidden) render(); },
+    province: function (p) { prov = p || ""; if (!panel.hidden) render(); },
+    get: function () { return picked.slice(); },
+  };
+};

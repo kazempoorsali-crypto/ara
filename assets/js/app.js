@@ -185,11 +185,12 @@ const App = (() => {
      کره به همان شهرها پرواز می‌کند و نقشه روی همان محله می‌رود */
   const skyOpts = {};
   function skyApply(m) {
-    const sel = m.city ? { cities: [m.city] } : m.province ? { provs: [m.province] } : {};
+    const cs = (m.cities && m.cities.length ? m.cities : m.city ? [m.city] : []);
+    const sel = cs.length ? { cities: cs } : m.province ? { provs: [m.province] } : {};
     skyOpts.sel = sel;
     skyOpts.query = m.district ? { district: m.district, dcity: m.city } : {};
     if (!live || !live.globe) { if (!webglOK() && $("#skySvg")) drawSky(DataLayer.stats, sel); return; }
-    live.dsel = new Set(m.district ? [m.district] : []); live.dselFor = m.city || "";
+    live.dsel = new Set(m.district ? [m.district] : []); live.dselFor = cs.join(",");
     if (!liveIds(live.st, sel).length) return liveHome(live);
     liveSelect(live.st, sel);
   }

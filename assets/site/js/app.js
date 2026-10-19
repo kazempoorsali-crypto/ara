@@ -400,9 +400,18 @@
     });
 
     /* نورافکن فرصت‌ها: برترین ملک‌ها یکی‌یکی بالای ساختمان‌ها ظاهر و پس از چند ثانیه محو می‌شوند (قابل کلیک) */
-    var topProps = (FM.data.properties || []).filter(function (p) { return p.score != null; })
-      .sort(function (x, y) { return y.score - x.score; }).slice(0, 8);
-    if (topProps.length) {
+    var topOf = function (list) {
+      return (list || []).filter(function (p) { return p.score != null; }).sort(function (x, y) { return y.score - x.score; }).slice(0, 8);
+    };
+    var topProps = topOf(FM.data.properties);
+    /* با اعمال فیلتر صفحهٔ اصلی، نورافکن هم فقط ملک‌های همان فیلتر را نشان می‌دهد */
+    document.addEventListener("fm:filtered", function (e) {
+      var list = e.detail && e.detail.items;
+      topProps = list ? topOf(list) : topOf(FM.data.properties);
+      if (typeof propIdx !== "undefined") propIdx = 0;
+      if (typeof live !== "undefined") live.forEach(function (a) { a.classList.remove("is-on"); a.classList.add("is-out"); });
+    });
+    if (stage) {
       var spots = document.createElement("div");
       spots.className = "hspots";
       stage.appendChild(spots);
@@ -410,7 +419,7 @@
       var mobile = matchMedia("(max-width: 760px)").matches;
       var slotIdx = 0, propIdx = 0, paused = false, live = [];
       var spawn = function () {
-        if (paused || document.hidden) return;
+        if (paused || document.hidden || !topProps.length) return;
         var p = topProps[propIdx++ % topProps.length];
         var slot = mobile ? { r: 50, b: 5 } : SLOTS[slotIdx++ % SLOTS.length];
         var a = document.createElement("a");
@@ -420,7 +429,7 @@
         a.style.right = slot.r + "%"; a.style.bottom = slot.b + "%";
         if (mobile) a.style.transform = "translateX(50%)";
         a.innerHTML = '<span class="hspot__img"><img src="' + FM.esc(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
-          '<span class="hspot__txt"><b>' + FM.esc(p.title) + '</b><small>' + FM.esc(p.diffText || p.tag) + '</small></span>' +
+          '<span class="hspot__txt">' + FM.badge(p) + '<b>' + FM.esc(p.title) + '</b><small>' + FM.esc(p.diffText || p.tag) + '</small></span>' +
           '<span class="hspot__score">' + FM.fa(p.score) + '</span><i class="hspot__beam" aria-hidden="true"></i>';
         spots.appendChild(a);
         live.push(a);

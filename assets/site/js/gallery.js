@@ -27,15 +27,17 @@
     selProvince.innerHTML = ""; selProvince.appendChild(option("", "همهٔ استان‌ها"));
     FM.data.regions.forEach(function (p) { selProvince.appendChild(option(p.id, p.name)); });
   }
+  var picker = null;
   function fillCities() {
-    selCity.innerHTML = ""; selCity.appendChild(option("", "همهٔ شهرها"));
-    var p = findProvince(FM.region.province);
-    if (p) { p.cities.forEach(function (c) { selCity.appendChild(option(c.id, c.name)); }); selCity.disabled = false; }
-    else selCity.disabled = true;
+    if (!picker) picker = FM.cityPicker(selCity, function (ids) {
+      FM.region.city = ids.join(","); FM.region.district = "";
+      fillDistricts(); refresh();
+    });
+    if (picker) { picker.province(FM.region.province); picker.set(FM.cityIds(FM.region)); }
   }
   function fillDistricts() {
     selDistrict.innerHTML = ""; selDistrict.appendChild(option("", "همهٔ محله‌ها"));
-    var c = findCity(FM.region.province, FM.region.city);
+    var ids = FM.cityIds(FM.region), c = ids.length === 1 ? FM.cityById(ids[0]) : null;   // محله فقط با یک شهر
     if (c) { c.districts.forEach(function (d) { selDistrict.appendChild(option(d.id, d.name)); }); selDistrict.disabled = false; }
     else selDistrict.disabled = true;
   }
@@ -65,7 +67,7 @@
   function advActive() { return Object.keys(advParams()).filter(function (k) { return k !== "presale"; }).length; }
   function anyFilter() { var r = FM.region; return !!(r.province || r.city || r.district || advActive()); }
   function queryOf(extra) {
-    var r = FM.region, q = Object.assign({ province: r.province, city: r.city, district: r.district }, advParams(), extra || {});
+    var r = FM.region, q = Object.assign({ province: r.city ? "" : r.province, city: r.city, district: r.district }, advParams(), extra || {});
     Object.keys(q).forEach(function (k) { if (q[k] === "" || q[k] == null) delete q[k]; });
     return q;
   }
@@ -124,26 +126,42 @@
     if (allBtn) allBtn.href = searchUrl();
     var n = advActive();
     if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
-    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); renderHunts(bootHunts()); return; }
+    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); renderHunts(bootHunts()); document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: null } })); return; }
     statusEl.textContent = "در حال جست‌وجو…";
     var scoredOnly = !ADV.deal || ADV.deal === "sale" || ADV.deal === "presale";
-    FM.api.search(queryOf({ ranked: scoredOnly ? 1 : "", sort: "score", limit: 30, imgs: 1 })).then(function (res) {
+    var ids = FM.cityIds(FM.region);
+    /* چند شهر: هر شهر جداگانه و به ترتیب انتخاب (اول شهر اول، بعد بقیه) */
+    var byCity = function (extra) {
+      if (ids.length < 2) return FM.api.search(queryOf(extra)).then(function (r) { return [r]; });
+      return Promise.all(ids.map(function (id) { return FM.api.search(queryOf(Object.assign({}, extra, { city: id, limit: Math.min(extra.limit, 12) }))).catch(function () { return { items: [] }; }); }));
+    };
+    byCity({ ranked: scoredOnly ? 1 : "", sort: "score", limit: 30, imgs: 1 }).then(function (rs) {
       if (my !== seq) return;
-      current = (res.items || []).map(FM.mapListing);
-      current.total = res.total || current.length;
-      current.locked = res.locked_more || 0;
+      current = [];
+      current.groups = rs.map(function (res, i) { return { id: ids[i], name: ids.length > 1 ? (FM.cityById(ids[i]) || {}).name || ids[i] : "", items: (res.items || []).map(FM.mapListing) }; });
+      current.groups.forEach(function (g) { current.push.apply(current, g.items); });
+      current.total = rs.reduce(function (a, r) { return a + (r.total || 0); }, 0) || current.length;
+      current.locked = rs.reduce(function (a, r) { return a + (r.locked_more || 0); }, 0);
       applyFilterUI(); renderMasonry(true);
+      document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: current } }));
     }).catch(function () { if (my === seq) statusEl.textContent = "ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید."; });
     /* شکارهای بازار هم با همین فیلتر: فقط فرصت‌ها، بیشترین فاصله با برآورد بازار */
-    FM.api.search(queryOf({ opp: 1, sort: "deal", limit: 12, imgs: 1 })).then(function (res) {
-      if (my === seq) renderHunts((res.items || []).map(FM.mapListing));
+    byCity({ opp: 1, sort: "deal", limit: 12, imgs: 1 }).then(function (rs) {
+      if (my !== seq) return;
+      var hs = [];
+      rs.forEach(function (res, i) {
+        var items = (res.items || []).map(FM.mapListing);
+        if (ids.length > 1 && items.length) hs.push({ head: (FM.cityById(ids[i]) || {}).name || ids[i] });
+        hs.push.apply(hs, items);
+      });
+      renderHunts(hs);
     }).catch(function () {});
   }
 
   function matchesRegion(p) {
     var r = FM.region;
     if (r.province && p.region.province !== r.province) return false;
-    if (r.city && p.region.city !== r.city) return false;
+    if (r.city && FM.cityIds(r).indexOf(p.region.city) < 0) return false;
     if (r.district && p.region.district !== r.district) return false;
     return true;
   }
@@ -162,12 +180,9 @@
     fillProvinces(); fillCities(); fillDistricts(); applyFilterUI();
 
     selProvince.addEventListener("change", function () {
-      FM.region = { province: selProvince.value, city: "", district: "" };
-      fillCities(); fillDistricts(); refresh();
-    });
-    selCity.addEventListener("change", function () {
-      FM.region.city = selCity.value; FM.region.district = "";
-      fillDistricts(); refresh();
+      FM.region.province = selProvince.value;
+      if (picker) picker.province(FM.region.province);
+      if (!FM.cityIds(FM.region).length) refresh();
     });
     selDistrict.addEventListener("change", function () {
       FM.region.district = selDistrict.value;
@@ -192,7 +207,7 @@
     a.dataset.status = p.status;
     if (p.noimg) a.classList.add("is-noimg");
     a.innerHTML =
-      '<span class="ncard__media">' +
+      '<span class="ncard__media">' + FM.badge(p, "ncard__badge") + FM.cardActs(p) +
       '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
       (p.imgs.length > 1 ? '<span class="ncard__swap">' + FM.fa(p.imgs.length) + " عکس</span>" + '<span class="ncard__dots">' + p.imgs.slice(0, 8).map(function (_, i) { return "<i" + (i ? "" : ' class="is-on"') + "></i>"; }).join("") + "</span>" : "") +
       "</span>" +
@@ -246,6 +261,23 @@
     if (gal) gal.classList.toggle("is-empty", !items.length);
 
     clearColTweens();
+    /* چند شهر: هر شهر یک بخش جدا، به ترتیب انتخاب */
+    var groupsBox = document.querySelector("[data-cgroups]");
+    var grouped = !!(current.groups && current.groups.filter(function (g) { return g.name; }).length > 1 && current === items);
+    if (!groupsBox) { groupsBox = document.createElement("div"); groupsBox.className = "cgroups"; groupsBox.setAttribute("data-cgroups", ""); wrap.after(groupsBox); }
+    wrap.hidden = grouped; groupsBox.hidden = !grouped;
+    if (grouped) {
+      groupsBox.innerHTML = "";
+      current.groups.forEach(function (g, gi) {
+        var sec = document.createElement("section"); sec.className = "cgroup";
+        sec.innerHTML = '<h3 class="cgroup__h"><i>' + FM.fa(gi + 1) + "</i>فرصت‌های " + E(g.name) + " <small>" + (g.items.length ? FM.fa(g.items.length) + " ملک" : "موردی با این فیلترها پیدا نشد") + "</small></h3>";
+        var grid = document.createElement("div"); grid.className = "cgroup__grid";
+        g.items.forEach(function (p) { grid.appendChild(ncardEl(p)); });
+        sec.appendChild(grid); groupsBox.appendChild(sec);
+      });
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+      return;
+    }
     /* فقط ستون‌های دیده‌شده (در صفحهٔ باریک ستون‌های کمتری نمایش داده می‌شود) */
     var vis = Array.prototype.filter.call(cols, function (c) { return getComputedStyle(c).display !== "none"; });
     if (!vis.length) vis = Array.prototype.slice.call(cols);
@@ -288,7 +320,8 @@
   function renderHunts(hunts) {
     if (!htrack) return;
     htrack.innerHTML = hunts.length ? hunts.map(function (p) {
-      return '<a class="hcard" href="' + FM.propUrl(p.id) + '"><img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
+      if (p.head) return '<div class="hcard hcard--head"><span>فرصت‌های</span><b>' + E(p.head) + "</b></div>";
+      return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
         (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.diffText || p.tag) + "</small></figcaption></a>";
     }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً شکاری (فروش زیر برآورد بازار) پیدا نشد.</p>';
     var hs = document.querySelector("[data-hscroll]"); if (hs && hunts.length) hs.hidden = false;
