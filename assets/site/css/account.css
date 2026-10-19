@@ -826,3 +826,33 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
   .golden { min-height: 0; padding-bottom: 1rem; }
   .deck__stage:not(.is-row) { height: calc(min(60vw, 236px) * 1.38 + 40px); }
 }
+
+/* ═══ فاصلهٔ استاندارد بین بخش‌ها (رایانه و گوشی): نه خیلی زیاد، نه خیلی کم ═══ */
+:root { --sec-y: 3rem; }
+@media (max-width: 860px) { :root { --sec-y: 1.75rem; } }
+.homefilter { padding-top: var(--sec-y); padding-bottom: calc(var(--sec-y) * .5); }
+.gallery { padding-top: var(--sec-y); }
+.gallery__head { margin-bottom: calc(var(--sec-y) * .6); }
+.masonry__all { margin-top: calc(var(--sec-y) * .6); }
+.hscroll { margin-top: var(--sec-y); }
+.hscroll__pin { padding-block: calc(var(--sec-y) * .5) !important; }
+.problem { padding: var(--sec-y) 0; }
+.skygateway { padding: var(--sec-y) 1.25rem; }
+.assistant { padding: var(--sec-y) 1.25rem; }
+.trust { padding: var(--sec-y) 0; }
+.foot { padding-top: calc(var(--sec-y) * 1.4); }
+.cgroups { gap: var(--sec-y); }
+/* ویترین در رایانه: ارتفاع به اندازهٔ محتوا (بدون فضای خالی بالا و پایین)، همچنان عنوان و بادبزن در یک صفحه */
+@media (min-width: 861px) {
+  .golden { min-height: 0; justify-content: flex-start; padding-bottom: var(--sec-y); }
+}
+@media (max-width: 860px) {
+  .golden { padding-bottom: var(--sec-y); }
+  .gallery { padding-top: var(--sec-y); }
+}
+@media (min-width: 861px) { .gallery__head { margin-bottom: calc(var(--sec-y) + 76px); } }
+@media (min-width: 861px) {
+  .deck__stage { height: min(50vh, 430px); }
+  .golden { padding-bottom: calc(var(--sec-y) * .4); }
+  .deck__hint { padding-top: .2rem; }
+}
