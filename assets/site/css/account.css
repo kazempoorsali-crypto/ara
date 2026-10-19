@@ -492,3 +492,81 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 .hcard--head span { font-size: .85rem; color: var(--ink-faint); }
 .hcard--head b { font-size: 1.5rem; font-weight: 900; }
 @media (max-width: 560px) { .cgroup__grid { grid-template-columns: repeat(2, 1fr); gap: .6rem; } }
+
+/* ═══ تم روشن: پس‌زمینهٔ عکس قبلی سایت به‌صورت مات، خورشید واقعی ═══ */
+[data-theme="light"] .hero__stage { isolation: isolate; background: #eef1ee; }
+[data-theme="light"] .hero__stage::before {
+  content: ""; position: absolute; inset: -30px; z-index: -2;
+  background: url("/assets/img/scene/house-1280.webp") center 62% / cover no-repeat;
+  filter: blur(7px) saturate(.9) brightness(1.06);
+  transform: scale(1.04);
+}
+/* لایهٔ شیری مات روی عکس: متن خوانا می‌ماند و آسمان روشن صبح حس می‌شود */
+[data-theme="light"] .hero__stage::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 12% 24%, rgba(255, 252, 235, .75), transparent 70%),
+    linear-gradient(180deg, rgba(236, 244, 250, .72) 0%, rgba(246, 243, 236, .62) 45%, rgba(246, 243, 236, .78) 78%, var(--bg) 100%);
+  backdrop-filter: blur(2px);
+}
+[data-theme="light"] .hero__topo { opacity: .06; }
+[data-theme="light"] .blob { opacity: .35; }
+[data-theme="light"] .hero__skyline--far { opacity: .55; }
+
+/* خورشید واقعی روز: هستهٔ سفیدِ خیره‌کننده، تیرگی ملایم لبه، هالهٔ گرم و پرتوهای محو */
+[data-theme="light"] .hero__sun-core {
+  background:
+    radial-gradient(circle at 50% 50%, #ffffff 0%, #fffef6 38%, #fff6cf 66%, #ffe691 86%, #ffd25a 96%, #f7bb3c 100%);
+  box-shadow:
+    0 0 28px 10px rgba(255, 255, 240, .95),
+    0 0 90px 40px rgba(255, 240, 190, .75),
+    0 0 220px 110px rgba(255, 220, 140, .35),
+    inset 0 0 26px rgba(255, 196, 80, .35);
+  animation: sunGlow 7s ease-in-out infinite;
+}
+[data-theme="light"] .hero__sun-core::before {
+  inset: -60%;
+  background: radial-gradient(circle, rgba(255, 252, 230, .7) 0%, rgba(255, 238, 180, .28) 30%, rgba(255, 228, 160, .08) 52%, transparent 68%);
+}
+[data-theme="light"] .hero__sun-core::after {
+  display: block; inset: -120%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 250, 225, .16) 0deg 2.5deg, transparent 2.5deg 11deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 22%, #000 26%, transparent 60%);
+  mask-image: radial-gradient(circle, transparent 22%, #000 26%, transparent 60%);
+}
+@keyframes sunGlow { 50% { filter: brightness(1.05); transform: scale(1.02); } }
+
+/* ماه واقعی (تم تاریک): خاکستری خنثی، دریاهای ماه در جای واقعی، بافت سطح و تیرگی لبه */
+[data-theme="dark"] .hero__sun-core {
+  background:
+    /* دهانهٔ تیکو و پرتوهایش (پایین) */
+    radial-gradient(3% 3% at 44% 84%, rgba(255, 255, 250, .85) 0%, rgba(255, 255, 250, .2) 60%, transparent 100%),
+    radial-gradient(14% 10% at 44% 82%, rgba(250, 248, 240, .22) 0%, transparent 100%),
+    /* دهانهٔ کوپرنیک */
+    radial-gradient(3.4% 3.4% at 36% 46%, rgba(255, 255, 248, .7) 0%, rgba(120, 116, 108, .35) 55%, transparent 100%),
+    /* دریاها: باران‌ها، آرامش، سکون، بحران، طوفان‌ها */
+    radial-gradient(17% 15% at 38% 30%, rgba(96, 94, 90, .55) 0%, rgba(110, 108, 103, .3) 60%, transparent 100%),
+    radial-gradient(11% 10% at 58% 30%, rgba(98, 96, 92, .5) 0%, transparent 100%),
+    radial-gradient(13% 12% at 64% 46%, rgba(98, 96, 92, .5) 0%, transparent 100%),
+    radial-gradient(7% 6% at 82% 36%, rgba(92, 90, 86, .55) 0%, transparent 100%),
+    radial-gradient(18% 28% at 22% 52%, rgba(108, 106, 101, .42) 0%, transparent 100%),
+    radial-gradient(10% 9% at 60% 62%, rgba(104, 102, 97, .4) 0%, transparent 100%),
+    radial-gradient(9% 8% at 34% 66%, rgba(106, 104, 99, .35) 0%, transparent 100%),
+    /* بدنه: خاکستری روشن با تیرگی لبه */
+    radial-gradient(circle at 46% 44%, #f3f1ec 0%, #e3e0d8 40%, #cfcbc2 66%, #b3aea4 86%, #8e897f 100%);
+  box-shadow:
+    0 0 40px 10px rgba(236, 232, 220, .28),
+    0 0 150px 60px rgba(210, 214, 220, .12),
+    inset -10px -12px 40px rgba(40, 38, 34, .45),
+    inset 6px 6px 22px rgba(255, 255, 250, .35);
+  animation: none;
+}
+/* بافت ریز سطح ماه (نویز) */
+[data-theme="dark"] .hero__sun-core::after {
+  display: block; inset: 0; border-radius: 50%; mask-image: none; -webkit-mask-image: none; animation: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .34 0 0 0 0 .32 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E") center / 100% 100%;
+  mix-blend-mode: multiply; opacity: .55;
+}
+[data-theme="dark"] .hero__sun-core::before {
+  background: radial-gradient(circle, rgba(232, 230, 222, .2) 0%, rgba(210, 210, 205, .08) 45%, transparent 66%);
+}
