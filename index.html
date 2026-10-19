@@ -10,6 +10,8 @@
   <!--FM_BOOT-->
   <script src="/assets/site/js/theme-auto.js"></script>
   <script>
+    // صفحهٔ بارگذاری: بار دوم در همین زبانه کوتاه‌تر پخش شود
+    try { if (sessionStorage.getItem("fmIntro2") === "1") document.documentElement.classList.add("intro-fast"); } catch (e) {}
     (function () {
       // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
       var h = location.hash, m;
@@ -57,6 +59,7 @@
       <small>ارزش واقعی ملک، محله به محله</small>
     </div>
     <div class="intro__bar"><i id="introBar"></i></div>
+    <small class="intro__wait">در حال بارگذاری…</small>
     <button class="intro__skip" id="introSkip" type="button">رد کردن</button>
   </div>
 
