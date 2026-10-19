@@ -932,7 +932,7 @@ html.is-sub .ncard__lock, html.is-sub .lockteaser { display: none !important; }
 
 /* اینترو: خورشید پشت سقف خانه (کمی بیرون‌زده از بالای سقف)، نه کنار آن */
 .intro__stage { position: relative; display: grid; place-items: center; }
-.intro__stage .intro__sun-track { position: absolute; left: 50%; top: 13%; width: 0; height: 0; transform: none; z-index: 0; }
+.intro__stage .intro__sun-track { position: absolute; left: 63%; top: 14%; width: 0; height: 0; transform: none; z-index: 0; }
 .intro__stage .intro__sun { width: calc(clamp(220px, 34vw, 330px) * .52); left: 0; top: 0; transform: none;
   margin-left: calc(clamp(220px, 34vw, 330px) * -.26); margin-top: calc(clamp(220px, 34vw, 330px) * -.26); }
 .intro__stage .intro__build { position: relative; z-index: 1; }
@@ -940,3 +940,34 @@ html.is-sub .ncard__lock, html.is-sub .lockteaser { display: none !important; }
 
 /* «مشاهدهٔ فرصت‌ها» به فیلترها می‌رود؛ زیر سربرگ ثابت نرود */
 #homefilter { scroll-margin-top: calc(var(--nav-h, 64px) + 12px); }
+
+/* صفحهٔ بارگذاری: انیمیشن با CSS، از لحظهٔ رسیدن HTML (بی‌نیاز از اسکریپت‌های ته صفحه)؛ تا بار کامل صفحه می‌ماند */
+@keyframes fmSunRise { from { transform: translateY(46vh); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fmSunGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.16) drop-shadow(0 0 26px rgba(255, 120, 50, .55)); } }
+@keyframes fmDraw { from { stroke-dashoffset: 400; } to { stroke-dashoffset: 0; } }
+@keyframes fmFill { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes fmUp { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes fmBar { 0% { width: 0; } 60% { width: 72%; } 100% { width: 92%; } }
+.intro__stage .intro__sun { animation: fmSunRise 1.7s cubic-bezier(.2, .7, .2, 1) both, fmSunGlow 2.4s ease-in-out 1.7s infinite; }
+.intro__build .ib-s { stroke-dasharray: 400; stroke-dashoffset: 400; animation: fmDraw 1.2s ease-in-out both; }
+.intro__build .ib-s[data-s="roof"] { animation-delay: .25s; }
+.intro__build .ib-s[data-s="body"] { animation-delay: .37s; }
+.intro__build .ib-s[data-s="win1"] { animation-delay: .49s; }
+.intro__build .ib-s[data-s="win2"] { animation-delay: .61s; }
+.intro__build .ib-s[data-s="win3"] { animation-delay: .73s; }
+.intro__build .ib-f { transform-box: fill-box; transform-origin: 50% 100%; animation: fmFill .5s cubic-bezier(.2, .8, .2, 1) both; }
+.intro__build .ib-f[data-f="f1"] { animation-delay: .9s; }
+.intro__build .ib-f[data-f="f2"] { animation-delay: 1.12s; }
+.intro__build .ib-f[data-f="f3"] { animation-delay: 1.34s; }
+.intro__brand { animation: fmUp .7s cubic-bezier(.2, .8, .2, 1) 1.3s both; }
+.intro__bar i { animation: fmBar 6s cubic-bezier(.3, .6, .3, 1) .2s both; }
+.intro.is-loaded .intro__bar i { animation: none; width: 100% !important; transition: width .25s ease-out; }
+.intro__wait { position: absolute; bottom: calc(18% - 1.9rem); left: 50%; transform: translateX(-50%); font-size: .78rem; color: var(--ink-faint);
+  opacity: 0; animation: fmUp .6s ease 3s both; }
+.intro.is-loaded .intro__wait { display: none; }
+html.intro-fast .intro * { animation-duration: .45s !important; animation-delay: 0s !important; }
+html.intro-fast .intro .intro__bar i { animation-duration: 3s !important; }
+html.intro-fast .intro .intro__wait { animation-delay: 1.2s !important; }
+html.intro-fast .intro .intro__skip { display: none; }
+@media (prefers-reduced-motion: reduce) { .intro * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+html.intro-fast .intro .intro__stage .intro__sun { animation: fmSunRise .45s cubic-bezier(.2,.7,.2,1) both, fmSunGlow 2.4s ease-in-out .45s infinite !important; }

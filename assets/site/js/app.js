@@ -84,6 +84,7 @@
       try { sessionStorage.setItem("fmIntro2", "1"); } catch (e) {}
       intro.classList.add("is-done");
       setTimeout(function () { intro.style.display = "none"; }, 1000);
+      FM.startScroll();
       done();
     }
     var skip = document.getElementById("introSkip");
@@ -92,40 +93,24 @@
       if (e.key === "Escape") { document.removeEventListener("keydown", esc); finish(); }
     });
 
-    if (seen || LITE) {
-      intro.classList.add("is-fast");
-      setTimeout(finish, 420);
-      return;
-    }
-
+    /* انیمیشن خود صفحهٔ بارگذاری با CSS است و از همان لحظهٔ رسیدن صفحه اجرا می‌شود؛ اینجا فقط صبر می‌کنیم
+       تا صفحه واقعاً بار شود (و انیمیشن یک بار کامل دیده شود)، و هرگز بیش از ۸ ثانیه معطل نمی‌مانیم */
     FM.stopScroll();
-    var bar = document.getElementById("introBar");
-    var st = document.querySelectorAll(".ib-s");
-    var fl = document.querySelectorAll(".ib-f");
-    var sun = document.querySelector("[data-intro-sun]");
-    var brand = document.querySelector("[data-intro-brand]");
-
-    /* محافظ خطا: اگر چیزی در ساخت تایم‌لاین شکست خورد، اسکرول قفل نمی‌ماند */
-    try {
-    gsap.set(st, { drawSVG: 0, attr: { "stroke-dashoffset": 400 }, opacity: 0 });
-    st.forEach(function (p) { p.style.strokeDasharray = 400; });
-    gsap.set(fl, { scaleY: 0, transformOrigin: "50% 100%" });
-    gsap.set(sun, { y: "46vh", autoAlpha: 0 });
-    gsap.set(brand, { autoAlpha: 0, y: 26 });
-
-    var counter = { v: 0 };
-    var tl = gsap.timeline({ onComplete: function () { FM.startScroll(); finish(); } });
-    tl.to(sun, { y: 0, autoAlpha: 1, duration: 1.7, ease: "power2.out" }, 0)
-      .to(st, { opacity: 1, duration: 0.01 }, 0.2)
-      .to(st, { attr: { "stroke-dashoffset": 0 }, duration: 1.2, stagger: 0.12, ease: "power2.inOut" }, 0.25)
-      .to(fl, { scaleY: 1, duration: 0.5, stagger: 0.22, ease: "power3.out" }, 0.9)
-      .to(brand, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power3.out" }, 1.3)
-      .to(counter, {
-        v: 100, duration: 2.2, ease: "power2.inOut",
-        onUpdate: function () { bar.style.width = Math.round(counter.v) + "%"; },
-      }, 0.2);
-    } catch (err) { FM.startScroll(); finish(); }
+    var minMs = seen || LITE ? 600 : 2700;
+    var loaded = document.readyState === "complete", sched = false;
+    function go() {
+      if (!loaded || sched) return;
+      sched = true;
+      setTimeout(function () {
+        intro.classList.add("is-loaded");   // نوار پیشرفت تا آخر پر می‌شود
+        setTimeout(finish, 280);
+      }, Math.max(0, minMs - performance.now()));
+    }
+    if (!loaded) addEventListener("load", function () { loaded = true; go(); });
+    setTimeout(function () { loaded = true; go(); }, 8000);
+    go();
   }
+
 
   /* ---------- ناوبری ---------- */
   function initNav() {
