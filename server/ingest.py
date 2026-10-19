@@ -76,6 +76,23 @@ class Ingestor:
             if cur is not None and "presale-search" not in (cur.get("categories") or []):
                 st.set_setting("ingest", {**cur, "categories": list(cur.get("categories") or ["real-estate"]) + ["presale-search"]})
             st.set_setting("mig_presale_feed", int(time.time()))
+        if not st.get_setting("mig_presale_text"):   # پیش‌فروش از متن آگهی هم شناخته می‌شود (نه فقط عنوان)
+            rows = st.q("SELECT id, title, description, attributes, feat FROM listings WHERE vertical='estate' AND COALESCE(presale,0)=0")
+            with st.lock:
+                for r in rows:
+                    try:
+                        attrs = json.loads(r["attributes"] or "{}") or {}
+                        feat = json.loads(r["feat"] or "{}") or {}
+                    except Exception:  # noqa: BLE001
+                        continue
+                    blob = f"{catalog.norm(r['title'])} {catalog.norm(r['description'])} " + " ".join(
+                        f"{catalog.norm(k)}: {catalog.norm(v)}" for k, v in (attrs.items() if isinstance(attrs, dict) else []))
+                    if features.presale_signal(blob):
+                        feat["market_flags"] = sorted(set(feat.get("market_flags") or []) | {"presale"})
+                        feat.update(features.presale_info(blob))
+                        st.db.execute("UPDATE listings SET presale=1, feat=? WHERE id=?", (json.dumps(feat, ensure_ascii=False), r["id"]))
+                st.db.commit()
+            st.set_setting("mig_presale_text", int(time.time()))
         if not st.get_setting("mig_ingest_on") and os.environ.get("ARA_INGEST_DEFAULT", "1") != "0":
             cur = st.get_setting("ingest")
             if cur is not None:
