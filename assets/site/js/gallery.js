@@ -29,11 +29,26 @@
   }
   var picker = null;
   function fillCities() {
-    if (!picker) picker = FM.cityPicker(selCity, function (ids) {
-      FM.region.city = ids.join(","); FM.region.district = "";
-      fillDistricts(); refresh();
-    });
-    if (picker) { picker.province(FM.region.province); picker.set(FM.cityIds(FM.region)); }
+    if (!picker && !selCity.dataset.plain) {
+      try {
+        picker = FM.cityPicker(selCity, function (ids) {
+          FM.region.city = ids.join(","); FM.region.district = "";
+          fillDistricts(); refresh();
+        });
+      } catch (e) {
+        // اگر انتخاب چندشهری در این مرورگر کار نکرد، همان فهرست ساده (یک شهر) نمایش داده می‌شود
+        picker = null; selCity.dataset.plain = "1";
+        var pf = document.querySelector(".cpick-field"); if (pf) pf.remove();
+        var f0 = selCity.closest(".searchbar__field"); if (f0) f0.style.display = "";
+        selCity.hidden = false;
+        selCity.addEventListener("change", function () { FM.region.city = selCity.value; FM.region.district = ""; fillDistricts(); refresh(); });
+      }
+    }
+    if (picker) { picker.province(FM.region.province); picker.set(FM.cityIds(FM.region)); return; }
+    selCity.innerHTML = ""; selCity.appendChild(option("", "همهٔ شهرها"));
+    var pv = findProvince(FM.region.province);
+    if (pv) { pv.cities.forEach(function (c) { selCity.appendChild(option(c.id, c.name)); }); selCity.disabled = false; }
+    else selCity.disabled = true;
   }
   function fillDistricts() {
     selDistrict.innerHTML = ""; selDistrict.appendChild(option("", "همهٔ محله‌ها"));
