@@ -275,16 +275,19 @@ document.addEventListener("click", function (e) {
 FM.cityPicker = function (sel, onChange) {
   if (!sel) return null;
   var picked = [], prov = "";
-  var field = sel.closest(".searchbar__field") || sel.parentNode;
-  sel.hidden = true; sel.disabled = true;
+  var orig = sel.closest(".searchbar__field") || sel.parentNode;
+  // کادر جدا (نه درون <label>): بعضی مرورگرهای اندروید دکمه داخل برچسب را درست نشان نمی‌دادند
+  var field = document.createElement("div");
+  field.className = "searchbar__field cpick-field";
+  field.innerHTML = "<span>شهر</span>";
   var btn = document.createElement("button");
   btn.type = "button"; btn.className = "cpick__btn"; btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
-  sel.after(btn);
+  field.appendChild(btn);
   var panel = document.createElement("div");
   panel.className = "cpick fmx"; panel.hidden = true;
-  field.style.position = "relative"; field.appendChild(panel);
-  // کلیک روی برچسب نباید پنجره را دوباره ببندد
-  field.addEventListener("click", function (e) { if (field.tagName === "LABEL" && !e.target.closest(".cpick, .cpick__btn")) e.preventDefault(); });
+  field.appendChild(panel);
+  orig.parentNode.insertBefore(field, orig.nextSibling);
+  orig.style.display = "none";
   function name(id) { var c = FM.cityById(id); return c ? c.name : id; }
   function paintBtn() {
     btn.innerHTML = picked.length ? picked.map(name).join("، ") + (picked.length > 1 ? ' <small>' + FM.fa(picked.length) + " شهر</small>" : "") : "همهٔ شهرها";
