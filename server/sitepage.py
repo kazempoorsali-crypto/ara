@@ -43,7 +43,7 @@ def regions(store):
             continue
         prov = out.setdefault(c["province"], {"id": c["province"], "name": (catalog.PROVINCES.get(c["province"]) or {}).get("name", c["province"]),
                                               "cities": []})
-        ds = sorted(({"id": d, "name": d, "ppm": round(v[1]), "n": v[2], "p25": round(v[3] or 0), "p75": round(v[4] or 0)} for (k, d), v in med.items() if k == ck), key=lambda x: -x["n"])
+        ds = sorted(({"id": d, "name": d, "ppm": round(v[1]), "n": v[2], "p25": round(v[3] or 0), "p75": round(v[4] or 0)} for (k, d), v in med.items() if k == ck), key=lambda x: -x["n"])[:150]   # پرآگهی‌ترین محله‌ها؛ فهرست کامل حجم صفحه را زیاد می‌کرد
         prov["cities"].append({"id": ck, "name": c["name"], "lat": c["lat"], "lng": c["lng"], "n": info.get("n", 0), "districts": ds})
     for p in out.values():
         p["cities"].sort(key=lambda x: -x["n"])

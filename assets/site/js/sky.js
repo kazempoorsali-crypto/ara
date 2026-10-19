@@ -88,7 +88,12 @@
   }
   (function () {
     var f = document.getElementById("skyLive");
-    if (f) f.addEventListener("load", function () { sendLive(); setTimeout(sendLive, 1500); });
+    if (!f) return;
+    f.addEventListener("load", function () { if (f.src) { sendLive(); setTimeout(sendLive, 1500); } });
+    // کرهٔ سه‌بعدی بعد از نمایش فیلترها بار می‌شود تا صفحه همان اول قفل نشود
+    var start = function () { if (!f.src && f.dataset.src) f.src = f.dataset.src; };
+    var idle = function () { (window.requestIdleCallback || function (cb) { setTimeout(cb, 200); })(start, { timeout: 1200 }); };
+    if (document.readyState === "complete") idle(); else window.addEventListener("load", idle);
   })();
 
   selProvince.addEventListener("change", function () {
@@ -117,7 +122,8 @@
 
   function renderPins(animate) {
     if (!pinsBox) return;
-    var list = districtsOfRegion();
+    // فقط پرآگهی‌ترین محله‌ها (کل کشور هزاران محله دارد و رسم همه، صفحه را قفل می‌کرد)
+    var list = districtsOfRegion().sort(function (a, b) { return b.d.n - a.d.n; }).slice(0, 36);
     pinsBox.innerHTML = "";
     var maxP = Math.max.apply(null, list.map(function (x) { return x.d.price; }).concat([1]));
     var gold = 137.508;
@@ -156,7 +162,7 @@
     var cardsBox = document.querySelector("[data-skycards]");
     if (cardsBox) {
       cardsBox.innerHTML = "";
-      var sorted = list.slice().sort(function (a, b) { return b.d.price - a.d.price; });
+      var sorted = list.slice().sort(function (a, b) { return b.d.n - a.d.n; }).slice(0, 48).sort(function (a, b) { return b.d.price - a.d.price; });
       sorted.forEach(function (entry) {
         var d = entry.d;
         var el = document.createElement("a");

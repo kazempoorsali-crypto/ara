@@ -585,3 +585,31 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 [data-theme="light"] .hero__stats { background: rgba(255, 255, 255, .7); border-color: rgba(63, 71, 77, .18); backdrop-filter: blur(10px); }
 [data-theme="light"] .hero__stat b { color: #3f474d; }
 [data-theme="light"] .hero__lead { border-color: rgba(63, 71, 77, .25); }
+
+/* ورودی «قیمت از دید آسمان»: کرهٔ زمین واقعی که دور محور خودش (افقی) می‌چرخد */
+.gglobe { position: relative; width: min(340px, 78vw); aspect-ratio: 1; margin-inline: auto; border-radius: 50%; overflow: hidden; isolation: isolate;
+  box-shadow: 0 0 0 1px rgba(160, 200, 255, .18), 0 0 70px -6px rgba(110, 170, 255, .55), 0 0 160px -20px rgba(80, 140, 230, .45); }
+.gglobe__map { position: absolute; inset: 0; background: url("/assets/vendor/globe/earth-night-1024.webp") 0 50% / 200% 100% repeat-x; animation: gglobeSpin 40s linear infinite; }
+[data-theme="light"] .gglobe__map { background-image: url("/assets/vendor/globe/earth-day-1024.webp"); }
+@keyframes gglobeSpin { to { background-position-x: -200%; } }
+/* سایه‌روشن کروی: نور از بالا-چپ، شب در لبهٔ راست، و جو آبی لبه */
+.gglobe__shade { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .28) 0%, rgba(255, 255, 255, .06) 30%, transparent 52%),
+    radial-gradient(circle at 50% 50%, transparent 56%, rgba(0, 10, 30, .55) 82%, rgba(0, 5, 20, .9) 100%);
+  box-shadow: inset 0 0 28px 6px rgba(120, 180, 255, .45), inset -40px -20px 70px rgba(0, 0, 0, .55); }
+[data-theme="light"] .gglobe__shade { background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .45) 0%, rgba(255, 255, 255, .1) 30%, transparent 52%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(20, 50, 90, .35) 84%, rgba(10, 30, 60, .7) 100%);
+  box-shadow: inset 0 0 26px 6px rgba(140, 200, 255, .55), inset -36px -18px 60px rgba(10, 30, 60, .35); }
+[data-theme="light"] .gglobe { box-shadow: 0 0 0 1px rgba(80, 130, 190, .2), 0 30px 70px -24px rgba(40, 80, 140, .5), 0 0 90px -20px rgba(110, 170, 255, .5); }
+/* نقطه‌های چشمک‌زن بازار ایران روی کره */
+.gglobe__pins b { position: absolute; left: var(--x); top: var(--y); width: 7px; height: 7px; border-radius: 50%; background: #c8ff3e; box-shadow: 0 0 10px #c8ff3e; animation: gpin 2.2s ease-in-out infinite; }
+.gglobe__pins b:nth-child(2) { animation-delay: .7s; }
+.gglobe__pins b:nth-child(3) { animation-delay: 1.4s; }
+[data-theme="light"] .gglobe__pins b { background: #e0a526; box-shadow: 0 0 10px #e0a526; }
+@keyframes gpin { 50% { transform: scale(1.8); opacity: .4; } }
+.lite .gglobe__map { animation-duration: 90s; }
+@media (prefers-reduced-motion: reduce) { .gglobe__map, .gglobe__pins b { animation: none; } }
+.linkbtn{background:none;border:0;padding:0;color:var(--gold-text,#c8a03a);text-decoration:underline;cursor:pointer;font:inherit}
+[data-theme="dark"] .gglobe__map { filter: brightness(1.9) contrast(1.1) saturate(1.3); }
