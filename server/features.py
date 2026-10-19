@@ -50,6 +50,28 @@ PS_STAGES = [(r"گودبرداری|فونداسیون|پی ?ریزی|مجوز ?�
 JMONTHS = {"فروردین": 1, "اردیبهشت": 2, "خرداد": 3, "تیر": 4, "مرداد": 5, "شهریور": 6, "مهر": 7, "آبان": 8, "آذر": 9, "دی": 10, "بهمن": 11, "اسفند": 12}
 
 
+PRESALE_STRONG = r"پیش ?(?:فروش|خرید)|فیش\s*(?:پیش|مسکن|واحد|پروژه)|حق ?(?:تقدم|ثبت ?نام)\s*(?:واحد|پروژه)?"
+PRESALE_HINTS = (r"در ?حال ?ساخت|ساخت(?:مان)?\s*هنوز|هنوز\s*(?:تکمیل|تمام|آماده)\s*نشده",
+                 r"(?:در\s*)?مرحل[هۀ](?:\s*ی)?\s*(?:اسکلت|سفت ?کاری|نازک ?کاری|فونداسیون|گودبرداری|نما ?کاری|نصب ?نما)",
+                 r"(?:زمان|موعد|تاریخ)\s*تحویل|تحویل\s*(?:در|سال|پایان|اواخر|اوایل|نیمه)\s*(?:\S+\s*)?(?:سال\s*)?14\d\d",
+                 r"(?:ثبت ?نام|واگذاری)\s*(?:واحد|واحدهای|پروژه)")
+PRESALE_READY = r"تحویل\s*فوری|آماده\s*(?:تحویل|سکونت)|قابل\s*سکونت|کلید ?(?:به|تحویل)|سند\s*(?:تک ?برگ|شش ?دانگ)\s*(?:آماده|دارد)"
+
+
+def presale_signal(blob: str) -> bool:
+    """پیش‌فروش فقط از عنوان شناخته نمی‌شود: متن آگهی هم خوانده می‌شود (ساختمان در حال ساخت، زمان تحویل آینده،
+    فروش قسطی پروژه، فیش و حق تقدم). آگهی «آماده تحویل/سکونت» بدون عبارت صریح پیش‌فروش، پیش‌فروش حساب نمی‌شود."""
+    if re.search(PRESALE_STRONG, blob):
+        return True
+    if re.search(PRESALE_READY, blob):
+        return False
+    hints = sum(1 for rx in PRESALE_HINTS if re.search(rx, blob))
+    installments = bool(re.search(r"اقساط|قسطی|اقساطی", blob)) and bool(re.search(r"پروژه|سازنده|انبوه ?ساز|تحویل", blob))
+    future = re.search(r"تحویل\s*(?:\S+\s*){0,3}(14\d\d)", blob)
+    future = bool(future and int(future.group(1)) > jalali_year_now())
+    return bool(hints >= 2 or (hints >= 1 and (installments or future)) or (future and installments))
+
+
 def presale_info(blob: str) -> dict:
     """پیش‌فروش: درصد پیشرفت ساخت، ماه‌های باقی‌مانده تا تحویل و فروش قسطی، اگر در متن آمده باشد."""
     out = {}
@@ -173,7 +195,7 @@ def extract(item: dict) -> dict:
 
     # بازارهای جدا که نباید در میانگین قیمت فروش قطعی بیایند
     flags = []
-    if re.search(r"پیش ?فروش", blob):
+    if presale_signal(blob):
         flags.append("presale")
         f.update(presale_info(blob))
     if re.search(r"مشارکت(?: در ساخت)?", blob):
