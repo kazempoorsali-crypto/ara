@@ -191,7 +191,7 @@
     byCity({ ranked: scoredOnly ? 1 : "", sort: "score", limit: 30, imgs: 1 }).then(function (rs) {
       if (my !== seq) return;
       current = [];
-      current.groups = rs.map(function (res, i) { return { id: ids[i], name: ids.length > 1 ? (FM.cityById(ids[i]) || {}).name || ids[i] : "", items: (res.items || []).map(FM.mapListing) }; });
+      current.groups = rs.map(function (res, i) { return { id: ids[i], name: ids.length > 1 ? (FM.cityById(ids[i]) || {}).name || ids[i] : "", items: (res.items || []).map(FM.mapListing), locked: res.locked_more || 0 }; });
       current.groups.forEach(function (g) { current.push.apply(current, g.items); });
       current.total = rs.reduce(function (a, r) { return a + (r.total || 0); }, 0) || current.length;
       current.locked = rs.reduce(function (a, r) { return a + (r.locked_more || 0); }, 0);
@@ -267,7 +267,8 @@
       '<span class="ncard__body"><b>' + E(p.title) + "</b>" +
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
-      '<span class="ncard__price">' + E(p.priceText) + "</span></span>";
+      '<span class="ncard__price">' + E(p.priceText) + "</span>" +
+      (p.locked && p.label ? '<span class="ncard__lock">قیمت منصفانه و سود تخمینی <i>🔒 با اشتراک</i></span>' : "") + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
     return a;
   }
@@ -311,6 +312,17 @@
     colTweens = [];
   }
 
+  /* بقیهٔ نتیجه‌ها برای غیرمشترک: کارت‌های مات با قفل و شمار واقعی همان جست‌وجو؛ دکمه، پنجرهٔ اشتراک را باز می‌کند */
+  function lockTeaser(n, where) {
+    var box = document.createElement("div");
+    box.className = "lockteaser";
+    box.innerHTML = '<div class="lockteaser__ghosts" aria-hidden="true"><i></i><i></i><i></i><i></i></div>' +
+      '<div class="lockteaser__body"><span class="lockteaser__ico">🔒</span><b>' + FM.fa(n) + " فرصت دیگر" + (where ? " در " + E(where) : "") + " قفل است</b>" +
+      "<small>با اشتراک همهٔ نتیجه‌ها، قیمت منصفانه، درصد دقیق زیر بازار، سود تخمینی و پیوند آگهی اصلی باز می‌شود.</small>" +
+      '<button type="button" class="btn btn--gold" data-fm-sub>دیدن همه با اشتراک</button></div>';
+    return box;
+  }
+
   function renderMasonry(animate) {
     if (!wrap || !cols.length) return;
     var items = current;
@@ -331,6 +343,10 @@
     var grouped = !!(current.groups && current.groups.filter(function (g) { return g.name; }).length > 1 && current === items);
     if (!groupsBox) { groupsBox = document.createElement("div"); groupsBox.className = "cgroups"; groupsBox.setAttribute("data-cgroups", ""); wrap.after(groupsBox); }
     wrap.hidden = grouped; groupsBox.hidden = !grouped;
+    var lt = document.querySelector("[data-lockslot]");
+    if (!lt) { lt = document.createElement("div"); lt.setAttribute("data-lockslot", ""); groupsBox.after(lt); }
+    lt.innerHTML = "";
+    if (limited && !grouped && current.locked) lt.appendChild(lockTeaser(current.locked, FM.regionLabel(FM.region)));
     if (grouped) {
       groupsBox.innerHTML = "";
       current.groups.forEach(function (g, gi) {
@@ -338,7 +354,9 @@
         sec.innerHTML = '<h3 class="cgroup__h"><i>' + FM.fa(gi + 1) + "</i>فرصت‌های " + E(g.name) + " <small>" + (g.items.length ? FM.fa(g.items.length) + " ملک" : "موردی با این فیلترها پیدا نشد") + "</small></h3>";
         var grid = document.createElement("div"); grid.className = "cgroup__grid";
         g.items.forEach(function (p) { grid.appendChild(ncardEl(p)); });
-        sec.appendChild(grid); groupsBox.appendChild(sec);
+        sec.appendChild(grid);
+        if (g.locked) sec.appendChild(lockTeaser(g.locked, g.name));
+        groupsBox.appendChild(sec);
       });
       if (window.ScrollTrigger) ScrollTrigger.refresh();
       return;
@@ -382,10 +400,20 @@
   var hpin = document.querySelector("[data-hscroll-pin]");
   var htrack = document.querySelector("[data-hscroll-track]");
   function bootHunts() { return (FM.data.properties || []).filter(function (p) { return p.label === "gold" || p.label === "good"; }).slice(0, 8); }
+  /* شکارهای بازار: بدون اشتراک فقط سه شکار اول (در هر شهر) باز است؛ بقیه مات با قفل */
+  var HUNT_FREE = 3, lastHunts = [];
+  addEventListener("fm:me", function () { if (lastHunts.length) renderHunts(lastHunts); });
   function renderHunts(hunts) {
     if (!htrack) return;
+    lastHunts = hunts;
+    var sub = FM.isSub(), n = 0;
     htrack.innerHTML = hunts.length ? hunts.map(function (p) {
-      if (p.head) return '<div class="hcard hcard--head"><span>فرصت‌های</span><b>' + E(p.head) + "</b></div>";
+      if (p.head) { n = 0; return '<div class="hcard hcard--head"><span>فرصت‌های</span><b>' + E(p.head) + "</b></div>"; }
+      if (!sub && n++ >= HUNT_FREE) {
+        return '<div class="hcard is-locked"><img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
+          '<span class="hcard__lock"><i>🔒</i><b>شکار قفل‌شده</b><button type="button" class="btn btn--gold" data-fm-sub>باز کردن با اشتراک</button></span>' +
+          "<figcaption><b>" + E(p.diffText || "فروش زیر برآورد بازار") + "</b><small>" + (p.area ? FM.fa(p.area) + " متر" : "") + "</small></figcaption></div>";
+      }
       return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
         (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.diffText || p.tag) + "</small></figcaption></a>";
     }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً شکاری (فروش زیر برآورد بازار) پیدا نشد.</p>';

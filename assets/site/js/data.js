@@ -6,6 +6,8 @@ window.FM = window.FM || {};
   var B = window.FM_BOOT || {};
   var fa = function (n) { return String(n).replace(/\d/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹"[d]; }); };
   FM.fa = fa;
+  /* کاربر واردشده با اشتراک فعال (دورهٔ رایگان هم حساب است) */
+  FM.isSub = function () { return !!(FM.api && FM.api.me && FM.api.me.active); };
   /* صفحه با دکمهٔ برگشت (یا تازه‌سازی) باز شده؟ آن‌وقت موقعیت اسکرول و فیلترهای قبلی برمی‌گردند */
   FM.backNav = (function () {
     try {
