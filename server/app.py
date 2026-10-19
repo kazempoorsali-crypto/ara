@@ -624,7 +624,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("content-length", str(len(data)))
         # فایل‌های نسخه‌دار (?v=) و کتابخانه‌ها یک سال در مرورگر می‌مانند؛ بقیه هر بار بازبینی می‌شوند
         long = (versioned and not rel.endswith(".html")) or rel.startswith("assets/vendor/") or rel.startswith("assets/img/")
-        self.send_header("cache-control", "public, max-age=31536000, immutable" if long else "no-cache")
+        # فونت، عکس و بافت‌ها (بدون نسخه) هم یک ماه می‌مانند تا هر بازدید دوباره دانلود نشوند
+        media = rel.startswith("assets/") and not rel.endswith((".js", ".css", ".html", ".json"))
+        self.send_header("cache-control", "public, max-age=31536000, immutable" if long else "public, max-age=2592000" if media else "no-cache")
         self.end_headers()
         self.wfile.write(data)
 
@@ -893,8 +895,8 @@ class Handler(BaseHTTPRequestHandler):
                 d.pop("feat", None)
                 d.pop("explain", None)
             return self.send_json(r)
-        if path == "/api/stats":
-            return self.send_json(a.store.stats())
+        if path == "/api/stats":   # آمار سنگین کل جدول: ۶۰ ثانیه نگه داشته می‌شود
+            return self.send_json(sitepage.cached("api-stats", 60, a.store.stats))
         if path == "/api/page":  # راهنماها و مقاله‌ها برای نمایش درون برنامه
             p = seo.page(a, self.base_url(), qs.get("path") or "")
             if not p or p.get("kind") != "content":
@@ -921,7 +923,7 @@ class Handler(BaseHTTPRequestHandler):
             if qs.get("city") not in catalog.CITY_BY_KEY:
                 return self.send_json({"districts": []})
             from report import district_map
-            return self.send_json(district_map(a.store, qs["city"]))
+            return self.send_json(sitepage.cached("dmap-" + qs["city"], 300, lambda: district_map(a.store, qs["city"])))
         if path == "/api/market":
             out = {"rows": a.store.market_rows(qs.get("city"))}
             if qs.get("city") in catalog.CITY_BY_KEY:

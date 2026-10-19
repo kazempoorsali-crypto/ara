@@ -53,15 +53,17 @@
     selProvince.innerHTML = ""; selProvince.appendChild(option("", "همهٔ استان‌ها"));
     FM.data.regions.forEach(function (p) { selProvince.appendChild(option(p.id, p.name)); });
   }
+  var picker = null;
   function fillCities() {
-    selCity.innerHTML = ""; selCity.appendChild(option("", "همهٔ شهرها"));
-    var p = findProvince(FM.region.province);
-    if (p) { p.cities.forEach(function (c) { selCity.appendChild(option(c.id, c.name)); }); selCity.disabled = false; }
-    else selCity.disabled = true;
+    if (!picker) picker = FM.cityPicker(selCity, function (ids) {
+      FM.region.city = ids.join(","); FM.region.district = "";
+      fillDistricts(); apply();
+    });
+    if (picker) { picker.province(FM.region.province); picker.set(FM.cityIds(FM.region)); }
   }
   function fillDistricts() {
     selDistrict.innerHTML = ""; selDistrict.appendChild(option("", "همهٔ محله‌ها"));
-    var c = findCity(FM.region.province, FM.region.city);
+    var ids = FM.cityIds(FM.region), c = ids.length === 1 ? FM.cityById(ids[0]) : null;   // محله فقط با یک شهر
     if (c) { c.districts.forEach(function (d) { selDistrict.appendChild(option(d.id, d.name)); }); selDistrict.disabled = false; }
     else selDistrict.disabled = true;
   }
@@ -81,7 +83,8 @@
   function sendLive() {
     var f = document.getElementById("skyLive");
     if (!f || !f.contentWindow) return;
-    try { f.contentWindow.postMessage({ fmSky: 1, province: FM.region.province || "", city: FM.region.city || "", district: FM.region.district || "" }, location.origin); } catch (e) { /* هنوز بار نشده */ }
+    var ids = FM.cityIds(FM.region);
+    try { f.contentWindow.postMessage({ fmSky: 1, province: ids.length ? "" : FM.region.province || "", cities: ids, city: ids.length === 1 ? ids[0] : "", district: FM.region.district || "" }, location.origin); } catch (e) { /* هنوز بار نشده */ }
   }
   (function () {
     var f = document.getElementById("skyLive");
@@ -89,12 +92,9 @@
   })();
 
   selProvince.addEventListener("change", function () {
-    FM.region = { province: selProvince.value, city: "", district: "" };
-    fillCities(); fillDistricts(); apply();
-  });
-  selCity.addEventListener("change", function () {
-    FM.region.city = selCity.value; FM.region.district = "";
-    fillDistricts(); apply();
+    FM.region.province = selProvince.value;
+    if (picker) picker.province(FM.region.province);
+    if (!FM.cityIds(FM.region).length) apply();
   });
   selDistrict.addEventListener("change", function () { FM.region.district = selDistrict.value; apply(); });
   btnReset.addEventListener("click", function () {
@@ -105,10 +105,11 @@
   function districtsOfRegion() {
     var r = FM.region, list = [];
     FM.data.regions.forEach(function (p) {
-      if (r.province && p.id !== r.province) return;
+      var ids = FM.cityIds(r);
+      if (r.province && !ids.length && p.id !== r.province) return;
       p.cities.forEach(function (c) {
-        if (r.city && c.id !== r.city) return;
-        c.districts.forEach(function (d) { list.push({ d: d, city: c.name, cityId: c.id }); });
+        if (ids.length && ids.indexOf(c.id) < 0) return;
+        c.districts.forEach(function (d) { if (!r.district || d.id === r.district) list.push({ d: d, city: c.name, cityId: c.id }); });
       });
     });
     return list;
@@ -139,7 +140,7 @@
 
   function renderStats() {
     var cta = document.querySelector("[data-sky-cta]");
-    if (cta) { var r = FM.region, q = ["opp=1"]; ["province", "city", "district"].forEach(function (k) { if (r[k]) q.push(k + "=" + encodeURIComponent(r[k])); }); cta.href = "/app.html#/s?" + q.join("&"); }
+    if (cta) { var r = FM.region, q = ["opp=1"]; ["province", "city", "district"].forEach(function (k) { if (r[k] && !(k === "province" && r.city)) q.push(k + "=" + encodeURIComponent(r[k])); }); cta.href = "/app.html#/s?" + q.join("&"); }
     if (!statsBox) return;
     var list = districtsOfRegion();
     var avg = FM.districtPrice(FM.region);
@@ -241,7 +242,7 @@
         var py = cy + (c.y / 100 - 0.5) * dh;
         if (Math.hypot(px - cx, py - cy) > R * 0.97) return;
         var alpha = Math.cos((dx / half) * Math.PI / 2);
-        var selected = FM.region.city && c.id === FM.region.city;
+        var selected = FM.cityIds(FM.region).indexOf(c.id) >= 0;
 
         ctx.beginPath();
         ctx.arc(px, py, selected ? 7 : 4.5, 0, Math.PI * 2);
@@ -283,8 +284,8 @@
 
     globeApi = {
       focus: function (r) {
-        if (!r.city) return;
-        var city = cities.filter(function (c) { return c.id === r.city; })[0];
+        var first = FM.cityIds(r)[0]; if (!first) return;
+        var city = cities.filter(function (c) { return c.id === first; })[0];
         if (!city) return;
         /* چرخش تا شهر رو به کاربر قرار گیرد: جلوِ کره = u == dw/2 */
         var cityU = city.x / 100 * img.width;

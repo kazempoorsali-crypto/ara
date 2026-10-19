@@ -4,6 +4,7 @@
 و صفحه آن بخش را پنهان می‌کند (هیچ عدد ساختگی‌ای ساخته نمی‌شود).
 """
 import json
+import threading
 import time
 
 import catalog
@@ -67,12 +68,26 @@ def market_of(store, d):
 
 
 _CACHE = {}
+_BUSY = set()
 
 
 def cached(key, ttl, fn):
     """نتیجهٔ پرس‌وجوهای سنگین (آمار، محله‌ها، فرصت‌های برتر) چند ثانیه نگه داشته می‌شود تا صفحه سریع باز شود."""
     hit = _CACHE.get(key)
     if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    if hit:   # کهنه ولی موجود: همان فوراً برمی‌گردد و نسخهٔ تازه در پس‌زمینه ساخته می‌شود
+        if key not in _BUSY:
+            _BUSY.add(key)
+
+            def refresh():
+                try:
+                    _CACHE[key] = (time.time(), fn())
+                except Exception:  # noqa: BLE001
+                    pass
+                finally:
+                    _BUSY.discard(key)
+            threading.Thread(target=refresh, daemon=True).start()
         return hit[1]
     val = fn()
     _CACHE[key] = (time.time(), val)
