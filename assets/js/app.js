@@ -13,7 +13,7 @@ const App = (() => {
   async function boot() {
     depthFX();
     navSpotlight();
-    applyTheme(store.get("theme_v2", "dark"));   // تم اصلی: تیره
+    applyTheme(window.FMTheme ? FMTheme.current() : store.get("theme_v2", "dark"));   // خودکار روز/شب ایران
     const info = await DataLayer.init();
     cfg = info.config;
     // استان‌هایی که به‌تدریج اضافه می‌شوند (تهران، خراسان رضوی و ...) از سرور می‌آیند
@@ -3256,7 +3256,7 @@ const App = (() => {
       };
     }
     $("#themeBtn").addEventListener("click", () => {
-      const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme_v2", t);
+      const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(t); store.set("theme_v2", t); window.FMTheme && FMTheme.choose(t);
     });
     $("#dlg").addEventListener("click", (e) => { if (e.target.id === "dlg" || e.target.closest("[data-close]")) $("#dlg").close(); });
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });

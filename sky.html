@@ -13,11 +13,11 @@
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="fa_IR" />
   <meta name="twitter:card" content="summary_large_image" />
+  <script src="/assets/site/js/theme-auto.js"></script>
   <script>
     (function () {
-      var t = null;
-      try { t = localStorage.getItem("fmTheme"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = "dark";   // تم اصلی: تیره
+      // تم خودکار: روز روشن و شب تیره بر پایهٔ طلوع و غروب ایران (مگر کاربر دستی انتخاب کرده باشد)
+      var t = window.FMTheme ? FMTheme.current() : "dark";
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>

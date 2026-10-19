@@ -31,7 +31,7 @@
   if (themeBtn && !themeBtn.dataset.fmThemeBound) {
     themeBtn.dataset.fmThemeBound = "1";
     themeBtn.addEventListener("click", function () {
-      FM.setTheme(FM.theme === "dark" ? "light" : "dark", true);
+      FM.setTheme(FM.theme === "dark" ? "light" : "dark", true); window.FMTheme && FMTheme.choose(FM.theme);
     });
   }
   FM.scrollToEl = function (t, o) {
