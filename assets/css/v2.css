@@ -267,3 +267,14 @@
 .pbar__cap--top { bottom: calc(100% + 2px); color: var(--ink); }
 .pbar__cap--bot { top: calc(100% + 4px); }
 .linkbtn{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit}
+
+/* گوشی‌های باریک: دکمه‌های سربرگ از لبه بیرون نزنند */
+@media (max-width: 430px) {
+  .top__act #shareBtn { display: none; }
+  .top__act { gap: 0; }
+  .top__act .icon-btn { width: 36px; height: 36px; }
+  .top__act .btn--ink { padding-inline: 9px; }
+  .top__act .btn--ink span { display: none; }
+  .brand__txt small { display: none; }
+}
+@media (max-width: 560px) { .pbar__cap { font-size: 9.5px; } }

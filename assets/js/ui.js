@@ -160,7 +160,7 @@ const UI = (() => {
     const grad = `linear-gradient(to left, #10b981 0%, #10b981 ${xF}%, #d4a017 ${xM}%, #ef4444 ${xC}%, #b91c1c 100%)`;
     const H = opts.mini ? 8 : 12, D = opts.mini ? 10 : 16;
     // برچسب نزدیک لبه به داخل نوار تکیه می‌کند تا بریده نشود
-    const capPos = (x) => (x > 78 ? "right:-4px;transform:none" : x < 22 ? "right:auto;left:-4px;transform:none" : "");
+    const capPos = (x) => (x > 78 ? "right:auto;left:-4px;transform:none" : x < 22 ? "right:-4px;transform:none" : "");
     return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت تعادلی متری ${money(exp)}${hasRange ? `، کف ${money(floor)} و سقف ${money(ceil)}` : ""}" style="display:grid;gap:6px;margin:${opts.mini ? "6px 0" : "10px 0 4px"};">
       ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
         <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی همین ملک</span>

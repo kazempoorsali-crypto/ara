@@ -62,6 +62,12 @@
   }
 
   if (FM.lite) { show(0); return; }
+  // گوشی: بدون ثابت‌ماندن بخش (هفت صفحه اسکرول و برچسب‌های بریده)؛ همهٔ طبقه‌ها زیر هم نمایش داده می‌شوند
+  if (matchMedia("(max-width: 860px)").matches) {
+    section.classList.add("is-static");
+    panels.forEach(function (p) { p.classList.add("is-active"); });
+    return;
+  }
 
   gsap.set(cursor, { bottom: POS[0] + "%" });
   if (cursorLabel) gsap.set(cursorLabel, { bottom: "calc(" + POS[0] + "% + 18px)" });
