@@ -122,7 +122,8 @@ class RateLimiter:
 
 LIMITER = RateLimiter()
 # سقف هر IP در دقیقه: خواندن API، نوشتن، عکس، صفحه‌ها
-LIMITS = {"api": 240, "post": 40, "img": 300, "page": 120, "tile": 1200}
+# سقف‌ها برای هر IP در دقیقه؛ کاربران اینترنت همراه گاهی پشت یک IP مشترک‌اند، پس سقف صفحه و API سخاوتمندانه است
+LIMITS = {"api": 480, "post": 40, "img": 600, "page": 300, "tile": 1500}
 # کاشی‌های نقشه از طریق سرور خود سایت با کش دائمی روی دیسک: بدون کلید، و در قطع اینترنت بین‌الملل
 # هر ناحیه‌ای که یک بار دیده شده باز هم نمایش داده می‌شود
 # هر سبک چند منبع دارد: اگر یکی از ایران کند یا مسدود باشد (مثلاً اسری که ایران را تحریم کرده)، منبع بعدی امتحان می‌شود
@@ -144,6 +145,8 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "SAMEORIGIN",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "X-Permitted-Cross-Domain-Policies": "none",
     # اسکریپت و اتصال فقط از خود سایت؛ کاشی نقشه و عکس از https
     "Content-Security-Policy": ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
                                 "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; "
@@ -158,7 +161,7 @@ class BoundedServer(ThreadingHTTPServer):
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
-        self.slots = threading.BoundedSemaphore(64)
+        self.slots = threading.BoundedSemaphore(int(os.environ.get("ARA_MAX_CONN", 160)))
 
     def process_request(self, request, client_address):
         if not self.slots.acquire(blocking=False):
@@ -560,7 +563,10 @@ class Handler(BaseHTTPRequestHandler):
                 body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
-                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "")
+                # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
+                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "") if page != "sky" else None
+                if page == "sky":   # پیوند متعارف برای صفحهٔ قیمت محله‌ها
+                    body = body.replace("</head>", f'  <link rel="canonical" href="{self.base_url()}/sky.html" />\n</head>', 1)
                 if sp:
                     body = seo.render(body, {**sp, "hash": ""}, VERSION)
                     fold = (f'<section class="seo-text" id="seoText"><div class="wrap"><details class="seo-fold"><summary>'
@@ -581,6 +587,27 @@ class Handler(BaseHTTPRequestHandler):
             return self.static(url.path, versioned="v" in qs)
         except Exception as e:  # noqa: BLE001
             return self.send_json({"error": str(e)}, 500)
+
+    def do_HEAD(self):
+        """درخواست HEAD (خزنده‌ها و پایش در دسترس بودن): همان پاسخ GET بدون بدنه."""
+        real = self.wfile
+
+        class _HeadOnly:
+            sent = False
+
+            def write(self, b):
+                if not _HeadOnly.sent:   # نخستین نوشتن، سرآیندهاست
+                    _HeadOnly.sent = True
+                    return real.write(b)
+                return len(b)
+
+            def flush(self):
+                return real.flush()
+        self.wfile = _HeadOnly()
+        try:
+            self.do_GET()
+        finally:
+            self.wfile = real
 
     def do_POST(self):
         url = urllib.parse.urlsplit(self.path)

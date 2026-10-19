@@ -613,3 +613,35 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 @media (prefers-reduced-motion: reduce) { .gglobe__map, .gglobe__pins b { animation: none; } }
 .linkbtn{background:none;border:0;padding:0;color:var(--gold-text,#c8a03a);text-decoration:underline;cursor:pointer;font:inherit}
 [data-theme="dark"] .gglobe__map { filter: brightness(1.9) contrast(1.1) saturate(1.3); }
+
+/* خط آسمان بازطراحی‌شده: لبهٔ روشن هر ساختمان برای عمق، پنجره‌های سبک (بدون فیلتر سایه که اسکرول را سنگین می‌کرد) */
+.sky-edge rect { fill: rgba(255, 255, 255, .07); }
+[data-theme="light"] .sky-edge rect { fill: rgba(255, 255, 255, .22); }
+.win-lights rect { filter: none; opacity: .82; animation: none; }
+.win-lights rect:nth-child(7n) { animation: winTwinkle 5s ease-in-out infinite; }
+.win-lights rect:nth-child(11n) { animation: winTwinkle 6.5s ease-in-out 1.8s infinite; }
+[data-theme="light"] .win-lights rect { opacity: .55; }
+.lite .win-lights rect { animation: none !important; }
+
+/* روانی اسکرول: افکت‌هایی که هر فریم دوباره نقاشی می‌شدند با معادل سبک (transform/opacity) جایگزین شدند */
+@keyframes sunGlow { 50% { transform: scale(1.02); } }
+[data-theme="light"] .hero__stage::before { will-change: transform; }
+[data-theme="light"] .hero__stage::after { backdrop-filter: none; }
+[data-theme="light"] .hero__stats { backdrop-filter: none; background: rgba(255, 255, 255, .82); }
+.hero__sun, .hero__skyline, .hero__cloud { will-change: transform; }
+.blob { will-change: transform; }
+@media (max-width: 860px) { .blob { animation: none; } .hero__sun-core::after { animation: none; } }
+/* در صفحهٔ اول با هر اسکرول، لایه‌ها جابه‌جا می‌شوند و «تار کردن پشت‌زمینه» هر فریم از نو محاسبه می‌شد (عامل اصلی لگ)؛
+   زمینهٔ نیمه‌شفاف همان خوانایی را بدون هزینه می‌دهد */
+.hero__content::before, .hero__eyebrow, .hero__lead, .hero__sub, .hero__stats, .hero__tag, .hspot, .hero .btn--ghost, .hero .btn--sky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.hero__eyebrow { background: rgba(11, 18, 14, .62); }
+[data-theme="light"] .hero__eyebrow { background: rgba(255, 255, 255, .86); }
+.hero .btn--sky, .hero .btn--ghost { background: rgba(11, 18, 14, .45); }
+[data-theme="light"] .hero .btn--sky, [data-theme="light"] .hero .btn--ghost { background: rgba(255, 255, 255, .72); }
+/* عکس پس‌زمینهٔ تم روشن از پیش مات شده (۶ کیلوبایت)؛ دیگر فیلتر تار کردن زنده لازم نیست */
+[data-theme="light"] .hero__stage::before { background-image: url("/assets/img/scene/house-soft.webp"); filter: saturate(.9) brightness(1.06); inset: 0; transform: none; }
+/* هاله‌ها خودشان گرادیان نرم‌اند؛ فیلتر blur(70px) روی سه دایرهٔ بزرگ متحرک پرهزینه‌ترین بخش صفحه بود */
+.blob { filter: none; opacity: .55; }
+.hero__topo { will-change: transform; contain: strict; }
+[data-theme="light"] .hero__skyline--near { filter: none; }
+[data-theme="light"] .hero__stage::before { filter: none; opacity: .92; }
