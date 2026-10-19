@@ -244,6 +244,18 @@
       pre.src = imgs[i];
       Array.prototype.forEach.call(dots, function (d, k) { d.classList.toggle("is-on", k === i); });
     }
+    // گوشی و لمسی (بدون موس): وقتی کارت در صفحه دیده می‌شود، عکس‌ها خودشان جابه‌جا می‌شوند
+    if (matchMedia("(hover: none)").matches && "IntersectionObserver" in window) {
+      var start = function () {
+        img = a.querySelector(".ncard__media img"); dots = a.querySelectorAll(".ncard__dots i");
+        if (timer === null) timer = setInterval(function () { show(i + 1); }, 2200 + Math.random() * 900);
+      };
+      var stop = function () { clearInterval(timer); timer = null; };
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting && e.intersectionRatio > 0.6) start(); else stop(); });
+      }, { threshold: [0, 0.6] }).observe(a);
+      return;
+    }
     a.addEventListener("mouseenter", function () {
       img = a.querySelector(".ncard__media img"); dots = a.querySelectorAll(".ncard__dots i");
       clearInterval(timer);

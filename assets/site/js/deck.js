@@ -84,6 +84,26 @@
     }
     poseDeck();
 
+    /* گوشی: کارت‌ها یکی‌یکی جلو می‌آیند (چرخ‌فلک)؛ هر کارت کامل دیده می‌شود و همسایه‌ها پشتش پیداست */
+    if (matchMedia("(max-width: 860px)").matches) {
+      var place = function (a) {
+        var cw = (cards[0] && cards[0].offsetWidth) || 200;
+        var step = Math.min(cw * 0.58, (stage.clientWidth - cw) / 2 + cw * 0.12);
+        cards.forEach(function (c, i) {
+          var d = i - a, ad = Math.abs(d);
+          gsap.set(c, { x: d * step, y: ad * 10, rotation: d * -5, scale: Math.max(0.7, 1 - ad * 0.14),
+            zIndex: 100 - Math.round(ad * 10), autoAlpha: ad > 2.4 ? 0 : 1 - Math.max(0, ad - 1.2) * 0.5 });
+        });
+      };
+      place(0);
+      ScrollTrigger.create({
+        trigger: section || pinWrap, start: "top top", end: "+=" + innerHeight * 0.42 * n,
+        pin: true, scrub: 0.4, anticipatePin: 1, invalidateOnRefresh: true,
+        onUpdate: function (self) { place(self.progress * (n - 1)); },
+      });
+      return;
+    }
+
     /* باز شدن پین‌شده: بخش تا پایان بازشدن سر جایش می‌ماند */
     var tl = gsap.timeline({
       scrollTrigger: {
