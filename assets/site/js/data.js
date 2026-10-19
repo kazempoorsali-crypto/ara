@@ -376,6 +376,15 @@ FM.cityPicker = function (sel, onChange) {
     set: function (ids) { picked = (ids || []).slice(); paintBtn(); if (!panel.hidden) render(); },
     province: function (p) { prov = p || ""; if (!panel.hidden) render(); },
     get: function () { return picked.slice(); },
+    field: field,
+    /* بعضی مرورگرهای گوشی گاهی کادر را نمی‌کشند (تا اسکرول یا تازه‌سازی)؛ با این، کادر دوباره نقاشی و دیده می‌شود */
+    repaint: function () {
+      if (orig.style.display !== "none") orig.style.display = "none";
+      field.style.display = ""; field.style.visibility = "visible"; field.style.opacity = "1";
+      paintBtn();
+      field.style.transform = "translateZ(0)";
+      requestAnimationFrame(function () { field.style.transform = ""; });
+    },
   };
 };
 

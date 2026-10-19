@@ -33,8 +33,11 @@
 
   <!-- ══════════ Intro: طلوع خورشید و ساخته‌شدن ساختمان ══════════ -->
   <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro__stage">
     <div class="intro__sun-track"><div class="intro__sun" data-intro-sun></div></div>
     <svg class="intro__build" viewBox="0 0 320 340" fill="none" aria-hidden="true">
+      <!-- بدنه و سقف هم‌رنگ زمینه: خورشید پشت خانه بالا می‌آید و فقط بالای سقف پیداست -->
+      <path class="ib-bg" d="M60 150 160 70l100 80h-20v160H80V150z"/>
       <g class="ib-strokes" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <path class="ib-s" data-s="roof" d="M60 150 160 70l100 80"/>
         <path class="ib-s" data-s="body" d="M80 150v160h160V150"/>
@@ -48,6 +51,7 @@
         <rect class="ib-f" data-f="f1" x="80" y="258" width="160" height="52" rx="3"/>
       </g>
     </svg>
+    </div>
     <div class="intro__brand" data-intro-brand>
       <span class="intro__word">فرصت ملک</span>
       <small>ارزش واقعی ملک، محله به محله</small>
@@ -201,7 +205,7 @@
           <p class="hero__lead" data-hero-lead>آیا این ملک واقعاً ارزش خرید دارد؟</p>
           <p class="hero__sub" data-hero-sub>پیش از یک تصمیم چندمیلیاردی، قیمت هر آگهی را با محلهٔ خودش، سن بنا، متراژ، طبقه و امکانات می‌سنجیم و نشان می‌دهیم کجا فرصت است و کجا گران.</p>
           <div class="hero__cta" data-hero-cta>
-            <a class="btn btn--gold btn--lg" href="#golden" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
+            <a class="btn btn--gold btn--lg" href="#homefilter" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
             <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
           </div>
         </div>
@@ -440,7 +444,7 @@
         <div class="assistant__cta" data-reveal>
           <button class="btn btn--gold btn--lg" id="assistantOpen" type="button"><span class="btn__label" data-flip><span>گفت‌وگو با دستیار</span><span aria-hidden="true">گفت‌وگو با دستیار</span></span></button>
           <span class="assistant__sep"></span>
-          <a class="btn btn--ghost btn--lg" href="#golden" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
+          <a class="btn btn--ghost btn--lg" href="#homefilter" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
           <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
         </div>
       </div>
