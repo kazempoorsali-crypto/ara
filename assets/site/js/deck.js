@@ -34,6 +34,22 @@
     return a;
   }
 
+  /* فیلتر صفحهٔ اصلی (استان، شهر، محله، فیلتر پیشرفته) روی ویترین هم اعمال می‌شود؛ کارت‌ها همان‌جا عوض می‌شوند تا انیمیشن بادبزن به‌هم نخورد */
+  document.addEventListener("fm:filtered", function (e) {
+    var list = e.detail && e.detail.items;
+    var top = (list ? list : props).slice(0, cards.length);
+    cards.forEach(function (c, i) {
+      var p = top[i];
+      if (!p) { c.style.visibility = "hidden"; return; }
+      var n = cardEl(p);
+      c.href = n.href; c.dataset.status = n.dataset.status; c.setAttribute("aria-label", n.getAttribute("aria-label"));
+      c.classList.toggle("is-noimg", !!p.noimg);
+      c.innerHTML = n.innerHTML; c.style.visibility = "";
+    });
+    section.classList.toggle("is-filtered-empty", !!list && !list.length);
+    if (FM.paintFavs) FM.paintFavs();
+  });
+
   /* هدف‌های باز شدن — حول مرکز فیزیکی stage */
   function fanTarget(i, n) {
     var mid = (n - 1) / 2;

@@ -26,6 +26,7 @@
   function updateAccount() {
     const me = API.me, el = $("#accountLabel");
     if (el) el.textContent = me ? (me.active ? "اشتراک فعال، " + fa(me.days_left) + " روز" : "حساب من") : "ورود و اشتراک";
+    document.documentElement.classList.toggle("is-sub", !!(me && me.active));   // مشترک: نشانه‌های قفل پنهان
     if (me) dispatchEvent(new CustomEvent("fm:me", { detail: me }));
   }
   /* پنجرهٔ مشترک همهٔ گفت‌وگوها (ورود، پرداخت، اشتراک) */

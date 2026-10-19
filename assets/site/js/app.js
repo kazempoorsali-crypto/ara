@@ -418,7 +418,7 @@
       stage.appendChild(spots);
       var mobile = matchMedia("(max-width: 760px)").matches;
       /* گوشی: کارت‌های کوچک‌تر و چندتایی هم‌زمان (مثل رایانه)، در جاهایی که روی دکمهٔ دستیار نیفتند */
-      var SLOTS = mobile ? [{ r: 28, b: 3 }, { r: 72, b: 12 }, { r: 28, b: 12 }]
+      var SLOTS = mobile ? [{ r: 36, b: 3 }, { r: 72, b: 13 }, { r: 34, b: 14 }]
         : [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
       if (mobile) spots.classList.add("is-mini");
       var slotIdx = 0, propIdx = 0, paused = false, live = [];

@@ -321,7 +321,15 @@ FM.cityPicker = function (sel, onChange) {
   }
   function open(on) {
     panel.hidden = !on; btn.setAttribute("aria-expanded", on); field.classList.toggle("is-open", on);
-    if (on) { render(); setTimeout(function () { var i = panel.querySelector(".cpick__q"); if (i && matchMedia("(pointer: fine)").matches) i.focus(); }, 30); }
+    document.body.classList.toggle("cpick-open", on);   // دکمهٔ دستیار و «بالا» روی دکمهٔ تأیید نیفتند
+    if (on) {
+      render(); setTimeout(function () { var i = panel.querySelector(".cpick__q"); if (i && matchMedia("(pointer: fine)").matches) i.focus(); }, 30);
+      /* گوشی: کادر شهر بالای صفحه بیاید تا کل پنجره و دکمهٔ تأیید دیده شود */
+      if (matchMedia("(max-width: 860px)").matches) {
+        var top = field.getBoundingClientRect().top + scrollY - 76;
+        if (Math.abs(top - scrollY) > 20) window.scrollTo({ top: top, behavior: "smooth" });
+      }
+    }
   }
   btn.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); open(panel.hidden); });
   panel.addEventListener("click", function (e) {
