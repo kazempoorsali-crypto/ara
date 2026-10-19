@@ -868,7 +868,7 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 }
 
 /* نورافکن فرصت‌ها در گوشی: کارت کوچک و چندتایی (برچسب حذف، رنگ دایرهٔ امتیاز همان رده را نشان می‌دهد) */
-.hspots.is-mini .hspot { max-width: 42vw; gap: .35rem; padding: .22rem .26rem .22rem .5rem; }
+.hspots.is-mini .hspot { max-width: 38vw; gap: .35rem; padding: .22rem .26rem .22rem .5rem; }
 .hspots.is-mini .hspot__img { width: 26px; height: 26px; border-width: 1.5px; }
 .hspots.is-mini .hspot__score { width: 26px; height: 26px; font-size: .68rem; }
 .hspots.is-mini .hspot__txt { line-height: 1.35; }
@@ -914,3 +914,12 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
 .hcard__lock .btn { text-shadow: none; padding: .5rem 1rem; font-size: .8rem; }
 .ncard__lock { display: block; margin-top: .3rem; font-size: .72rem; color: var(--ink-faint); }
 .ncard__lock i { font-style: normal; color: var(--gold); font-weight: 700; }
+
+/* پنجرهٔ انتخاب شهر باز است: دکمهٔ دستیار و «بالا» پنهان تا دکمهٔ تأیید زیرشان نرود */
+body.cpick-open .chat-fab, body.cpick-open .totop { opacity: 0; pointer-events: none; }
+/* مشترک فعال: قفل‌ها پنهان */
+html.is-sub .ncard__lock, html.is-sub .lockteaser { display: none !important; }
+/* گوشی کوتاه: جملهٔ زیر پرسش هم بماند (کوچک‌تر) */
+@media (max-width: 560px) and (max-height: 760px) {
+  .hero__sub { display: block !important; font-size: .78rem !important; line-height: 1.8 !important; padding: .6rem .85rem !important; }
+}

@@ -278,3 +278,10 @@
   .brand__txt small { display: none; }
 }
 @media (max-width: 560px) { .pbar__cap { font-size: 9.5px; } }
+
+/* شناسنامهٔ قیمت: عنوان و عدد پررنگ، توضیح کوچک و کم‌رنگ با خط کنار تا با عنوان قاطی نشود */
+.pid .pid__row { gap: 6px 14px; padding: 14px 0; align-items: baseline; }
+.pid .pid__row > span { color: var(--ink); font-weight: 800; font-size: 15px; }
+.pid .pid__row > b { font-weight: 900; font-size: 16px; white-space: nowrap; }
+.pid .pid__row > small { color: var(--muted); font-size: 12px; line-height: 1.85; font-weight: 400; opacity: .85;
+  padding-inline-start: 10px; border-inline-start: 2px solid color-mix(in srgb, var(--muted) 45%, transparent); }
