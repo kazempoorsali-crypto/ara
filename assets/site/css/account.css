@@ -866,3 +866,27 @@ dialog.fmx.dlg--auth { width: min(400px, calc(100vw - 24px)); }
   .hscroll__track { width: auto; max-width: 100%; touch-action: pan-x pan-y; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
   .hscroll__track .hcard { width: min(78vw, 320px); }
 }
+
+/* نورافکن فرصت‌ها در گوشی: کارت کوچک و چندتایی (برچسب حذف، رنگ دایرهٔ امتیاز همان رده را نشان می‌دهد) */
+.hspots.is-mini .hspot { max-width: 42vw; gap: .35rem; padding: .22rem .26rem .22rem .5rem; }
+.hspots.is-mini .hspot__img { width: 26px; height: 26px; border-width: 1.5px; }
+.hspots.is-mini .hspot__score { width: 26px; height: 26px; font-size: .68rem; }
+.hspots.is-mini .hspot__txt { line-height: 1.35; }
+.hspots.is-mini .hspot__txt b { font-size: .68rem; }
+.hspots.is-mini .hspot__txt small { font-size: .58rem; }
+.hspots.is-mini .hspot__txt .lbadge { display: none; }
+.hspots.is-mini .hspot__beam { height: 18px; }
+
+/* اینترو: نام سایت زیر خانه (نه روی آن) در همهٔ اندازه‌ها */
+.intro { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.intro__brand { position: relative; margin-top: 1.1rem; }
+
+/* شب: چند ستارهٔ چشمک‌زن کنار ماه (فقط تم تیره) */
+.hero__stars { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+[data-theme="dark"] .hero__stars { display: block; }
+.hero__stars i { position: absolute; width: var(--s); height: var(--s); border-radius: 50%; background: #fdf8e6;
+  box-shadow: 0 0 6px 1px rgba(253, 248, 230, .55); opacity: .85; animation: fmTwinkle 3.6s ease-in-out var(--d) infinite; }
+.hero__stars i:nth-child(3n) { box-shadow: 0 0 9px 2px rgba(253, 248, 230, .6); }
+@keyframes fmTwinkle { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: .25; transform: scale(.6); } }
+@media (max-width: 860px) { .hero__stars i { animation-duration: 4.4s; } }
+@media (prefers-reduced-motion: reduce) { .hero__stars i { animation: none; } }
