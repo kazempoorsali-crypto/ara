@@ -403,7 +403,7 @@
       stage.appendChild(spots);
       var mobile = matchMedia("(max-width: 760px)").matches;
       /* گوشی: کارت‌های کوچک‌تر و چندتایی هم‌زمان (مثل رایانه)، در جاهایی که روی دکمهٔ دستیار نیفتند */
-      var SLOTS = mobile ? [{ r: 36, b: 3 }, { r: 72, b: 13 }, { r: 34, b: 14 }]
+      var SLOTS = mobile ? [{ r: 30, b: 0, lane: 1 }, { r: 72, b: 0, lane: 2 }]
         : [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
       if (mobile) spots.classList.add("is-mini");
       var slotIdx = 0, propIdx = 0, paused = false, live = [];
@@ -432,15 +432,41 @@
         live.push(a);
         /* کارت از پنجرهٔ روشن یکی از خانه‌ها بیرون می‌آید: پنجره چشمک می‌زند، پرتو از همان پنجره بالا می‌رود
            و کارت از نقطهٔ پنجره بزرگ می‌شود؛ هنگام رفتن هم به همان پنجره برمی‌گردد */
-        var sr = stage.getBoundingClientRect(), w = a.offsetWidth;
+        var sr = stage.getBoundingClientRect(), w = a.offsetWidth, h = a.offsetHeight;
         var cx = sr.width * (1 - slot.r / 100), cardY = sr.bottom - sr.height * slot.b / 100;
+        var btnB = 0;
+        if (slot.lane) {
+          /* گوشی: کارت در فاصلهٔ میان دکمه‌ها و ساختمان‌ها می‌نشیند تا پرتو تا پنجره دیده شود */
+          var winT = sr.bottom;
+          heroBtns.forEach(function (b) { var r = b.getBoundingClientRect(); if (r.height) btnB = Math.max(btnB, r.bottom); });
+          winEls.forEach(function (el) { var r = el.getBoundingClientRect(); if (r.width && r.top < winT) winT = r.top; });
+          cardY = Math.max(btnB + 8 + h, Math.min(winT - 26, btnB + 8 + h + 40));
+          a.style.bottom = Math.round(sr.bottom - cardY) + "px";
+        }
         var win = pickWindow(sr, cx, cardY);
         var wx = win ? win.x - sr.left : cx;
-        var maxR = sr.width - (mobile ? 46 : 8);   // گوشی: نوشتهٔ عمودی «اسکرول کنید» سمت راست آزاد بماند
-        var left = Math.min(Math.max(wx - w / 2, 8), maxR - w);
+        var maxR = sr.width - 8;
+        if (mobile && heroHint) { var hr = heroHint.getBoundingClientRect(); if (hr.width) maxR = Math.min(maxR, hr.left - sr.left - 8); }   // نوشتهٔ عمودی «اسکرول کنید» آزاد بماند
+        var minL = 8, mid = (8 + maxR) / 2;                    // وسطِ فضای آزاد (بدون نوشتهٔ «اسکرول کنید»)
+        if (slot.lane === 1) minL = mid + 4;                  // نیمهٔ راست
+        if (slot.lane === 2) maxR = mid - 4;                  // نیمهٔ چپ
+        var left = Math.min(Math.max(wx - w / 2, minL), maxR - w);
+        if (slot.lane === 1 && left < minL) {
+          /* گوشی باریک: دو کارت کنار هم جا نمی‌شوند؛ کارت راست یک ردیف بالاتر، وگرنه این نوبت نمایش داده نمی‌شود */
+          cardY -= h + 8;
+          if (cardY - h < btnB + 6) { a.remove(); live = live.filter(function (x) { return x !== a; }); return; }
+          a.style.bottom = Math.round(sr.bottom - cardY) + "px";
+          win = pickWindow(sr, cx, cardY);
+          wx = win ? win.x - sr.left : cx;
+          left = Math.min(Math.max(wx - w / 2, 8), maxR - w);
+        }
         a.style.left = left + "px";
         a.style.setProperty("--bx", Math.round(wx - left) + "px");
-        a.style.setProperty("--beam", Math.round(win ? Math.min(340, Math.max(14, win.y - cardY)) : mobile ? 18 : 46) + "px");
+        var beamH = Math.round(win ? Math.min(340, Math.max(14, win.y - cardY)) : mobile ? 18 : 46);
+        a.style.setProperty("--beam", beamH + "px");
+        /* نقطهٔ شروع پرواز: مرکز کارت روی همان پنجره */
+        a.style.setProperty("--fx", Math.round(wx - left - w / 2) + "px");
+        a.style.setProperty("--fy", Math.round(beamH + h / 2) + "px");
         if (win) { win.el.classList.add("is-calling"); a._wx = win.x; }
         setTimeout(function () { a.classList.add("is-on"); }, win ? 420 : 30);
         setTimeout(function () {
@@ -450,8 +476,11 @@
       };
       /* نزدیک‌ترین پنجرهٔ پیدای زیر کارت (چند گزینهٔ نزدیک، یکی تصادفی) */
       var winEls = Array.prototype.slice.call(document.querySelectorAll("[data-hero] .win-lights rect"));
+      var heroBtns = Array.prototype.slice.call(document.querySelectorAll("[data-hero] .hero__content .btn"));
+      var heroHint = document.querySelector("[data-hero-hint]");
       var pickWindow = function (sr, cx, cardY) {
         var cand = [];
+        var fab = document.getElementById("chatFab"), fabR = fab && fab.offsetParent ? fab.getBoundingClientRect() : null;
         var busyX = live.filter(function (a) { return !a.classList.contains("is-out") && a._wx != null; }).map(function (a) { return a._wx; });
         for (var i = 0; i < winEls.length; i++) {
           var el = winEls[i];
@@ -460,6 +489,7 @@
           if (!r.width) continue;
           var x = r.left + r.width / 2, y = r.top + r.height / 2;
           if (mobile && x > sr.right - 60) continue;
+          if (fabR && x > fabR.left - 8 && x < fabR.right + 8 && y > fabR.top - 30) continue;   // پرتو پشت دکمهٔ دستیار نرود
           if (busyX.some(function (bx) { return Math.abs(bx - x) < (mobile ? 40 : 70); })) continue;   // پرتوها روی هم نیفتند
           if (y < cardY + 12 || y > Math.min(sr.bottom, innerHeight) - 4) continue;
           var d = Math.abs(x - sr.left - cx);
