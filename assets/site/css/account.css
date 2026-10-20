@@ -1003,3 +1003,17 @@ html.intro-fast[data-theme="dark"] .intro .intro__stage .intro__sun { animation:
 @keyframes winCall { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .hspot { scale: 1; transition: opacity .4s; } .hspot.is-out { scale: 1; } }
 .hspots.is-mini .hspot__beam { height: var(--beam, 18px); }
+
+/* نورافکن نسخهٔ ۲: کارت به اندازهٔ یک نقطه از دل پنجره بیرون می‌پرد و تا جای خودش پرواز می‌کند؛
+   بعد از رسیدن، پرتو از کارت تا پنجره کشیده می‌شود؛ هنگام رفتن به همان پنجره برمی‌گردد */
+.hspot { transform-origin: 50% 50%; translate: var(--fx, 0) var(--fy, 40px); scale: .06; opacity: 0;
+  transition: translate .95s cubic-bezier(.18, .9, .25, 1.08), scale .95s cubic-bezier(.18, .9, .25, 1.12), opacity .18s linear, border-color .3s, box-shadow .3s; }
+.hspot.is-on { translate: 0 0; scale: 1; opacity: 1; box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent), 0 18px 46px -14px rgba(0, 0, 0, .55), 0 0 26px -6px color-mix(in srgb, var(--gold) 60%, transparent); }
+.hspot.is-out { translate: var(--fx, 0) var(--fy, 40px); scale: .06; opacity: 0;
+  transition: translate .7s cubic-bezier(.6, 0, .8, .4), scale .7s cubic-bezier(.6, 0, .8, .4), opacity .25s linear .5s; }
+.hspot .hspot__beam { scale: 1 0; transition: scale .4s ease-out; }
+.hspot.is-on .hspot__beam { scale: 1 1; transition: scale .45s cubic-bezier(.3, .8, .3, 1) .75s; }
+.hspot.is-out .hspot__beam { scale: 1 0; transition: scale .2s ease-in; }
+.hspot.is-on .hspot__beam::after { animation: hsPing 1.4s ease-out 1.1s infinite; }
+.win-lights rect.is-calling { filter: drop-shadow(0 0 6px #ffd56a) drop-shadow(0 0 14px rgba(255, 200, 80, .8)); }
+@media (prefers-reduced-motion: reduce) { .hspot, .hspot.is-out { translate: 0 0; scale: 1; transition: opacity .4s; } .hspot .hspot__beam { scale: 1 1; } }
