@@ -424,15 +424,50 @@
         a._slot = si;
         a.dataset.status = p.status;
         a.href = FM.propUrl(p.id);
-        a.style.right = slot.r + "%"; a.style.bottom = slot.b + "%";
-        if (mobile) a.style.transform = "translateX(50%)";
+        a.style.bottom = slot.b + "%";
         a.innerHTML = '<span class="hspot__img"><img src="' + FM.esc(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
           '<span class="hspot__txt">' + FM.badge(p) + '<b>' + FM.esc(p.title) + '</b><small>' + FM.esc(p.diffText || p.tag) + '</small></span>' +
           '<span class="hspot__score">' + FM.fa(p.score) + '</span><i class="hspot__beam" aria-hidden="true"></i>';
         spots.appendChild(a);
         live.push(a);
-        requestAnimationFrame(function () { a.classList.add("is-on"); });
-        setTimeout(function () { a.classList.remove("is-on"); a.classList.add("is-out"); setTimeout(function () { a.remove(); live = live.filter(function (x) { return x !== a; }); }, 700); }, mobile ? 5000 : 5600);
+        /* کارت از پنجرهٔ روشن یکی از خانه‌ها بیرون می‌آید: پنجره چشمک می‌زند، پرتو از همان پنجره بالا می‌رود
+           و کارت از نقطهٔ پنجره بزرگ می‌شود؛ هنگام رفتن هم به همان پنجره برمی‌گردد */
+        var sr = stage.getBoundingClientRect(), w = a.offsetWidth;
+        var cx = sr.width * (1 - slot.r / 100), cardY = sr.bottom - sr.height * slot.b / 100;
+        var win = pickWindow(sr, cx, cardY);
+        var wx = win ? win.x - sr.left : cx;
+        var maxR = sr.width - (mobile ? 46 : 8);   // گوشی: نوشتهٔ عمودی «اسکرول کنید» سمت راست آزاد بماند
+        var left = Math.min(Math.max(wx - w / 2, 8), maxR - w);
+        a.style.left = left + "px";
+        a.style.setProperty("--bx", Math.round(wx - left) + "px");
+        a.style.setProperty("--beam", Math.round(win ? Math.min(340, Math.max(14, win.y - cardY)) : mobile ? 18 : 46) + "px");
+        if (win) { win.el.classList.add("is-calling"); a._wx = win.x; }
+        setTimeout(function () { a.classList.add("is-on"); }, win ? 420 : 30);
+        setTimeout(function () {
+          a.classList.remove("is-on"); a.classList.add("is-out");
+          setTimeout(function () { if (win) win.el.classList.remove("is-calling"); a.remove(); live = live.filter(function (x) { return x !== a; }); }, 700);
+        }, mobile ? 5000 : 5600);
+      };
+      /* نزدیک‌ترین پنجرهٔ پیدای زیر کارت (چند گزینهٔ نزدیک، یکی تصادفی) */
+      var winEls = Array.prototype.slice.call(document.querySelectorAll("[data-hero] .win-lights rect"));
+      var pickWindow = function (sr, cx, cardY) {
+        var cand = [];
+        var busyX = live.filter(function (a) { return !a.classList.contains("is-out") && a._wx != null; }).map(function (a) { return a._wx; });
+        for (var i = 0; i < winEls.length; i++) {
+          var el = winEls[i];
+          if (el.classList.contains("is-calling")) continue;
+          var r = el.getBoundingClientRect();
+          if (!r.width) continue;
+          var x = r.left + r.width / 2, y = r.top + r.height / 2;
+          if (mobile && x > sr.right - 60) continue;
+          if (busyX.some(function (bx) { return Math.abs(bx - x) < (mobile ? 40 : 70); })) continue;   // پرتوها روی هم نیفتند
+          if (y < cardY + 12 || y > Math.min(sr.bottom, innerHeight) - 4) continue;
+          var d = Math.abs(x - sr.left - cx);
+          if (d < (mobile ? 70 : 120)) cand.push({ el: el, x: x, y: y, d: d });
+        }
+        if (!cand.length) return null;
+        cand.sort(function (a, b) { return a.d - b.d; });
+        return cand[Math.floor(Math.random() * Math.min(3, cand.length))];
       };
       spots.addEventListener("pointerenter", function () { paused = true; });
       spots.addEventListener("pointerleave", function () { paused = false; });
