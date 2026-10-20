@@ -971,3 +971,35 @@ html.intro-fast .intro .intro__wait { animation-delay: 1.2s !important; }
 html.intro-fast .intro .intro__skip { display: none; }
 @media (prefers-reduced-motion: reduce) { .intro * { animation-duration: .01s !important; animation-delay: 0s !important; } }
 html.intro-fast .intro .intro__stage .intro__sun { animation: fmSunRise .45s cubic-bezier(.2,.7,.2,1) both, fmSunGlow 2.4s ease-in-out .45s infinite !important; }
+
+/* صفحهٔ بارگذاری: خانهٔ پهن‌تر (خطوط بلندتر)، نام خواناتر، و در تم شب ماه به‌جای خورشید */
+@keyframes fmDraw2 { from { stroke-dashoffset: 800; } to { stroke-dashoffset: 0; } }
+.intro__build .ib-s { stroke-dasharray: 800; stroke-dashoffset: 800; animation-name: fmDraw2; }
+.intro__word { font-size: clamp(2.1rem, 6.2vw, 3rem) !important; letter-spacing: -.01em; }
+.intro__brand small { display: block; margin-top: .35rem; font-size: clamp(.9rem, 2.6vw, 1.02rem) !important; color: color-mix(in srgb, var(--ink) 78%, transparent) !important; }
+@keyframes fmMoonGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.08) drop-shadow(0 0 22px rgba(235, 232, 218, .45)); } }
+[data-theme="dark"] .intro__stage .intro__sun {
+  background:
+    radial-gradient(circle at 30% 38%, rgba(120, 118, 108, .35) 0 9%, transparent 10%),
+    radial-gradient(circle at 62% 58%, rgba(120, 118, 108, .3) 0 12%, transparent 13%),
+    radial-gradient(circle at 55% 26%, rgba(120, 118, 108, .25) 0 6%, transparent 7%),
+    radial-gradient(circle at 38% 34%, #fbfaf3, #dcd9ce 55%, #a8a59b);
+  box-shadow: 0 0 70px 16px rgba(232, 230, 216, .22), 0 0 180px 70px rgba(232, 230, 216, .07);
+  animation: fmSunRise 1.7s cubic-bezier(.2, .7, .2, 1) both, fmMoonGlow 3s ease-in-out 1.7s infinite; }
+html.intro-fast[data-theme="dark"] .intro .intro__stage .intro__sun { animation: fmSunRise .45s cubic-bezier(.2,.7,.2,1) both, fmMoonGlow 3s ease-in-out .45s infinite !important; }
+
+/* نورافکن: کارت از پنجرهٔ خانه بیرون می‌آید (پنجره چشمک، پرتو از پنجره، بزرگ شدن از نقطهٔ پنجره) */
+.hspot { transform-origin: var(--bx, 50%) calc(100% + var(--beam, 46px)); translate: 0 0; scale: .1; opacity: 0;
+  transition: opacity .3s ease, scale .8s cubic-bezier(.2, 1.3, .35, 1), border-color .3s, box-shadow .3s; will-change: scale, opacity; }
+.hspot.is-on { scale: 1; opacity: 1; translate: 0 0; }
+.hspot.is-out { scale: .1; opacity: 0; translate: 0 0; transition: opacity .35s ease .25s, scale .6s cubic-bezier(.6, 0, .85, .45); }
+.hspot__beam { right: auto; left: var(--bx, 50%); translate: -50% 0; height: var(--beam, 46px); transform-origin: 50% 100%;
+  background: linear-gradient(to top, color-mix(in srgb, var(--gold) 95%, #fff), color-mix(in srgb, var(--gold) 40%, transparent)); }
+.hspot__beam::after { right: auto; left: 50%; translate: -50% 0; width: 7px; height: 7px; }
+.hspot.is-on .hspot__beam::after { animation: hsPing 1.5s ease-out .5s infinite; }
+@keyframes hsPing { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 75%, transparent), 0 0 14px var(--gold); }
+  100% { box-shadow: 0 0 0 12px transparent, 0 0 14px var(--gold); } }
+.win-lights rect.is-calling { opacity: 1 !important; fill: #ffe7a0; animation: winCall .42s ease-in-out 3 !important; }
+@keyframes winCall { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .hspot { scale: 1; transition: opacity .4s; } .hspot.is-out { scale: 1; } }
+.hspots.is-mini .hspot__beam { height: var(--beam, 18px); }
