@@ -82,7 +82,16 @@ window.FM = window.FM || {};
       desc: l.description || "",
       features: l.amenities || [],
       locked: !!l.locked,
+      why: l.why || null,
     };
+  };
+  /* «چرا ارزان‌تر است؟» روی کارت: عوامل کاهندهٔ قیمت همین خانه که در برآورد لحاظ شده‌اند، و نشان «استعلام لازم» */
+  FM.whyLine = function (p) {
+    var w = p && p.why; if (!w || p.label !== "gold" && p.label !== "good") return "";
+    var parts = (w.neg || []).map(function (e) { return FM.esc(e[0]) + (e[1] != null ? " <bdi dir=\"ltr\">" + fa(Math.round(e[1] * 100)) + "٪</bdi>" : ""); });
+    return '<span class="why" title="این عوامل در برآورد بازار لحاظ شده‌اند؛ فاصلهٔ باقی‌مانده با برآورد، فرصت است">' +
+      (parts.length ? "<b>چرا ارزان‌تر؟</b> " + parts.join("، ") : "") +
+      (w.warn ? '<i class="why__warn">⚠ پیش از اقدام استعلام کنید</i>' : "") + "</span>";
   };
 
   var th = B.thresholds || { opp: 0.15, gold: 0.22, over: 0.3 };
@@ -221,10 +230,12 @@ window.FM = window.FM || {};
   };
   var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
   var SHARE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.8 15.7 6.3M8.3 13.2l7.4 4.5"/></svg>';
+  FM._cards = {};
   FM.cardActs = function (p) {
     var on = FM.favs.has(p.id);
+    FM._cards[p.id] = p;   // برای پنجرهٔ اشتراک (پیوند یا پوستر)
     return '<span class="cacts"><button type="button" class="cact cact--fav' + (on ? " is-on" : "") + '" data-fav="' + FM.esc(p.id) + '" aria-pressed="' + on + '" aria-label="افزودن به علاقه‌مندی‌ها" title="علاقه‌مندی">' + HEART + "</button>" +
-      '<button type="button" class="cact" data-share="' + FM.esc(location.origin + FM.propUrl(p.id)) + '" data-share-title="' + FM.esc(p.title) + '" aria-label="اشتراک‌گذاری" title="کپی نشانی">' + SHARE + "</button></span>" +
+      '<button type="button" class="cact" data-share="' + FM.esc(location.origin + FM.propUrl(p.id)) + '" data-share-title="' + FM.esc(p.title) + '" data-pid="' + FM.esc(p.id) + '" aria-label="اشتراک‌گذاری" title="کپی نشانی">' + SHARE + "</button></span>" +
       '<span class="seen-tag" data-seen="' + FM.esc(p.id) + '"' + (FM.seen.has(p.id) ? "" : " hidden") + ">دیده‌ای</span>";
   };
   /* «دیده‌ای»: هر ملکی که صفحه‌اش باز شده در حافظهٔ همین مرورگر می‌ماند (همان کلید موتور جست‌وجو، ۴۰۰ مورد آخر)
@@ -274,7 +285,11 @@ window.FM = window.FM || {};
     var f = e.target.closest("[data-fav]"), s = e.target.closest("[data-share]");
     if (!f && !s) return;
     e.preventDefault(); e.stopPropagation();
-    if (s) return FM.share(s.dataset.share || location.href, s.dataset.shareTitle);
+    if (s) {
+      var cp = s.dataset.pid && FM._cards[s.dataset.pid];
+      if (cp && FM.shareSheet) return FM.shareSheet(cp, s.dataset.share);
+      return FM.share(s.dataset.share || location.href, s.dataset.shareTitle);
+    }
     var id = f.dataset.fav;
     var go = function () { var on = FM.favs.toggle(id); paintFavs(); toast(on ? "به علاقه‌مندی‌ها اضافه شد" : "از علاقه‌مندی‌ها حذف شد"); };
     // علاقه‌مندی برای اعضاست: مهمان اول وارد می‌شود و بعد همان ملک ذخیره می‌شود

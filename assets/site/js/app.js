@@ -731,6 +731,32 @@
 
   boot();
 
+  /* نصب روی صفحهٔ گوشی (PWA): اندروید با دکمهٔ نصب خود مرورگر، آیفون با راهنمای «Add to Home Screen»؛
+     بعد از ۲۵ ثانیه ماندن در سایت، و اگر کاربر «بعداً» زد تا ۱۴ روز دوباره نمی‌آید */
+  (function installHint() {
+    var KEY = "fmInstallLater", standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (standalone || !matchMedia("(max-width: 860px)").matches) return;
+    try { if (+localStorage.getItem(KEY) > Date.now()) return; } catch (e) {}
+    var deferred = null, ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
+    addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; });
+    setTimeout(function () {
+      if (!deferred && !ios) return;
+      var b = document.createElement("div");
+      b.className = "ihint";
+      b.innerHTML = '<img src="/assets/img/icon-192.png" alt=""><div><b>فرصت ملک روی صفحهٔ گوشی</b><small>' +
+        (deferred ? "با یک لمس، بدون بازار و گوگل‌پلی، مثل یک برنامه باز شود." : "در سافاری دکمهٔ اشتراک <bdi>⬆︎</bdi> را بزنید و «Add to Home Screen» را انتخاب کنید.") +
+        '</small></div><div class="ihint__acts">' + (deferred ? '<button type="button" class="btn btn--gold" data-i="ok">نصب</button>' : "") + '<button type="button" class="ihint__later" data-i="later">بعداً</button></div>';
+      document.body.appendChild(b);
+      requestAnimationFrame(function () { b.classList.add("is-on"); });
+      b.addEventListener("click", function (e) {
+        var a = e.target.closest("[data-i]"); if (!a) return;
+        if (a.dataset.i === "ok" && deferred) { deferred.prompt(); deferred = null; }
+        try { localStorage.setItem(KEY, String(Date.now() + 14 * 864e5)); } catch (err) {}
+        b.classList.remove("is-on"); setTimeout(function () { b.remove(); }, 400);
+      });
+    }, 25000);
+  })();
+
   /* پیش‌واکشی برای مرورگرهایی که Speculation Rules ندارند (سافاری، فایرفاکس):
      - با نزدیک شدن نشانگر (۶۵ میلی‌ثانیه) یا لمس یک پیوند داخلی، همان صفحه پیش‌واکشی می‌شود
      - در زمان بیکاری بعد از بار کامل، صفحهٔ «قیمت از دید آسمان» و اسکریپت‌هایش آماده می‌شوند */

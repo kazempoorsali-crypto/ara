@@ -804,6 +804,14 @@ class Handler(BaseHTTPRequestHandler):
         """پیوند دیوار و جزئیات کامل ارزش‌گذاری فقط برای مشترکان فعال."""
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
+        # «چرا ارزان‌تر است؟»: دو عامل اصلی کاهندهٔ قیمت همین خانه (از مدل ارزش‌گذاری) و هشدار استعلام؛
+        # درصد اثر فقط برای مشترکان، بقیه فقط نام عامل را می‌بینند (برآورد دقیق لو نرود)
+        ex0 = d.get("explain") or {}
+        if ex0 and "why" not in d:
+            neg = sorted((e for e in (ex0.get("effects") or []) if isinstance(e, (list, tuple)) and len(e) == 2 and e[1] <= -0.02), key=lambda e: e[1])[:2]
+            why = {"neg": [[n, round(v, 3) if active else None] for n, v in neg], "warn": bool(ex0.get("caution"))}
+            if why["neg"] or why["warn"]:
+                d["why"] = why
         # ادعاهای تبلیغاتی عنوان («فرصت طلایی»، «زیر قیمت»، ...) با برچسب‌های سایت قاطی نشوند
         if d.get("title") and "claims" not in d:
             raw = d["title"]

@@ -52,7 +52,7 @@
     var l = p.raw, v = l.verdict || {};
     document.title = p.title + " | فرصت ملک";
     $("[data-ptitle]").textContent = p.title;
-    $("[data-ploc]").textContent = [p.loc, p.kind, p.deal].filter(Boolean).join(" · ");
+    $("[data-ploc]").textContent = [p.loc, p.kind, p.deal].filter(Boolean).join("  |  ");
     var badge = $("[data-pbadge]");
     badge.textContent = "✦ " + p.tag;
     badge.style.background = "var(--st-" + p.status + ")";
