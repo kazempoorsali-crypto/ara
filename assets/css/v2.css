@@ -333,3 +333,21 @@
 .gal__share svg { width: 16px; height: 16px; }
 .lightbox__share { position: absolute; top: 14px; left: 64px; z-index: 5; width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; display: grid; place-items: center; cursor: pointer; }
 .lightbox__share svg { width: 19px; height: 19px; }
+/* صفحهٔ ملک در موبایل: هیچ نوشته‌ای از کادر بیرون نزند و دکمهٔ اشتراک کنار عنوان همیشه دیده شود */
+.ad__grid > div, .ad__head { min-width: 0; }
+.ad__title-row { overflow-wrap: anywhere; word-break: normal; }
+.ad__head p, .ad__head .ad__price, .crumbs { overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 860px) {
+  .ad__grid { grid-template-columns: minmax(0, 1fr); }
+  .ad__title-row { font-size: clamp(19px, 5.4vw, 24px); line-height: 1.6; }
+  .ad__sharei { width: 38px; height: 38px; background: var(--card, rgba(127,127,127,.08)); }
+  .ad__badges { flex-wrap: wrap; }
+}
+.ad__title { flex: 1; min-width: 0; }
+.ad__sharem { display: none; }
+@media (max-width: 860px) {
+  .ad__title-row .ad__sharei { display: none; }
+  .ad__badges { display: flex; align-items: center; gap: 6px; }
+  .ad__sharem { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card, rgba(127,127,127,.08)); color: inherit; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+  .ad__sharem svg { width: 16px; height: 16px; }
+}

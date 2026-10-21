@@ -18,6 +18,8 @@
   function loadImg(src) {
     return new Promise(function (ok) {
       if (!src) return ok(null);
+      if (/^img\?u=/.test(src)) src = "/" + src;   // نشانی نسبی پروکسی عکس در صفحهٔ /ad/... به /ad/img می‌رفت و عکس (و واترمارک) نمی‌آمد
+      else if (/^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(src)) src = "/img?u=" + encodeURIComponent(src);   // هم‌دامنه تا بوم آلوده نشود
       var im = new Image(), t = setTimeout(function () { ok(null); }, 4000);
       im.crossOrigin = "anonymous"; im.referrerPolicy = "no-referrer";
       im.onload = function () { clearTimeout(t); ok(im); };
@@ -27,7 +29,17 @@
   }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function wrap(c, text, maxW, maxLines) {
-    var words = String(text || "").split(/\s+/), lines = [], cur = "";
+    // واژه‌های بلند بی‌فاصله (مثل «۱۲۰متری/فول/دلباز/…») از «/» و اگر باز هم بلند بود حرف‌به‌حرف شکسته می‌شوند تا از پوستر بیرون نزنند
+    var words = [], lines = [], cur = "";
+    String(text || "").split(/\s+/).forEach(function (w) {
+      w.replace(/\//g, "/\u0001").split("\u0001").forEach(function (part) {
+        while (part && c.measureText(part).width > maxW) {
+          var n = part.length; while (n > 1 && c.measureText(part.slice(0, n)).width > maxW) n--;
+          words.push(part.slice(0, n)); part = part.slice(n);
+        }
+        if (part) words.push(part);
+      });
+    });
     words.forEach(function (w) { var t = cur ? cur + " " + w : w; if (c.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; });
     if (cur) lines.push(cur);
     if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].replace(/\s*\S*$/, "") + "…"; }
@@ -37,20 +49,25 @@
     var s = Math.max(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
     c.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
   }
-  /* واترمارک: متن کم‌رنگ مورب و کاشی‌شده روی کل عکس (بریدن گوشه‌ها حذفش نمی‌کند) + برچسب کوچک گوشه */
+  /* واترمارک: چند نوشتهٔ کم‌رنگ و مورب «فرصت ملک» پراکنده روی عکس (هم روی عکس روشن دیده می‌شود هم تیره، و با بریدن گوشه‌ها حذف نمی‌شود)
+     + برچسب کوچک گوشه */
   function watermark(c, x, y, w, h, host) {
     c.save();
     c.beginPath(); c.rect(x, y, w, h); c.clip();
-    c.translate(x + w / 2, y + h / 2); c.rotate(-Math.PI / 7);
-    // ملایم: چند تکرار پراکنده و بسیار کم‌رنگ (عکس شلوغ نشود، ولی با بریدن گوشه‌ها هم حذف نشود)
-    c.font = "700 30px " + FONT; c.fillStyle = "rgba(255,255,255,.085)"; c.textAlign = "center"; c.direction = "rtl";
-    var label = "فرصت ملک  |  " + host, step = 460, gap = 330, row = 0;
-    for (var yy = -h; yy < h; yy += gap, row++) for (var xx = -w; xx < w; xx += step * 2) c.fillText(label, xx + (row % 2 ? step : 0), yy);
+    c.font = "800 40px " + FONT; c.textAlign = "center"; c.direction = "rtl"; c.lineJoin = "round";
+    var label = "فرصت ملک", cols = 2, rows = Math.max(2, Math.round(h / 330));
+    for (var r = 0; r < rows; r++) for (var q = 0; q < cols; q++) {
+      var cx = x + w * (q + 0.5 + (r % 2 ? 0.25 : -0.25)) / cols, cy = y + h * (r + 0.5) / rows;
+      c.save(); c.translate(cx, cy); c.rotate(-Math.PI / 9);
+      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.16)"; c.strokeText(label, 0, 0);
+      c.fillStyle = "rgba(255,255,255,.26)"; c.fillText(label, 0, 0);
+      c.restore();
+    }
     c.restore();
     c.save(); c.font = "800 26px " + FONT; c.direction = "rtl"; c.textAlign = "left";
-    var bw = c.measureText("فرصت ملک").width + 36;
-    rr(c, x + 24, y + h - 70, bw, 46, 23); c.fillStyle = "rgba(0,0,0,.45)"; c.fill();
-    c.fillStyle = "#fff"; c.fillText("فرصت ملک", x + 42, y + h - 38);
+    var bw = c.measureText("فرصت ملک | " + host).width + 36;
+    rr(c, x + 24, y + h - 70, bw, 46, 23); c.fillStyle = "rgba(0,0,0,.5)"; c.fill();
+    c.fillStyle = "#fff"; c.fillText("فرصت ملک | " + host, x + 42, y + h - 38);
     c.restore();
   }
 
@@ -86,7 +103,7 @@
       if (o.img) cover(c, o.img, M - 10, iy, W - 2 * M + 20, ih);
       else { c.fillStyle = T.card; c.fillRect(M - 10, iy, W - 2 * M + 20, ih); c.fillStyle = T.soft; c.font = "700 50px " + FONT; c.textAlign = "center"; c.fillText("بدون عکس", W / 2, iy + ih / 2); c.textAlign = "right"; }
       c.restore();
-      if (o.img) watermark(c, M - 10, iy, W - 2 * M + 20, ih, host);
+      watermark(c, M - 10, iy, W - 2 * M + 20, ih, host);
       y = iy + ih + 96 * k;
     }
     // ---- برچسب رده و امتیاز
@@ -133,11 +150,6 @@
     return cv;
   }
 
-  function sheet(html) {
-    var d = document.createElement("div"); d.className = "psheet"; d.innerHTML = '<div class="psheet__box" role="dialog" aria-modal="true">' + html + "</div>";
-    d.addEventListener("click", function (e) { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
-    document.body.appendChild(d); return d;
-  }
   function seg(name, opts, cur, locked) {
     return '<div class="pe__seg" data-seg="' + name + '">' + opts.map(function (o) {
       var lock = locked && locked.indexOf(o[0]) >= 0;
@@ -145,17 +157,21 @@
     }).join("") + "</div>";
   }
 
-  FM.poster = function (p) {
+  FM.poster = function (p, onClosed) {
+    (FM.meReady ? FM.meReady() : Promise.resolve()).then(function () { openPoster(p, onClosed); });
+  };
+  function openPoster(p, onClosed) {
     var sub = FM.isSub && FM.isSub();
     var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
     var st = { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
       useBrand: !!(sub && (saved.name || saved.phone || saved.logo)),   // حالت خودکار: مشخصات ذخیره‌شدهٔ قبلی خودش می‌آید
       name: saved.name || "", phone: saved.phone || "", note: saved.note || "", logoData: saved.logo || "" };
-    var d = sheet('<b class="psheet__t">سازندهٔ پوستر</b>' +
+    var d = FM.sheet('<b class="psheet__t">سازندهٔ پوستر</b>' +
       '<div class="pe"><div class="pe__view"><canvas class="pe__cv"></canvas><span class="pe__wait">در حال ساخت…</span></div>' +
       '<div class="pe__ctl">' +
         '<div class="pe__quick"><b>پوستر آماده است ✓</b><small>همین حالا می‌توانید بفرستید یا ذخیره کنید؛ یا آن را به سلیقهٔ خودتان تغییر دهید.</small>' +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
+        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig="story"><i>◎</i>استوری اینستاگرام</button><button type="button" class="pe__igb" data-ig="post"><i>▣</i>پست اینستاگرام</button></div>' +
         '<button type="button" class="pe__edit" data-edit>✎ ویرایش و شخصی‌سازی</button></div>' +
         '<div class="pe__more" hidden>' +
         '<label class="pe__l">اندازه</label>' + seg("size", [["story", "استوری ۹:۱۶"], ["post", "پست ۴:۵"]], st.size) +
@@ -170,7 +186,8 @@
         "</div>" +
         (sub ? "" : '<div class="pe__up"><b>با اشتراک:</b> نام، تلفن و لوگوی خودتان روی پوستر و چیدمان ویژهٔ «تمام‌عکس».<button type="button" class="btn btn--gold" data-fm-sub>فعال‌سازی اشتراک</button></div>') +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-      '</div></div></div><button type="button" class="psheet__x" data-x>بستن</button>');
+        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig="story"><i>◎</i>استوری اینستاگرام</button><button type="button" class="pe__igb" data-ig="post"><i>▣</i>پست اینستاگرام</button></div>' +
+      '</div></div></div><button type="button" class="psheet__x" data-x>' + (onClosed ? "برگشت" : "بستن") + '</button>', onClosed);
     var cvBox = d.querySelector(".pe__view"), photo = null, logo = null, lastBlob = null, tmr = null;
     function brand() { return st.useBrand && sub && (st.name || st.phone || st.note || logo) ? { name: st.name, phone: st.phone, note: st.note, logo: logo } : null; }
     function render() {
@@ -191,20 +208,35 @@
         sg.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === b); });
         render(); return;
       }
-      if (e.target.closest("[data-save-p]") || e.target.closest("[data-share-p]")) {
-        var share = !!e.target.closest("[data-share-p]");
-        var go = function (blob) {
-          if (!blob) return;
-          var name = "forsatmelk-" + p.id + ".png", file = window.File ? new File([blob], name, { type: "image/png" }) : null;
-          if (share && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-            navigator.share({ files: [file], title: p.title, text: p.title + " — " + location.origin + FM.propUrl(p.id) }).catch(function () {});
-          } else {
-            var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-          }
-        };
-        if (lastBlob) go(lastBlob); else cvBox.querySelector("canvas").toBlob(go, "image/png");
+      var ig = e.target.closest("[data-ig]");
+      if (ig) {   // اینستاگرام: اندازهٔ درست (استوری ۹:۱۶ یا پست ۴:۵) و فرستادن فایل؛ در دسکتاپ ذخیره + کپی متن
+        st.size = ig.dataset.ig;
+        d.querySelectorAll('[data-seg="size"] button').forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === st.size); });
+        render(); send("ig"); return;
       }
+      if (e.target.closest("[data-save-p]")) send("save");
+      else if (e.target.closest("[data-share-p]")) send("share");
     });
+    function caption() { return p.title + "\n" + location.origin + FM.propUrl(p.id); }
+    function send(mode) {
+      var go = function (blob) {
+        if (!blob) return;
+        var name = "forsatmelk-" + p.id + (mode === "ig" ? "-" + st.size : "") + ".png", file = window.File ? new File([blob], name, { type: "image/png" }) : null;
+        if (mode !== "save" && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          if (mode === "ig" && FM.copyText) FM.copyText(caption());
+          navigator.share({ files: [file], title: p.title, text: caption() }).catch(function () {});
+          if (mode === "ig" && FM.toast) FM.toast("در فهرست باز شده «Instagram» و سپس " + (st.size === "story" ? "«استوری»" : "«پست/فید»") + " را بزنید؛ متن و پیوند هم کپی شد");
+          return;
+        }
+        var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        if (mode === "ig") {
+          if (FM.copyText) FM.copyText(caption());
+          (FM.toast || function () {})("تصویر " + (st.size === "story" ? "استوری" : "پست") + " ذخیره شد و متن پیوند کپی شد؛ در اینستاگرام آن را بارگذاری کنید");
+        } else if (mode === "share" && FM.toast) FM.toast("اشتراک مستقیم فایل در این مرورگر نیست؛ تصویر ذخیره شد");
+      };
+      // پس از render، کمی صبر تا blob تازه ساخته شود
+      setTimeout(function () { if (lastBlob) go(lastBlob); else cvBox.querySelector("canvas").toBlob(go, "image/png"); }, mode === "ig" ? 60 : 0);
+    }
     d.querySelector("[data-brand]").addEventListener("change", function (e) { st.useBrand = e.target.checked; d.querySelector(".pe__brand").hidden = !st.useBrand; render(); });
     d.querySelectorAll(".pe__in").forEach(function (inp) {
       inp.addEventListener("input", function () { st[inp.dataset.k] = inp.value.trim(); saveBrand(); later(); });
@@ -233,18 +265,18 @@
       var cb = d.querySelector("[data-brand]"); cb.checked = st.useBrand; d.querySelector(".pe__brand").hidden = !st.useBrand;
       render();
     });
-  };
+  }
 
   /* دکمهٔ اشتراک کارت: پیوند یا پوستر */
   FM.shareSheet = function (p, url) {
-    var d = sheet('<b class="psheet__t">اشتراک‌گذاری</b><div class="psheet__opts">' +
+    var d = FM.sheet('<b class="psheet__t">اشتراک‌گذاری</b><div class="psheet__opts">' +
       '<button type="button" class="psheet__opt" data-o="link"><i>🔗</i><span><b>پیوند ملک</b><small>کپی پیوند یا فرستادن در پیام‌رسان</small></span></button>' +
       '<button type="button" class="psheet__opt" data-o="poster"><i>🖼</i><span><b>پوستر استوری و پست</b><small>پوستر آماده با عکس، قیمت و ارزیابی؛ با نام و لوگوی خودتان</small></span></button>' +
       '</div><button type="button" class="psheet__x" data-x>بستن</button>');
     d.addEventListener("click", function (e) {
       var o = e.target.closest("[data-o]"); if (!o) return;
-      d.remove();
-      if (o.dataset.o === "link") FM.share(url, p.title); else FM.poster(p);
+      var back = FM.subSheet(d);   // «برگشت» از زیرمنو دوباره همین منو را نشان می‌دهد
+      if (o.dataset.o === "link") FM.linkSheet(url, p.title, back); else FM.poster(p, back);
     });
   };
 })();

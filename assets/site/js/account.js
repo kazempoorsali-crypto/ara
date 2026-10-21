@@ -30,6 +30,7 @@
     if (me) dispatchEvent(new CustomEvent("fm:me", { detail: me }));
   }
   /* پنجرهٔ مشترک همهٔ گفت‌وگوها (ورود، پرداخت، اشتراک) */
+  let dlgBack = null;
   function openDialog(html, wide = false) {
     let d = $("#dlg");
     if (!d) {
@@ -37,11 +38,17 @@
       d.innerHTML = '<div class="dlg__body" id="dlgBody"></div>';
       document.body.appendChild(d);
       d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
-      d.addEventListener("close", () => { FM.startScroll && FM.startScroll(); });
+      d.addEventListener("close", () => {
+        FM.startScroll && FM.startScroll();
+        // بسته شد با دکمه یا Esc: قدم تاریخچه‌اش هم برداشته شود (اگر همان لحظه پنجرهٔ بعدی باز نشده باشد)
+        if (!d.open && dlgBack) { const f = dlgBack; dlgBack = null; f(); }
+      });
     }
     $("#dlgBody").innerHTML = html;
     d.className = "dlg fmx" + (wide ? " dlg--wide" : "");
     if (!d.open) { FM.stopScroll && FM.stopScroll(); d.showModal(); }
+    // دکمهٔ برگشت گوشی/مرورگر پنجره را می‌بندد، نه صفحه را
+    if (!dlgBack && FM.backable) dlgBack = FM.backable(d, () => { dlgBack = null; if (d.open) d.close(); });
   }
   const EYE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
   const EYE_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 005.4-1.6M9.9 9.9a3 3 0 004.2 4.2"/></svg>`;

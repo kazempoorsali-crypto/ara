@@ -69,6 +69,13 @@ ok(al.run_once() == 0, "همان آگهی دوباره فرستاده نمی‌�
 aid = al.mine(PH)["items"][0]["id"]
 al.remove(PH, aid)
 ok(not al.mine(PH)["items"], "هشدار حذف شد")
+k = len(bale.sent)
+r3 = al.add(PH, {"city": "amol"})
+ok(r3["linked"] and r3.get("confirmed") and "link" not in r3 and bale.sent[-1][0] == 555 and "ثبت شد" in bale.sent[-1][1], "حساب وصل: پیام تأیید ثبت هشدار همان لحظه در بله فرستاده شد")
+t = al.test(PH)
+ok(t["sent"] and len(bale.sent) == k + 2 and "آزمایشی" in bale.sent[-1][1], "پیام آزمایشی به همان گفت‌وگوی بله رسید")
+ok(al.test(FREE).get("link", "").endswith("alert_Nalert"), "حساب وصل‌نشده: پیام آزمایشی پیوند وصل شدن برمی‌گرداند")
+al.remove(PH, r3["id"])
 st.x("UPDATE users SET sub_until=? WHERE phone=?", (now - 10, PH))
 r2 = al.mine(PH)
 ok(r2["linked"], "وضعیت پیوند ربات برمی‌گردد")

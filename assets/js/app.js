@@ -2436,13 +2436,13 @@ const App = (() => {
     view().innerHTML = `
     <article class="wrap ad">
       <nav class="crumbs"><a href="/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
-      <div class="gallery" id="gal">${gal}<button type="button" class="gal__share" data-adshare aria-label="اشتراک‌گذاری یا پوستر">${icon("share")}<span>اشتراک / پوستر</span></button></div>
+      <div class="gallery" id="gal">${gal}</div>
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
         <div>
           <header class="ad__head">
-            <div class="ad__badges">${UI.typePill(l)}${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<span class="pill pill--multi" title="آگهی شامل چند واحد یا فایل مختلف است">${icon("layers")} چندموردی / شرکتی</span>` : ""}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
-            <h1 class="ad__title-row">${UI.tt(l.title)}<button type="button" class="ad__sharei" data-adshare aria-label="اشتراک‌گذاری یا پوستر" title="اشتراک‌گذاری یا پوستر">${icon("share")}</button></h1>
+            <div class="ad__badges">${UI.typePill(l)}${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<span class="pill pill--multi" title="آگهی شامل چند واحد یا فایل مختلف است">${icon("layers")} چندموردی / شرکتی</span>` : ""}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}<button type="button" class="ad__sharem" data-adshare>${icon("share")}<span>اشتراک / پوستر</span></button></div>
+            <h1 class="ad__title-row"><span class="ad__title">${UI.tt(l.title)}</span><button type="button" class="ad__sharei" data-adshare aria-label="اشتراک‌گذاری یا پوستر" title="اشتراک‌گذاری یا پوستر">${icon("share")}</button></h1>
             <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? "، ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
@@ -2581,7 +2581,6 @@ const App = (() => {
       z = 1; tx = 0; ty = 0;
       el.innerHTML = `
         <button class="lightbox__top-close" data-x aria-label="بستن" title="بستن (Esc)">✕</button>
-        <button class="lightbox__share" data-adshare aria-label="اشتراک‌گذاری یا پوستر">${icon("share")}</button>
         <div class="lbz" id="lbVp"><div class="lbz__img" id="lbStage">${UI.media(l, i, "lb-active-img")}</div></div>
         <div class="lightbox__bar">
           <button class="btn btn--line btn--sm" data-d="-1" title="تصویر قبلی">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
