@@ -320,3 +320,16 @@
 .pchart circle.pc-odd { fill: #9aa19d; stroke: none; }
 .pc-odd { font-size: .8rem; line-height: 1.9; opacity: .8; margin: .4rem 0 0; padding: .5rem .8rem; border-radius: 10px; background: color-mix(in srgb, #9aa19d 14%, transparent); }
 .spark-steps em.is-odd { color: #8f9692; opacity: 1; }
+
+/* دکمه‌های اشتراک/پوستر: کنار قلب کارت، کنار عنوان ملک، روی عکس و نمای بزرگ عکس */
+.card__share { position: absolute; top: 54px; inset-inline-end: 10px; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,253,249,.92); display: grid; place-items: center; color: #13201c; z-index: 2; border: 0; cursor: pointer; }
+.card__share svg { width: 18px; height: 18px; }
+.ad__title-row { display: flex; align-items: flex-start; gap: .6rem; }
+.ad__sharei { flex: none; margin-top: .25em; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: inherit; display: grid; place-items: center; cursor: pointer; }
+.ad__sharei svg { width: 19px; height: 19px; }
+.gallery { position: relative; }
+.gal__share { position: absolute; top: 12px; left: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgba(10,18,14,.72); color: #fff; font: inherit; font-size: 13px; font-weight: 700; }
+.gal__share svg { width: 16px; height: 16px; }
+.lightbox__share { position: absolute; top: 14px; left: 64px; z-index: 5; width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.lightbox__share svg { width: 19px; height: 19px; }

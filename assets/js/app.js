@@ -2436,13 +2436,13 @@ const App = (() => {
     view().innerHTML = `
     <article class="wrap ad">
       <nav class="crumbs"><a href="/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
-      <div class="gallery" id="gal">${gal}</div>
+      <div class="gallery" id="gal">${gal}<button type="button" class="gal__share" data-adshare aria-label="اشتراک‌گذاری یا پوستر">${icon("share")}<span>اشتراک / پوستر</span></button></div>
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
         <div>
           <header class="ad__head">
             <div class="ad__badges">${UI.typePill(l)}${/انواع فایل|چند مورد|چندواحد|چند واحد|مواردی دیگر|فایل فروش در|فایل های مشابه|واحد های مختلف|شروع قیمت از/.test(((l.title || "") + " " + (l.description || "")).toLowerCase()) ? `<span class="pill pill--multi" title="آگهی شامل چند واحد یا فایل مختلف است">${icon("layers")} چندموردی / شرکتی</span>` : ""}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش قیمت</span>` : ""}${l.source === "sample" ? '<span class="pill pill--demo">آگهی نمونه</span>' : ""}</div>
-            <h1>${UI.tt(l.title)}</h1>
+            <h1 class="ad__title-row">${UI.tt(l.title)}<button type="button" class="ad__sharei" data-adshare aria-label="اشتراک‌گذاری یا پوستر" title="اشتراک‌گذاری یا پوستر">${icon("share")}</button></h1>
             <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? "، ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
@@ -2483,6 +2483,8 @@ const App = (() => {
     $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
     const handleShare = async () => {
+      // پنجرهٔ اشتراک مشترک سایت: پیوند (کپی، گوشی، تلگرام، واتساپ) یا پوستر استوری/پست
+      if (window.FM && FM.shareSheet) return FM.shareSheet(posterCard(l), location.origin + "/ad/" + encodeURIComponent(l.id));
       const url = window.location.href;
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2502,6 +2504,7 @@ const App = (() => {
       }
     };
     $("#adShare")?.addEventListener("click", handleShare);
+    window.__fmAdShare = handleShare;   // دکمه‌های اشتراک کنار عنوان، روی عکس و در نمای بزرگ عکس
     $("#topShareBtn")?.addEventListener("click", handleShare);
     const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
     $("#divarBtn")?.addEventListener("click", paywall);
@@ -2512,6 +2515,20 @@ const App = (() => {
   /* نمایش بزرگ عکس‌ها: بزرگ‌نمایی نرم با transform (بدون نوار پیمایش و بدون پرش تصویر)
      دکمه‌ها و صفحه‌کلید: از مرکز آنچه دیده می‌شود؛ چرخ موس، دوبار کلیک و دو انگشت: از همان نقطهٔ زیر نشانگر/انگشت.
      در حالت بزرگ‌شده با کشیدن موس یا انگشت جابه‌جا می‌شود و لبه‌های تصویر هیچ‌وقت از کادر جدا نمی‌شوند. */
+  /* دادهٔ کارت پوستر از روی آگهی (فقط داده‌های واقعی همان آگهی) */
+  function posterCard(l) {
+    const im = (l.images && l.images[0]) || l.image;
+    const u = im ? UI.imgUrl(im) : "";
+    const v = l.verdict || (l.label ? { label: l.label, delta: l.discount != null ? -l.discount : null, approx: l.locked } : null);
+    const m = (x) => (UI.money(x) ? UI.money(x) + " تومان" : "");
+    return {
+      id: l.id, title: l.title || "", loc: [l.district, l.city_name].filter(Boolean).join("، "), area: l.area, rooms: l.rooms,
+      priceText: l.deal === "rent" && l.deposit != null ? "ودیعه " + m(l.deposit) + (l.rent ? "، اجاره " + m(l.rent) : "") : m(l.price || l.pp),
+      diffText: v && v.delta != null ? UI.gapText(v) : "", label: l.label, score: l.score != null ? Math.round(l.score) : null,
+      img: !u ? "" : /^(https?:|\/)/.test(u) ? u : "/" + u, raw: l,
+    };
+  }
+
   function lightbox(l, i) {
     document.querySelectorAll(".lightbox").forEach((node) => node.remove());
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [null, null, null, null, null];
@@ -2564,6 +2581,7 @@ const App = (() => {
       z = 1; tx = 0; ty = 0;
       el.innerHTML = `
         <button class="lightbox__top-close" data-x aria-label="بستن" title="بستن (Esc)">✕</button>
+        <button class="lightbox__share" data-adshare aria-label="اشتراک‌گذاری یا پوستر">${icon("share")}</button>
         <div class="lbz" id="lbVp"><div class="lbz__img" id="lbStage">${UI.media(l, i, "lb-active-img")}</div></div>
         <div class="lightbox__bar">
           <button class="btn btn--line btn--sm" data-d="-1" title="تصویر قبلی">${icon("arrow", 'style="transform:rotate(180deg)"')} قبلی</button>
@@ -3268,6 +3286,13 @@ const App = (() => {
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });
     view().addEventListener("click", (e) => {
       const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); }
+      const sh = e.target.closest("[data-adshare]"); if (sh) { e.preventDefault(); e.stopPropagation(); window.__fmAdShare && window.__fmAdShare(); return; }
+      const cs = e.target.closest("[data-cshare]");
+      if (cs) {
+        e.preventDefault(); e.stopPropagation();
+        const cl = UI.cards && UI.cards[cs.dataset.cshare];
+        if (cl && window.FM && FM.shareSheet) FM.shareSheet(posterCard(cl), location.origin + "/ad/" + encodeURIComponent(cl.id));
+      }
       const fl = e.target.closest("[data-flag]"); if (fl) { e.preventDefault(); e.stopPropagation(); openReportDialog(fl.dataset.flag); }
     });
     view().addEventListener("change", (e) => { if (e.target.dataset.cmp) toggleCompare(e.target.dataset.cmp, e.target); });
