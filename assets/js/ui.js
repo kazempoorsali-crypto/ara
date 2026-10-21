@@ -226,46 +226,55 @@ const UI = (() => {
   }
 
   /* ---------- نمودار تاریخچه قیمت ---------- */
-  function spark(hist) {
-    const pts = hist.filter((h) => h.price || h.deposit).map((h) => ({ at: h.at, v: h.price || h.deposit }));
+  /* تاریخچهٔ قیمت آگهی: جملهٔ خلاصهٔ روشن، نمودار پله‌ای با مبلغ هر دوره، کاهش سبز ▼ و افزایش نارنجی ▲؛
+     تغییرهای بیش از ۶۰٪ (معمولاً اشتباه یا اصلاح رقم در آگهی) خاکستری و جدا علامت می‌خورند، نه به‌عنوان تغییر بازار */
+  function spark(hist, deal) {
+    const rent = deal === "rent";
+    const val = (h) => (rent ? (h.deposit || h.rent ? (h.deposit || 0) + (h.rent || 0) / 0.03 : 0) : h.price || 0);
+    const pts = hist.map((h) => ({ at: h.at, v: val(h) })).filter((p) => p.v > 0);
     if (pts.length < 2) return "";
-    /* نمودار پله‌ای: قیمت تا تغییر بعدی ثابت می‌ماند؛ هر کاهش با پلهٔ سبز ▼ و هر افزایش با پلهٔ نارنجی ▲ و درصدش،
-       و خط تا امروز ادامه دارد (فقط داده‌های ثبت‌شدهٔ تاریخچه) */
-    const W = 600, H = 190, PX = 16, PT = 34, PB = 26;
-    const now = Math.max(pts[pts.length - 1].at, Math.floor(Date.now() / 1000));
-    const x0 = pts[0].at, x1 = now, vs = pts.map((p) => p.v);
-    const lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.18 || hi * 0.04;
-    const y0 = lo - pad, y1 = hi + pad;
-    const X = (t) => PX + ((t - x0) / (x1 - x0 || 1)) * (W - 2 * PX); // محور زمان از چپ (قدیمی) به راست (جدید)
-    const Y = (v) => H - PB - ((v - y0) / (y1 - y0 || 1)) * (H - PT - PB);
-    let line = `M${X(pts[0].at).toFixed(1)} ${Y(pts[0].v).toFixed(1)}`, steps = "", lastLx = -1e9;
-    pts.forEach((p, i) => {
-      if (!i) return;
-      const pr = pts[i - 1], xs = X(p.at).toFixed(1);
-      line += ` L${xs} ${Y(pr.v).toFixed(1)}`;
-      if (p.v === pr.v) return;
-      const down = p.v < pr.v, c = Math.abs(Math.round(((p.v - pr.v) / pr.v) * 1000) / 10);
-      const ya = Y(pr.v), yb = Y(p.v), near = +xs - lastLx < 78;   // دو برچسبِ نزدیک روی هم نیفتند: دومی زیر پله
-      const ty = near ? Math.max(ya, yb) + 20 : Math.min(ya, yb) - 8;
-      lastLx = +xs;
-      steps += `<line class="pc-${down ? "down" : "up"}" x1="${xs}" y1="${ya.toFixed(1)}" x2="${xs}" y2="${yb.toFixed(1)}"/>` +
-        `<text class="pc-t pc-${down ? "down" : "up"}" x="${xs}" y="${ty.toFixed(1)}" text-anchor="middle">${down ? "▼" : "▲"} ${fa(c)}٪</text>`;
-      line += ` M${xs} ${yb.toFixed(1)}`;
-    });
-    const last = pts[pts.length - 1], first = pts[0];
-    line += ` L${X(now).toFixed(1)} ${Y(last.v).toFixed(1)}`;
+    const what = rent ? "رهن کامل (ودیعه + اجارهٔ ماهانه تبدیل‌شده)" : "قیمت کل آگهی";
     const day = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
     const fullDay = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
-    const ch = (last.v - first.v) / first.v;
-    const dots = pts.map((p, i) => { const c = i ? Math.sign(p.v - pts[i - 1].v) : 0;
-      return `<circle class="${c < 0 ? "pc-down" : c > 0 ? "pc-up" : ""}" cx="${X(p.at).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5"><title>${day(p.at)}: ${money(p.v)}</title></circle>`; }).join("");
-    return `<svg class="spark pchart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="نمودار تغییر قیمت">
-        <line class="pc-axis" x1="${PX}" y1="${H - PB + 6}" x2="${W - PX}" y2="${H - PB + 6}"/>
-        <text class="pc-d" x="${PX}" y="${H - 6}" text-anchor="start">${day(first.at)}</text><text class="pc-d" x="${W - PX}" y="${H - 6}" text-anchor="end">امروز</text>
-        <path class="line" d="${line}"/>${steps}${dots}</svg>
-      <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? `، ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>
-      <ol class="spark-steps">${pts.map((p, i) => { const prev = i ? pts[i - 1].v : 0, c = prev ? (p.v - prev) / prev : 0;
-        return `<li><time>${fullDay(p.at)}</time><b>${money(p.v)}</b>${i ? `<em class="${c < 0 ? "is-down" : c > 0 ? "is-up" : ""}">${c ? `${c < 0 ? "▼" : "▲"} ${fa(Math.abs(Math.round(c * 1000) / 10))}٪` : "بدون تغییر"}</em>` : "<em>اولین ثبت</em>"}</li>`; }).reverse().join("")}</ol>`;
+    const chg = pts.map((p, i) => { if (!i) return null; const r = (p.v - pts[i - 1].v) / pts[i - 1].v; return { r, odd: r >= 1 || r <= -0.6 }; });
+    const real = chg.filter((c) => c && c.r && !c.odd), odd = chg.filter((c) => c && c.odd).length;
+    const downs = real.filter((c) => c.r < 0).length, ups = real.filter((c) => c.r > 0).length;
+    const first = pts[0], last = pts[pts.length - 1];
+    const pctTxt = (r) => fa(Math.abs(Math.round(r * 1000) / 10)) + "٪";
+
+    const W = 600, H = 210, PX = 18, PT = 40, PB = 30;
+    const now = Math.max(last.at, Math.floor(Date.now() / 1000));
+    const vs = pts.map((p) => p.v), lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.2 || hi * 0.05;
+    const X = (t) => PX + ((t - first.at) / (now - first.at || 1)) * (W - 2 * PX);
+    const Y = (v) => H - PB - ((v - (lo - pad)) / (hi + pad - (lo - pad) || 1)) * (H - PT - PB);
+    let svg = "", lastLx = -1e9;
+    pts.forEach((p, i) => {
+      const xa = X(p.at), xb = X(i < pts.length - 1 ? pts[i + 1].at : now), y = Y(p.v);
+      svg += `<line class="pc-seg" x1="${xa.toFixed(1)}" y1="${y.toFixed(1)}" x2="${xb.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+      // مبلغ همین دوره، بالای خط (اگر جا هست)
+      if (xb - xa > 70 || i === pts.length - 1) svg += `<text class="pc-v" direction="rtl" x="${Math.min(xa + 6, W - PX).toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="end">${money(p.v)}</text>`;
+      if (i) {
+        const c = chg[i], ya = Y(pts[i - 1].v), cls = c.odd ? "odd" : c.r < 0 ? "down" : "up";
+        svg += `<line class="pc-${cls}" x1="${xa.toFixed(1)}" y1="${ya.toFixed(1)}" x2="${xa.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+        const near = xa - lastLx < 84; lastLx = xa;
+        const ty = near || c.odd ? Math.max(ya, y) + 22 : Math.min(ya, y) - 24;
+        svg += `<text direction="rtl" class="pc-t pc-${cls}" x="${xa.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle">${c.odd ? "تغییر غیرعادی" : (c.r < 0 ? "▼ " : "▲ ") + pctTxt(c.r)}</text>`;
+      }
+      svg += `<circle class="${i ? "pc-" + (chg[i].odd ? "odd" : chg[i].r < 0 ? "down" : chg[i].r > 0 ? "up" : "") : ""}" cx="${xa.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5"><title>${fullDay(p.at)}: ${money(p.v)}</title></circle>`;
+    });
+    const total = (last.v - first.v) / first.v;
+    const summary = `قیمت این آگهی از ${day(first.at)} تا امروز ${fa(real.length + odd)} بار تغییر کرده` +
+      (real.length ? `: ${downs ? fa(downs) + " بار کاهش" : ""}${downs && ups ? " و " : ""}${ups ? fa(ups) + " بار افزایش" : ""}` : "") +
+      (odd ? `${real.length ? " و " : ": "}${fa(odd)} تغییر غیرعادی` : "") +
+      `. ${what} اکنون <b>${money(last.v)}</b> است` + (!odd && total ? ` (${total < 0 ? "کاهش" : "افزایش"} ${pctTxt(total)} نسبت به اولین ثبت)` : "") + ".";
+    return `<p class="pc-sum">${summary}</p>
+      <div class="pc-what">نمودار: ${what} در طول زمان؛ هر پله یعنی فروشنده قیمت را عوض کرده است.</div>
+      <svg class="spark pchart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="نمودار تغییر قیمت">
+        <line class="pc-axis" x1="${PX}" y1="${H - PB + 8}" x2="${W - PX}" y2="${H - PB + 8}"/>
+        <text class="pc-d" direction="rtl" x="${PX}" y="${H - 6}" text-anchor="end">اولین ثبت: ${day(first.at)}</text><text class="pc-d" direction="rtl" x="${W - PX}" y="${H - 6}" text-anchor="start">امروز</text>${svg}</svg>
+      ${odd ? `<p class="pc-odd">«تغییر غیرعادی» یعنی رقم آگهی بیش از ۶۰٪ عوض شده؛ این معمولاً اشتباه تایپی یا اصلاح رقم در خود آگهی است، نه تغییر واقعی قیمت بازار، و در جمع‌بندی بالا حساب نشده است.</p>` : ""}
+      <ol class="spark-steps">${pts.map((p, i) => { const c = chg[i];
+        return `<li><time>${fullDay(p.at)}</time><b>${money(p.v)}</b>${i ? `<em class="${c.odd ? "is-odd" : c.r < 0 ? "is-down" : c.r > 0 ? "is-up" : ""}">${c.odd ? "تغییر غیرعادی" : c.r ? `${c.r < 0 ? "▼ کاهش" : "▲ افزایش"} ${pctTxt(c.r)}` : "بدون تغییر"}</em>` : "<em>اولین ثبت</em>"}</li>`; }).reverse().join("")}</ol>`;
   }
 
   /* ---------- نقشه ---------- */
