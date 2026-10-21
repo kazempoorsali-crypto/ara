@@ -10,8 +10,17 @@
   var THEMES = {
     dark: { bg: ["#0d1a13", "#07100b"], ink: "#f6f3ea", soft: "#b9b4a4", acc: "#e9b949", good: "#7fd9a5", card: "rgba(255,255,255,.06)", line: "rgba(246,243,234,.14)" },
     light: { bg: ["#fbf8f1", "#efe8da"], ink: "#1c241e", soft: "#5f665f", acc: "#a8730a", good: "#1f8a52", card: "rgba(28,36,30,.05)", line: "rgba(28,36,30,.14)" },
-    gold: { bg: ["#2a1f08", "#120d04"], ink: "#fff6dc", soft: "#e2cf9a", acc: "#ffd36b", good: "#9be7b4", card: "rgba(255,214,107,.08)", line: "rgba(255,214,107,.25)" },
   };
+  /* پوستهٔ «رنگی»: کاربر یکی از چند رنگ را انتخاب می‌کند (زمینهٔ گرادیان همان رنگ، نوشته سفید) */
+  var PALETTE = [
+    ["emerald", "زمردی", "#13805f", "#06302a"], ["ocean", "آبی", "#1769b8", "#061f3f"], ["plum", "بنفش", "#7a3bb0", "#22103d"],
+    ["rose", "صورتی", "#c23b7e", "#3f0f29"], ["brick", "قرمز", "#c0392b", "#3d0d09"], ["sunset", "نارنجی", "#e07b16", "#4a2104"],
+    ["gold", "طلایی", "#c99a1e", "#3a2905"], ["teal", "فیروزه‌ای", "#0e9aa7", "#05313a"],
+  ];
+  function colorTheme(key) {
+    var c = PALETTE.filter(function (x) { return x[0] === key; })[0] || PALETTE[0];
+    return { bg: [c[2], c[3]], ink: "#ffffff", soft: "rgba(255,255,255,.82)", acc: "#ffe08a", good: "#b6f5cf", card: "rgba(255,255,255,.12)", line: "rgba(255,255,255,.28)" };
+  }
   var LB = { gold: ["✦ فرصت طلایی", "#e9b949", "#16120a"], good: ["فرصت مناسب", "#2fbf71", "#06170d"], fair: ["قیمت متعادل", "#9aa3a0", "#101413"] };
   var KEY = "fmPosterBrand";
   var PAPPS = [["ig", "اینستاگرام", "#d6297a", "IG"], ["tg", "تلگرام", "#2aa3df", "TG"], ["wa", "واتساپ", "#25b45b", "WA"],
@@ -74,7 +83,7 @@
   }
 
   function draw(o) {
-    var p = o.p, S = SIZES[o.size], W = S[0], H = S[1], T = THEMES[o.theme] || THEMES.dark;
+    var p = o.p, S = SIZES[o.size], W = S[0], H = S[1], T = o.theme === "color" ? colorTheme(o.color) : THEMES[o.theme] || THEMES.dark;
     var story = o.size === "story", k = story ? 1 : 0.86;
     var safeT = story ? 190 : 56, safeB = story ? 210 : 50;   // استوری: بالا و پایین زیر دکمه‌های برنامه نرود
     var host = (location.host || "forsatmelk.ir").replace(/^www\./, "");
@@ -163,7 +172,7 @@
   }
   function defaults(sub) {
     var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
-    return { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
+    return { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark", color: saved.color || "emerald",
       useBrand: !!(sub && (saved.name || saved.phone || saved.logo)),   // حالت خودکار: مشخصات ذخیره‌شدهٔ قبلی خودش می‌آید
       name: saved.name || "", phone: saved.phone || "", note: saved.note || "", logoData: saved.logo || "" };
   }
@@ -175,7 +184,7 @@
     return Promise.all([loadImg(p.img && p.img.indexOf("noimg") < 0 ? p.img : ""), loadImg(st.logoData), fontReady()]).then(function (r) {
       var b = st.useBrand && sub && (st.name || st.phone || st.note || r[1]) ? { name: st.name, phone: st.phone, note: st.note, logo: r[1] } : null;
       return new Promise(function (ok) {
-        var go = function (img) { blobs(draw({ p: p, img: img, size: st.size, layout: st.layout, theme: st.theme, brand: b }), function (x) { if (!x && img) return go(null); if (x) FM._poster[p.id] = x; ok(x); }); };
+        var go = function (img) { blobs(draw({ p: p, img: img, size: st.size, layout: st.layout, theme: st.theme, color: st.color, brand: b }), function (x) { if (!x && img) return go(null); if (x) FM._poster[p.id] = x; ok(x); }); };
         go(r[0]);
       });
     });
@@ -204,7 +213,10 @@
         '<div class="pe__more" hidden>' +
         '<label class="pe__l">اندازه</label>' + seg("size", [["story", "استوری ۹:۱۶"], ["post", "پست ۴:۵"]], st.size) +
         '<label class="pe__l">چیدمان</label>' + seg("layout", [["card", "کارت"], ["full", "تمام‌عکس"]], st.layout, sub ? [] : ["full"]) +
-        '<label class="pe__l">پوسته</label>' + seg("theme", [["dark", "تیره"], ["light", "روشن"], ["gold", "طلایی"]], st.theme) +
+        '<label class="pe__l">پوسته</label>' + seg("theme", [["dark", "تیره"], ["light", "روشن"], ["color", "رنگی 🎨"]], st.theme) +
+        '<div class="pe__sw"' + (st.theme === "color" ? "" : " hidden") + '>' + PALETTE.map(function (c) {
+          return '<button type="button" data-sw="' + c[0] + '" class="' + (c[0] === st.color ? "is-on" : "") + '" title="' + c[1] + '" aria-label="' + c[1] + '" style="background:linear-gradient(135deg,' + c[2] + "," + c[3] + ')"></button>';
+        }).join("") + "</div>" +
         '<label class="pe__chk"><input type="checkbox" data-brand' + (sub ? "" : " disabled") + '> نام و مشخصات آگهی‌دهنده روی پوستر' + (sub ? "" : " 🔒") + "</label>" +
         '<div class="pe__brand" hidden>' +
           '<input class="pe__in" data-k="name" maxlength="40" placeholder="نام املاک یا نام شما" value="' + FM.esc(st.name) + '">' +
@@ -219,7 +231,7 @@
     var cvBox = d.querySelector(".pe__view"), photo = null, logo = null, lastBlob = null, tmr = null;
     function brand() { return st.useBrand && sub && (st.name || st.phone || st.note || logo) ? { name: st.name, phone: st.phone, note: st.note, logo: logo } : null; }
     function render() {
-      var cv = draw({ p: p, img: photo, size: st.size, layout: st.layout, theme: st.theme, brand: brand() });
+      var cv = draw({ p: p, img: photo, size: st.size, layout: st.layout, theme: st.theme, color: st.color, brand: brand() });
       var old = cvBox.querySelector("canvas"); cv.className = "pe__cv"; old.replaceWith(cv);
       d.querySelector(".pe__wait").hidden = true;
       lastBlob = null;
@@ -229,7 +241,7 @@
       });
     }
     function later() { clearTimeout(tmr); tmr = setTimeout(render, 160); }
-    function saveBrand() { try { localStorage.setItem(KEY, JSON.stringify({ name: st.name, phone: st.phone, note: st.note, logo: st.logoData })); } catch (e) {} }
+    function saveBrand() { try { localStorage.setItem(KEY, JSON.stringify({ name: st.name, phone: st.phone, note: st.note, logo: st.logoData, color: st.color })); } catch (e) {} }
     d.addEventListener("click", function (e) {
       if (e.target.closest("[data-edit]")) { d.querySelector(".pe__more").hidden = false; d.querySelector(".pe__quick").hidden = true; return; }
       var b = e.target.closest(".pe__seg button");
@@ -237,6 +249,13 @@
         if (b.classList.contains("is-lock")) { if (FM.toast) FM.toast("چیدمان «تمام‌عکس» برای مشترکان است"); return; }
         var sg = b.parentNode; st[sg.dataset.seg] = b.dataset.v;
         sg.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+        if (sg.dataset.seg === "theme") d.querySelector(".pe__sw").hidden = st.theme !== "color";
+        render(); return;
+      }
+      var sw = e.target.closest("[data-sw]");
+      if (sw) {   // رنگ پوستهٔ رنگی (برای دفعه‌های بعد هم می‌ماند)
+        st.color = sw.dataset.sw; saveBrand();
+        d.querySelectorAll("[data-sw]").forEach(function (x) { x.classList.toggle("is-on", x === sw); });
         render(); return;
       }
       var pa = e.target.closest("[data-pa]");

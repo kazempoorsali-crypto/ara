@@ -150,21 +150,24 @@
       dl(jpg, "forsatmelk-" + id + ".jpg"); FM.copyText(caption);
       return say("تصویر ذخیره شد و متن کپی شد؛ " + label + " را باز کنید و تصویر را از گالری بفرستید.");
     }
+    // فقط خود تصویر در حافظه (اگر متن هم کنارش باشد، بعضی برنامه‌ها با Ctrl+V متن را می‌چسبانند نه عکس را)
     var copied = false;
     try {
       if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write && window.isSecureContext && img.png) {
-        var item = {}; item["image/png"] = img.png; item["text/plain"] = new Blob([caption], { type: "text/plain" });
-        navigator.clipboard.write([new ClipboardItem(item)]).catch(function () {
-          return navigator.clipboard.write([new ClipboardItem({ "image/png": img.png })]);
-        }).then(function () { copied = true; }, function () {});
+        navigator.clipboard.write([new ClipboardItem({ "image/png": img.png })]).then(function () { copied = true; }, function () {});
       }
     } catch (e) {}
-    var opened = openDesk(app, caption);
+    var opened = openDesk(app, caption), withText = app === "tg" || app === "wa" || app === "eitaa";
     setTimeout(function () {
       if (!copied && img.png) dl(img.png, "forsatmelk-" + id + ".png");
-      say((copied ? "پوستر کپی شد ✓ " : "پوستر ذخیره شد ✓ ") + (app ? "در " + label + " گفت‌وگو، کانال یا استوری را باز کنید و " : "در برنامهٔ موردنظر ") +
-        (copied ? "Ctrl+V بزنید تا پوستر بیاید." : "فایل ذخیره‌شده را بفرستید.") +
-        (app === "tg" || app === "wa" ? " متن و پیوند آگهی هم در کادر پیام آماده است." : "") +
+      // مرورگر نمی‌تواند خودش عکس را در گفت‌وگوی برنامه بگذارد؛ قدم‌ها روشن و درشت نوشته می‌شود
+      say('<b class="share-steps__t">' + (copied ? "پوستر کپی شد ✓" : "پوستر ذخیره شد ✓") + " حالا در " + label + ":</b>" +
+        '<ol class="share-steps">' +
+        "<li>مخاطب، گروه یا کانال را انتخاب کنید" + (withText ? " (متن و پیوند آگهی در کادر پیام آماده است)" : "") + "</li>" +
+        (copied ? "<li>در کادر پیام <kbd>Ctrl</kbd>+<kbd>V</kbd> بزنید تا <b>پوستر</b> بیاید" + (withText ? "؛ متن و پیوند زیر عکس می‌رود" : "") + "</li>"
+          : "<li>فایل پوستر ذخیره‌شده را در گفت‌وگو بکشید یا پیوست کنید</li>") +
+        "<li>ارسال را بزنید</li></ol>" +
+        (withText ? '<small class="share-steps__s">اگر بدون چسباندن پوستر «ارسال» را بزنید، فقط پیوند فرستاده می‌شود.</small>' : "") +
         (WEB[app] && !opened ? ' <a href="' + WEB[app] + '" target="_blank" rel="noopener">باز کردن ' + label + " وب</a>" : ""));
     }, 450);
     function dl(blob, name) { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
@@ -173,11 +176,17 @@
   function openDesk(app, caption) {
     if (!app) return false;
     var lines = caption.split("\n"), url = lines.pop(), title = lines.join(" ");
-    if (app === "tg" || app === "wa") {
-      var web = app === "tg" ? "https://web.telegram.org/" : "https://web.whatsapp.com/send?text=" + encodeURIComponent(caption);
+    // تلگرام، ایتا (نسخهٔ دسکتاپ آن هم برنامهٔ نصبی دارد) و واتساپ: اول برنامهٔ نصب‌شده با متن و پیوند آماده؛ اگر باز نشد نسخهٔ وب
+    var NATIVE = {
+      tg: "tg://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title),
+      eitaa: "eitaa://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title),
+      wa: "whatsapp://send?text=" + encodeURIComponent(caption),
+    };
+    if (NATIVE[app]) {
+      var web = app === "wa" ? "https://web.whatsapp.com/send?text=" + encodeURIComponent(caption) : WEB[app];
       var left = false, onBlur = function () { left = true; };
       window.addEventListener("blur", onBlur);
-      location.href = app === "tg" ? "tg://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title) : "whatsapp://send?text=" + encodeURIComponent(caption);
+      location.href = NATIVE[app];
       setTimeout(function () {
         window.removeEventListener("blur", onBlur);
         if (!left && !document.hidden) window.open(web, "_blank");
@@ -210,6 +219,10 @@
         if (err && err.name === "AbortError") return;
         toast("پیوند کپی شد؛ در " + name + " بچسبانید");
       });
+    }
+    if (app === "eitaa") {   // ایتای دسکتاپ برنامهٔ نصبی دارد: اول همان (با متن و پیوند)، وگرنه نسخهٔ وب
+      openDesk("eitaa", text);
+      return hint(d, "ایتا با متن و پیوند آماده باز شد؛ مخاطب را انتخاب و ارسال کنید. اگر برنامه نصب نباشد، نسخهٔ وب باز می‌شود.");
     }
     FM.copyText(text).then(function (ok) {
       var w = window.open(WEB[app], "_blank", "noopener");
