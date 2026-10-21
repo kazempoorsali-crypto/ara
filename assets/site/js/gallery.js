@@ -289,7 +289,7 @@
       '<span class="ncard__body"><b>' + E(p.title) + "</b>" +
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
-      '<span class="ncard__price">' + E(p.priceText) + "</span>" +
+      '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
       (p.locked && p.label ? '<span class="ncard__lock">قیمت منصفانه و سود تخمینی <i>🔒 با اشتراک</i></span>' : "") + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
     return a;
@@ -437,7 +437,7 @@
     return {
       chip: '<span class="hcard__drop">↓ ' + FM.fa(Math.max(1, Math.round(di.pct * 100))) + "٪</span>",
       prices: '<span class="hcard__prices"><s>' + E(FM.money(di.prev)) + "</s><b>" + E(FM.money(di.now)) + "</b></span>",
-      when: '<small class="hcard__when">' + ago(di.at) + " ارزان شد · " + E(FM.money(di.prev - di.now)) + " کمتر</small>",
+      when: '<small class="hcard__when">' + ago(di.at) + " ارزان شد  |  " + E(FM.money(di.prev - di.now)) + " کمتر</small>",
     };
   }
   function renderHunts(hunts) {
@@ -453,7 +453,7 @@
           "<figcaption><b>" + (d.when ? d.when.replace(/<[^>]+>/g, "") : E(p.diffText || "")) + "</b><small>" + (p.area ? FM.fa(p.area) + " متر" : "") + "</small></figcaption></div>";
       }
       return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + d.chip + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
-        (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.loc || p.tag) + "</small>" + d.prices + d.when + "</figcaption></a>";
+        (p.area ? FM.fa(p.area) + " متر  |  " : "") + E(p.loc || p.tag) + "</small>" + d.prices + d.when + "</figcaption></a>";
     }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً کاهش قیمتی ثبت نشده است.</p>';
     var hs = document.querySelector("[data-hscroll]"); if (hs && hunts.length) hs.hidden = false;
     if (window.ScrollTrigger) ScrollTrigger.refresh();

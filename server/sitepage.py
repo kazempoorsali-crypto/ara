@@ -13,7 +13,7 @@ import catalog
 KEEP = ("id", "title", "kind", "deal", "city_key", "city_name", "province", "district", "price", "pp", "ppm",
         "deposit", "rent", "area", "rooms", "year", "floor", "images", "image", "amenities", "description",
         "label", "score", "discount", "confidence", "verdict", "locked", "presale", "first_seen", "price_drop",
-        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "detail_pending", "contact_mode")
+        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "detail_pending", "contact_mode", "why", "drop_info")
 
 
 def _trim(d):
