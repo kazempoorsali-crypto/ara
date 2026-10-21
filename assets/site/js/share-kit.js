@@ -119,52 +119,76 @@
   ];
   var WEB = { bale: "https://web.bale.ai/", eitaa: "https://web.eitaa.com/", rubika: "https://web.rubika.ir/", ig: "https://www.instagram.com/direct/inbox/",
     tg: "https://web.telegram.org/", wa: "https://web.whatsapp.com/" };
-  FM.appName = function (app) { return (APPS.filter(function (a) { return a[0] === app; })[0] || [])[1] || ""; };
-  /* فرستادن تصویر پوستر به یک برنامه:
-     گوشی: فهرست اشتراک خود گوشی با «فقط فایل» و عنوان خالی (اگر متن همراه فایل برود، اینستاگرام گزینهٔ دایرکت/استوری را نمی‌آورد یا فقط برنامه را باز می‌کند)؛
-       متن و پیوند از قبل کپی می‌شود تا در گفت‌وگو بچسبانید.
-     دسکتاپ: خود تصویر در حافظه کپی می‌شود (Ctrl+V در گفت‌وگوی نسخهٔ وب، عکس را می‌گذارد)، فایل هم ذخیره می‌شود و نسخهٔ وب همان برنامه باز می‌شود */
-  FM.sendImage = function (app, blob, name, caption, say) {
-    var label = FM.appName(app) || "برنامهٔ موردنظر";
-    if (mobile()) {
-      var file = window.File ? new File([blob], name, { type: "image/png" }) : null;
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        FM.copyText(caption);
-        say(app === "ig" ? "در فهرست باز شده «Instagram» را بزنید؛ برای دایرکت «Chats/پیام»، و استوری یا پست را هم همان‌جا انتخاب کنید. متن و پیوند کپی شد."
-          : "در فهرست باز شده «" + label + "» را بزنید و گفت‌وگو، کانال یا استوری را انتخاب کنید؛ متن و پیوند هم کپی شد.");
-        return navigator.share({ files: [file], title: "" }).catch(function (err) {
-          if (err && err.name === "AbortError") return;
-          save(); say("اشتراک مستقیم ممکن نشد؛ تصویر در گالری ذخیره شد. " + label + " را باز کنید و همین تصویر را بفرستید.");
-        });
-      }
-      save(); FM.copyText(caption);
-      return say("تصویر ذخیره شد و متن کپی شد؛ " + label + " را باز کنید و تصویر را از گالری بفرستید.");
-    }
-    var copied = false;
-    try {
-      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write && window.isSecureContext) {
-        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(function () { copied = true; }, function () {});
-      }
-    } catch (e) {}
-    var w = WEB[app] ? window.open(WEB[app], "_blank") : null;
-    save();
-    setTimeout(function () {
-      say((copied ? "تصویر پوستر کپی شد ✓ " : "تصویر پوستر ذخیره شد ✓ ") + "در " + label + " گفت‌وگو را باز کنید و " +
-        (copied ? "Ctrl+V بزنید تا عکس بیاید." : "فایل ذخیره‌شده را بفرستید.") +
-        (WEB[app] && !w ? ' <a href="' + WEB[app] + '" target="_blank" rel="noopener">باز کردن ' + label + " وب</a>" : ""));
-    }, 400);
-    function save() {
-      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    }
-  };
   FM.appGrid = function () {
     return '<div class="psheet__apps">' + APPS.map(function (a) {
       return '<button type="button" class="psheet__app" data-app="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>";
     }).join("") + "</div>";
   };
+  FM.appName = function (app) { return (APPS.filter(function (a) { return a[0] === app; })[0] || [])[1] || ""; };
+  /* فرستادن پوستر (و متن و پیوند آگهی) به یک برنامه. img = { png, jpg }
+     گوشی: فهرست اشتراک خود گوشی با فایل تصویر (JPEG که اینستاگرام، استوری و دایرکت راحت‌تر می‌پذیرند)؛
+       در اندروید متن و پیوند هم همراه عکس می‌رود (تلگرام، واتساپ، بله و ایتا آن را زیر عکس می‌گذارند)؛
+       در آیفون متن همراه فایل باعث می‌شود فایل نادیده گرفته شود، پس فقط فایل می‌رود و متن کپی می‌شود.
+     دسکتاپ: تصویر (همراه متن) در حافظه کپی می‌شود تا در گفت‌وگو با Ctrl+V بچسبد؛ تلگرام و واتساپ اول برنامهٔ نصب‌شده
+       (با متن و پیوند آماده) و اگر باز نشد نسخهٔ وب؛ بقیه نسخهٔ وب */
+  FM.sendImage = function (app, img, id, caption, say) {
+    var label = FM.appName(app) || "برنامهٔ موردنظر";
+    if (mobile()) {
+      var jpg = img.jpg || img.png, file = window.File && jpg ? new File([jpg], "forsatmelk-" + id + (img.jpg ? ".jpg" : ".png"), { type: jpg.type }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        var ios = /iPhone|iPad|iPod/i.test(navigator.userAgent), data = { files: [file], title: "" };
+        if (!ios) data.text = caption;
+        if (!data.text || !navigator.canShare(data)) delete data.text;
+        FM.copyText(caption);
+        say("برنامه را از فهرست گوشی انتخاب کنید؛ در اینستاگرام «دایرکت/Chats»، «استوری» یا «پست» را همان‌جا بزنید. متن و پیوند آگهی هم کپی شد.");
+        return navigator.share(data).catch(function (err) {
+          if (err && err.name === "AbortError") return;
+          if (err && err.name === "NotAllowedError") return say("پوستر آماده شد؛ یک بار دیگر روی دکمه بزنید.");
+          dl(jpg, file.name); say("اشتراک مستقیم ممکن نشد؛ تصویر در گالری ذخیره شد و متن کپی شد.");
+        });
+      }
+      dl(jpg, "forsatmelk-" + id + ".jpg"); FM.copyText(caption);
+      return say("تصویر ذخیره شد و متن کپی شد؛ " + label + " را باز کنید و تصویر را از گالری بفرستید.");
+    }
+    var copied = false;
+    try {
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write && window.isSecureContext && img.png) {
+        var item = {}; item["image/png"] = img.png; item["text/plain"] = new Blob([caption], { type: "text/plain" });
+        navigator.clipboard.write([new ClipboardItem(item)]).catch(function () {
+          return navigator.clipboard.write([new ClipboardItem({ "image/png": img.png })]);
+        }).then(function () { copied = true; }, function () {});
+      }
+    } catch (e) {}
+    var opened = openDesk(app, caption);
+    setTimeout(function () {
+      if (!copied && img.png) dl(img.png, "forsatmelk-" + id + ".png");
+      say((copied ? "پوستر کپی شد ✓ " : "پوستر ذخیره شد ✓ ") + (app ? "در " + label + " گفت‌وگو، کانال یا استوری را باز کنید و " : "در برنامهٔ موردنظر ") +
+        (copied ? "Ctrl+V بزنید تا پوستر بیاید." : "فایل ذخیره‌شده را بفرستید.") +
+        (app === "tg" || app === "wa" ? " متن و پیوند آگهی هم در کادر پیام آماده است." : "") +
+        (WEB[app] && !opened ? ' <a href="' + WEB[app] + '" target="_blank" rel="noopener">باز کردن ' + label + " وب</a>" : ""));
+    }, 450);
+    function dl(blob, name) { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+  };
+  /* دسکتاپ: تلگرام و واتساپ اول برنامهٔ نصب‌شده؛ اگر پنجره فوکوس را از دست نداد (برنامه باز نشد) نسخهٔ وب */
+  function openDesk(app, caption) {
+    if (!app) return false;
+    var lines = caption.split("\n"), url = lines.pop(), title = lines.join(" ");
+    if (app === "tg" || app === "wa") {
+      var web = app === "tg" ? "https://web.telegram.org/" : "https://web.whatsapp.com/send?text=" + encodeURIComponent(caption);
+      var left = false, onBlur = function () { left = true; };
+      window.addEventListener("blur", onBlur);
+      location.href = app === "tg" ? "tg://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title) : "whatsapp://send?text=" + encodeURIComponent(caption);
+      setTimeout(function () {
+        window.removeEventListener("blur", onBlur);
+        if (!left && !document.hidden) window.open(web, "_blank");
+      }, 1600);
+      return true;
+    }
+    return !!(WEB[app] && window.open(WEB[app], "_blank"));
+  }
   function hint(d, html) {
     var h = d.querySelector(".psheet__hint");
-    if (!h) { h = document.createElement("p"); h.className = "psheet__hint"; d.querySelector(".psheet__apps").after(h); }
+    if (!h) { h = document.createElement("p"); h.className = "psheet__hint"; var at = d.querySelector(".psheet__apps") || d.querySelector(".psheet__url"); if (at) at.after(h); else d.querySelector(".psheet__box").appendChild(h); }
     h.innerHTML = html;
   }
   /* opts.onInstagram: برای آگهی، اینستاگرام یعنی پوستر تصویری (پیوند در پست اینستاگرام کار نمی‌کند) */
@@ -193,17 +217,21 @@
         (w ? "" : " <a href=\"" + WEB[app] + "\" target=\"_blank\" rel=\"noopener\">باز کردن " + name + " وب</a>"));
     });
   };
-  function copyRow(url) {
+  function copyRow(url, poster) {
     return '<div class="psheet__opts">' +
+      (navigator.share && mobile() ? '<button type="button" class="psheet__opt psheet__opt--main" data-l="native"><i>📤</i><span><b>اشتراک با برنامه‌های گوشی</b><small>' + (poster ? "پوستر آگهی همراه متن و پیوند؛ اینستاگرام، تلگرام، واتساپ، بله، ایتا، روبیکا و…" : "اینستاگرام، تلگرام، واتساپ، بله، ایتا، روبیکا و…") + "</small></span></button>" : "") +
       '<button type="button" class="psheet__opt" data-l="copy"><i>📋</i><span><b>کپی پیوند</b><small>برای چسباندن در هر جا</small></span></button>' +
-      (navigator.share && mobile() ? '<button type="button" class="psheet__opt" data-l="native"><i>📤</i><span><b>سایر برنامه‌های گوشی</b><small>ایتا، پیامک و…</small></span></button>' : "") +
       "</div>";
   }
   /* رفتار مشترک گزینه‌ها؛ هم پنجرهٔ «اشتراک پیوند» و هم منوی اشتراک آگهی از آن استفاده می‌کنند */
   FM.bindShare = function (d, url, title, opts) {
     d.addEventListener("click", function (e) {
       var ap = e.target.closest("[data-app]");
-      if (ap) return FM.shareApp(d, ap.dataset.app, url, title, opts);
+      if (ap) {   // آگهی با پوستر آماده: خود پوستر همراه متن و پیوند به همان برنامه می‌رود
+        var img = opts && opts.image && opts.image();
+        if (img) return FM.sendImage(ap.dataset.app, img, opts.id, title + "\n" + url, function (t) { hint(d, t); });
+        return FM.shareApp(d, ap.dataset.app, url, title, opts);
+      }
       var o = e.target.closest("[data-l]"); if (!o) return;
       if (o.dataset.l === "copy") {
         FM.copyText(url).then(function (ok) {
@@ -215,6 +243,7 @@
           }
         });
       } else if (o.dataset.l === "native") {
+        if (opts && opts.onNative) return opts.onNative(o);
         navigator.share({ title: title, url: url }).then(function () { FM.closeSheets(); }).catch(function (err) {
           if (err && err.name === "AbortError") return;   // کاربر خودش بست
           FM.copyText(url).then(function (ok) { toast(ok ? "اشتراک گوشی در دسترس نبود؛ پیوند کپی شد ✓" : "اشتراک گوشی در دسترس نبود"); });
@@ -222,8 +251,9 @@
       }
     });
   };
-  FM.shareBody = function (url) {
-    return FM.appGrid() + '<div class="psheet__url" dir="ltr">' + FM.esc(url) + "</div>" + copyRow(url);
+  /* گوشی: ردیف برنامه‌ها لازم نیست (فهرست اشتراک خود گوشی همهٔ برنامه‌ها را دارد)؛ فقط «اشتراک با برنامه‌های گوشی» و «کپی پیوند» */
+  FM.shareBody = function (url, poster) {
+    return (mobile() && navigator.share ? "" : FM.appGrid()) + '<div class="psheet__url" dir="ltr">' + FM.esc(url) + "</div>" + copyRow(url, poster);
   };
   FM.linkSheet = function (url, title, onClosed) {
     url = url || location.href; title = title || document.title;
