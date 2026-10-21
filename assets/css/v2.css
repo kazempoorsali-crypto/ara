@@ -308,3 +308,15 @@
 .sky-zlo .col__p { display: none; }
 .sky-zlo .col.is-sel .col__p { display: inline-flex; }
 .col.is-dim .col__p { opacity: .35; }
+
+/* تاریخچهٔ قیمت (نسخهٔ خواناتر) */
+.pc-sum { margin: 0 0 .3rem; font-size: .95rem; line-height: 2; }
+.pc-sum b { font-weight: 900; }
+.pc-what { font-size: .78rem; opacity: .7; margin-bottom: .4rem; }
+.pchart .pc-seg { stroke: var(--ink-soft, #8a948f); stroke-width: 3; stroke-linecap: round; opacity: .8; }
+.pchart .pc-v { font: 700 13px Vazirmatn, Tahoma, sans-serif; fill: currentColor; opacity: .85; }
+.pchart line.pc-odd { stroke: #9aa19d; stroke-width: 2.5; stroke-dasharray: 4 4; }
+.pchart text.pc-odd { fill: #8f9692; font-size: 12px; }
+.pchart circle.pc-odd { fill: #9aa19d; stroke: none; }
+.pc-odd { font-size: .8rem; line-height: 1.9; opacity: .8; margin: .4rem 0 0; padding: .5rem .8rem; border-radius: 10px; background: color-mix(in srgb, #9aa19d 14%, transparent); }
+.spark-steps em.is-odd { color: #8f9692; opacity: 1; }

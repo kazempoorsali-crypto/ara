@@ -2448,7 +2448,7 @@ const App = (() => {
           </header>
           <div class="facts">${facts.filter(([, x]) => x).map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>
           <div class="mobile-only">${valuationCard(l)}</div>
-          ${l.history && l.history.length > 1 ? `<section class="block"><h2>تاریخچه قیمت</h2>${UI.spark(l.history)}</section>` : ""}
+          ${l.history && l.history.length > 1 ? `<section class="block"><h2>تاریخچه قیمت</h2>${UI.spark(l.history, l.deal)}</section>` : ""}
           ${priceIdCard(l)}
           ${whySection(l)}
           ${l.description ? `<section class="block"><h2>متن آگهی<small>نقل از آگهی اصلی</small></h2><blockquote class="quote">${esc(l.description).replace(/\n+/g, "<br>")}</blockquote><p class="quote-src">متن آگهی‌دهنده؛ این نوشتهٔ فروشنده است، نه حکم ${esc(cfg.site.name)}.</p></section>` : ""}
