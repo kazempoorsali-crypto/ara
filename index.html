@@ -28,6 +28,16 @@
     })();
   </script>
   <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- پیش‌واکشی هوشمند (Speculation Rules): صفحهٔ «قیمت از دید آسمان» در زمان بیکاری، صفحهٔ هر ملک به محض قصد کاربر
+       (نزدیک شدن نشانگر یا لمس)؛ فقط HTML دانلود می‌شود، پس صفحهٔ اصلی کند نمی‌شود -->
+  <script type="speculationrules">
+  {
+    "prefetch": [
+      { "source": "list", "urls": ["/sky.html"], "eagerness": "eager" },
+      { "source": "document", "where": { "or": [ { "href_matches": "/ad/*" }, { "href_matches": "/app.html" }, { "href_matches": "/account.html" } ] }, "eagerness": "moderate" }
+    ]
+  }
+  </script>
   <link rel="stylesheet" href="/assets/site/css/main.css?v=51" />
   <link rel="stylesheet" href="/assets/site/css/account.css?v=51" />
 </head>
@@ -209,6 +219,7 @@
           <p class="hero__sub" data-hero-sub>پیش از یک تصمیم چندمیلیاردی، قیمت هر آگهی را با محلهٔ خودش، سن بنا، متراژ، طبقه و امکانات می‌سنجیم و نشان می‌دهیم کجا فرصت است و کجا گران.</p>
           <div class="hero__cta" data-hero-cta>
             <a class="btn btn--gold btn--lg" href="#homefilter" data-scroll-to><span class="btn__label" data-flip><span>مشاهده فرصت‌ها</span><span aria-hidden="true">مشاهده فرصت‌ها</span></span></a>
+            <a class="btn btn--drop btn--lg" href="#drops" data-scroll-to><span class="btn__label" data-flip><span>🔥 تازه ارزان‌شده‌ها</span><span aria-hidden="true">🔥 تازه ارزان‌شده‌ها</span></span></a>
             <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
           </div>
         </div>
@@ -318,11 +329,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
 
-      <div class="hscroll" data-hscroll>
+      <div class="hscroll" id="drops" data-hscroll>
         <div class="hscroll__pin" data-hscroll-pin>
           <div class="hscroll__head">
-            <p class="eyebrow">فروش‌های زیر برآورد بازار</p>
-            <h3 class="hscroll__title">شکارهای بازار — با اسکرول ببینید <i>←</i></h3>
+            <div>
+              <p class="eyebrow">رادار کاهش قیمت — فروشنده‌هایی که تازه قیمت را پایین آورده‌اند</p>
+              <h3 class="hscroll__title">تازه ارزان‌شده‌ها — با اسکرول ببینید <i>←</i></h3>
+            </div>
+            <a class="hscroll__more" href="/app.html#/s?drop=1&amp;sort=drop" data-drops-all>مشاهدهٔ همه ←</a>
           </div>
           <div class="hscroll__track" data-hscroll-track><!-- فرصت‌های واقعی با JS --></div>
         </div>

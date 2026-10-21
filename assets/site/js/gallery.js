@@ -173,13 +173,33 @@
     return true;
   }
 
+  /* رادار کاهش قیمت: تازه‌ترین کاهش‌های قیمت ثبت‌شده با قیمت قبلی و زمان کاهش (از تاریخچهٔ واقعی قیمت) */
+  var DROPQ = { drop: 1, sort: "drop_new", limit: 12, imgs: 1, drop_info: 1 };
+  function loadDrops(my, byCity) {
+    var more = document.querySelector("[data-drops-all]");
+    if (more) more.href = "/app.html#/s?" + (function (q) { return Object.keys(q).map(function (k) { return k + "=" + encodeURIComponent(q[k]); }).join("&"); })(queryOf({ drop: 1, sort: "drop" }));
+    if (!FM.api) { renderHunts(bootHunts()); return; }
+    var ids = FM.cityIds(FM.region);
+    var run = byCity ? byCity(Object.assign({}, DROPQ)) : FM.api.search(queryOf(DROPQ)).then(function (r) { return [r]; });
+    run.then(function (rs) {
+      if (my !== seq) return;
+      var hs = [];
+      rs.forEach(function (res, i) {
+        var items = (res.items || []).map(FM.mapListing);
+        if (byCity && ids.length > 1 && items.length) hs.push({ head: (FM.cityById(ids[i]) || {}).name || ids[i] });
+        hs.push.apply(hs, items);
+      });
+      renderHunts(hs);
+    }).catch(function () {});
+  }
+
   function refresh() {
     var my = ++seq;
     saveFilters();
     if (allBtn) allBtn.href = searchUrl();
     var n = advActive();
     if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
-    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); renderHunts(bootHunts()); document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: null } })); return; }
+    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); loadDrops(my, null); document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: null } })); return; }
     statusEl.textContent = "در حال جست‌وجو…";
     var scoredOnly = !ADV.deal || ADV.deal === "sale" || ADV.deal === "presale";
     var ids = FM.cityIds(FM.region);
@@ -198,17 +218,8 @@
       applyFilterUI(); renderMasonry(true);
       document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: current } }));
     }).catch(function () { if (my === seq) statusEl.textContent = "ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید."; });
-    /* شکارهای بازار هم با همین فیلتر: فقط فرصت‌ها، بیشترین فاصله با برآورد بازار */
-    byCity({ opp: 1, sort: "deal", limit: 12, imgs: 1 }).then(function (rs) {
-      if (my !== seq) return;
-      var hs = [];
-      rs.forEach(function (res, i) {
-        var items = (res.items || []).map(FM.mapListing);
-        if (ids.length > 1 && items.length) hs.push({ head: (FM.cityById(ids[i]) || {}).name || ids[i] });
-        hs.push.apply(hs, items);
-      });
-      renderHunts(hs);
-    }).catch(function () {});
+    /* رادار کاهش قیمت هم با همین فیلتر (هر شهر جدا، به ترتیب انتخاب) */
+    loadDrops(my, byCity);
   }
 
   function matchesRegion(p) {
@@ -414,23 +425,40 @@
   /* شکارهای بازار: بدون اشتراک فقط سه شکار اول (در هر شهر) باز است؛ بقیه مات با قفل */
   var HUNT_FREE = 3, lastHunts = [];
   addEventListener("fm:me", function () { if (lastHunts.length) renderHunts(lastHunts); });
+  function ago(ts) {
+    var m = Math.max(1, Math.round((Date.now() / 1000 - ts) / 60));
+    if (m < 60) return FM.fa(m) + " دقیقه پیش";
+    var h = Math.round(m / 60); if (h < 24) return FM.fa(h) + " ساعت پیش";
+    var d = Math.round(h / 24); return d < 31 ? FM.fa(d) + " روز پیش" : FM.fa(Math.round(d / 30)) + " ماه پیش";
+  }
+  function dropBits(p) {
+    var di = p.raw && p.raw.drop_info;
+    if (!di) return { chip: "", prices: "", when: "" };
+    return {
+      chip: '<span class="hcard__drop">↓ ' + FM.fa(Math.max(1, Math.round(di.pct * 100))) + "٪</span>",
+      prices: '<span class="hcard__prices"><s>' + E(FM.money(di.prev)) + "</s><b>" + E(FM.money(di.now)) + "</b></span>",
+      when: '<small class="hcard__when">' + ago(di.at) + " ارزان شد · " + E(FM.money(di.prev - di.now)) + " کمتر</small>",
+    };
+  }
   function renderHunts(hunts) {
     if (!htrack) return;
     lastHunts = hunts;
     var sub = FM.isSub(), n = 0;
     htrack.innerHTML = hunts.length ? hunts.map(function (p) {
-      if (p.head) { n = 0; return '<div class="hcard hcard--head"><span>فرصت‌های</span><b>' + E(p.head) + "</b></div>"; }
+      if (p.head) { n = 0; return '<div class="hcard hcard--head"><span>ارزان‌شده‌های</span><b>' + E(p.head) + "</b></div>"; }
+      var d = dropBits(p);
       if (!sub && n++ >= HUNT_FREE) {
-        return '<div class="hcard is-locked"><img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
-          '<span class="hcard__lock"><i>🔒</i><b>شکار قفل‌شده</b><button type="button" class="btn btn--gold" data-fm-sub>باز کردن با اشتراک</button></span>' +
-          "<figcaption><b>" + E(p.diffText || "فروش زیر برآورد بازار") + "</b><small>" + (p.area ? FM.fa(p.area) + " متر" : "") + "</small></figcaption></div>";
+        return '<div class="hcard is-locked">' + d.chip + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
+          '<span class="hcard__lock"><i>🔒</i><b>کاهش قیمت قفل‌شده</b><button type="button" class="btn btn--gold" data-fm-sub>باز کردن با اشتراک</button></span>' +
+          "<figcaption><b>" + (d.when ? d.when.replace(/<[^>]+>/g, "") : E(p.diffText || "")) + "</b><small>" + (p.area ? FM.fa(p.area) + " متر" : "") + "</small></figcaption></div>";
       }
-      return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
-        (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.diffText || p.tag) + "</small></figcaption></a>";
-    }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً شکاری (فروش زیر برآورد بازار) پیدا نشد.</p>';
+      return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + d.chip + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
+        (p.area ? FM.fa(p.area) + " متر · " : "") + E(p.loc || p.tag) + "</small>" + d.prices + d.when + "</figcaption></a>";
+    }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً کاهش قیمتی ثبت نشده است.</p>';
     var hs = document.querySelector("[data-hscroll]"); if (hs && hunts.length) hs.hidden = false;
     if (window.ScrollTrigger) ScrollTrigger.refresh();
   }
+
   var hunts = bootHunts();
   renderHunts(hunts);
   if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = true; hs.classList.add("is-static"); } hpin = null; }
@@ -458,4 +486,5 @@
   }
   /* برگشت از صفحهٔ ملک: همان فیلترها و نتیجه‌ها دوباره ساخته می‌شوند */
   if (loadFilters()) { FM.filterRestoring = true; refresh(); }
+  else loadDrops(seq, null);
 })();

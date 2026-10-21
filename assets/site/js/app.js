@@ -730,4 +730,36 @@
   }
 
   boot();
+
+  /* پیش‌واکشی برای مرورگرهایی که Speculation Rules ندارند (سافاری، فایرفاکس):
+     - با نزدیک شدن نشانگر (۶۵ میلی‌ثانیه) یا لمس یک پیوند داخلی، همان صفحه پیش‌واکشی می‌شود
+     - در زمان بیکاری بعد از بار کامل، صفحهٔ «قیمت از دید آسمان» و اسکریپت‌هایش آماده می‌شوند */
+  (function prefetchFallback() {
+    if (HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) return;
+    var conn = navigator.connection;
+    if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ""))) return;   // اینترنت کند یا صرفه‌جویی داده: نه
+    var done = {};
+    function pf(url) {
+      if (done[url]) return; done[url] = 1;
+      var l = document.createElement("link"); l.rel = "prefetch"; l.href = url; document.head.appendChild(l);
+    }
+    function internal(a) { return a && a.origin === location.origin && /^\/(ad\/|sky\.html|app\.html|account\.html)/.test(a.pathname) && a.pathname !== location.pathname; }
+    var t = null;
+    document.addEventListener("pointerover", function (e) {
+      var a = e.target.closest && e.target.closest("a[href]"); if (!internal(a)) return;
+      clearTimeout(t); t = setTimeout(function () { pf(a.pathname + a.search); }, 65);
+    }, { passive: true });
+    document.addEventListener("pointerout", function () { clearTimeout(t); }, { passive: true });
+    document.addEventListener("touchstart", function (e) {
+      var a = e.target.closest && e.target.closest("a[href]"); if (internal(a)) pf(a.pathname + a.search);
+    }, { passive: true });
+    addEventListener("load", function () {
+      var idle = window.requestIdleCallback || function (f) { setTimeout(f, 1500); };
+      idle(function () {
+        pf("/sky.html");
+        var tag = ((document.querySelector('script[src*="/assets/site/js/app.js"]') || {}).src || "").split("?v=")[1];
+        if (tag) { pf("/assets/site/js/sky.js?v=" + tag); pf("/assets/site/css/pages.css?v=" + tag); }
+      });
+    });
+  })();
 })();

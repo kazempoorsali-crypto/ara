@@ -1017,3 +1017,26 @@ html.intro-fast[data-theme="dark"] .intro .intro__stage .intro__sun { animation:
 .hspot.is-on .hspot__beam::after { animation: hsPing 1.4s ease-out 1.1s infinite; }
 .win-lights rect.is-calling { filter: drop-shadow(0 0 6px #ffd56a) drop-shadow(0 0 14px rgba(255, 200, 80, .8)); }
 @media (prefers-reduced-motion: reduce) { .hspot, .hspot.is-out { translate: 0 0; scale: 1; transition: opacity .4s; } .hspot .hspot__beam { scale: 1 1; } }
+
+/* رادار کاهش قیمت */
+.hscroll__head { gap: 1rem; }
+.hscroll__more { flex: none; align-self: flex-end; font-weight: 800; font-size: .88rem; color: var(--gold); text-decoration: none; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 999px; padding: .4rem .9rem; }
+.hscroll__more:hover { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.hcard__drop { position: absolute; top: .55rem; left: .55rem; z-index: 3; padding: 3px 9px; border-radius: 999px; font-size: .74rem; font-weight: 900; color: #fff; background: #d6452f; box-shadow: 0 6px 16px -6px rgba(214, 69, 47, .8); }
+.hcard .cacts { top: 2.3rem; }
+.hcard__prices { display: flex; align-items: baseline; gap: .55rem; margin-top: .25rem; flex-wrap: wrap; }
+.hcard__prices s { color: #d6452f; font-size: .82rem; text-decoration-thickness: 2px; opacity: .9; }
+.hcard__prices b { font-size: 1rem !important; color: var(--gold); }
+.hcard__when { display: block; color: var(--ink-faint); font-size: .74rem; margin-top: .15rem; }
+.hcard.is-locked .hcard__drop { z-index: 3; }
+/* دکمهٔ «تازه ارزان‌شده‌ها» در صفحهٔ اول */
+.btn--drop { background: linear-gradient(135deg, #ef6a4c, #d6452f); color: #fff; box-shadow: 0 8px 30px -10px rgba(214, 69, 47, .65); }
+.btn--drop:hover { transform: translateY(-3px); box-shadow: 0 16px 40px -10px rgba(214, 69, 47, .75); }
+@media (max-width: 560px) {
+  .hero__cta { display: grid !important; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .hero__cta .btn--sky { grid-column: 1 / -1; }
+  .hero__cta .btn--gold, .hero__cta .btn--drop { padding-inline: .6rem !important; font-size: .86rem !important; }
+  .hscroll__head { flex-direction: row !important; align-items: flex-end !important; justify-content: space-between; }
+  .hscroll__more { font-size: .76rem; padding: .3rem .7rem; }
+}
+#drops { scroll-margin-top: calc(var(--nav-h, 64px) + 8px); }
