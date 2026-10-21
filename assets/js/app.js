@@ -3268,14 +3268,11 @@ const App = (() => {
     document.addEventListener("click", (e) => { if (!e.target.closest(".top")) top.classList.remove("is-menu"); });
     const shareBtn = document.getElementById("shareBtn");
     if (shareBtn) {
-      shareBtn.onclick = async () => {
-        const data = { title: document.title, url: window.location.href };
-        if (navigator.share) {
-          try { await navigator.share(data); } catch(e) {}
-        } else {
-          await navigator.clipboard.writeText(window.location.href);
-          if (typeof toast === "function") toast("لینک صفحه در حافظه کپی شد");
-        }
+      // در صفحهٔ آگهی همان منوی کامل (پوستر، اینستاگرام، تلگرام، واتساپ، بله، روبیکا)؛ در بقیهٔ صفحه‌ها اشتراک پیوند همان صفحه
+      shareBtn.onclick = () => {
+        if (/^#\/ad\//.test(location.hash) && window.__fmAdShare) return window.__fmAdShare();
+        if (window.FM && FM.linkSheet) return FM.linkSheet(location.href, document.title);
+        if (navigator.share) navigator.share({ title: document.title, url: location.href }).catch(() => {});
       };
     }
     $("#themeBtn").addEventListener("click", () => {

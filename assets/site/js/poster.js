@@ -157,10 +157,10 @@
     }).join("") + "</div>";
   }
 
-  FM.poster = function (p, onClosed) {
-    (FM.meReady ? FM.meReady() : Promise.resolve()).then(function () { openPoster(p, onClosed); });
+  FM.poster = function (p, onClosed, opt) {
+    (FM.meReady ? FM.meReady() : Promise.resolve()).then(function () { openPoster(p, onClosed, opt || {}); });
   };
-  function openPoster(p, onClosed) {
+  function openPoster(p, onClosed, opt) {
     var sub = FM.isSub && FM.isSub();
     var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
     var st = { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
@@ -171,7 +171,7 @@
       '<div class="pe__ctl">' +
         '<div class="pe__quick"><b>پوستر آماده است ✓</b><small>همین حالا می‌توانید بفرستید یا ذخیره کنید؛ یا آن را به سلیقهٔ خودتان تغییر دهید.</small>' +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig="story"><i>◎</i>استوری اینستاگرام</button><button type="button" class="pe__igb" data-ig="post"><i>▣</i>پست اینستاگرام</button></div>' +
+        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig><i>◎</i>ارسال به اینستاگرام</button></div>' +
         '<button type="button" class="pe__edit" data-edit>✎ ویرایش و شخصی‌سازی</button></div>' +
         '<div class="pe__more" hidden>' +
         '<label class="pe__l">اندازه</label>' + seg("size", [["story", "استوری ۹:۱۶"], ["post", "پست ۴:۵"]], st.size) +
@@ -186,7 +186,7 @@
         "</div>" +
         (sub ? "" : '<div class="pe__up"><b>با اشتراک:</b> نام، تلفن و لوگوی خودتان روی پوستر و چیدمان ویژهٔ «تمام‌عکس».<button type="button" class="btn btn--gold" data-fm-sub>فعال‌سازی اشتراک</button></div>') +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig="story"><i>◎</i>استوری اینستاگرام</button><button type="button" class="pe__igb" data-ig="post"><i>▣</i>پست اینستاگرام</button></div>' +
+        '<div class="pe__ig"><button type="button" class="pe__igb" data-ig><i>◎</i>ارسال به اینستاگرام</button></div>' +
       '</div></div></div><button type="button" class="psheet__x" data-x>' + (onClosed ? "برگشت" : "بستن") + '</button>', onClosed);
     var cvBox = d.querySelector(".pe__view"), photo = null, logo = null, lastBlob = null, tmr = null;
     function brand() { return st.useBrand && sub && (st.name || st.phone || st.note || logo) ? { name: st.name, phone: st.phone, note: st.note, logo: logo } : null; }
@@ -209,33 +209,44 @@
         render(); return;
       }
       var ig = e.target.closest("[data-ig]");
-      if (ig) {   // اینستاگرام: اندازهٔ درست (استوری ۹:۱۶ یا پست ۴:۵) و فرستادن فایل؛ در دسکتاپ ذخیره + کپی متن
-        st.size = ig.dataset.ig;
-        d.querySelectorAll('[data-seg="size"] button').forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === st.size); });
-        render(); send("ig"); return;
-      }
+      if (ig) { send("ig"); return; }   // اینستاگرام: نوع (استوری یا پست) را خود کاربر در اینستاگرام انتخاب می‌کند
       if (e.target.closest("[data-save-p]")) send("save");
       else if (e.target.closest("[data-share-p]")) send("share");
     });
     function caption() { return p.title + "\n" + location.origin + FM.propUrl(p.id); }
+    /* پیام وضعیت داخل همین پنجره (در صفحه‌های قدیمی toast نیست و کاربر نباید بی‌واکنش بماند) */
+    function note(t) {
+      d.querySelectorAll(".pe__note").forEach(function (n) { n.remove(); });
+      d.querySelectorAll(".pe__ig").forEach(function (g) { if (g.offsetParent) { var n = document.createElement("p"); n.className = "pe__note"; n.innerHTML = t; g.after(n); } });
+      if (FM.toast) FM.toast(t.replace(/<[^>]+>/g, ""));
+    }
+    function download(blob, name) {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    }
     function send(mode) {
+      var mob = FM.isMobile ? FM.isMobile() : /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      // پنجرهٔ اینستاگرام در دسکتاپ همین حالا (در همان کلیک) باز می‌شود تا مرورگر جلویش را نگیرد
+      var igWin = mode === "ig" && !mob ? window.open("https://www.instagram.com/", "_blank", "noopener") : null;
       var go = function (blob) {
-        if (!blob) return;
-        var name = "forsatmelk-" + p.id + (mode === "ig" ? "-" + st.size : "") + ".png", file = window.File ? new File([blob], name, { type: "image/png" }) : null;
-        if (mode !== "save" && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          if (mode === "ig" && FM.copyText) FM.copyText(caption());
-          navigator.share({ files: [file], title: p.title, text: caption() }).catch(function () {});
-          if (mode === "ig" && FM.toast) FM.toast("در فهرست باز شده «Instagram» و سپس " + (st.size === "story" ? "«استوری»" : "«پست/فید»") + " را بزنید؛ متن و پیوند هم کپی شد");
+        if (!blob) return note("ساخت تصویر ممکن نشد؛ دوباره امتحان کنید");
+        var name = "forsatmelk-" + p.id + ".png", file = window.File ? new File([blob], name, { type: "image/png" }) : null;
+        if (mode === "ig" && FM.copyText) FM.copyText(caption());
+        if (mob && mode !== "save" && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          if (mode === "ig") note("در فهرست باز شده «Instagram» را بزنید و استوری یا پست را خودتان انتخاب کنید؛ متن و پیوند هم کپی شد");
+          navigator.share({ files: [file], title: p.title, text: caption() }).catch(function (err) {
+            if (err && err.name === "AbortError") return;
+            download(blob, name); note("اشتراک مستقیم ممکن نشد؛ تصویر ذخیره شد");
+          });
           return;
         }
-        var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-        if (mode === "ig") {
-          if (FM.copyText) FM.copyText(caption());
-          (FM.toast || function () {})("تصویر " + (st.size === "story" ? "استوری" : "پست") + " ذخیره شد و متن پیوند کپی شد؛ در اینستاگرام آن را بارگذاری کنید");
-        } else if (mode === "share" && FM.toast) FM.toast("اشتراک مستقیم فایل در این مرورگر نیست؛ تصویر ذخیره شد");
+        download(blob, name);
+        if (mode === "ig") note("تصویر ذخیره شد و متن و پیوند کپی شد ✓ در اینستاگرام «+ / Create» را بزنید، همین تصویر را انتخاب کنید و استوری یا پست را برگزینید." +
+          (igWin ? "" : ' <a href="https://www.instagram.com/" target="_blank" rel="noopener">باز کردن اینستاگرام</a>'));
+        else if (mode === "share") note("تصویر ذخیره شد؛ آن را در پیام‌رسان یا شبکهٔ اجتماعی موردنظر بفرستید");
+        else note("تصویر ذخیره شد ✓");
       };
-      // پس از render، کمی صبر تا blob تازه ساخته شود
-      setTimeout(function () { if (lastBlob) go(lastBlob); else cvBox.querySelector("canvas").toBlob(go, "image/png"); }, mode === "ig" ? 60 : 0);
+      if (lastBlob) go(lastBlob); else cvBox.querySelector("canvas").toBlob(go, "image/png");
     }
     d.querySelector("[data-brand]").addEventListener("change", function (e) { st.useBrand = e.target.checked; d.querySelector(".pe__brand").hidden = !st.useBrand; render(); });
     d.querySelectorAll(".pe__in").forEach(function (inp) {
@@ -262,6 +273,7 @@
         st.layout = "full";
         d.querySelectorAll('[data-seg="layout"] button').forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === "full"); });
       }
+      if (opt.ig) d.querySelectorAll(".pe__igb").forEach(function (b) { b.classList.add("is-hl"); });   // از گزینهٔ اینستاگرام آمده
       var cb = d.querySelector("[data-brand]"); cb.checked = st.useBrand; d.querySelector(".pe__brand").hidden = !st.useBrand;
       render();
     });
@@ -270,13 +282,14 @@
   /* دکمهٔ اشتراک کارت: پیوند یا پوستر */
   FM.shareSheet = function (p, url) {
     var d = FM.sheet('<b class="psheet__t">اشتراک‌گذاری</b><div class="psheet__opts">' +
-      '<button type="button" class="psheet__opt" data-o="link"><i>🔗</i><span><b>پیوند ملک</b><small>کپی پیوند یا فرستادن در پیام‌رسان</small></span></button>' +
-      '<button type="button" class="psheet__opt" data-o="poster"><i>🖼</i><span><b>پوستر استوری و پست</b><small>پوستر آماده با عکس، قیمت و ارزیابی؛ با نام و لوگوی خودتان</small></span></button>' +
-      '</div><button type="button" class="psheet__x" data-x>بستن</button>');
+      '<button type="button" class="psheet__opt" data-o="poster"><i>🖼</i><span><b>پوستر آماده</b><small>تصویر با عکس، قیمت و ارزیابی؛ برای اینستاگرام، استوری و پیام‌رسان‌ها</small></span></button>' +
+      "</div>" + FM.shareBody(url) +
+      '<button type="button" class="psheet__x" data-x>بستن</button>');
+    // اینستاگرام برای آگهی = پوستر تصویری (در اینستاگرام پیوند کار نمی‌کند)
+    FM.bindShare(d, url, p.title, { onInstagram: function () { FM.poster(p, FM.subSheet(d), { ig: true }); } });
     d.addEventListener("click", function (e) {
       var o = e.target.closest("[data-o]"); if (!o) return;
-      var back = FM.subSheet(d);   // «برگشت» از زیرمنو دوباره همین منو را نشان می‌دهد
-      if (o.dataset.o === "link") FM.linkSheet(url, p.title, back); else FM.poster(p, back);
+      FM.poster(p, FM.subSheet(d));   // «برگشت» از پوستر دوباره همین منو را نشان می‌دهد
     });
   };
 })();

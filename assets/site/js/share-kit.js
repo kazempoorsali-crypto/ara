@@ -104,52 +104,94 @@
     return function () { if (document.body.contains(parent)) parent.style.display = ""; };
   };
   var sheet = FM.sheet;
+  FM.isMobile = function () { return mobile(); };
   var mobile = function () { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent); };
-  /* تلگرام و واتساپ: در گوشی پیوند اشتراک خودشان؛ در دسکتاپ برنامهٔ نصب‌شده (tg:// و whatsapp://) چون نسخهٔ وب اغلب باز نمی‌شود؛
-     پیوند نسخهٔ وب هم زیر گزینه‌ها می‌آید اگر برنامه نصب نبود */
-  function appLinks(app, url, title) {
-    var text = title + "\n" + url;
-    return {
-      web: app === "tg" ? "https://t.me/share/url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title)
-        : (mobile() ? "https://wa.me/?text=" : "https://web.whatsapp.com/send?text=") + encodeURIComponent(text),
-      native: app === "tg" ? "tg://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title) : "whatsapp://send?text=" + encodeURIComponent(text),
-    };
+  /* پیام‌رسان‌ها: تلگرام و واتساپ پیوند اشتراک مستقیم دارند (در گوشی پیوند خودشان، در دسکتاپ برنامهٔ نصب‌شده چون نسخهٔ وب اغلب باز نمی‌شود)؛
+     بله، روبیکا و اینستاگرام پیوند اشتراک عمومی ندارند: در گوشی فهرست اشتراک خود گوشی (با انتخاب همان برنامه)،
+     در دسکتاپ متن و پیوند کپی می‌شود و نسخهٔ وب همان برنامه باز می‌شود تا در گفت‌وگو بچسبانید */
+  var APPS = [
+    ["ig", "اینستاگرام", "#d6297a", "IG"],
+    ["tg", "تلگرام", "#2aa3df", "TG"],
+    ["wa", "واتساپ", "#25b45b", "WA"],
+    ["bale", "بله", "#2bb3a3", "ب"],
+    ["rubika", "روبیکا", "#7b4bd6", "ر"],
+  ];
+  var WEB = { bale: "https://web.bale.ai/", rubika: "https://web.rubika.ir/", ig: "https://www.instagram.com/direct/inbox/" };
+  FM.appGrid = function () {
+    return '<div class="psheet__apps">' + APPS.map(function (a) {
+      return '<button type="button" class="psheet__app" data-app="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>";
+    }).join("") + "</div>";
+  };
+  function hint(d, html) {
+    var h = d.querySelector(".psheet__hint");
+    if (!h) { h = document.createElement("p"); h.className = "psheet__hint"; d.querySelector(".psheet__apps").after(h); }
+    h.innerHTML = html;
   }
-  function openApp(d, app, url, title) {
-    var L = appLinks(app, url, title), name = app === "tg" ? "تلگرام" : "واتساپ";
-    if (mobile()) { location.href = L.web; return; }
-    location.href = L.native;
-    var hint = d.querySelector(".psheet__hint");
-    if (!hint) { hint = document.createElement("p"); hint.className = "psheet__hint"; d.querySelector(".psheet__opts").after(hint); }
-    hint.innerHTML = "اگر برنامهٔ " + name + " روی این رایانه باز نشد: <a href=\"" + FM.esc(L.web) + "\" target=\"_blank\" rel=\"noopener\">" + name + " وب</a> یا «کپی پیوند».";
-  }
-  FM.linkSheet = function (url, title, onClosed) {
-    url = url || location.href; title = title || document.title;
-    var d = sheet('<b class="psheet__t">اشتراک پیوند</b>' +
-      '<div class="psheet__url" dir="ltr">' + FM.esc(url) + "</div>" +
-      '<div class="psheet__opts">' +
+  /* opts.onInstagram: برای آگهی، اینستاگرام یعنی پوستر تصویری (پیوند در پست اینستاگرام کار نمی‌کند) */
+  FM.shareApp = function (d, app, url, title, opts) {
+    var text = title + "\n" + url, name = (APPS.filter(function (a) { return a[0] === app; })[0] || [])[1] || "";
+    if (app === "ig" && opts && opts.onInstagram) return opts.onInstagram();
+    if (app === "tg" || app === "wa") {
+      var web = app === "tg" ? "https://t.me/share/url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title)
+        : (mobile() ? "https://wa.me/?text=" : "https://web.whatsapp.com/send?text=") + encodeURIComponent(text);
+      if (mobile()) { location.href = web; return; }
+      location.href = app === "tg" ? "tg://msg_url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(title) : "whatsapp://send?text=" + encodeURIComponent(text);
+      return hint(d, "اگر برنامهٔ " + name + " روی این رایانه باز نشد: <a href=\"" + FM.esc(web) + "\" target=\"_blank\" rel=\"noopener\">" + name + " وب</a>");
+    }
+    // بله، روبیکا، اینستاگرام (بدون پوستر)
+    if (mobile() && navigator.share) {
+      FM.copyText(text);
+      toast("در فهرست باز شده «" + name + "» را انتخاب کنید");
+      return navigator.share({ title: title, text: title, url: url }).catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        toast("پیوند کپی شد؛ در " + name + " بچسبانید");
+      });
+    }
+    FM.copyText(text).then(function (ok) {
+      var w = window.open(WEB[app], "_blank", "noopener");
+      hint(d, (ok ? "متن و پیوند کپی شد ✓ " : "") + "در " + name + " گفت‌وگوی موردنظر را باز کنید و بچسبانید (Ctrl+V)." +
+        (w ? "" : " <a href=\"" + WEB[app] + "\" target=\"_blank\" rel=\"noopener\">باز کردن " + name + " وب</a>"));
+    });
+  };
+  function copyRow(url) {
+    return '<div class="psheet__opts">' +
       '<button type="button" class="psheet__opt" data-l="copy"><i>📋</i><span><b>کپی پیوند</b><small>برای چسباندن در هر جا</small></span></button>' +
-      (navigator.share ? '<button type="button" class="psheet__opt" data-l="native"><i>📤</i><span><b>ارسال با برنامه‌های گوشی</b><small>بله، ایتا، تلگرام، پیامک و…</small></span></button>' : "") +
-      '<button type="button" class="psheet__opt" data-l="tg"><i>✈️</i><span><b>تلگرام</b><small>ارسال در گفت‌وگو یا کانال</small></span></button>' +
-      '<button type="button" class="psheet__opt" data-l="wa"><i>💬</i><span><b>واتساپ</b><small>ارسال در گفت‌وگو</small></span></button>' +
-      '</div><button type="button" class="psheet__x" data-x>' + (onClosed ? "برگشت" : "بستن") + '</button>', onClosed);
+      (navigator.share && mobile() ? '<button type="button" class="psheet__opt" data-l="native"><i>📤</i><span><b>سایر برنامه‌های گوشی</b><small>ایتا، پیامک و…</small></span></button>' : "") +
+      "</div>";
+  }
+  /* رفتار مشترک گزینه‌ها؛ هم پنجرهٔ «اشتراک پیوند» و هم منوی اشتراک آگهی از آن استفاده می‌کنند */
+  FM.bindShare = function (d, url, title, opts) {
     d.addEventListener("click", function (e) {
+      var ap = e.target.closest("[data-app]");
+      if (ap) return FM.shareApp(d, ap.dataset.app, url, title, opts);
       var o = e.target.closest("[data-l]"); if (!o) return;
       if (o.dataset.l === "copy") {
         FM.copyText(url).then(function (ok) {
           if (ok) { toast("پیوند کپی شد ✓"); FM.closeSheets(); }
-          else { var u = d.querySelector(".psheet__url"); var r = document.createRange(); r.selectNodeContents(u); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("پیوند را انتخاب کردیم؛ نگه دارید و «کپی» را بزنید"); }
+          else {
+            var u = d.querySelector(".psheet__url");
+            if (u) { var r = document.createRange(); r.selectNodeContents(u); var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+            toast("پیوند را انتخاب کردیم؛ نگه دارید و «کپی» را بزنید");
+          }
         });
       } else if (o.dataset.l === "native") {
         navigator.share({ title: title, url: url }).then(function () { FM.closeSheets(); }).catch(function (err) {
           if (err && err.name === "AbortError") return;   // کاربر خودش بست
           FM.copyText(url).then(function (ok) { toast(ok ? "اشتراک گوشی در دسترس نبود؛ پیوند کپی شد ✓" : "اشتراک گوشی در دسترس نبود"); });
         });
-      } else if (o.dataset.l === "tg" || o.dataset.l === "wa") {
-        openApp(d, o.dataset.l, url, title);
       }
     });
   };
-  /* همهٔ دکمه‌های «اشتراک این صفحه» حالا این پنجره را باز می‌کنند (به‌جای اتکا فقط به اشتراک گوشی که گاهی بی‌صدا شکست می‌خورد) */
-  FM.share = function (url, title, onClosed) { FM.linkSheet(url, title, onClosed); };
+  FM.shareBody = function (url) {
+    return FM.appGrid() + '<div class="psheet__url" dir="ltr">' + FM.esc(url) + "</div>" + copyRow(url);
+  };
+  FM.linkSheet = function (url, title, onClosed) {
+    url = url || location.href; title = title || document.title;
+    var d = sheet('<b class="psheet__t">اشتراک‌گذاری</b>' + FM.shareBody(url) +
+      '<button type="button" class="psheet__x" data-x>' + (onClosed ? "برگشت" : "بستن") + '</button>', onClosed);
+    FM.bindShare(d, url, title);
+    return d;
+  };
+  /* همهٔ دکمه‌های «اشتراک این صفحه» این پنجره را باز می‌کنند (به‌جای اتکا فقط به اشتراک گوشی که گاهی بی‌صدا شکست می‌خورد) */
+  FM.share = function (url, title, onClosed) { return FM.linkSheet(url, title, onClosed); };
 })();
