@@ -1145,3 +1145,10 @@ html.intro-fast[data-theme="dark"] .intro .intro__stage .intro__sun { animation:
 .pe__up .btn { justify-self: start; padding: .45rem 1.1rem; font-size: .82rem; }
 .pe__acts { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .4rem; }
 .pe__acts .btn { flex: 1; min-width: 150px; font-size: .86rem; padding: .65rem 1rem; }
+
+/* پوستر: حالت فوری (آماده با یک لمس) */
+.pe__quick { display: grid; gap: .55rem; }
+.pe__quick b { font-size: 1rem; font-weight: 900; }
+.pe__quick small { color: var(--ink-faint); font-size: .8rem; line-height: 1.9; }
+.pe__edit { justify-self: start; background: none; border: 0; color: var(--gold); font: inherit; font-weight: 800; cursor: pointer; padding: .3rem 0; }
+.pe__more { display: grid; gap: .45rem; }
