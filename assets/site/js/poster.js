@@ -152,6 +152,35 @@
     return cv;
   }
 
+  /* تصویر پوستر در دو قالب: PNG برای کپی در حافظه (دسکتاپ) و JPEG برای فهرست اشتراک گوشی */
+  FM._poster = FM._poster || {};
+  function blobs(cv, done) {
+    var out = {}, n = 0, fin = function () { if (++n === 2) done(out); };
+    try {
+      cv.toBlob(function (b) { out.png = b; fin(); }, "image/png");
+      cv.toBlob(function (b) { out.jpg = b; fin(); }, "image/jpeg", 0.92);
+    } catch (e) { done(null); }   // عکس دامنهٔ دیگر بوم را آلوده کرده
+  }
+  function defaults(sub) {
+    var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+    return { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
+      useBrand: !!(sub && (saved.name || saved.phone || saved.logo)),   // حالت خودکار: مشخصات ذخیره‌شدهٔ قبلی خودش می‌آید
+      name: saved.name || "", phone: saved.phone || "", note: saved.note || "", logoData: saved.logo || "" };
+  }
+  function fontReady() { return document.fonts && document.fonts.load ? document.fonts.load("900 60px Vazirmatn").catch(function () {}) : Promise.resolve(); }
+  /* پوستر آماده (یا آخرین پوستری که کاربر سفارشی کرده) برای اشتراک مستقیم از منو */
+  FM.posterImage = function (p) {
+    if (FM._poster[p.id]) return Promise.resolve(FM._poster[p.id]);
+    var sub = FM.isSub && FM.isSub(), st = defaults(sub);
+    return Promise.all([loadImg(p.img && p.img.indexOf("noimg") < 0 ? p.img : ""), loadImg(st.logoData), fontReady()]).then(function (r) {
+      var b = st.useBrand && sub && (st.name || st.phone || st.note || r[1]) ? { name: st.name, phone: st.phone, note: st.note, logo: r[1] } : null;
+      return new Promise(function (ok) {
+        var go = function (img) { blobs(draw({ p: p, img: img, size: st.size, layout: st.layout, theme: st.theme, brand: b }), function (x) { if (!x && img) return go(null); if (x) FM._poster[p.id] = x; ok(x); }); };
+        go(r[0]);
+      });
+    });
+  };
+
   function seg(name, opts, cur, locked) {
     return '<div class="pe__seg" data-seg="' + name + '">' + opts.map(function (o) {
       var lock = locked && locked.indexOf(o[0]) >= 0;
@@ -163,17 +192,14 @@
     (FM.meReady ? FM.meReady() : Promise.resolve()).then(function () { openPoster(p, onClosed, opt || {}); });
   };
   function openPoster(p, onClosed, opt) {
-    var sub = FM.isSub && FM.isSub();
-    var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
-    var st = { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
-      useBrand: !!(sub && (saved.name || saved.phone || saved.logo)),   // حالت خودکار: مشخصات ذخیره‌شدهٔ قبلی خودش می‌آید
-      name: saved.name || "", phone: saved.phone || "", note: saved.note || "", logoData: saved.logo || "" };
+    var sub = FM.isSub && FM.isSub(), mob = FM.isMobile && FM.isMobile();
+    var st = defaults(sub);
     var d = FM.sheet('<b class="psheet__t">سازندهٔ پوستر</b>' +
       '<div class="pe"><div class="pe__view"><canvas class="pe__cv"></canvas><span class="pe__wait">در حال ساخت…</span></div>' +
       '<div class="pe__ctl">' +
         '<div class="pe__quick"><b>پوستر آماده است ✓</b><small>همین حالا می‌توانید بفرستید یا ذخیره کنید؛ یا آن را به سلیقهٔ خودتان تغییر دهید.</small>' +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-        '<div class="pe__ig">' + PAPPS.map(function (a) { return '<button type="button" class="pe__app psheet__app" data-pa="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>"; }).join("") + "</div>" +
+        '<div class="pe__ig" hidden>' + PAPPS.map(function (a) { return '<button type="button" class="pe__app psheet__app" data-pa="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>"; }).join("") + "</div>" +
         '<button type="button" class="pe__edit" data-edit>✎ ویرایش و شخصی‌سازی</button></div>' +
         '<div class="pe__more" hidden>' +
         '<label class="pe__l">اندازه</label>' + seg("size", [["story", "استوری ۹:۱۶"], ["post", "پست ۴:۵"]], st.size) +
@@ -188,7 +214,7 @@
         "</div>" +
         (sub ? "" : '<div class="pe__up"><b>با اشتراک:</b> نام، تلفن و لوگوی خودتان روی پوستر و چیدمان ویژهٔ «تمام‌عکس».<button type="button" class="btn btn--gold" data-fm-sub>فعال‌سازی اشتراک</button></div>') +
         '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-        '<div class="pe__ig">' + PAPPS.map(function (a) { return '<button type="button" class="pe__app psheet__app" data-pa="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>"; }).join("") + "</div>" +
+        '<div class="pe__ig" hidden>' + PAPPS.map(function (a) { return '<button type="button" class="pe__app psheet__app" data-pa="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>"; }).join("") + "</div>" +
       '</div></div></div><button type="button" class="psheet__x" data-x>' + (onClosed ? "برگشت" : "بستن") + '</button>', onClosed);
     var cvBox = d.querySelector(".pe__view"), photo = null, logo = null, lastBlob = null, tmr = null;
     function brand() { return st.useBrand && sub && (st.name || st.phone || st.note || logo) ? { name: st.name, phone: st.phone, note: st.note, logo: logo } : null; }
@@ -197,7 +223,10 @@
       var old = cvBox.querySelector("canvas"); cv.className = "pe__cv"; old.replaceWith(cv);
       d.querySelector(".pe__wait").hidden = true;
       lastBlob = null;
-      try { cv.toBlob(function (b) { lastBlob = b; }, "image/png"); } catch (e) { photo = null; render(); }   // عکس دامنهٔ دیگر: بدون عکس
+      blobs(cv, function (x) {
+        if (!x) { if (photo) { photo = null; render(); } return; }   // عکس دامنهٔ دیگر: بدون عکس
+        lastBlob = x; FM._poster[p.id] = x;   // همین پوستر سفارشی از منوی اشتراک هم فرستاده می‌شود
+      });
     }
     function later() { clearTimeout(tmr); tmr = setTimeout(render, 160); }
     function saveBrand() { try { localStorage.setItem(KEY, JSON.stringify({ name: st.name, phone: st.phone, note: st.note, logo: st.logoData })); } catch (e) {} }
@@ -211,12 +240,7 @@
         render(); return;
       }
       var pa = e.target.closest("[data-pa]");
-      if (pa) {   // ارسال تصویر به همان برنامه (دایرکت، گفت‌وگو، کانال یا استوری را کاربر در خود برنامه انتخاب می‌کند)
-        var app = pa.dataset.pa, name = "forsatmelk-" + p.id + ".png";
-        var fire = function (blob) { if (blob) FM.sendImage(app, blob, name, caption(), note); else note("ساخت تصویر ممکن نشد؛ دوباره امتحان کنید"); };
-        if (lastBlob) fire(lastBlob); else cvBox.querySelector("canvas").toBlob(fire, "image/png");
-        return;
-      }
+      if (pa) { withImg(function (img) { FM.sendImage(pa.dataset.pa, img, p.id, caption(), note); }); return; }   // دسکتاپ: برنامهٔ انتخاب‌شده
       if (e.target.closest("[data-save-p]")) send("save");
       else if (e.target.closest("[data-share-p]")) send("share");
     });
@@ -225,21 +249,28 @@
     function note(t) {
       d.querySelectorAll(".pe__note").forEach(function (n) { n.remove(); });
       var shown = false;
-      d.querySelectorAll(".pe__ig").forEach(function (g) { if (g.offsetParent) { var n = document.createElement("p"); n.className = "pe__note"; n.innerHTML = t; g.after(n); n.scrollIntoView({ block: "nearest" }); shown = true; } });
+      d.querySelectorAll(".pe__quick, .pe__more").forEach(function (box) {
+        if (shown || box.hidden) return;
+        var at = [].filter.call(box.querySelectorAll(".pe__ig, .pe__acts"), function (x) { return x.offsetParent; }).pop();
+        if (!at) return;
+        var n = document.createElement("p"); n.className = "pe__note"; n.innerHTML = t; at.after(n); n.scrollIntoView({ block: "nearest" }); shown = true;
+      });
       if (!shown && FM.toast) FM.toast(t.replace(/<[^>]+>/g, ""));
     }
     function download(blob, name) {
       var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     }
+    function withImg(fn) {
+      if (lastBlob) return fn(lastBlob);
+      blobs(cvBox.querySelector("canvas"), function (x) { if (x) fn(x); else note("ساخت تصویر ممکن نشد؛ دوباره امتحان کنید"); });
+    }
     function send(mode) {
-      var go = function (blob) {
-        if (!blob) return note("ساخت تصویر ممکن نشد؛ دوباره امتحان کنید");
-        var name = "forsatmelk-" + p.id + ".png";
-        if (mode === "share") return FM.sendImage("", blob, name, caption(), note);   // فهرست اشتراک گوشی (فقط فایل؛ متن کپی می‌شود)
-        download(blob, name); note("تصویر ذخیره شد ✓");
-      };
-      if (lastBlob) go(lastBlob); else cvBox.querySelector("canvas").toBlob(go, "image/png");
+      if (mode === "save") return withImg(function (img) { download(mob ? img.jpg : img.png, "forsatmelk-" + p.id + (mob ? ".jpg" : ".png")); note("تصویر ذخیره شد ✓"); });
+      // گوشی: فهرست اشتراک گوشی (پوستر + متن و پیوند). دسکتاپ: فهرست برنامه‌ها باز می‌شود
+      if (mob) return withImg(function (img) { FM.sendImage("", img, p.id, caption(), note); });
+      d.querySelectorAll(".pe__ig").forEach(function (g) { g.hidden = false; });
+      note("برنامه را انتخاب کنید؛ اگر روی رایانه نصب باشد همان باز می‌شود، وگرنه نسخهٔ وب.");
     }
     d.querySelector("[data-brand]").addEventListener("change", function (e) { st.useBrand = e.target.checked; d.querySelector(".pe__brand").hidden = !st.useBrand; render(); });
     d.querySelectorAll(".pe__in").forEach(function (inp) {
@@ -259,24 +290,45 @@
       };
       fr.readAsDataURL(f);
     });
-    var fontReady = document.fonts && document.fonts.load ? document.fonts.load("900 60px Vazirmatn").catch(function () {}) : Promise.resolve();
-    Promise.all([loadImg(p.img && p.img.indexOf("noimg") < 0 ? p.img : ""), loadImg(st.logoData), fontReady]).then(function (r) {
+    Promise.all([loadImg(p.img && p.img.indexOf("noimg") < 0 ? p.img : ""), loadImg(st.logoData), fontReady()]).then(function (r) {
       photo = r[0]; logo = r[1];
       // چیدمان پیش‌فرض همیشه «کارت» است؛ «تمام‌عکس» را خود کاربر انتخاب می‌کند
-      if (opt.app) d.querySelectorAll('.pe__app[data-pa="' + opt.app + '"]').forEach(function (b) { b.classList.add("is-hl"); });   // از گزینهٔ همان برنامه آمده
+      if (opt.app && !mob) d.querySelectorAll(".pe__ig").forEach(function (g) { g.hidden = false; g.querySelectorAll('[data-pa="' + opt.app + '"]').forEach(function (b) { b.classList.add("is-hl"); }); });   // از گزینهٔ همان برنامه آمده
       var cb = d.querySelector("[data-brand]"); cb.checked = st.useBrand; d.querySelector(".pe__brand").hidden = !st.useBrand;
       render();
     });
   }
 
-  /* دکمهٔ اشتراک کارت: پیوند یا پوستر */
+  /* دکمهٔ اشتراک کارت: پوستر آماده (برجسته تا دیده شود) + اشتراک با برنامه‌ها + کپی پیوند */
   FM.shareSheet = function (p, url) {
+    var mob = FM.isMobile && FM.isMobile(), ready = null;
     var d = FM.sheet('<b class="psheet__t">اشتراک‌گذاری</b><div class="psheet__opts">' +
-      '<button type="button" class="psheet__opt" data-o="poster"><i>🖼</i><span><b>پوستر آماده</b><small>تصویر با عکس، قیمت و ارزیابی؛ برای اینستاگرام، استوری و پیام‌رسان‌ها</small></span></button>' +
-      "</div>" + FM.shareBody(url) +
+      '<button type="button" class="psheet__opt psheet__opt--poster" data-o="poster"><i>🖼</i><span><b>ساخت پوستر آگهی <em>بزنید</em></b><small>پوستر با عکس، قیمت و ارزیابی؛ با نام و لوگوی خودتان. اندازه و رنگ را هم می‌توانید عوض کنید.</small></span></button>' +
+      "</div>" + FM.shareBody(url, true) +
       '<button type="button" class="psheet__x" data-x>بستن</button>');
-    // اینستاگرام برای آگهی = پوستر تصویری (در اینستاگرام پیوند کار نمی‌کند)
-    FM.bindShare(d, url, p.title, { onInstagram: function () { FM.poster(p, FM.subSheet(d), { app: "ig" }); } });
+    // پوستر آماده از همین حالا ساخته می‌شود تا لحظهٔ زدن دکمه آماده باشد (اشتراک گوشی باید همان لحظهٔ کلیک انجام شود)
+    var job = FM.posterImage(p).then(function (x) { ready = x; return x; }, function () { return null; });
+    var caption = p.title + "\n" + url;
+    var say = function (t) {
+      var h = d.querySelector(".psheet__hint");
+      if (!h) { h = document.createElement("p"); h.className = "psheet__hint"; d.querySelector(".psheet__url").after(h); }
+      h.innerHTML = t;
+    };
+    FM.bindShare(d, url, p.title, {
+      id: p.id,
+      image: function () { return FM._poster[p.id] || ready; },
+      onInstagram: function () { FM.poster(p, FM.subSheet(d), { app: "ig" }); },
+      onNative: function (btn) {   // گوشی: پوستر + متن و پیوند به فهرست اشتراک گوشی
+        var img = FM._poster[p.id] || ready;
+        if (img) return FM.sendImage("", img, p.id, caption, say);
+        btn.disabled = true; say("در حال آماده کردن پوستر…");
+        job.then(function (x) {
+          btn.disabled = false;
+          if (x) FM.sendImage("", x, p.id, caption, say);   // اگر مرورگر اجازه نداد، پیام «یک بار دیگر بزنید» می‌آید
+          else navigator.share({ title: p.title, text: p.title, url: url }).catch(function () {});
+        });
+      },
+    });
     d.addEventListener("click", function (e) {
       var o = e.target.closest("[data-o]"); if (!o) return;
       FM.poster(p, FM.subSheet(d));   // «برگشت» از پوستر دوباره همین منو را نشان می‌دهد
