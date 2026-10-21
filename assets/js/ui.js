@@ -140,6 +140,7 @@ const UI = (() => {
   const dealPill = (v) => (v ? `${labelPill(v)} <span class="gap gap--${v.delta < 0 ? "below" : "above"}">${gapText(v)}</span>` : "");
   const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
   const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"}" title="امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
+  const cards = {};   // آگهی‌های کارت‌شده برای دکمهٔ اشتراک/پوستر
   const seen = { has: (id) => store.get("seen", []).includes(id), add: (id) => { const s = store.get("seen", []); if (!s.includes(id)) { s.unshift(id); store.set("seen", s.slice(0, 400)); } } };
   /* نوار طیف قیمت کارشناسی در سراسر سایت:
      کف و سقف قیمت منصفانهٔ همین ملک، خط میانه (قیمت تعادلی)، و نقطهٔ چشمک‌زن همین آگهی؛
@@ -204,6 +205,7 @@ const UI = (() => {
         ${scoreBadge(l)}
         <div class="card__badges">${typePill(l)}${l.presale ? '<span class="pill pill--presale">پیش‌فروش</span>' : ""}${multiPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>
+        <button class="card__share" data-cshare="${esc(l.id)}" aria-label="اشتراک‌گذاری یا پوستر">${(cards[l.id] = l, icon("share"))}</button>
       </div>
       <div class="card__body">
         ${verdictRow}
@@ -463,5 +465,5 @@ const UI = (() => {
     update();
   }
 
-  return { hscroll, combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, dealBadge, profitEstimate, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
+  return { cards, hscroll, combo, cityPicker, fold, LABELS, CONF, labelPill, gapText, gapPct, confLine, priceBar, seen, lockCard, pct, scoreBadge, $, $$, esc, tt, fa, faY, num, store, money, ago, cityOf, provOf, kindName, dealName, toast, icon, scene, media, priceHTML, pinLabel, dealPill, dealBadge, profitEstimate, typePill, specs, card, spark, makeMap, imgUrl: imgSrc, tileUrl, tileRetry };
 })();

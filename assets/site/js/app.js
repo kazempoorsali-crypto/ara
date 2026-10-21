@@ -598,15 +598,7 @@
     }, { passive: true });
   }
 
-  /* ---------- اشتراک‌گذاری ---------- */
-  FM.share = function (title, url) {
-    url = url || location.href;
-    if (navigator.share) {
-      navigator.share({ title: title || document.title, url: url }).catch(function () {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(function () { FM.toast("نشانی صفحه کپی شد"); });
-    }
-  };
+  /* اشتراک‌گذاری: FM.share و دکمه‌های [data-share] در data.js و share-kit.js (پنجرهٔ پیوند و پوستر) */
   FM.toast = function (msg) {
     var t = document.createElement("div");
     t.className = "fm-toast";
@@ -615,12 +607,7 @@
     setTimeout(function () { t.classList.add("is-on"); }, 10);
     setTimeout(function () { t.classList.remove("is-on"); setTimeout(function () { t.remove(); }, 400); }, 2400);
   };
-  function initShare() {
-    document.addEventListener("click", function (e) {
-      var b = e.target.closest("[data-share]");
-      if (b) FM.share();
-    });
-  }
+
 
   /* ---------- Reveal و split عمومی ---------- */
   FM.splitWords = function (el) {
@@ -709,7 +696,6 @@
     initHero();
     initLock();
     initToTop();
-    initShare();
     initReveals();
     initButtons();
     FM.stopScroll();
