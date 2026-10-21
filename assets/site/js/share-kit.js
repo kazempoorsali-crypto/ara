@@ -114,9 +114,49 @@
     ["tg", "تلگرام", "#2aa3df", "TG"],
     ["wa", "واتساپ", "#25b45b", "WA"],
     ["bale", "بله", "#2bb3a3", "ب"],
+    ["eitaa", "ایتا", "#f08a24", "ا"],
     ["rubika", "روبیکا", "#7b4bd6", "ر"],
   ];
-  var WEB = { bale: "https://web.bale.ai/", rubika: "https://web.rubika.ir/", ig: "https://www.instagram.com/direct/inbox/" };
+  var WEB = { bale: "https://web.bale.ai/", eitaa: "https://web.eitaa.com/", rubika: "https://web.rubika.ir/", ig: "https://www.instagram.com/direct/inbox/",
+    tg: "https://web.telegram.org/", wa: "https://web.whatsapp.com/" };
+  FM.appName = function (app) { return (APPS.filter(function (a) { return a[0] === app; })[0] || [])[1] || ""; };
+  /* فرستادن تصویر پوستر به یک برنامه:
+     گوشی: فهرست اشتراک خود گوشی با «فقط فایل» و عنوان خالی (اگر متن همراه فایل برود، اینستاگرام گزینهٔ دایرکت/استوری را نمی‌آورد یا فقط برنامه را باز می‌کند)؛
+       متن و پیوند از قبل کپی می‌شود تا در گفت‌وگو بچسبانید.
+     دسکتاپ: خود تصویر در حافظه کپی می‌شود (Ctrl+V در گفت‌وگوی نسخهٔ وب، عکس را می‌گذارد)، فایل هم ذخیره می‌شود و نسخهٔ وب همان برنامه باز می‌شود */
+  FM.sendImage = function (app, blob, name, caption, say) {
+    var label = FM.appName(app) || "برنامهٔ موردنظر";
+    if (mobile()) {
+      var file = window.File ? new File([blob], name, { type: "image/png" }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        FM.copyText(caption);
+        say(app === "ig" ? "در فهرست باز شده «Instagram» را بزنید؛ برای دایرکت «Chats/پیام»، و استوری یا پست را هم همان‌جا انتخاب کنید. متن و پیوند کپی شد."
+          : "در فهرست باز شده «" + label + "» را بزنید و گفت‌وگو، کانال یا استوری را انتخاب کنید؛ متن و پیوند هم کپی شد.");
+        return navigator.share({ files: [file], title: "" }).catch(function (err) {
+          if (err && err.name === "AbortError") return;
+          save(); say("اشتراک مستقیم ممکن نشد؛ تصویر در گالری ذخیره شد. " + label + " را باز کنید و همین تصویر را بفرستید.");
+        });
+      }
+      save(); FM.copyText(caption);
+      return say("تصویر ذخیره شد و متن کپی شد؛ " + label + " را باز کنید و تصویر را از گالری بفرستید.");
+    }
+    var copied = false;
+    try {
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write && window.isSecureContext) {
+        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(function () { copied = true; }, function () {});
+      }
+    } catch (e) {}
+    var w = WEB[app] ? window.open(WEB[app], "_blank") : null;
+    save();
+    setTimeout(function () {
+      say((copied ? "تصویر پوستر کپی شد ✓ " : "تصویر پوستر ذخیره شد ✓ ") + "در " + label + " گفت‌وگو را باز کنید و " +
+        (copied ? "Ctrl+V بزنید تا عکس بیاید." : "فایل ذخیره‌شده را بفرستید.") +
+        (WEB[app] && !w ? ' <a href="' + WEB[app] + '" target="_blank" rel="noopener">باز کردن ' + label + " وب</a>" : ""));
+    }, 400);
+    function save() {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    }
+  };
   FM.appGrid = function () {
     return '<div class="psheet__apps">' + APPS.map(function (a) {
       return '<button type="button" class="psheet__app" data-app="' + a[0] + '"><i style="background:' + a[2] + '">' + a[3] + "</i><span>" + a[1] + "</span></button>";

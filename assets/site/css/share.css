@@ -80,3 +80,9 @@ a.psheet__opt { color: inherit; text-decoration: none; }
 .pe__igb.is-hl { animation: peHl 1.4s ease-in-out 3; }
 @keyframes peHl { 50% { box-shadow: 0 0 0 6px rgba(225,48,108,.3); } }
 @media (prefers-reduced-motion: reduce) { .pe__igb.is-hl { animation: none; } }
+/* شش برنامه: اینستاگرام، تلگرام، واتساپ، بله، ایتا، روبیکا */
+.psheet__apps, .pe__ig { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; }
+.pe__ig { margin-top: .6rem; }
+.pe__app[data-pa="ig"] i { background: linear-gradient(45deg, #f9a43a, #e1306c 45%, #8a3ab9) !important; }
+.pe__app.is-hl i { animation: peHl 1.4s ease-in-out 3; }
+@media (max-width: 420px) { .psheet__app i { width: 40px; height: 40px; font-size: .85rem; } .psheet__app { font-size: .68rem; padding: .4rem 0; } }
