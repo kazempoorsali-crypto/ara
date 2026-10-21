@@ -74,9 +74,21 @@ class Alerts:
                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,0,1)",
                            (phone, prov, city, clean("district"), deal, clean("kinds"), maxp, 80, now, now, time.strftime("%Y-%m-%d"))).lastrowid
         out = {"ok": True, "id": aid, **self.mine(phone)}
+        if out["linked"]:   # تأیید فوری در خود بله تا کاربر ببیند پیام‌ها به کجا می‌رسد
+            out["confirmed"] = bool(self.bale.send(self.bale.chat_of(phone), "🔔 هشدار «خبرم کن» ثبت شد.\nاز این پس هر آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در این فیلتر پیدا شود، همین‌جا برایتان فرستاده می‌شود."))
         if not out["linked"]:   # پیوند یک‌باره با ربات: کاربر «شروع» را می‌زند و حساب به گفت‌وگو وصل می‌شود
             out["link"] = self.bale.link_url("alert_" + self.bale._nonce("alert", phone=phone))
         return out
+
+    def test(self, phone) -> dict:
+        """پیام آزمایشی در بله: کاربر مطمئن می‌شود هشدارها به گفت‌وگوی درست می‌رسد."""
+        if not self.bale.ready():
+            raise ValueError("ارسال پیام در بله فعلاً در دسترس نیست")
+        chat = self.bale.chat_of(phone)
+        if not chat:
+            return {"ok": False, "link": self.bale.link_url("alert_" + self.bale._nonce("alert", phone=phone)), **self.mine(phone)}
+        ok = bool(self.bale.send(chat, "✅ پیام آزمایشی فرصت ملک\nهشدارهای «خبرم کن» دقیقاً همین‌جا به دستتان می‌رسد."))
+        return {"ok": ok, "sent": ok, **self.mine(phone)}
 
     def remove(self, phone, aid) -> dict:
         self.store.x("UPDATE alerts SET active=0 WHERE id=? AND phone=?", (int(aid or 0), phone))

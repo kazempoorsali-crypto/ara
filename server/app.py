@@ -1031,6 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "ابتدا وارد شوید"}, 401)
             if data.get("action") == "remove":
                 return self.send_json(a.alerts.remove(u["phone"], data.get("id")))
+            if data.get("action") == "test":
+                return self.send_json(a.alerts.test(u["phone"]))
             return self.send_json(a.alerts.add(u["phone"], data))
         if path == "/api/me/profile":
             u = self.user()

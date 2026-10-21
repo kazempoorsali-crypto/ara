@@ -50,5 +50,6 @@ FM.api = (function () {
     alerts: function () { return get("alerts"); },
     alertAdd: function (d) { return post("alerts", d); },
     alertRemove: function (id) { return post("alerts", { action: "remove", id: id }); },
+    alertTest: function () { return post("alerts", { action: "test" }); },
   };
 })();

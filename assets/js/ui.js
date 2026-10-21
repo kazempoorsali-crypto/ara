@@ -106,7 +106,7 @@ const UI = (() => {
     return `<svg viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${esc(l.title)}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s1}"/><stop offset="1" stop-color="${s2}"/></linearGradient></defs><rect width="400" height="240" fill="url(#${id})"/><circle cx="${sx}" cy="50" r="20" fill="#f6d27a" opacity=".85"/>${ground}${obj}</svg>`;
   }
   // در حالت سرور، عکس از طریق همان سرور (با کش) بارگذاری می‌شود تا محدودیت نمایش در سایت دیگر مشکلی نسازد
-  const imgSrc = (u) => (DataLayer.server && /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "img?u=" + encodeURIComponent(u) : u);
+  const imgSrc = (u) => (DataLayer.server && /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "/img?u=" + encodeURIComponent(u) : u);
   function media(l, i = 0, cls = "") {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
     if (imgs[i]) return `<img src="${esc(imgSrc(imgs[i]))}" alt="${esc(l.title)}" loading="lazy" referrerpolicy="no-referrer" class="${cls} img-blur-load" onload="this.classList.add('is-loaded')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:UI.scene(${esc(JSON.stringify({ id: l.id, title: l.title, scene: l.scene || (l.vertical === "car" ? "road" : "city"), kind: l.kind, vertical: l.vertical, amenities: l.amenities }))},${i})}).firstChild)">`;
