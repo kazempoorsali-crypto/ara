@@ -148,11 +148,16 @@
   FM.poster = function (p) {
     var sub = FM.isSub && FM.isSub();
     var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
-    var st = { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark", useBrand: false,
+    var st = { size: "story", layout: "card", theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
+      useBrand: !!(sub && (saved.name || saved.phone || saved.logo)),   // حالت خودکار: مشخصات ذخیره‌شدهٔ قبلی خودش می‌آید
       name: saved.name || "", phone: saved.phone || "", note: saved.note || "", logoData: saved.logo || "" };
     var d = sheet('<b class="psheet__t">سازندهٔ پوستر</b>' +
       '<div class="pe"><div class="pe__view"><canvas class="pe__cv"></canvas><span class="pe__wait">در حال ساخت…</span></div>' +
       '<div class="pe__ctl">' +
+        '<div class="pe__quick"><b>پوستر آماده است ✓</b><small>همین حالا می‌توانید بفرستید یا ذخیره کنید؛ یا آن را به سلیقهٔ خودتان تغییر دهید.</small>' +
+        '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
+        '<button type="button" class="pe__edit" data-edit>✎ ویرایش و شخصی‌سازی</button></div>' +
+        '<div class="pe__more" hidden>' +
         '<label class="pe__l">اندازه</label>' + seg("size", [["story", "استوری ۹:۱۶"], ["post", "پست ۴:۵"]], st.size) +
         '<label class="pe__l">چیدمان</label>' + seg("layout", [["card", "کارت"], ["full", "تمام‌عکس"]], st.layout, sub ? [] : ["full"]) +
         '<label class="pe__l">پوسته</label>' + seg("theme", [["dark", "تیره"], ["light", "روشن"], ["gold", "طلایی"]], st.theme) +
@@ -164,8 +169,8 @@
           '<label class="pe__file">لوگو (اختیاری)<input type="file" accept="image/*" data-logo></label>' +
         "</div>" +
         (sub ? "" : '<div class="pe__up"><b>با اشتراک:</b> نام، تلفن و لوگوی خودتان روی پوستر و چیدمان ویژهٔ «تمام‌عکس».<button type="button" class="btn btn--gold" data-fm-sub>فعال‌سازی اشتراک</button></div>') +
-        '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک در استوری یا پیام‌رسان</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
-      '</div></div><button type="button" class="psheet__x" data-x>بستن</button>');
+        '<div class="pe__acts"><button type="button" class="btn btn--gold" data-share-p>اشتراک‌گذاری</button><button type="button" class="btn btn--ghost" data-save-p>ذخیرهٔ تصویر</button></div>' +
+      '</div></div></div><button type="button" class="psheet__x" data-x>بستن</button>');
     var cvBox = d.querySelector(".pe__view"), photo = null, logo = null, lastBlob = null, tmr = null;
     function brand() { return st.useBrand && sub && (st.name || st.phone || st.note || logo) ? { name: st.name, phone: st.phone, note: st.note, logo: logo } : null; }
     function render() {
@@ -178,6 +183,7 @@
     function later() { clearTimeout(tmr); tmr = setTimeout(render, 160); }
     function saveBrand() { try { localStorage.setItem(KEY, JSON.stringify({ name: st.name, phone: st.phone, note: st.note, logo: st.logoData })); } catch (e) {} }
     d.addEventListener("click", function (e) {
+      if (e.target.closest("[data-edit]")) { d.querySelector(".pe__more").hidden = false; d.querySelector(".pe__quick").hidden = true; return; }
       var b = e.target.closest(".pe__seg button");
       if (b) {
         if (b.classList.contains("is-lock")) { if (FM.toast) FM.toast("چیدمان «تمام‌عکس» برای مشترکان است"); return; }
@@ -219,7 +225,13 @@
     });
     var fontReady = document.fonts && document.fonts.load ? document.fonts.load("900 60px Vazirmatn").catch(function () {}) : Promise.resolve();
     Promise.all([loadImg(p.img && p.img.indexOf("noimg") < 0 ? p.img : ""), loadImg(st.logoData), fontReady]).then(function (r) {
-      photo = r[0]; logo = r[1]; render();
+      photo = r[0]; logo = r[1];
+      if (sub && photo) {   // خودکار: با عکس و اشتراک، چیدمان ویژهٔ تمام‌عکس
+        st.layout = "full";
+        d.querySelectorAll('[data-seg="layout"] button').forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === "full"); });
+      }
+      var cb = d.querySelector("[data-brand]"); cb.checked = st.useBrand; d.querySelector(".pe__brand").hidden = !st.useBrand;
+      render();
     });
   };
 
