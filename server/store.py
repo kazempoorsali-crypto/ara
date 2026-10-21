@@ -311,7 +311,9 @@ class Store:
         w = " AND ".join(where)
         order = {"new": "featured DESC, COALESCE(posted_at, first_seen) DESC", "score": "score IS NULL, score DESC, discount DESC", "deal": "discount IS NULL, discount DESC",
                  "cheap": "pp IS NULL, pp ASC", "exp": "pp DESC", "area_asc": "area IS NULL, area ASC", "age_asc": "year IS NULL, year DESC", "exp": "pp DESC", "ppm": "ppm IS NULL, ppm ASC", "area": "area DESC",
-                 "drop": "price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
+                 "drop": "price_drop DESC",
+                 # تازه‌ترین کاهش قیمت اول (آخرین تغییر ثبت‌شده در تاریخچهٔ قیمت)
+                 "drop_new": "(SELECT MAX(at) FROM price_history ph WHERE ph.listing_id = listings.id) DESC, price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
         total = self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]
         limit = max(1, min(int(f.get("limit") or 24), 60))
         offset = max(0, int(f.get("offset") or 0))
@@ -319,10 +321,22 @@ class Store:
         for d in items:
             d["verdict"] = self.verdict(d)
         points = [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score,label FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
+        if f.get("drop_info"):
+            for d in items:
+                d["drop_info"] = self.last_drop(d)
         for d in items:
             d.pop("description", None)
             d["images"] = d["images"][:8 if f.get("imgs") else 1]   # imgs=1: عکس‌های بیشتر برای نمایش چرخشی گالری
         return {"total": total, "items": items, "points": points}
+
+    def last_drop(self, d: dict) -> dict | None:
+        """آخرین کاهش قیمت از تاریخچه: قیمت قبلی، قیمت بعد از کاهش و زمان آن (فقط داده‌های ثبت‌شده؛ چیزی ساخته نمی‌شود)."""
+        rows = self.q("SELECT at,price,deposit,rent FROM price_history WHERE listing_id=? ORDER BY at DESC LIMIT 8", (d["id"],))
+        pps = [(r["at"], primary_price({"deal": d.get("deal"), "price": r["price"], "deposit": r["deposit"], "rent": r["rent"]})) for r in rows]
+        for (at_new, pp_new), (_, pp_old) in zip(pps, pps[1:]):
+            if pp_new and pp_old and pp_new < pp_old * 0.999:
+                return {"prev": pp_old, "now": pp_new, "at": at_new, "pct": round((pp_old - pp_new) / pp_old, 4)}
+        return None
 
     # ---------------------------------------------------------- stats
     def stats(self) -> dict:
