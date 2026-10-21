@@ -47,5 +47,8 @@ FM.api = (function () {
     payCheck: function (pid) { return get("pay/check", { pid: pid }); },
     invoice: function (pid) { return get("pay/invoice", { pid: pid }); },
     submitReceipt: function (pid, tracking, image) { return post("pay/receipt", { payment_id: pid, tracking: tracking, image: image }); },
+    alerts: function () { return get("alerts"); },
+    alertAdd: function (d) { return post("alerts", d); },
+    alertRemove: function (id) { return post("alerts", { action: "remove", id: id }); },
   };
 })();

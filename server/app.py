@@ -228,6 +228,8 @@ class App:
         from bale import Bale
         self.bale = Bale(self.store, self.billing)
         self.billing.bale = self.bale
+        from alerts import Alerts
+        self.alerts = Alerts(self.store, self.billing, self.bale)
         from mailer import Mailer
         from accounts import Accounts
         self.mailer = Mailer(self.store)
@@ -904,6 +906,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(a.billing.invoice(u["phone"], qs.get("pid")))
         if path == "/api/me":
             return self.send_json({"user": self.user()})
+        if path == "/api/alerts":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            return self.send_json(a.alerts.mine(u["phone"]))
         if path == "/api/listings":
             u = self.user()
             sub = bool(u and u["active"])
@@ -1018,6 +1025,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(a.accounts.reset_with_code(data.get("ident"), data.get("code"), data.get("password")))
         if path == "/api/auth/reset/token":
             return self.send_json(a.accounts.reset_with_token(data.get("token"), data.get("password")))
+        if path == "/api/alerts":   # هشدار فرصت‌های تازه در بله: افزودن یا حذف
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            if data.get("action") == "remove":
+                return self.send_json(a.alerts.remove(u["phone"], data.get("id")))
+            return self.send_json(a.alerts.add(u["phone"], data))
         if path == "/api/me/profile":
             u = self.user()
             if not u:
@@ -1372,6 +1386,7 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
+    Handler.app.alerts.start()
     Handler.app.billing.start_bezan_poller()
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"

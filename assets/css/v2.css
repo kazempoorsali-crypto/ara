@@ -285,3 +285,26 @@
 .pid .pid__row > b { font-weight: 900; font-size: 16px; white-space: nowrap; }
 .pid .pid__row > small { color: var(--muted); font-size: 12px; line-height: 1.85; font-weight: 400; opacity: .85;
   padding-inline-start: 10px; border-inline-start: 2px solid color-mix(in srgb, var(--muted) 45%, transparent); }
+
+/* نمودار پله‌ای تغییر قیمت: کاهش سبز ▼، افزایش نارنجی ▲ */
+.spark.pchart { height: auto; aspect-ratio: 600 / 190; }
+.pchart .line { fill: none; stroke: var(--ink-soft, #8a948f); stroke-width: 2.5; stroke-linejoin: round; opacity: .85; }
+.pchart line.pc-down, .pchart line.pc-up { stroke-width: 4; stroke-linecap: round; }
+.pchart line.pc-down { stroke: #3ecf8e; }
+.pchart line.pc-up { stroke: #ff7a59; }
+.pchart circle { fill: var(--surface, #111); stroke: var(--ink-soft, #8a948f); stroke-width: 2; }
+.pchart circle.pc-down { fill: #3ecf8e; stroke: none; }
+.pchart circle.pc-up { fill: #ff7a59; stroke: none; }
+.pchart .pc-t { font: 800 15px Vazirmatn, Tahoma, sans-serif; }
+.pchart text.pc-down { fill: #3ecf8e; }
+.pchart text.pc-up { fill: #ff7a59; }
+.pchart .pc-d { font: 500 12px Vazirmatn, Tahoma, sans-serif; fill: currentColor; opacity: .6; }
+.pchart .pc-axis { stroke: currentColor; opacity: .15; }
+
+/* نقشهٔ «قیمت از دید آسمان»: برچسب شناور قیمت هر متر بالای ستون هر محله */
+.col__p { display: inline-flex; align-items: baseline; gap: 2px; margin-bottom: 4px; padding: 2px 7px; border-radius: 999px; background: var(--hc); color: #fff;
+  font: 800 11px/1.5 Vazirmatn, Tahoma, sans-serif; white-space: nowrap; box-shadow: 0 4px 12px -4px rgba(0,0,0,.6); }
+.col__p small { font-size: 8.5px; font-weight: 600; opacity: .9; }
+.sky-zlo .col__p { display: none; }
+.sky-zlo .col.is-sel .col__p { display: inline-flex; }
+.col.is-dim .col__p { opacity: .35; }

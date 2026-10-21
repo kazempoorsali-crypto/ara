@@ -229,17 +229,40 @@ const UI = (() => {
   function spark(hist) {
     const pts = hist.filter((h) => h.price || h.deposit).map((h) => ({ at: h.at, v: h.price || h.deposit }));
     if (pts.length < 2) return "";
-    const W = 600, H = 120, P = 10;
-    const x0 = pts[0].at, x1 = pts[pts.length - 1].at, vs = pts.map((p) => p.v);
-    const y0 = Math.min(...vs) * 0.97, y1 = Math.max(...vs) * 1.03;
-    const X = (t) => P + ((t - x0) / (x1 - x0 || 1)) * (W - 2 * P); // محور زمان از چپ (قدیمی) به راست (جدید)
-    const Y = (v) => H - P - ((v - y0) / (y1 - y0 || 1)) * (H - 2 * P);
-    const d = pts.map((p, i) => `${i ? "L" : "M"}${X(p.at).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(" ");
+    /* نمودار پله‌ای: قیمت تا تغییر بعدی ثابت می‌ماند؛ هر کاهش با پلهٔ سبز ▼ و هر افزایش با پلهٔ نارنجی ▲ و درصدش،
+       و خط تا امروز ادامه دارد (فقط داده‌های ثبت‌شدهٔ تاریخچه) */
+    const W = 600, H = 190, PX = 16, PT = 34, PB = 26;
+    const now = Math.max(pts[pts.length - 1].at, Math.floor(Date.now() / 1000));
+    const x0 = pts[0].at, x1 = now, vs = pts.map((p) => p.v);
+    const lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.18 || hi * 0.04;
+    const y0 = lo - pad, y1 = hi + pad;
+    const X = (t) => PX + ((t - x0) / (x1 - x0 || 1)) * (W - 2 * PX); // محور زمان از چپ (قدیمی) به راست (جدید)
+    const Y = (v) => H - PB - ((v - y0) / (y1 - y0 || 1)) * (H - PT - PB);
+    let line = `M${X(pts[0].at).toFixed(1)} ${Y(pts[0].v).toFixed(1)}`, steps = "", lastLx = -1e9;
+    pts.forEach((p, i) => {
+      if (!i) return;
+      const pr = pts[i - 1], xs = X(p.at).toFixed(1);
+      line += ` L${xs} ${Y(pr.v).toFixed(1)}`;
+      if (p.v === pr.v) return;
+      const down = p.v < pr.v, c = Math.abs(Math.round(((p.v - pr.v) / pr.v) * 1000) / 10);
+      const ya = Y(pr.v), yb = Y(p.v), near = +xs - lastLx < 78;   // دو برچسبِ نزدیک روی هم نیفتند: دومی زیر پله
+      const ty = near ? Math.max(ya, yb) + 20 : Math.min(ya, yb) - 8;
+      lastLx = +xs;
+      steps += `<line class="pc-${down ? "down" : "up"}" x1="${xs}" y1="${ya.toFixed(1)}" x2="${xs}" y2="${yb.toFixed(1)}"/>` +
+        `<text class="pc-t pc-${down ? "down" : "up"}" x="${xs}" y="${ty.toFixed(1)}" text-anchor="middle">${down ? "▼" : "▲"} ${fa(c)}٪</text>`;
+      line += ` M${xs} ${yb.toFixed(1)}`;
+    });
+    const last = pts[pts.length - 1], first = pts[0];
+    line += ` L${X(now).toFixed(1)} ${Y(last.v).toFixed(1)}`;
     const day = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
     const fullDay = (t) => new Date(t * 1000).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
-    const last = pts[pts.length - 1], first = pts[0];
     const ch = (last.v - first.v) / first.v;
-    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr"><path class="area" d="${d} L${X(last.at)} ${H} L${X(first.at)} ${H}Z"/><path class="line" d="${d}" vector-effect="non-scaling-stroke"/>${pts.map((p) => `<circle cx="${X(p.at)}" cy="${Y(p.v)}" r="4.5" vector-effect="non-scaling-stroke"><title>${day(p.at)}: ${money(p.v)}</title></circle>`).join("")}</svg>
+    const dots = pts.map((p, i) => { const c = i ? Math.sign(p.v - pts[i - 1].v) : 0;
+      return `<circle class="${c < 0 ? "pc-down" : c > 0 ? "pc-up" : ""}" cx="${X(p.at).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5"><title>${day(p.at)}: ${money(p.v)}</title></circle>`; }).join("");
+    return `<svg class="spark pchart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="نمودار تغییر قیمت">
+        <line class="pc-axis" x1="${PX}" y1="${H - PB + 6}" x2="${W - PX}" y2="${H - PB + 6}"/>
+        <text class="pc-d" x="${PX}" y="${H - 6}" text-anchor="start">${day(first.at)}</text><text class="pc-d" x="${W - PX}" y="${H - 6}" text-anchor="end">امروز</text>
+        <path class="line" d="${line}"/>${steps}${dots}</svg>
       <div class="spark-labels"><span>اکنون (${day(last.at)}): <b>${money(last.v)}</b>${ch ? `، ${ch < 0 ? "کاهش" : "افزایش"} ${fa(Math.abs(Math.round(ch * 100)))}٪` : ""}</span><span>اولین ثبت (${day(first.at)}): <b>${money(first.v)}</b></span></div>
       <ol class="spark-steps">${pts.map((p, i) => { const prev = i ? pts[i - 1].v : 0, c = prev ? (p.v - prev) / prev : 0;
         return `<li><time>${fullDay(p.at)}</time><b>${money(p.v)}</b>${i ? `<em class="${c < 0 ? "is-down" : c > 0 ? "is-up" : ""}">${c ? `${c < 0 ? "▼" : "▲"} ${fa(Math.abs(Math.round(c * 1000) / 10))}٪` : "بدون تغییر"}</em>` : "<em>اولین ثبت</em>"}</li>`; }).reverse().join("")}</ol>`;
