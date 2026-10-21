@@ -209,6 +209,14 @@ class Bale:
                 self.send(chat, "برای تأیید شماره، دکمهٔ زیر را بزنید تا بله شماره‌تان را بفرستد؛ کد ورود فوراً همین‌جا ارسال می‌شود.",
                           reply_markup={"keyboard": [[{"text": "📱 اشتراک شمارهٔ من", "request_contact": True}]], "resize_keyboard": True, "one_time_keyboard": True})
                 return
+            if arg.startswith("alert_"):   # وصل کردن حساب سایت به این گفت‌وگو برای هشدار فرصت‌های تازه
+                n = self._take(arg[6:])
+                if not n or n["kind"] != "alert":
+                    self.send(chat, "این پیوند منقضی شده است؛ در سایت دوباره «خبرم کن» را بزنید.")
+                    return
+                self.link(n["phone"], chat, frm.get("id"))
+                self.send(chat, "🔔 هشدار فرصت‌های تازه فعال شد.\nهر وقت آگهی تازه‌ای با امتیاز بالا در منطقهٔ انتخابی شما پیدا شود، همین‌جا خبرتان می‌کنیم (حداکثر چند پیام در روز).")
+                return
             if arg.startswith("pay_"):
                 n = self._take(arg[4:])
                 if not n or n["kind"] != "pay":

@@ -270,6 +270,51 @@
     if (allBtn) allBtn.href = searchUrl();
   }
 
+  /* ---------- «خبرم کن»: هشدار فرصت‌های تازهٔ همین فیلتر در بله (برای مشترکان) ---------- */
+  var alertBtn = document.getElementById("alertBtn");
+  function alertSheet(html) {
+    var d = document.createElement("div"); d.className = "psheet"; d.innerHTML = '<div class="psheet__box" role="dialog" aria-modal="true">' + html + "</div>";
+    d.addEventListener("click", function (e) { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+    document.body.appendChild(d); return d;
+  }
+  function alertLabel(a) {
+    var cities = (a.city || "").split(",").filter(Boolean).map(function (id) { return (FM.cityById(id) || {}).name || id; });
+    var prov = (FM.data.regions || []).filter(function (p) { return p.id === a.province; })[0];
+    var where = cities.length ? cities.join("، ") : prov ? "استان " + prov.name : "";
+    var deal = { sale: "خرید", rent: "رهن و اجاره", presale: "پیش‌فروش" }[a.deal] || "";
+    return [where, a.district, deal, a.max_price ? "تا " + FM.money(a.max_price) : ""].filter(Boolean).join("  |  ");
+  }
+  function openAlerts() {
+    var cur = { province: FM.region.province, city: FM.region.city, district: FM.region.district, deal: ADV.deal || "", kinds: (ADV.kinds || []).join(","), max_price: ADV.max || "" };
+    var d = alertSheet('<b class="psheet__t">🔔 خبرم کن</b><div class="psheet__wait">…</div>');
+    var paint = function (r, msg) {
+      var box = d.querySelector(".psheet__box");
+      var can = cur.province || cur.city;
+      box.innerHTML = '<b class="psheet__t">🔔 خبرم کن</b>' +
+        '<p class="alrt__p">هر وقت آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در این فیلتر پیدا شود، همان لحظه در بله خبرتان می‌کنیم؛ حداکثر چند پیام در روز.</p>' +
+        (msg ? '<p class="alrt__ok">' + msg + "</p>" : "") +
+        (r.link ? '<a class="btn btn--gold alrt__link" href="' + E(r.link) + '" target="_blank" rel="noopener">یک بار ربات بله را باز کنید و «شروع» را بزنید</a>' : "") +
+        (can ? '<button type="button" class="btn btn--gold" data-add>افزودن هشدار برای: ' + E(alertLabel(cur)) + "</button>" : '<p class="alrt__p">اول در فیلتر بالا استان یا شهر را انتخاب کنید.</p>') +
+        (r.items && r.items.length ? '<b class="alrt__h">هشدارهای فعال شما</b><ul class="alrt__list">' + r.items.map(function (a) {
+          return '<li><span>' + E(alertLabel(a)) + '</span><button type="button" data-rm="' + a.id + '">حذف</button></li>';
+        }).join("") + "</ul>" : "") +
+        (r.items && r.items.length && !r.linked && !r.link ? '<p class="alrt__p">برای دریافت پیام، حساب شما باید یک بار به ربات بله وصل شود؛ دوباره «افزودن» را بزنید تا پیوند بیاید.</p>' : "") +
+        '<button type="button" class="psheet__x" data-x>بستن</button>';
+    };
+    FM.api.alerts().then(function (r) { paint(r); }).catch(function (e) { d.querySelector(".psheet__wait").textContent = e.message || "خطا"; });
+    d.addEventListener("click", function (e) {
+      var add = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]");
+      if (add) { add.disabled = true; FM.api.alertAdd(cur).then(function (r) { paint(r, r.link ? "هشدار ذخیره شد؛ فقط یک قدم مانده:" : "هشدار ذخیره شد ✅"); }).catch(function (er) { paint({ items: [] }, er.message); }); }
+      if (rm) FM.api.alertRemove(rm.dataset.rm).then(function (r) { paint(r, "حذف شد"); });
+    });
+  }
+  if (alertBtn) alertBtn.addEventListener("click", function () {
+    if (!FM.api || !FM.account) return;
+    if (!FM.api.me) return FM.account.login(function () { openAlerts(); });
+    if (!FM.api.me.active) { (FM.toast || alert)("«خبرم کن» برای مشترکان است؛ با اشتراک، فرصت‌های تازه را زودتر از همه در بله ببینید."); return FM.account.subscribe(); }
+    openAlerts();
+  });
+
   /* ---------- گالری ستونی ---------- */
   var wrap = document.querySelector("[data-masonry-wrap]");
   var cols = document.querySelectorAll("[data-col-speed]");

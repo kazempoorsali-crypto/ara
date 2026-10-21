@@ -718,6 +718,9 @@ const App = (() => {
       dark.addTo(L0.map);
       L0.base = { dark, sat, osm: dark };
       L0.layer = L.layerGroup().addTo(L0.map);
+      // برچسب‌های قیمت فقط از بزرگ‌نمایی ۱۲ به بعد (در نمای دور شلوغ نشود)
+      const zc = () => L0.map.getContainer().classList.toggle("sky-zlo", L0.map.getZoom() < 12);
+      L0.map.on("zoomend", zc); zc();
     }
     L0.layer.clearLayers();
     // محله‌ای که مختصات ندارد، دور مرکز شهرش روی مارپیچ طلایی چیده می‌شود
@@ -737,7 +740,10 @@ const App = (() => {
       all.push([lat, lng]); (bounds[d.city] = bounds[d.city] || []).push([lat, lng]); posOf[d.city + "|" + d.name] = [lat, lng];
       const isSel = L0.dsel.has(d.name), isDim = L0.dsel.size > 0 && !isSel;
       const h = d.median_ppm ? Math.round(18 + 62 * (hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5)) : 12;
-      const mk = L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${isDim ? " is-dim" : ""}${d.low || !d.median_ppm ? " is-low" : ""}${d.rural ? " is-rural" : ""}" style="--h:${h}px"><i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
+      // برچسب شناور قیمت هر متر (میانهٔ واقعی محله، میلیون تومان)؛ رنگ از سبز (ارزان‌تر از بقیهٔ محله‌ها) تا قرمز (گران‌تر)
+      const heat = d.median_ppm && hi > lo ? (d.median_ppm - lo) / (hi - lo) : 0.5;
+      const bub = d.median_ppm && !d.low ? `<b class="col__p" style="--hc:hsl(${Math.round(140 - 132 * heat)} 70% 42%)">${fa(Math.round(d.median_ppm / 1e6))}<small>م/متر</small></b>` : "";
+      const mk = L.marker([lat, lng], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="col${d.opportunities ? " is-hot" : ""}${isSel ? " is-sel" : ""}${isDim ? " is-dim" : ""}${d.low || !d.median_ppm ? " is-low" : ""}${d.rural ? " is-rural" : ""}" style="--h:${h}px">${bub}<i></i><span>${esc(d.name)}</span></div>` }), title: d.name })
         .bindTooltip(`<b>${esc(d.name)}</b>${multi ? " · " + esc(UI.cityOf(d.city)?.name || "") : ""}<br>${d.median_ppm ? "میانهٔ هر متر " + money(d.median_ppm) + (d.ppm_kind === "mixed" ? " (آپارتمان و ویلا)" : "") : "قیمت هر متر: دادهٔ کافی نیست"}<br>${fa(d.n)} آگهی${d.opportunities ? "، " + fa(d.opportunities) + " فرصت" : ""}${d.rural ? "<br><small>روستا یا ناحیهٔ خارج از شهر</small>" : d.approx && d.lat ? "<br><small>مکان تقریبی محله</small>" : ""}`, { direction: "top", offset: [0, -h - 6], className: "sky__tt" })
         .on("click", () => skyGo(() => {
           // محلهٔ انتخابی اول می‌آید و دکمهٔ «فرصت‌های بیشتر» همهٔ شهرهای انتخابی را باز می‌کند
