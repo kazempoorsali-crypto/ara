@@ -553,7 +553,7 @@ class Handler(BaseHTTPRequestHandler):
             # صفحهٔ هر آگهی همان صفحهٔ کامل سایت قبلی است (مشخصات، ارزش‌گذاری، نمودارها، نمایشگر عکس)
             if url.path == "/property.html" and qs.get("id"):
                 return self.redirect("/ad/" + urllib.parse.quote(qs["id"]))
-            mad = None
+            mad = re.fullmatch(r"/ad/([\w-]+)", url.path)
             if url.path in SITE_PAGES or mad:
                 fname, page = SITE_PAGES[url.path] if not mad else ("property.html", "property")
                 if mad:

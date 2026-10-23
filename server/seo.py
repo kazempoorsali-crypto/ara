@@ -784,7 +784,7 @@ def render(template: str, p: dict, version_tag: str) -> str:
             + ('  <meta name="robots" content="noindex, follow" />\n' if p.get("noindex") else '  <meta name="robots" content="index, follow, max-image-preview:large" />\n')
             + "".join(f'  <script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>\n' for x in p["ld"])
             # کاربر واقعی: نشانی سئو به مسیر همان صفحه در برنامه برده می‌شود (پیش از بارگذاری بقیهٔ اسکریپت‌ها)
-            + (f'  <script>if(!location.hash && location.pathname==="/app.html")history.replaceState(null,"","/{p["hash"]}");</script>\n' if p.get("hash") else ""))
+            )
     out = re.sub(r"<title>.*?</title>", f"<title>{ESC(p['title'])}</title>", template, count=1, flags=re.S)
     out = re.sub(r'<meta name="description" content="[^"]*"\s*/?>', f'<meta name="description" content="{ESC(p["desc"])}" />', out, count=1)
     out = out.replace("</head>", "  " + head + "</head>", 1)

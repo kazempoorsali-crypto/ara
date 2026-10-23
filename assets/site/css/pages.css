@@ -261,3 +261,6 @@
   .searchbar__arrow { display: none; }
   .pgallery__thumbs { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Hide any legacy demo banner */
+.demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }

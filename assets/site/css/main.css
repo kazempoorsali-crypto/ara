@@ -836,3 +836,6 @@ a.hero__stat:hover b { color: #ecd07c; }
 .searchbar__arrow { align-self: center; color: var(--ink-faint); }
 .searchbar__reset { align-self: center; font-size: .82rem; color: var(--st-bad); border: 1px solid color-mix(in srgb, var(--st-bad) 45%, transparent); border-radius: 999px; padding: .4rem 1rem; }
 .searchbar__reset:hover { background: color-mix(in srgb, var(--st-bad) 12%, transparent); }
+
+/* Hide any legacy demo banner */
+.demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }

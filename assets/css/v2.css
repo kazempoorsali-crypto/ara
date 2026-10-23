@@ -351,3 +351,6 @@
   .ad__sharem { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card, rgba(127,127,127,.08)); color: inherit; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
   .ad__sharem svg { width: 16px; height: 16px; }
 }
+
+/* Hide any legacy demo banner */
+.demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }

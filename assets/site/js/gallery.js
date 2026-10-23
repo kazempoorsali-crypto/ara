@@ -297,6 +297,7 @@
         '<div class="alrt__ch" role="radiogroup">' +
           '<button type="button" class="alrt__c is-on" role="radio" aria-checked="true" data-ch="bale"><i>💬</i><span><b>پیام‌رسان بله</b><small>' +
             (r.linked ? "وصل است ✓ پیام‌ها در گفت‌وگو با " + E(bot) + " می‌آید" : "یک بار ربات " + E(bot) + " را باز و «شروع» را بزنید") + '</small></span></button>' +
+          '<button type="button" class="alrt__c" role="radio" aria-checked="false" data-ch="telegram"><i>✈️</i><span><b>تلگرام</b><small>دریافت آنی فرصت‌ها در ربات تلگرام</small></span></button>' +
           '<button type="button" class="alrt__c is-off" role="radio" aria-checked="false" data-ch="sms"><i>✉️</i><span><b>پیامک</b><small>به‌زودی</small></span></button>' +
         "</div>" +
         (msg ? '<p class="alrt__ok">' + msg + "</p>" : "") +
@@ -312,7 +313,8 @@
     FM.api.alerts().then(function (r) { paint(r); }).catch(function (e) { d.querySelector(".psheet__wait").textContent = e.message || "خطا"; });
     d.addEventListener("click", function (e) {
       var add = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]"), ch = e.target.closest("[data-ch]"), test = e.target.closest("[data-test]");
-      if (ch && ch.dataset.ch === "sms") { (FM.toast || alert)("این بخش هنوز فعال نیست؛ فعلاً هشدارها در بله فرستاده می‌شود"); return; }
+      if (ch && ch.dataset.ch === "telegram") { ch.parentElement.querySelectorAll(".alrt__c").forEach(function(x){x.classList.remove("is-on");}); ch.classList.add("is-on"); (FM.toast || alert)("کانال تلگرام انتخاب شد؛ دکمه افزودن هشدار را بزنید."); return; }
+      if (ch && ch.dataset.ch === "sms") { (FM.toast || alert)("این بخش هنوز فعال نیست؛ فعلاً هشدارها در بله و تلگرام فرستاده می‌شود"); return; }
       if (test) {
         test.disabled = true;
         FM.api.alertTest().then(function (r) {
@@ -521,7 +523,7 @@
 
   var hunts = bootHunts();
   renderHunts(hunts);
-  if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = true; hs.classList.add("is-static"); } hpin = null; }
+  if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = false; hs.classList.add("is-static"); } hpin = null; }
   var hfree = !hpin || !htrack || FM.lite || matchMedia("(max-width: 860px)").matches;
   /* بدون پین (گوشی، دستگاه ضعیف): نوار با انگشت یا اسکرول افقی خودش جابه‌جا می‌شود */
   if (hfree) { var hsx = document.querySelector("[data-hscroll]"); if (hsx) hsx.classList.add("is-free"); }

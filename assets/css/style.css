@@ -2542,3 +2542,6 @@ html {
   transform: translateY(-50%) !important;
   gap: 8px !important;
 }
+
+/* Hide any legacy demo banner */
+.demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }

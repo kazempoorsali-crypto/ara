@@ -99,7 +99,7 @@
         <span class="nav__txt"><b>فرصت ملک</b><small>ارزش واقعی ملک</small></span>
       </a>
       <nav class="nav__links" aria-label="ناوبری">
-        <a href="#golden" data-scroll-to>ویترین فرصت‌ها</a>
+        <a href="/app.html#/s?opp=1&sort=score">ویترین فرصت‌ها</a>
         <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
         <a href="/app.html#/market">بازار محله‌ها</a>
         <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
@@ -137,7 +137,7 @@
           <button class="menu__close" id="menuClose" type="button">بستن ✕</button>
         </div>
         <nav class="menu__links">
-          <a class="menu__link" href="#golden" data-scroll-to><span class="menu__txt">ویترین فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/s?opp=1&sort=score"><span class="menu__txt">ویترین فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/app.html#/s"><span class="menu__txt">جست‌وجوی فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/app.html#/market"><span class="menu__txt">بازار محله‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/sky.html" data-navpage><span class="menu__txt">قیمت از دید آسمان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
@@ -230,7 +230,7 @@
         </div>
 
         <div class="hero__stats" data-hero-stats>
-          <a href="#golden" data-scroll-to class="hero__stat"><b data-count="0" data-stat="total" data-suffix="">۰</b><small>آگهی سنجیده‌شده</small></a>
+          <a href="#homefilter" data-scroll-to class="hero__stat"><b data-count="0" data-stat="total" data-suffix="">۰</b><small>آگهی سنجیده‌شده</small></a>
           <a href="/sky.html" data-navpage class="hero__stat"><b data-count="0" data-stat="cities" data-suffix="">۰</b><small>شهر دارای آگهی</small></a>
           <a href="/sky.html" data-navpage class="hero__stat"><b data-count="0" data-stat="districts" data-suffix="">۰</b><small>محله با برآورد قیمت</small></a>
         </div>
@@ -247,36 +247,10 @@
       </div>
     </div>
 
-    <!-- ══════════ ۱) ویترین فرصت‌ها — دستهٔ بازشوندهٔ پین‌شده ══════════ -->
-    <section class="golden" id="golden" data-golden>
-      <div class="golden__head">
-        <p class="eyebrow" data-reveal>گنجینه بازار</p>
-        <h2 class="section-title" data-split>ویترین فرصت‌های طلایی</h2>
-        <p class="section-sub" data-reveal>کارت‌ها به‌صورت یک دسته جمع شده‌اند؛ با اسکرول، در همان‌جا باز می‌شوند و با کلیک، صفحهٔ اختصاصی هر ملک باز می‌شود.</p>
-      </div>
-      <div class="deck" data-deck>
-        <div class="deck__pinwrap" data-deck-pin>
-          <div class="deck__stage" data-deck-stage><!-- کارت‌ها با JS --></div>
-          <div class="deck__hint" data-deck-hint>برای باز شدن دسته، اسکرول کنید</div>
-        </div>
-      </div>
-    </section>
-
     <!-- ══════════ فیلتر منطقه — گالری زیر آن را تغییر می‌دهد ══════════ -->
     <!-- ══════════ فیلتر منطقه + دکمه‌های انتخاب سریع شهرها + ماشین‌حساب تخمین قیمت ══════════ -->
     <section class="homefilter" id="homefilter">
       <div class="homefilter__inner">
-        <!-- دکمه‌های انتخاب سریع قطب‌های مسکن -->
-        <div class="quick-cities" id="quickCities" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:18px;">
-          <button type="button" class="btn btn--ghost is-on" data-qp="" data-qc="" style="padding:7px 14px;font-size:13px;border-radius:99px;">🔥 همه شهرهای ایران</button>
-          <button type="button" class="btn btn--ghost" data-qp="tehran" data-qc="tehran" style="padding:7px 14px;font-size:13px;border-radius:99px;">🏙️ تهران</button>
-          <button type="button" class="btn btn--ghost" data-qp="gilan" data-qc="rasht" style="padding:7px 14px;font-size:13px;border-radius:99px;">🌧️ رشت و گیلان</button>
-          <button type="button" class="btn btn--ghost" data-qp="mazandaran" data-qc="" style="padding:7px 14px;font-size:13px;border-radius:99px;">🌊 مازندران (ساحلی و ویلا)</button>
-          <button type="button" class="btn btn--ghost" data-qp="khorasan_razavi" data-qc="mashhad" style="padding:7px 14px;font-size:13px;border-radius:99px;">🕌 مشهد</button>
-          <button type="button" class="btn btn--ghost" data-qp="alborz" data-qc="karaj" style="padding:7px 14px;font-size:13px;border-radius:99px;">🏢 کرج و البرز</button>
-          <button type="button" class="btn btn--ghost" data-qp="fars" data-qc="shiraz" style="padding:7px 14px;font-size:13px;border-radius:99px;">🏛️ شیراز</button>
-          <button type="button" class="btn btn--ghost" data-qp="isfahan" data-qc="isfahan" style="padding:7px 14px;font-size:13px;border-radius:99px;">🌉 اصفهان</button>
-        </div>
         <div class="searchbar" role="group" aria-label="فیلتر منطقه">
           <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
           <i class="searchbar__arrow" aria-hidden="true">←</i>
@@ -291,7 +265,7 @@
             فیلتر پیشرفته <b class="advf__count" id="advCount" hidden></b><i aria-hidden="true">▾</i>
           </button>
         </div>
-        <button class="alertbtn" id="alertBtn" type="button"><span class="alertbtn__bell" aria-hidden="true">🔔</span> خبرم کن <small>فرصت تازهٔ همین فیلتر در بله</small></button>
+        <button class="alertbtn" id="alertBtn" type="button"><span class="alertbtn__bell" aria-hidden="true">🔔</span> خبرم کن <small>فرصت تازهٔ همین فیلتر در بله و تلگرام</small></button>
         <div class="advf fmx" id="advPanel" hidden>
           <div class="advf__grid">
             <div class="advf__g"><span class="advf__h">نوع معامله</span><div class="advf__chips" data-adv="deal" data-one>
@@ -321,91 +295,6 @@
         <p class="homefilter__status" id="homeFilterStatus" aria-live="polite">نمایش همهٔ املاک ویترین</p>
       </div>
     </section>
-
-    <!-- ══════════ ماشین‌حساب رایگان تخمین ارزش واقعی ملک (Lead Magnet) ══════════ -->
-    <section class="est-widget" id="estimatorBox" style="max-width:1080px;margin:28px auto 10px;padding:0 16px;">
-      <div style="background:linear-gradient(135deg, rgba(63,161,132,0.14), rgba(224,182,78,0.08));border:1px solid rgba(63,161,132,0.35);border-radius:20px;padding:24px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
-        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
-          <div>
-            <span style="background:#20976A;color:#fff;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;">رایگان و آنی</span>
-            <h3 style="margin:8px 0 4px;font-size:20px;">ماشین‌حساب هوشمندِ «قیمت منصفانه ملک»</h3>
-            <p style="margin:0;opacity:0.85;font-size:13.5px;">مشخصات ملکی که قصد خرید یا فروش آن را دارید وارد کنید تا هوش مصنوعی فرصت ملک، قیمت واقعی آن را در همان محله حساب کند.</p>
-          </div>
-        </div>
-        <form id="quickEstForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;align-items:end;">
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>شهر (از فیلتر بالا یا انتخاب)</span>
-            <select id="qeCity" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);"></select>
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>محله</span>
-            <select id="qeDist" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);"><option value="">انتخاب محله…</option></select>
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>متراژ (متر)</span>
-            <input id="qeArea" type="number" min="20" max="2000" value="100" required style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>سال ساخت (شمسی)</span>
-            <input id="qeYear" type="number" min="1360" max="1405" value="1400" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>طبقه</span>
-            <input id="qeFloor" type="number" min="0" max="30" value="2" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
-          </label>
-          <button type="submit" class="btn btn--gold" style="height:42px;justify-content:center;font-weight:700;">محاسبه قیمت واقعی</button>
-        </form>
-        <div id="qeResult" hidden style="margin-top:16px;padding:16px;border-radius:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(224,182,78,0.4);"></div>
-      </div>
-    </section>
-    <script>
-    document.addEventListener("DOMContentLoaded", function(){
-      // 1. Quick Cities Pills
-      var qcBox = document.getElementById("quickCities");
-      if (qcBox) {
-        qcBox.addEventListener("click", function(e){
-          var btn = e.target.closest("button[data-qp]");
-          if (!btn) return;
-          qcBox.querySelectorAll("button").forEach(function(b){ b.classList.remove("is-on"); });
-          btn.classList.add("is-on");
-          var p = btn.getAttribute("data-qp") || "", c = btn.getAttribute("data-qc") || "";
-          var selP = document.getElementById("fProvince"), selC = document.getElementById("fCity");
-          if (selP) {
-            selP.value = p;
-            if (window.FM && FM.region) { FM.region.province = p; FM.region.city = c; FM.region.district = ""; }
-            selP.dispatchEvent(new Event("change"));
-          }
-        });
-      }
-      // 2. Quick Estimator Widget
-      var qeCity = document.getElementById("qeCity"), qeDist = document.getElementById("qeDist"), qeForm = document.getElementById("quickEstForm"), qeRes = document.getElementById("qeResult");
-      if (qeCity && window.FM && FM.data && FM.data.regions) {
-        var allCities = [];
-        FM.data.regions.forEach(function(pr){ (pr.cities||[]).forEach(function(ct){ allCities.push(ct); }); });
-        allCities.sort(function(a,b){ return (b.n||0) - (a.n||0); });
-        qeCity.innerHTML = allCities.map(function(c){ return '<option value="'+c.id+'">'+c.name+' ('+FM.fa(c.n||0)+' آگهی)</option>'; }).join("");
-        function loadQeDists(){
-          var cid = qeCity.value;
-          var cObj = allCities.filter(function(x){ return x.id === cid; })[0];
-          var ds = (cObj && cObj.districts) || [];
-          qeDist.innerHTML = ds.length ? ds.map(function(d){ return '<option value="'+d.name+'">'+d.name+'</option>'; }).join("") : '<option value="">همه محله‌ها</option>';
-        }
-        qeCity.addEventListener("change", loadQeDists);
-        loadQeDists();
-        qeForm.addEventListener("submit", function(ev){
-          ev.preventDefault();
-          var city = qeCity.value, dist = qeDist.value, area = document.getElementById("qeArea").value, year = document.getElementById("qeYear").value, floor = document.getElementById("qeFloor").value;
-          qeRes.hidden = false;
-          qeRes.innerHTML = "در حال محاسبه قیمت کارشناسی در محله…";
-          fetch("/api/estimate?city="+encodeURIComponent(city)+"&district="+encodeURIComponent(dist)+"&area="+encodeURIComponent(area)+"&year="+encodeURIComponent(year)+"&floor="+encodeURIComponent(floor)+"&elevator=1&parking=1&warehouse=1")
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-              if (d.error) { qeRes.innerHTML = '<span style="color:#e0531f;">' + d.error + '</span>'; return; }
-              qeRes.innerHTML = '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">' +
-                '<div><b style="font-size:17px;color:#e0b64e;">💎 ارزش منصفانه این ملک: ' + FM.money(Math.round(d.total)) + '</b>' +
-                '<div style="font-size:13px;margin-top:4px;">قیمت کارشناسی هر متر: <b>' + FM.money(Math.round(d.ppm)) + '</b> (بر پایهٔ ' + FM.fa(d.n || 10) + ' آگهی معتبر در همین محله)</div></div>' +
-                '<a href="/app.html#/s?city='+encodeURIComponent(city)+'&district='+encodeURIComponent(dist)+'&opp=1" class="btn btn--gold" style="font-size:13px;">مشاهده املاک زیر قیمت این محله ←</a>' +
-                '</div>';
-            }).catch(function(){ qeRes.innerHTML = "خطا در ارتباط با سرور."; });
-        });
-      }
-    });
-    </script>
 
     <!-- ══════════ گالری ستونی پلکانی + اسکرول افقی ══════════ -->
     <section class="gallery" id="gallery" data-gallery>
@@ -445,6 +334,73 @@
         </div>
       </div>
     </section>
+    <!-- ══════════ ۵) ماشین‌حساب هوشمند قیمت منصفانه ملک ══════════ -->
+    <section class="est-widget" id="estimatorBox" style="max-width:1120px;margin:36px auto 20px;padding:0 16px;">
+      <div style="background:linear-gradient(135deg, rgba(63,161,132,0.14), rgba(224,182,78,0.08));border:1px solid rgba(63,161,132,0.35);border-radius:20px;padding:24px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
+          <div>
+            <span style="background:#20976A;color:#fff;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;">رایگان و آنی</span>
+            <h3 style="margin:8px 0 4px;font-size:20px;">ماشین‌حساب هوشمندِ «قیمت منصفانه ملک»</h3>
+            <p style="margin:0;opacity:0.85;font-size:13.5px;">مشخصات ملک را وارد کنید تا هوش مصنوعی فرصت ملک، قیمت واقعی آن را بر اساس معاملات و آگهی‌های همان محله محاسبه کند.</p>
+          </div>
+        </div>
+        <form id="quickEstForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;align-items:end;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>شهر</span>
+            <select id="qeCity" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);"></select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>محله</span>
+            <select id="qeDist" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);"><option value="">انتخاب محله…</option></select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>متراژ (متر)</span>
+            <input id="qeArea" type="number" min="20" max="2000" value="100" required style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>سال ساخت (شمسی)</span>
+            <input id="qeYear" type="number" min="1360" max="1405" value="1400" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;"><span>طبقه</span>
+            <input id="qeFloor" type="number" min="0" max="30" value="2" style="padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:inherit;border:1px solid rgba(255,255,255,0.18);" />
+          </label>
+          <button type="submit" class="btn btn--gold" style="height:42px;justify-content:center;font-weight:700;">محاسبه قیمت واقعی</button>
+        </form>
+        <div id="qeResult" hidden style="margin-top:16px;padding:16px;border-radius:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(224,182,78,0.4);"></div>
+      </div>
+    </section>
+    <script>
+    document.addEventListener("DOMContentLoaded", function(){
+      var qeCity = document.getElementById("qeCity"), qeDist = document.getElementById("qeDist"), qeForm = document.getElementById("quickEstForm"), qeRes = document.getElementById("qeResult");
+      if (qeCity && window.FM && FM.data && FM.data.regions) {
+        var allCities = [];
+        FM.data.regions.forEach(function(pr){ (pr.cities||[]).forEach(function(ct){ allCities.push(ct); }); });
+        allCities.sort(function(a,b){ return (b.n||0) - (a.n||0); });
+        qeCity.innerHTML = allCities.map(function(c){ return '<option value="'+c.id+'">'+c.name+' ('+FM.fa(c.n||0)+' آگهی)</option>'; }).join("");
+        function loadQeDists(){
+          var cid = qeCity.value;
+          var cObj = allCities.filter(function(x){ return x.id === cid; })[0];
+          var ds = (cObj && cObj.districts) || [];
+          qeDist.innerHTML = ds.length ? ds.map(function(d){ return '<option value="'+d.name+'">'+d.name+'</option>'; }).join("") : '<option value="">همه محله‌ها</option>';
+        }
+        qeCity.addEventListener("change", loadQeDists);
+        loadQeDists();
+        qeForm.addEventListener("submit", function(ev){
+          ev.preventDefault();
+          var city = qeCity.value, dist = qeDist.value, area = document.getElementById("qeArea").value, year = document.getElementById("qeYear").value, floor = document.getElementById("qeFloor").value;
+          qeRes.hidden = false;
+          qeRes.innerHTML = "در حال محاسبه قیمت کارشناسی در محله…";
+          fetch("/api/estimate?city="+encodeURIComponent(city)+"&district="+encodeURIComponent(dist)+"&area="+encodeURIComponent(area)+"&year="+encodeURIComponent(year)+"&floor="+encodeURIComponent(floor)+"&elevator=1&parking=1&warehouse=1")
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if (d.error) { qeRes.innerHTML = '<span style="color:#e0531f;">' + d.error + '</span>'; return; }
+              qeRes.innerHTML = '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">' +
+                '<div><b style="font-size:17px;color:#e0b64e;">💎 ارزش منصفانه این ملک: ' + FM.money(Math.round(d.total)) + '</b>' +
+                '<div style="font-size:13px;margin-top:4px;">قیمت کارشناسی هر متر: <b>' + FM.money(Math.round(d.ppm)) + '</b> (بر پایهٔ ' + FM.fa(d.n || 10) + ' آگهی معتبر در همین محله)</div></div>' +
+                '<a href="/app.html#/s?city='+encodeURIComponent(city)+'&district='+encodeURIComponent(dist)+'&opp=1" class="btn btn--gold" style="font-size:13px;">مشاهده املاک زیر قیمت این محله ←</a>' +
+                '</div>';
+            }).catch(function(){ qeRes.innerHTML = "خطا در ارتباط با سرور."; });
+        });
+      }
+    });
+    </script>
+
 
     <!-- ══════════ ۳) هر طبقه یک داستان — روی برش سه‌بعدی ساختمان ══════════ -->
     <section class="floors" id="floors" data-floors>
@@ -588,7 +544,7 @@
           <p>موتور مستقل پردازش و رتبه‌بندی آماری آگهی‌های عمومی املاک. فرصت ملک مشاور املاک نیست؛ «برآورد بازار» برآورد آماری است و پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
         </div>
         <nav aria-label="املاک"><h4>املاک</h4>
-          <a href="#golden" data-scroll-to>ویترین فرصت‌ها</a>
+          <a href="/app.html#/s?opp=1&sort=score">ویترین فرصت‌ها</a>
           <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
           <a href="/app.html#/market">بازار محله‌ها</a>
           <a href="/app.html#/estimate">ارزیابی یک ملک</a>
@@ -639,7 +595,6 @@
   <script src="/assets/site/js/share-kit.js?v=51"></script>
   <script src="/assets/site/js/poster.js?v=51"></script>
   <script src="/assets/site/js/app.js?v=51"></script>
-  <script src="/assets/site/js/deck.js?v=51"></script>
   <script src="/assets/site/js/gallery.js?v=51"></script>
   <script src="/assets/site/js/floors.js?v=51"></script>
   <script src="/assets/site/js/assistant.js?v=51"></script>
