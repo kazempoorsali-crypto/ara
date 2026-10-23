@@ -822,20 +822,21 @@ class Handler(BaseHTTPRequestHandler):
             if full and d["title"] != raw:
                 d["title_raw"] = raw
         if not active:
-            for k in LOCKED_FIELDS + ("fair_price", "fair_ppm", "phone", "address"):
+            # قفل معکوس: قیمت منصفانه و سود تخمینی به عنوان طعمه جذاب باز می‌مانند!
+            # اما لینک اصلی، شماره تماس و عنوان دقیق دیوار (برای جلوگیری از سرچ در دیوار) قفل می‌شوند
+            for k in LOCKED_FIELDS + ("phone", "address"):
                 d.pop(k, None)
-            if d.get("lat") is not None:  # موقعیت دقیق فقط برای مشترکان؛ برای بقیه حدود یک کیلومتر
+            if d.get("label") in ("gold", "good"):
+                k_fa = {"apartment": "آپارتمان", "villa": "ویلا", "land": "زمین", "shop": "مغازه", "office": "دفتر کار", "garden": "باغ", "suite": "سوئیت"}.get(d.get("kind"), "ملک")
+                a_fa = f" {int(d['area'])} متری" if d.get("area") else ""
+                r_fa = f" {int(d['rooms'])} خواب" if d.get("rooms") else ""
+                loc_fa = d.get("district") or d.get("city_name") or ""
+                d["title"] = f"{k_fa}{a_fa}{r_fa}" + (f" در {loc_fa}" if loc_fa else "")
+                d.pop("title_raw", None)
+                if d.get("description"):
+                    d["description"] = "🔒 متن کامل آگهی، شماره تماس مالک و لینک مستقیم آگهی اصلی ویژهٔ اعضای دارای اشتراک است."
+            if d.get("lat") is not None:
                 d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
-            # درصد دقیق فقط برای مشترکان؛ بقیه بازهٔ ۵ درصدی می‌بینند تا سایت مبنای «قیمت‌گذاری» فروشنده نشود
-            if d.get("discount") is not None:
-                d["discount"] = band5(d["discount"])
-            if isinstance(d.get("verdict"), dict):
-                d["verdict"].pop("fair", None)
-                d["verdict"].pop("fair_ppm", None)
-                d["verdict"].pop("estimated_profit", None)  # قیمت درخواستی + سود = قیمت منصفانه؛ فقط برای مشترکان
-                if d["verdict"].get("delta") is not None:
-                    d["verdict"]["delta"] = -band5(-d["verdict"]["delta"])
-                    d["verdict"]["approx"] = True
             ex = d.get("explain") or {}
             if full:
                 keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial",

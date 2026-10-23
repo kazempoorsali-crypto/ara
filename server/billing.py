@@ -16,9 +16,9 @@ import urllib.parse
 import urllib.request
 
 DEFAULT_BILLING = {
-    "weekly_price": 0, "monthly_price": 0, "weekly_days": 7, "monthly_days": 30,
+    "weekly_price": 98000, "monthly_price": 248000, "weekly_days": 7, "monthly_days": 30,
     "gateway": "", "merchant_id": "", "sandbox": False, "test_mode": False,
-    "free_preview": 3,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود
+    "free_preview": 2,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
@@ -27,7 +27,7 @@ DEFAULT_BILLING = {
     # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
     "trial_enabled": True, "trial_days": 3,
     # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
-    "pay_methods": [],
+    "pay_methods": ["bezan", "card"],
     # «بزن به کارت»: کارت‌به‌کارت با مبلغ یکتا و تأیید خودکار؛ بدون درگاه بانکی و نماد اعتماد (کلید API از داشبورد bezanbecard.ir)
     "bezan_api_key": "", "bezan_expiry": 30,
     # تا کلید API برسد: لینک پرداخت ثابت «بزن به کارت»؛ کاربر پرداخت می‌کند و کد پیگیری را ثبت می‌کند (مثل کارت‌به‌کارت)

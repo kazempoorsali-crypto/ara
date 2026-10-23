@@ -13,7 +13,7 @@ import catalog
 KEEP = ("id", "title", "kind", "deal", "city_key", "city_name", "province", "district", "price", "pp", "ppm",
         "deposit", "rent", "area", "rooms", "year", "floor", "images", "image", "amenities", "description",
         "label", "score", "discount", "confidence", "verdict", "locked", "presale", "first_seen", "price_drop",
-        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "detail_pending", "contact_mode", "why", "drop_info")
+        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "estimated_profit", "detail_pending", "contact_mode", "why", "drop_info")
 
 
 def _trim(d):
@@ -114,14 +114,39 @@ def _common(app):
 
 
 def _top(handler):
-    """برترین فرصت‌ها برای ویترین و گالری؛ ترجیحاً با عکس."""
+    """برترین فرصت‌های خالص برای ویترین صفحه اول (بدون پیش‌فروش، بدون اقساطی/معاوضه و بدون هشدار مشکوک)."""
     app = handler.app
-    top = app.store.search({"opp": 1, "sort": "score", "limit": 40, "imgs": 1})["items"]
-    if len(top) < 24:  # فرصت کم است: بهترین‌های سنجیده‌شده (نه مشکوک) هم می‌آیند
-        seen = {x["id"] for x in top}
-        top += [x for x in app.store.search({"ranked": 1, "sort": "score", "limit": 40, "imgs": 1})["items"] if x["id"] not in seen][: 24 - len(top)]
-    top.sort(key=lambda x: (not (x.get("images") or x.get("image")),))   # با عکس‌ها جلوتر (ترتیب امتیاز حفظ می‌شود)
-    return [_trim(handler.gate(dict(x), None)) for x in top[:24]]
+    raw_items = app.store.search({"opp": 1, "deal": "sale", "sort": "score", "limit": 120, "imgs": 1})["items"]
+    bad_words = ("پیش فروش", "پیش‌فروش", "اقساط", "قسطی", "معاوضه", "مشارکت", "اسکلت", "نیمه کاره", "نیمه‌کاره", "قولنامه", "نسق", "وکالتی")
+    clean_top = []
+    for x in raw_items:
+        if x.get("presale"):
+            continue
+        t_desc = (str(x.get("title") or "") + " " + str(x.get("description") or "")[:200])
+        if any(w in t_desc for w in bad_words):
+            continue
+        ex = x.get("explain") if isinstance(x.get("explain"), dict) else {}
+        if ex.get("caution") or ex.get("sus"):
+            continue
+        imgs = x.get("images") or ([] if not x.get("image") else [x.get("image")])
+        if len(imgs) < 2:
+            continue
+        if ex.get("estimated_profit"):
+            x["estimated_profit"] = ex["estimated_profit"]
+        clean_top.append(x)
+        if len(clean_top) >= 24:
+            break
+    if len(clean_top) < 24:
+        seen = {x["id"] for x in clean_top}
+        for x in raw_items:
+            if x["id"] not in seen and not x.get("presale"):
+                ex = x.get("explain") if isinstance(x.get("explain"), dict) else {}
+                if ex.get("estimated_profit"):
+                    x["estimated_profit"] = ex["estimated_profit"]
+                clean_top.append(x)
+                if len(clean_top) >= 24:
+                    break
+    return [_trim(handler.gate(dict(x), None)) for x in clean_top[:24]]
 
 
 def boot(handler, page, qs):

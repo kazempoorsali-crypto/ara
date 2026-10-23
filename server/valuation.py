@@ -55,7 +55,7 @@ PS_RATIO_CLIP, PS_SLOPE_CLIP = (-0.45, 0.10), (-0.03, 0.0)   # نزدیک‌تر
 LN10 = math.log(10)
 
 # آستانه‌ها (قابل تنظیم در پنل): فرصت، فرصت طلایی، مشکوک، و ضریب پراکندگی محله
-DEFAULT_THRESHOLDS = {"opp": 0.15, "gold": 0.22, "sus": 0.40, "sus_flagged": 0.25, "disp_k": 1.0,
+DEFAULT_THRESHOLDS = {"opp": 0.14, "gold": 0.20, "sus": 0.33, "sus_flagged": 0.22, "disp_k": 1.0,
                       # زمان: آگهی قدیمی‌تر از max_age_days کنار می‌رود؛ وزن هر آگهی با نیمه‌عمر half_life_days کم می‌شود؛
                       # روند ماهانهٔ قیمت از خود داده برآورد می‌شود (trend_fixed خالی) یا مدیر عدد ثابت می‌دهد
                       "max_age_days": 90, "half_life_days": 45, "trend_fixed": None,
@@ -424,8 +424,10 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             l["_flags"].append("placeholder")
         elif l["deal"] != "daily" and not l.get("area"):
             l["_flags"].append("no_area")
-        if l["deal"] == "sale" and l.get("pp") and l.get("area") and l["pp"] < 2e8 and l["_kg"] in ("apartment", "villa"):
-            l["_flags"].append("ppm_as_total")  # کل قیمت کمتر از ۲۰۰ میلیون برای خانه = احتمالاً قیمت هر متر
+        if l["deal"] == "sale" and l.get("pp") and l.get("area") and l["_kg"] in ("apartment", "villa"):
+            ppm_raw = l["pp"] / max(1, l["area"])
+            if l["pp"] < 8e8 or ppm_raw < 1.2e7 or (l["area"] >= 150 and l["pp"] < 2.2e9):
+                l["_flags"].append("ppm_as_total")  # کل قیمت کمتر از ۲۰۰ میلیون برای خانه = احتمالاً قیمت هر متر
 
     # آگهی تکراری: همان شهر، نوع، معامله، متراژ و قیمت
     seen = {}
@@ -495,7 +497,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                     if l["_base"] is not None:
                         r = l["_v"] - l["_base"]
                         z = 0.6745 * (r - med) / mad
-                        typo = min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.35
+                        typo = min(abs(r - LN10), abs(r + LN10), abs(r - 2 * LN10), abs(r + 2 * LN10)) < 0.55 or r < -1.1
                         if abs(z) > MAD_Z:
                             if typo:
                                 l["_flags"].append("zero_typo" if r > 0 else "zero_typo_low")
@@ -750,7 +752,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 label = l["_label"] = "good"
             # فاصلهٔ خیلی نزدیک به مرز «مشکوک» باورپذیر نیست: طلایی اعلام نمی‌شود و استعلام لازم است
             l["_near_sus"] = label in ("gold", "good") and d is not None and d >= th["sus"] - 0.05
-            if label == "gold" and l["_near_sus"]:
+            if label == "gold" and (l["_near_sus"] or len(l.get("images") or []) < 2 or "scam" in sig or "multi_price" in sig):
                 label = l["_label"] = "good"
             if label in ("gold", "good"):
                 p_rank = (l["_rank_n"] - l["_rank"] + 1) / l["_rank_n"]

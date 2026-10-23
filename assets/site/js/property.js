@@ -115,7 +115,7 @@
 
     /* پیوند آگهی اصلی: فقط برای مشترکان (برای بقیه، پنجرهٔ اشتراک) */
     var src = $("[data-psource]");
-    var txt = l.locked ? "مشاهدهٔ آگهی اصلی (ویژهٔ مشترکان)" : "مشاهدهٔ آگهی اصلی";
+    var txt = l.locked ? "🔓 دریافت لینک آگهی اصلی و اطلاعات تماس (با اشتراک)" : "مشاهدهٔ آگهی اصلی در منبع";
     document.querySelectorAll("[data-psource-txt], [data-psource-txt2]").forEach(function (x) { x.textContent = txt; });
     if (!l.locked && l.url) { src.href = l.url; src.target = "_blank"; src.onclick = null; }
     else {

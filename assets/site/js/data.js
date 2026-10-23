@@ -82,6 +82,9 @@ window.FM = window.FM || {};
       desc: l.description || "",
       features: l.amenities || [],
       locked: !!l.locked,
+      fairPrice: l.fair_price || (l.verdict && l.verdict.fair) || 0,
+      fairPpm: l.fair_ppm || (l.verdict && l.verdict.fair_ppm) || 0,
+      profit: l.estimated_profit || (l.verdict && l.verdict.estimated_profit) || (l.fair_price && price && l.fair_price > price ? l.fair_price - price : 0),
       why: l.why || null,
     };
   };

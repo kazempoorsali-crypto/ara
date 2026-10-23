@@ -350,7 +350,7 @@
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
-      (p.locked && p.label ? '<span class="ncard__lock">قیمت منصفانه و سود تخمینی <i>🔒 با اشتراک</i></span>' : "") + "</span>";
+      (p.fairPrice ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:6px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;">💎 ارزش کارشناسی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : '') + (p.locked && (p.label === "gold" || p.label === "good") ? '<span class="ncard__lock">مشاهده آگهی اصلی و تماس <i>🔒 ویژه اعضا</i></span>' : "") + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
     return a;
   }

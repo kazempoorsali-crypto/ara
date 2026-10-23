@@ -30,7 +30,7 @@
       (p.score != null ? '<span class="dcard__score">' + FM.fa(p.score) + "</span>" : "") +
       '<span class="dcard__info"><b>' + E(p.title) + "</b><small>" + E(p.loc) + "</small>" +
       '<span class="dcard__row"><span class="dcard__price">' + E(p.priceText) + '</span><span class="dcard__diff st-text" data-status="' + p.status + '">' + E(p.diffText) + "</span></span>" + FM.whyLine(p) + "</span>" +
-      '<span class="dcard__go">مشاهدهٔ ملک <svg viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+      (p.fairPrice ? '<span class="dcard__fair" style="display:block;font-size:12px;color:#3fa184;margin-top:4px;font-weight:700;">ارزش واقعی: ' + E(FM.money(p.fairPrice)) + '</span>' : '') + '<span class="dcard__go">مشاهده تحلیل و آگهی <svg viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
     return a;
   }
 
