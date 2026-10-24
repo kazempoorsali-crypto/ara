@@ -808,6 +808,19 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------------------------------------------------------- public api
     def gate(self, d: dict, user, full=False):
+
+        # یکتاسازی و انتخاب نسخه باکیفیت عکس‌ها
+        if isinstance(d.get("images"), list):
+            _seen, _uniq = set(), []
+            for u in d["images"]:
+                if not u: continue
+                u_str = str(u).replace("/thumbnail/", "/web_image/").replace("/thumb/", "/web_image/")
+                base = re.sub(r"[_.-]\d+x\d+", "", u_str.split("?")[0])
+                if base not in _seen:
+                    _seen.add(base)
+                    _uniq.append(u_str)
+            d["images"] = _uniq[:10]
+            if _uniq and not d.get("image"): d["image"] = _uniq[0]
         """پیوند دیوار و جزئیات کامل ارزش‌گذاری فقط برای مشترکان فعال."""
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
