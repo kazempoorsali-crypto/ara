@@ -68,7 +68,12 @@ window.FM = window.FM || {};
       imgs.forEach(function(u) {
           if(!u) return;
           var u_str = String(u).replace(/\/(thumbnail|thumb|small)\//g, "/web_image/");
-          var base = u_str.split("?")[0].replace(/[_.-]\d+x\d+/g, "");
+          /* مبنای تشخیص تکرار باید نشانی واقعی عکس باشد؛ برای پراکسی (/img?u=…) پارامتر u
+             را می‌گشاییم وگرنه همهٔ عکس‌ها پایهٔ یکسان «/img» می‌گیرند و همه جز عکس اول حذف می‌شوند */
+          var target = u_str;
+          var mq = u_str.match(/[?&]u=([^&]+)/);
+          if (mq) { try { target = decodeURIComponent(mq[1]); } catch (e) { target = mq[1]; } }
+          var base = target.split("?")[0].replace(/[_.-]\d+x\d+/g, "");
           if(!_s[base]) { _s[base] = true; _c.push(u_str); }
       });
       imgs = _c;
@@ -129,7 +134,7 @@ id: l.id,
     levels: [
       { id: "gold", name: "فرصت طلایی", rule: P(th.gold) + " و بیشتر زیر برآورد بازار", color: "#D5A626" },
       { id: "ok", name: "فرصت مناسب", rule: P(th.opp) + " تا " + P(th.gold) + " زیر برآورد", color: "#20976A" },
-      { id: "mid", name: "قیمت متعادل", rule: "کمتر از " + P(th.opp) + " فاصله با برآورد", color: "#E59B32" },
+      { id: "mid", name: "قیمت متعادل", rule: "کمتر از " + P(th.opp) + " فاصله با برآورد", color: "#9AA3A0" },
       { id: "warm", name: "بالاتر از ارزش", rule: P(th.opp) + " تا " + P(th.over) + " بالاتر", color: "#CE7439" },
       { id: "bad", name: "غیرمنطقی", rule: P(th.over) + " و بیشتر بالاتر", color: "#CF4751" },
     ],

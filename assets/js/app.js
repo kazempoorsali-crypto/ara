@@ -2414,7 +2414,7 @@ const App = (() => {
         <span>متری ${money(ppm(x))}</span>
         <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #10b981 0%, #d4a017 50%, #ef4444 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
           <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
-          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:${({ gold: "#f5c542", good: "#22c55e", fair: "#a8743f", high: "#ef4444", over: "#dc2626" })[x.verdict.label] || "#94a3b8"};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
+          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:${({ gold: "#f5c542", good: "#22c55e", fair: "#9aa3a0", high: "#ef4444", over: "#dc2626" })[x.verdict.label] || "#94a3b8"};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
         </span>
         <span>${UI.labelPill(x.verdict)}</span></li>`).join("")}</ol>
       <p class="fn">نقطهٔ پررنگ قیمت هر متر آگهی است و خط عمودی قیمت محله برای همان خانه.</p></section>`;

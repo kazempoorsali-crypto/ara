@@ -268,7 +268,9 @@
 .pbar__cap { position: absolute; right: 50%; transform: translateX(50%); white-space: nowrap; font-size: 10.5px; font-weight: 700; font-style: normal; }
 .pbar__cap--top { bottom: calc(100% + 2px); color: var(--ink); }
 .pbar__cap--bot { top: calc(100% + 4px); }
-.pbar__cap--drop { top: 22px; color: var(--ink-2); font-weight: 800; }
+.pbar__cap--drop { top: 22px; color: var(--ink-2); font-weight: 800; line-height: 1.45; text-align: center; }
+.pbar__cap--drop b { display: block; font-weight: 700; color: var(--ink-faint, var(--ink-2)); }
+.pbar__cap--drop i { display: block; font-style: normal; }
 .linkbtn{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit}
 
 /* گوشی‌های باریک: دکمه‌های سربرگ از لبه بیرون نزنند */

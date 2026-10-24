@@ -4,7 +4,7 @@
    پالت معنایی وضعیت ملک در هر دو تم ثابت
    ═══════════════════════════════════════════════════════════════ */
 :root {
-  --st-gold: #D5A626; --st-ok: #20976A; --st-mid: #E59B32; --st-warm: #CE7439; --st-bad: #CF4751;
+  --st-gold: #D5A626; --st-ok: #20976A; --st-mid: #9AA3A0; --st-warm: #CE7439; --st-bad: #CF4751;
 }
 :root, [data-theme="dark"] {
   color-scheme: dark;
@@ -16,7 +16,7 @@
   --gold: #D5A626; --gold-text: #f4d37a; --gold-soft: rgba(213, 166, 38, 0.15);
   --green-glow: #45b494;
   --sky-accent: #7fb2e8;
-  --st-text-gold: #e2c266; --st-text-ok: #4cc79a; --st-text-mid: #ecb266; --st-text-warm: #e89a66; --st-text-bad: #ef8b90;
+  --st-text-gold: #e2c266; --st-text-ok: #4cc79a; --st-text-mid: #b9c1bc; --st-text-warm: #e89a66; --st-text-bad: #ef8b90;
   --scrim: rgba(7, 12, 9, 0.52);
   
   --sky-far-a: #1c4134; --sky-far-b: #10241d;
@@ -34,7 +34,7 @@
   --gold: #D5A626; --gold-text: #96741a; --gold-soft: rgba(213, 166, 38, 0.13);
   --green-glow: #20976A;
   --sky-accent: #3e6da3;
-  --st-text-gold: #8a6a14; --st-text-ok: #147a54; --st-text-mid: #9a6318; --st-text-warm: #a2531f; --st-text-bad: #b12f39;
+  --st-text-gold: #8a6a14; --st-text-ok: #147a54; --st-text-mid: #6d7772; --st-text-warm: #a2531f; --st-text-bad: #b12f39;
   --scrim: rgba(7, 12, 9, 0.42);
   
   --sky-far-a: #c3c9cd; --sky-far-b: #99a2a8;

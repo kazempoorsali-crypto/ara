@@ -131,7 +131,7 @@
 .pgauge__ends .is-dear { color: #CF4751; }
 .pgauge__track {
   position: relative; height: 16px; border-radius: 999px; overflow: visible;
-  background: linear-gradient(270deg, #E9C25A 0%, #D5A626 6%, #2FA377 18%, #20976A 36%, #7FA85C 54%, #E59B32 74%, #CE7439 86%, #CF4751 100%);
+  background: linear-gradient(270deg, #E9C25A 0%, #D5A626 6%, #2FA377 18%, #20976A 36%, #9AA3A0 54%, #E59B32 74%, #CE7439 86%, #CF4751 100%);
   box-shadow: inset 0 2px 5px rgba(0,0,0,.35), inset 0 -2px 4px rgba(255,255,255,.14), 0 6px 18px -6px rgba(0,0,0,.45);
 }
 .pgauge__track::before {

@@ -66,7 +66,7 @@
     var scoreBox = ring.closest(".pscore");
     if (p.score == null) { if (scoreBox) scoreBox.hidden = true; }
     else {
-      var scColor = { gold: "#D5A626", ok: "#20976A", mid: "#E59B32", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#20976A";
+      var scColor = { gold: "#D5A626", ok: "#20976A", mid: "#9AA3A0", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#20976A";
       ring.style.setProperty("--sp", p.score);
       ring.style.setProperty("--ring-c", scColor);
       ring.querySelector("span").textContent = FM.fa(p.score);
@@ -183,7 +183,7 @@
       place("avg", med);   /* میانهٔ محله */
       place("max", q75);   /* سقف قیمت: چارک بالای محله */
       var dot = $("[data-gdot]");
-      var stColor = { gold: "#D5A626", ok: "#20976A", mid: "#E59B32", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#D5A626";
+      var stColor = { gold: "#D5A626", ok: "#20976A", mid: "#9AA3A0", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#D5A626";
       dot.style.setProperty("--dot", stColor);
       var bub = dot.querySelector("b");
       bub.textContent = mt(ppm);
