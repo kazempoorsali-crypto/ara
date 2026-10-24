@@ -58,13 +58,9 @@ window.FM = window.FM || {};
   FM.mapListing = function (l) {
     var v = l.verdict || (l.label ? { label: l.label, delta: l.discount != null ? -l.discount : null, approx: l.locked } : null);
     var rawImgs = (l.images && l.images.length ? l.images : l.image ? [l.image] : []);
-    var seenBase = {}, uniqImgs = [];
-    rawImgs.forEach(function(u){
-      if (!u) return;
-      var key = String(u).replace(/\?.*$/, "").replace(/\/(thumbnail|thumb|small| orig|web_image|main)\//gi, "/").replace(/[_.-]\d+x\d+/g, "");
-      if (!seenBase[key]) { seenBase[key] = 1; uniqImgs.push(u); }
-    });
-    var imgs = uniqImgs.map(FM.img);
+    var goodImgs = rawImgs.filter(function(u){ return u && u.indexOf("thumb") === -1 && u.indexOf("web_image") === -1; });
+    if(!goodImgs.length && rawImgs.length) goodImgs = rawImgs;
+    var imgs = goodImgs.filter(function(v, i, a){ return a.indexOf(v) === i; }).map(FM.img);
     var price = l.pp || l.price || 0;
     var label = (v && v.label) || l.label || "pending";
     return {

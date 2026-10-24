@@ -20,16 +20,9 @@ KEEP = ("id", "title", "kind", "deal", "city_key", "city_name", "province", "dis
 def _trim(d):
     out = {k: d[k] for k in KEEP if k in d and d[k] not in (None, "", [])}
     if isinstance(out.get("images"), list):
-        seen_im, uniq_im = set(), []
-        for u in out["images"]:
-            if not u: continue
-            # حذف پسوند سایز یا thumbnail دیوار/شیپور برای تشخیص عکس یکسان
-            base_u = re.sub(r"(\?.*$|/(?:thumbnail|thumb|small|medium|large|webp|orig)/|_\d+x\d+|\.\d+x\d+)", "", str(u))
-            base_u = re.sub(r"-[a-z0-9]{2,6}\.(jpg|jpeg|webp|png)$", "", base_u, flags=re.I)
-            if base_u not in seen_im:
-                seen_im.add(base_u)
-                uniq_im.append(u)
-        out["images"] = uniq_im[:10]
+        imgs = [u for u in out["images"] if u and "thumb" not in str(u) and "web_image" not in str(u)]
+        if not imgs and out["images"]: imgs = out["images"]
+        out["images"] = list(dict.fromkeys(imgs))[:10]
     if isinstance(out.get("description"), str):
         out["description"] = out["description"][:1200]
     return out
