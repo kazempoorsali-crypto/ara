@@ -38,6 +38,90 @@
 </head>
 <body data-page="sky">
 
+  <!-- نوار فیلتر هوشمند متصل به کره زمین (برگرفته از طراحی صفحه اول) -->
+  <div id="sky-filter-bar" class="sky-filter-container" style="position: sticky; top: 12px; z-index: 999; margin: 0 auto 16px auto; max-width: 1200px; padding: 0 16px; width: 100%;">
+    <div style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 10px 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.4); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+      
+      <!-- تب‌های دسته‌بندی و مناطق -->
+      <div class="sky-tabs" style="display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px;">
+        <button type="button" class="sky-tab active" data-filter="all" style="background: #20976A; color: #fff; border: none; border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+          <span>🔥</span><span>همهٔ فرصت‌ها</span>
+        </button>
+        <button type="button" class="sky-tab" data-filter="gold" style="background: rgba(213, 166, 38, 0.18); color: #D5A626; border: 1px solid rgba(213, 166, 38, 0.4); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+          <span>✨</span><span>فقط طلایی (اکازیون)</span>
+        </button>
+        <button type="button" class="sky-tab" data-filter="north" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+          <span>🌊</span><span>سواحل و مازندران</span>
+        </button>
+        <button type="button" class="sky-tab" data-filter="gilan" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+          <span>🌧️</span><span>گیلان و رشت</span>
+        </button>
+        <button type="button" class="sky-tab" data-filter="tehran" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+          <span>🏙️</span><span>تهران و البرز</span>
+        </button>
+      </div>
+
+      <!-- فیلترهای سریع استان و شهر + دکمه فیلتر پیشرفته -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <select id="sky-province-select" style="background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 6px 10px; font-size: 12px; font-family: inherit; outline: none; cursor: pointer;">
+          <option value="">همهٔ استان‌ها</option>
+          <option value="مازندران">مازندران</option>
+          <option value="گیلان">گیلان</option>
+          <option value="تهران">تهران</option>
+          <option value="البرز">البرز</option>
+          <option value="گلستان">گلستان</option>
+          <option value="اصفهان">اصفهان</option>
+          <option value="فارس">فارس</option>
+          <option value="خراسان رضوی">خراسان رضوی</option>
+        </select>
+        <button id="sky-adv-btn" type="button" style="background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <span>⚙️</span><span>فیلتر پیشرفته</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var tabs = document.querySelectorAll(".sky-tab");
+      var provSelect = document.getElementById("sky-province-select");
+      
+      function triggerSkyFilter(filterType, provName) {
+        if (window.FM && typeof window.FM.filterGlobe === "function") {
+          window.FM.filterGlobe({ type: filterType, province: provName });
+        } else if (window.skyApply && typeof window.skyApply === "function") {
+          window.skyApply({ type: filterType, province: provName });
+        } else {
+          var ev = new CustomEvent("skyFilterChange", { detail: { type: filterType, province: provName } });
+          window.dispatchEvent(ev);
+        }
+      }
+
+      tabs.forEach(function(btn){
+        btn.addEventListener("click", function(){
+          tabs.forEach(function(b){ 
+            b.classList.remove("active"); 
+            b.style.background = (b.dataset.filter === "gold") ? "rgba(213, 166, 38, 0.18)" : "rgba(255, 255, 255, 0.06)";
+            b.style.color = (b.dataset.filter === "gold") ? "#D5A626" : "#cbd5e1";
+          });
+          btn.classList.add("active");
+          btn.style.background = (btn.dataset.filter === "gold") ? "#D5A626" : "#20976A";
+          btn.style.color = (btn.dataset.filter === "gold") ? "#0f172a" : "#fff";
+          triggerSkyFilter(btn.dataset.filter, provSelect ? provSelect.value : "");
+        });
+      });
+
+      if (provSelect) {
+        provSelect.addEventListener("change", function(){
+          var activeTab = document.querySelector(".sky-tab.active");
+          var fType = activeTab ? activeTab.dataset.filter : "all";
+          triggerSkyFilter(fType, provSelect.value);
+        });
+      }
+    })();
+  </script>
+
+
   <button class="totop" id="toTop" type="button" aria-label="بازگشت به ابتدا" hidden>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
   </button>
