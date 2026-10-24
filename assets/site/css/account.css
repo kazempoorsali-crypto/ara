@@ -924,9 +924,9 @@ html.is-sub .ncard__lock, html.is-sub .lockteaser { display: none !important; }
   .hero__sub { display: block !important; font-size: .78rem !important; line-height: 1.8 !important; padding: .6rem .85rem !important; }
 }
 
-/* برچسب «دیده‌ای» روی کارت ملک‌هایی که قبلاً باز شده‌اند */
+/* برچسب «دیده‌ای» روی کارت ملک‌هایی که قبلاً باز شده‌اند — پس‌زمینهٔ توپر تا روی عکس‌های روشن هم خوانا بماند */
 .seen-tag { position: absolute; z-index: 4; top: 2.55rem; right: .5rem; padding: 3px 9px; border-radius: 999px; font-size: .68rem; font-weight: 700;
-  background: rgba(10, 18, 14, .72); color: #f3efe4; border: 1px solid rgba(255, 255, 255, .22); pointer-events: none; }
+  background: #18231d; color: #ffffff; border: 1px solid rgba(255, 255, 255, .6); box-shadow: 0 2px 8px rgba(0, 0, 0, .38); pointer-events: none; }
 .seen-tag::before { content: "👁 "; font-size: .62rem; }
 .seen-tag[hidden] { display: none !important; }
 

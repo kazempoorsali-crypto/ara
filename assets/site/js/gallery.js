@@ -206,7 +206,23 @@
     if (allBtn) allBtn.href = searchUrl();
     var n = advActive();
     if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
-    if (!anyFilter() || !FM.api) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); loadDrops(my, null); document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: null } })); return; }
+    /* مشترک با فیلتر خاموش: ویترین از سرور با دادهٔ کامل (ارزش کارشناسی همهٔ کارت‌ها و عکس‌های چرخشی) می‌آید، نه از دادهٔ مهمانِ بوت */
+    var subFetch = !!(FM.api && FM.isSub && FM.isSub());
+    if (!anyFilter() || !FM.api) {
+      if (subFetch) {
+        statusEl.textContent = "در حال جست‌وجو…";
+        FM.api.search({ opp: 1, deal: "sale", sort: "score", ranked: 1, limit: 30, imgs: 1 }).then(function (r) {
+          if (my !== seq) return;
+          current = (r.items || []).map(FM.mapListing);
+          current.total = r.total || current.length;
+          applyFilterUI(); renderMasonry(true);
+          document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: current } }));
+        }).catch(function () { if (my === seq) { current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); } });
+        loadDrops(my, null);
+        return;
+      }
+      current = (FM.data.properties || []).slice(); applyFilterUI(); renderMasonry(true); loadDrops(my, null); document.dispatchEvent(new CustomEvent("fm:filtered", { detail: { items: null } })); return;
+    }
     statusEl.textContent = "در حال جست‌وجو…";
     var scoredOnly = !ADV.deal || ADV.deal === "sale" || ADV.deal === "presale";
     var ids = FM.cityIds(FM.region);
@@ -452,7 +468,13 @@
   function bootHunts() { return (FM.data.properties || []).filter(function (p) { return p.label === "gold" || p.label === "good"; }).slice(0, 8); }
   /* شکارهای بازار: بدون اشتراک فقط سه شکار اول (در هر شهر) باز است؛ بقیه مات با قفل */
   var HUNT_FREE = 3, lastHunts = [];
-  addEventListener("fm:me", function () { if (lastHunts.length) renderHunts(lastHunts); });
+  /* با مشخص‌شدن وضعیت ورود/اشتراک، ویترین با دادهٔ تازه (ارزش کارشناسی همهٔ کارت‌ها برای مشترک) دوباره خوانده می‌شود */
+  var lastSubState = null;
+  addEventListener("fm:me", function () {
+    if (lastHunts.length) renderHunts(lastHunts);
+    var st = !!(FM.api && FM.api.me && FM.api.me.active);
+    if (st !== lastSubState) { lastSubState = st; refresh(); }
+  });
   function ago(ts) {
     var m = Math.max(1, Math.round((Date.now() / 1000 - ts) / 60));
     if (m < 60) return FM.fa(m) + " دقیقه پیش";

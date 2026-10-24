@@ -2349,7 +2349,16 @@ const App = (() => {
     if (meM) html += row("این آگهی", "متری " + money(meM), ex.age_days ? `قیمتی که ${fa(ex.age_days)} روز پیش در آگهی درج شده` : "");
     html += row("اختلاف با قیمت محله", UI.gapText(v));
     const fx = !l.locked && (ex.effects || []).length ? `<div class="pid__fx"><b>مهم‌ترین اثرها:</b><ul class="fx">${ex.effects.map(([name, e]) => `<li><span>${esc(name)}</span><b class="${e >= 0 ? "up" : "down"}"><bdi dir="ltr">${e >= 0 ? "+" : "−"}${pct(e)}</bdi></b></li>`).join("")}</ul>${ex.model ? `<p class="small muted">مدل قیمت با ${fa(ex.model.n)} آگهی ساخته شده است (ضریب تعیین ${fa(ex.model.r2)}).</p>` : ""}</div>` : "";
-    return `<section class="block pid"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div>${html}${fx}
+    /* سنجش شفاف: با اعداد واقعی همین آگهی، برای اعتماد؛ فقط وقتی دادهٔ واقعی هست */
+    const trust = !l.locked && v ? `<div class="pid__trust"><b>چرا می‌توانید به این سنجش اعتماد کنید</b><ul>
+      ${ex.district_raw_n ? `<li>سنجش با <b>${fa(ex.district_raw_n)}</b> آگهی معتبر همین محله انجام شده${ex.sellers ? ` از <b>${fa(ex.sellers)}</b> فروشندهٔ مستقل` : ""}؛ آگهی‌های تکراری یک فروشنده فقط یک رأی دارند.</li>` : ""}
+      ${ex.comp_n ? `<li><b>${fa(ex.comp_n)}</b> آگهی مشابه از نظر متراژ، سن و طبقه همین فاصله را تأیید کرده‌اند${ex.comp_disc != null ? ` (فاصلهٔ ${ex.comp_disc >= 0 ? pct(ex.comp_disc) + " ارزان‌تر" : pct(ex.comp_disc) + " گران‌تر"} از نزدیک‌ترین مشابه‌ها)` : ""}.</li>` : ""}
+      ${v.confidence ? `<li>اطمینان مدل: <b>${({ high: "بالا", medium: "متوسط", low: "کم" })[v.confidence] || "—"}</b>${v.rank && v.rank_n ? `؛ رتبهٔ <b>${fa(v.rank)}</b> از <b>${fa(v.rank_n)}</b> فرصت همین محله` : ""}.</li>` : ""}
+      ${ex.trend != null ? `<li>قیمت‌های قدیمی‌تر با روند ماهانهٔ بازار (${ex.trend > 0 ? "+" : "−"}${pct(Math.abs(ex.trend))} در ماه) به نرخ امروز آورده شده‌اند.</li>` : ""}
+      ${ex.age_days ? `<li>قیمت آگهی <b>${fa(ex.age_days)}</b> روز پیش درج شده؛ برای قیمت روز با فروشنده تماس بگیرید.</li>` : ""}
+      <li>سنجش کاملاً خودکار و بدون دست‌کاری انسانی است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</li>
+    </ul></div>` : "";
+    return `<section class="block pid"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div>${html}${fx}${trust}
       <p class="pid__foot">«میانهٔ محله» یعنی نیمی از آگهی‌های محله گران‌ترند و نیمی ارزان‌تر. ${rent ? "«رهن کامل» یعنی ودیعه به‌اضافهٔ اجارهٔ ماهانه که به ودیعه تبدیل شده؛ هر ۱ میلیون تومان اجارهٔ ماهانه حدود ۳۳ میلیون تومان ودیعه حساب شده و همهٔ آگهی‌های اجاره با همین حساب مقایسه می‌شوند." : ""}</p></section>`;
   }
   /* تحلیل قیمت و عوامل مؤثر: جایگزینی حرفه‌ای واژه ارزانی و تشریح دلایل اقتصادی */

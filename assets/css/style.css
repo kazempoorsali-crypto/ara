@@ -596,6 +596,12 @@ dialog.dlg[open] { animation: pop .25s var(--ease); }
 .score--big b { font-size: 26px; }
 .vcard__nums { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-radius: var(--r); overflow: hidden; }
 .vcard__nums div { background: var(--sunk); padding: 10px 12px; }
+/* بلوک «چرا می‌توانید اعتماد کنید» در شناسنامهٔ قیمت: سنجش شفاف با اعداد واقعی */
+.pid__trust { margin-top: 14px; border: 1px solid var(--line); border-inline-start: 3px solid var(--good); border-radius: 12px; padding: 12px 14px; background: color-mix(in srgb, var(--good) 5%, transparent); }
+.pid__trust b { display: block; font-size: 13px; margin-bottom: 6px; }
+.pid__trust ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.pid__trust li { position: relative; padding-inline-start: 16px; font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+.pid__trust li::before { content: "✓"; position: absolute; inset-inline-start: 0; color: var(--good); font-weight: 800; }
 .vcard__nums span { display: block; font-size: 11.5px; color: var(--muted); }
 .vcard__nums b { font-size: 17px; font-weight: 900; }
 .blur { filter: blur(6px); user-select: none; }
