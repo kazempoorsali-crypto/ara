@@ -63,8 +63,17 @@ window.FM = window.FM || {};
     var imgs = goodImgs.filter(function(v, i, a){ return a.indexOf(v) === i; }).map(FM.img);
     var price = l.pp || l.price || 0;
     var label = (v && v.label) || l.label || "pending";
-    return {
-      id: l.id,
+    
+      var _s = {}, _c = [];
+      imgs.forEach(function(u) {
+          if(!u) return;
+          var u_str = String(u).replace(/\/(thumbnail|thumb|small)\//g, "/web_image/");
+          var base = u_str.split("?")[0].replace(/[_.-]\d+x\d+/g, "");
+          if(!_s[base]) { _s[base] = true; _c.push(u_str); }
+      });
+      imgs = _c;
+      return {
+id: l.id,
       raw: l,
       title: l.title || ((KIND[l.kind] || "ملک") + (l.area ? " " + fa(l.area) + " متری" : "")),
       kind: KIND[l.kind] || "ملک",

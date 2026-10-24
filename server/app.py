@@ -237,6 +237,10 @@ class App:
         self.support = Support(self.store, self.billing, data_dir)
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
+        # اصلاح امتیازهای اشتباه قبلی در دیتابیس
+        try:
+            self.store.x("UPDATE listings SET score=84.9 WHERE label='good' AND score>=85")
+        except: pass
         if not self.store.get_setting("mig_strict_lock_v1"):
             b = self.store.get_setting("billing") or {}
             self.store.set_setting("billing", {**b, "free_preview": 0, "trial_enabled": False, "weekly_price": b.get("weekly_price") or 98000, "monthly_price": b.get("monthly_price") or 248000})
