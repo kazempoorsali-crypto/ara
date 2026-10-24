@@ -162,7 +162,7 @@
     if (q25 && q75 && ppm) {
       gauge.hidden = false;
       var gMin = Math.min(q25, ppm) * 0.95, gMax = Math.max(q75, ppm) * 1.05;
-      var pos = function (x) { return Math.max(2, Math.min(98, (x - gMin) / (gMax - gMin) * 100)); };
+      var pos = function (x) { return Math.max(0, Math.min(100, (x - gMin) / (gMax - gMin) * 100)); };
       $("[data-gmin]").textContent = mt(q25) + " م.ت";
       $("[data-gavgv]").textContent = mt(med) + " م.ت";
       $("[data-gmax]").textContent = mt(q75) + " م.ت";
