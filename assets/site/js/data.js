@@ -57,7 +57,14 @@ window.FM = window.FM || {};
 
   FM.mapListing = function (l) {
     var v = l.verdict || (l.label ? { label: l.label, delta: l.discount != null ? -l.discount : null, approx: l.locked } : null);
-    var imgs = (l.images && l.images.length ? l.images : l.image ? [l.image] : []).map(FM.img);
+    var rawImgs = (l.images && l.images.length ? l.images : l.image ? [l.image] : []);
+    var seenBase = {}, uniqImgs = [];
+    rawImgs.forEach(function(u){
+      if (!u) return;
+      var key = String(u).replace(/\?.*$/, "").replace(/\/(thumbnail|thumb|small| orig|web_image|main)\//gi, "/").replace(/[_.-]\d+x\d+/g, "");
+      if (!seenBase[key]) { seenBase[key] = 1; uniqImgs.push(u); }
+    });
+    var imgs = uniqImgs.map(FM.img);
     var price = l.pp || l.price || 0;
     var label = (v && v.label) || l.label || "pending";
     return {
@@ -104,12 +111,12 @@ window.FM = window.FM || {};
     thresholds: th,
     /* استان ← شهر ← محله؛ price = میانهٔ قیمت هر متر به میلیون تومان (از جدول بازار) */
     regions: (B.regions || []).map(function (p) {
-      return { id: p.id, name: p.name, cities: p.cities.map(function (c) {
-        return { id: c.id, name: c.name, n: c.n, lat: c.lat, lon: c.lng, lng: c.lng, districts: c.districts.map(function (d) {
+      return { id: p.id, name: p.name, cities: (p.cities || []).map(function (c) {
+        return { id: c.id, name: c.name, n: c.n, lat: c.lat, lon: c.lng, lng: c.lng, districts: (c.districts || []).map(function (d) {
           return { id: d.id, name: d.name, n: d.n, price: Math.round(d.ppm / 1e5) / 10, ppm: d.ppm, p25: d.p25, p75: d.p75 };
-        }) };
-      }) };
-    }),
+        }).sort(function(a, b){ return (a.name || "").localeCompare(b.name || "", "fa"); }) };
+      }).sort(function(a, b){ return (a.name || "").localeCompare(b.name || "", "fa"); }) };
+    }).sort(function(a, b){ return (a.name || "").localeCompare(b.name || "", "fa"); }),
     properties: (B.properties || []).map(FM.mapListing),
     property: B.property ? FM.mapListing(B.property) : null,
     market: B.market || null,

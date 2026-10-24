@@ -94,7 +94,14 @@
     advToggle.addEventListener("click", function () {
       var open = advPanel.hidden;
       advPanel.hidden = !open; advToggle.setAttribute("aria-expanded", open); advToggle.classList.toggle("is-open", open);
+      if (open) { try { history.pushState({ fmAdv: true }, "", location.hash || location.pathname); } catch(e){} }
       if (window.ScrollTrigger) setTimeout(function () { ScrollTrigger.refresh(); }, 50);
+    });
+    window.addEventListener("popstate", function () {
+      if (advPanel && !advPanel.hidden) {
+        advPanel.hidden = true; advToggle.setAttribute("aria-expanded", "false"); advToggle.classList.remove("is-open");
+        if (window.ScrollTrigger) setTimeout(function () { ScrollTrigger.refresh(); }, 50);
+      }
     });
     var tmr = null;
     var later = function () { clearTimeout(tmr); tmr = setTimeout(refresh, 350); };
@@ -337,7 +344,8 @@
   var cols = document.querySelectorAll("[data-col-speed]");
   var colTweens = [];
 
-  function ncardEl(p) {
+  function ncardEl(p, cardIdx) {
+    var showFreeFair = FM.isSub() || (typeof cardIdx === 'number' && cardIdx < 3);
     var a = document.createElement("a");
     a.className = "ncard";
     a.href = FM.propUrl(p.id);
@@ -352,7 +360,7 @@
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
-      (p.fairPrice ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:6px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;">💎 ارزش کارشناسی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : '') + (p.locked && (p.label === "gold" || p.label === "good") ? '<span class="ncard__lock">مشاهده آگهی اصلی و تماس <i>🔒 ویژه اعضا</i></span>' : "") + "</span>";
+      (p.fairPrice && showFreeFair ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;text-align:center;">💎 ارزش کارشناسی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : (p.locked ? '<span class="ncard__lock" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(213,166,38,0.13);color:#b8860b;font-size:12px;font-weight:700;">💎 ارزش کارشناسی و سود خالص: <i>🔒 ویژه اعضا</i></span>' : '')) + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
     return a;
   }
@@ -437,7 +445,7 @@
         var sec = document.createElement("section"); sec.className = "cgroup";
         sec.innerHTML = '<h3 class="cgroup__h"><i>' + FM.fa(gi + 1) + "</i>فرصت‌های " + E(g.name) + " <small>" + (g.items.length ? FM.fa(g.items.length) + " ملک" : "موردی با این فیلترها پیدا نشد") + "</small></h3>";
         var grid = document.createElement("div"); grid.className = "cgroup__grid";
-        g.items.forEach(function (p) { grid.appendChild(ncardEl(p)); });
+        g.items.forEach(function (p, idx) { grid.appendChild(ncardEl(p, idx)); });
         sec.appendChild(grid);
         if (g.locked) sec.appendChild(lockTeaser(g.locked, g.name));
         groupsBox.appendChild(sec);
@@ -449,12 +457,12 @@
     var vis = Array.prototype.filter.call(cols, function (c) { return getComputedStyle(c).display !== "none"; });
     if (!vis.length) vis = Array.prototype.slice.call(cols);
     var perCol = Array.prototype.map.call(cols, function () { return []; });
-    items.forEach(function (p, i) { perCol[Array.prototype.indexOf.call(cols, vis[i % vis.length])].push(p); });
+    items.forEach(function (p, i) { p._gIdx = i; perCol[Array.prototype.indexOf.call(cols, vis[i % vis.length])].push(p); });
 
     cols.forEach(function (col, ci) {
       col.innerHTML = "";
       perCol[ci].forEach(function (p, ii) {
-        var el = ncardEl(p);
+        var el = ncardEl(p, p._gIdx);
         if (ii === 0 && ci === 1) el.classList.add("is-offset");
         col.appendChild(el);
       });
