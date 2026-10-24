@@ -766,6 +766,10 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             else:
                 score = round(max(0.0, min(64.0, 50 + d / th["opp"] * 14)), 1)
 
+            # هماهنگ‌سازی قطعی امتیاز با برچسب (رفع باگ امتیاز ۹۸ با برچسب مناسب)
+            if label == "good" and score is not None and score >= 85:
+                score = 84.9
+
             # اثر پارکینگ، آسانسور و سند پیش‌تر در برآورد قیمت منصفانه حساب شده؛ سقف جداگانه‌ای روی امتیاز نیست.
             # برچسب با امتیاز هماهنگ است: «فرصت طلایی» فقط با امتیاز بالا
             if label == "gold" and score < GOLD_MIN_SCORE:
