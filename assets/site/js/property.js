@@ -67,6 +67,9 @@
     if (p.score == null) { if (scoreBox) scoreBox.hidden = true; }
     else {
       ring.style.setProperty("--sp", p.score);
+      var scColor = { gold: "#D5A626", ok: "#20976A", mid: "#E59B32", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#20976A";
+      ring.style.backgroundColor = scColor;
+      ring.style.color = "#fff";
       ring.querySelector("span").textContent = FM.fa(p.score);
       $("[data-pscore-label]").textContent = p.tag + " — امتیاز " + FM.fa(p.score) + " از ۱۰۰";
       var conf = { high: "اطمینان بالا", medium: "اطمینان متوسط", low: "اطمینان کم" }[v.confidence || l.confidence] || "";
@@ -167,7 +170,30 @@
       $("[data-gavgv]").textContent = mt(med) + " م.ت";
       $("[data-gmax]").textContent = mt(q75) + " م.ت";
       $("[data-gavg]").style.right = pos(med) + "%";
-      var dot = $("[data-gdot]");
+      
+          // تنظیم طیف رنگی: قرمز (راست/سقف) -> نارنجی -> سبز -> طلایی (چپ/کف)
+          var track = gauge.querySelector(".pgauge__track");
+          if (track) track.style.background = "linear-gradient(to left, #CF4751, #E59B32, #20976A, #D5A626)";
+          
+          // ایجاد خطوط اتصال برای کف و سقف روی نمودار
+          var gMinEl = $("[data-gmin]").parentElement;
+          var gMaxEl = $("[data-gmax]").parentElement;
+          if (gMinEl) {
+              gMinEl.style.position = "absolute";
+              gMinEl.style.right = pos(q25) + "%";
+              gMinEl.style.top = "100%";
+              gMinEl.style.borderRight = "2px dashed rgba(0,0,0,0.2)";
+              gMinEl.style.paddingRight = "6px";
+          }
+          if (gMaxEl) {
+              gMaxEl.style.position = "absolute";
+              gMaxEl.style.right = pos(q75) + "%";
+              gMaxEl.style.top = "100%";
+              gMaxEl.style.borderRight = "2px dashed rgba(0,0,0,0.2)";
+              gMaxEl.style.paddingRight = "6px";
+          }
+          
+          var dot = $("[data-gdot]");
       dot.style.setProperty("--dot", { gold: "#D5A626", ok: "#20976A", mid: "#E59B32", warm: "#CE7439", bad: "#CF4751" }[p.status] || "#D5A626");
       dot.querySelector("b").textContent = mt(ppm);
       dot.style.right = pos(ppm) + "%"; dot.style.opacity = 1;
