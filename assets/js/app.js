@@ -2292,7 +2292,7 @@ const App = (() => {
     const diff = askVal && v.delta != null && !v.approx ? askVal - askVal / (1 + v.delta) : null;
     return `<div class="vcard">
       <div class="vcard__top">
-        ${score != null ? `<span class="score score--${score >= 85 ? "hi" : score >= 65 ? "mid" : "lo"} score--big"><b>${fa(Math.round(score))}</b><i>از ۱۰۰</i></span>` : ""}
+        ${score != null ? `<span class="score score--${(() => { const lb = v.label; return lb && ["gold", "good", "fair", "high", "over"].indexOf(lb) >= 0 ? lb : score >= 85 ? "hi" : score >= 65 ? "mid" : "lo"; })()} score--big"><b>${fa(Math.round(score))}</b><i>از ۱۰۰</i></span>` : ""}
         <div><h3>${UI.dealPill(v)}</h3><p class="small muted">${UI.confLine(v)}${v.rank ? `، رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت این محله` : ""}</p></div>
       </div>
       ${claimNote(l, v)}

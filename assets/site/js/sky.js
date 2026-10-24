@@ -89,6 +89,7 @@
     if (mapScope) mapScope.textContent = label;
     if (globeLabel) globeLabel.textContent = label + (FM.region.city ? " — نمای نزدیک" : " — نمای کل");
     btnReset.hidden = !(FM.region.province || FM.region.city || FM.region.district);
+    advUI();
     renderPins(true);
     renderStats();
     if (globeApi) globeApi.focus(FM.region);
@@ -120,6 +121,108 @@
   btnReset.addEventListener("click", function () {
     FM.region = { province: "", city: "", district: "" };
     selProvince.value = ""; fillCities(); fillDistricts(); apply();
+    var on = vcats ? vcats.querySelector("button[data-vp='']") : null;
+    if (vcats) vcats.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === on); });
+  });
+
+  /* ---------- چیپ‌های دستهٔ تصویری (همان فیلتر صفحهٔ اصلی): انتخاب منطقه، پرواز کره ---------- */
+  var vcats = document.getElementById("visualCats");
+  if (vcats) vcats.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-vp]"); if (!b) return;
+    vcats.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+    FM.region = { province: b.dataset.vp || "", city: b.dataset.vc || "", district: "" };
+    selProvince.value = FM.region.province;
+    fillCities(); fillDistricts();
+    if (selCity.dataset.plain) selCity.value = FM.region.city;
+    apply();
+  });
+
+  /* ---------- فیلتر پیشرفته: همان فیلترهای جست‌وجوی کامل سایت؛
+     کره و نقشه قیمت محله‌ها را نشان می‌دهند، پس این فیلترها وضعیت و پیوند «دیدن فرصت‌ها» را
+     با همان شرایط به‌روز می‌کنند تا با یک کلیک همان جست‌وجو باز شود ---------- */
+  var ADV = {};   // { deal, kinds, min, max, depMax, rentMax, areaMin, areaMax, rooms, ageMax, fresh, settle, amenities, opp, drop }
+  var advPanel = document.getElementById("advPanel"), advToggle = document.getElementById("advToggle"), advCount = document.getElementById("advCount");
+  function toNum(t) {
+    t = String(t || "").replace(/[۰-۹]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); }).replace(/[٠-٩]/g, function (d) { return "٠١٢٣٤٥٦٧٨٩".indexOf(d); }).replace(/[,٬،\s]/g, "").replace("٫", ".");
+    var m = t.match(/[\d.]+/); if (!m) return "";
+    var n = parseFloat(m[0]); if (!n) return "";
+    if (/میلیارد/.test(t)) n *= 1e9; else if (/میلیون/.test(t)) n *= 1e6; else if (/هزار/.test(t)) n *= 1e3;
+    else if (n < 1000) n *= 1e6;   // عدد خالی کوچک: میلیون تومان
+    return Math.round(n);
+  }
+  function digits(t) { var m = String(t || "").replace(/[۰-۹]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); }).match(/\d+/); return m ? +m[0] : ""; }
+  function advParams() {
+    var q = {}, d = ADV.deal || "";
+    if (d === "presale") { q.deal = "sale"; q.presale = 1; } else if (d) q.deal = d;
+    ["kinds", "rooms", "amenities"].forEach(function (k) { if (ADV[k] && ADV[k].length) q[k] = ADV[k].join(","); });
+    ["min", "max", "depMax", "rentMax", "areaMin", "areaMax", "ageMax", "fresh", "settle", "opp", "drop"].forEach(function (k) { if (ADV[k]) q[k] = ADV[k]; });
+    return q;
+  }
+  function advActive() { return Object.keys(advParams()).filter(function (k) { return k !== "presale"; }).length; }
+  /* وضعیت + پیوند CTA با فیلتر کامل (منطقه + پیشرفته) به‌روز می‌شود */
+  function advUI() {
+    var n = advActive();
+    if (advCount) { advCount.hidden = !n; advCount.textContent = FM.fa(n); }
+    if (n) {
+      var label = FM.regionLabel(FM.region) || "ایران";
+      statusEl.innerHTML = (label === "ایران" ? "نمایش همهٔ مناطق تحت پوشش" : "نمایش بازار <b>" + label + "</b>") + " + " + FM.fa(n) + " فیلتر پیشرفته";
+    }
+    var cta = document.querySelector("[data-sky-cta]");
+    if (cta) {
+      var r = FM.region, q = Object.assign({ opp: 1, sort: "score", province: r.city ? "" : r.province, city: r.city, district: r.district }, advParams());
+      Object.keys(q).forEach(function (k) { if (q[k] === "" || q[k] == null) delete q[k]; });
+      cta.href = "/app.html#/s?" + Object.keys(q).map(function (k) { return k + "=" + encodeURIComponent(q[k]); }).join("&");
+    }
+  }
+  if (advPanel && advToggle) {
+    advToggle.addEventListener("click", function () {
+      var open = advPanel.hidden;
+      advPanel.hidden = !open; advToggle.setAttribute("aria-expanded", open); advToggle.classList.toggle("is-open", open);
+    });
+    var tmr = null;
+    var later = function () { clearTimeout(tmr); tmr = setTimeout(advUI, 350); };
+    advPanel.addEventListener("click", function (e) {
+      var b = e.target.closest(".advf__chips button"); if (!b) return;
+      var box = b.parentNode, k = box.dataset.adv, v = b.dataset.v;
+      if (box.hasAttribute("data-one")) {
+        ADV[k] = v;
+        box.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+        if (k === "deal") {
+          var rent = v === "rent";
+          document.getElementById("advRent").hidden = !rent;
+          document.getElementById("advPriceH").textContent = rent ? "رهن کامل (تومان)" : v === "daily" ? "اجارهٔ هر شب (تومان)" : "بودجه (تومان)";
+        }
+      } else if (k === "drop") {
+        ADV.drop = ADV.drop ? "" : 1; b.classList.toggle("is-on", !!ADV.drop);
+      } else {
+        var arr = ADV[k] = ADV[k] || [], i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1); else arr.push(v);
+        b.classList.toggle("is-on", i < 0);
+      }
+      later();
+    });
+    [["advMin", "min", toNum], ["advMax", "max", toNum], ["advDep", "depMax", toNum], ["advRentMax", "rentMax", toNum],
+     ["advAMin", "areaMin", digits], ["advAMax", "areaMax", digits]].forEach(function (x) {
+      var el = document.getElementById(x[0]);
+      if (el) el.addEventListener("input", function () { ADV[x[1]] = x[2](el.value); later(); });
+    });
+    document.getElementById("advClear").addEventListener("click", function () {
+      ADV = {};
+      advPanel.querySelectorAll(".advf__chips button").forEach(function (x) { x.classList.toggle("is-on", x.dataset.v === ""); });
+      advPanel.querySelectorAll("input").forEach(function (x) { x.value = ""; });
+      document.getElementById("advRent").hidden = true; document.getElementById("advPriceH").textContent = "بودجه (تومان)";
+      advUI();
+    });
+    document.getElementById("advDone").addEventListener("click", function () {
+      var g = document.querySelector(".skylive");
+      if (g) (FM.scrollToEl ? FM.scrollToEl(g, { offset: -80 }) : g.scrollIntoView({ behavior: "smooth" }));
+    });
+  }
+
+  /* ---------- «خبرم کن»: همان منطق مشترک صفحهٔ اصلی (alerts.js) ---------- */
+  var alertBtn = document.getElementById("alertBtn");
+  if (alertBtn) alertBtn.addEventListener("click", function () {
+    FM.alertGate({ province: FM.region.province, city: FM.region.city, district: FM.region.district, deal: ADV.deal || "", kinds: (ADV.kinds || []).join(","), max_price: ADV.max || "" });
   });
 
   function districtsOfRegion() {
@@ -160,8 +263,6 @@
   }
 
   function renderStats() {
-    var cta = document.querySelector("[data-sky-cta]");
-    if (cta) { var r = FM.region, q = ["opp=1"]; ["province", "city", "district"].forEach(function (k) { if (r[k] && !(k === "province" && r.city)) q.push(k + "=" + encodeURIComponent(r[k])); }); cta.href = "/app.html#/s?" + q.join("&"); }
     if (!statsBox) return;
     var list = districtsOfRegion();
     var avg = FM.districtPrice(FM.region);

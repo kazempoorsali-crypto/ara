@@ -176,11 +176,12 @@
           <div class="pbar-row" data-pb3row><small>برآورد بازار برای همین ملک</small><b data-pb3v>—</b><span class="pbar"><i data-pb3 style="--st:#E59B32"></i></span></div>
           
           <div class="pgauge">
+            <div class="pgauge__ends" aria-hidden="true"><span class="is-cheap">ارزان‌تر — سمت فرصت</span><span class="is-dear">گران‌تر</span></div>
             <div class="pgauge__track"><i class="pgauge__avg" data-gavg></i><i class="pgauge__dot" data-gdot><b></b></i></div>
-            <div class="pgauge__legend">
-              <span>چارک پایین<b data-gmin>—</b></span>
-              <span>میانهٔ محله<b data-gavgv>—</b></span>
-              <span>چارک بالا<b data-gmax>—</b></span>
+            <div class="pgauge__axis">
+              <i class="pgauge__drop" data-gdrop="min" hidden><i class="pgauge__line"></i><span class="pgauge__cap">کف قیمت<b data-gmin>—</b></span></i>
+              <i class="pgauge__drop pgauge__drop--avg" data-gdrop="avg" hidden><i class="pgauge__line"></i><span class="pgauge__cap">میانهٔ محله<b data-gavgv>—</b></span></i>
+              <i class="pgauge__drop" data-gdrop="max" hidden><i class="pgauge__line"></i><span class="pgauge__cap">سقف قیمت<b data-gmax>—</b></span></i>
             </div>
           </div>
           <p class="panalysis__note">«برآورد بازار» برآورد آماری فرصت ملک از آگهی‌های مشابه همین محله است، نه قیمت قطعی معامله؛ پیش از معامله بازدید حضوری و استعلام سند الزامی است.</p>

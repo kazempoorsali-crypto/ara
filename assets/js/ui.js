@@ -139,13 +139,19 @@ const UI = (() => {
   // سازگاری با فراخوانی‌های قبلی: برچسب + فاصله
   const dealPill = (v) => (v ? `${labelPill(v)} <span class="gap gap--${v.delta < 0 ? "below" : "above"}">${gapText(v)}</span>` : "");
   const confLine = (v) => (v && v.confidence ? `${CONF[v.confidence]}${v.n ? "، " + fa(v.n) + " مقایسه در محله" : ""}` : "");
-  const scoreBadge = (l) => (l.score != null ? `<span class="score score--${l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo"}" title="امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
+  const scoreBadge = (l) => (l.score != null ? `<span class="score score--${scoreCls(l)}" title="امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل"><b>${fa(Math.round(l.score))}</b><i>امتیاز</i></span>` : "");
   const cards = {};   // آگهی‌های کارت‌شده برای دکمهٔ اشتراک/پوستر
   const seen = { has: (id) => store.get("seen", []).includes(id), add: (id) => { const s = store.get("seen", []); if (!s.includes(id)) { s.unshift(id); store.set("seen", s.slice(0, 400)); } } };
   /* نوار طیف قیمت کارشناسی در سراسر سایت:
      کف و سقف قیمت منصفانهٔ همین ملک، خط میانه (قیمت تعادلی)، و نقطهٔ چشمک‌زن همین آگهی؛
      رنگ نوار از سبز (نزدیک کف) به قرمز (نزدیک سقف) و رنگ نقطه بر پایهٔ حکم: طلایی، سبز، قهوه‌ای یا قرمز */
   const DOT = { gold: "#f5c542", good: "#22c55e", fair: "#a8743f", high: "#ef4444", over: "#dc2626", sus: "#a78bfa" };
+  /* کلاس رنگ دایرهٔ امتیاز از خودِ حکم می‌آید (طلایی/سبز/…)، نه فقط از عدد امتیاز؛
+     اگر حکم نداشت، مثل قبل از عدد حدس می‌خورد */
+  const scoreCls = (l) => {
+    const lb = l.verdict && l.verdict.label;
+    return lb && ["gold", "good", "fair", "high", "over"].indexOf(lb) >= 0 ? lb : l.score >= 85 ? "hi" : l.score >= 65 ? "mid" : "lo";
+  };
   function priceBar(me, exp, opts = {}) {
     if (!me || !exp) return "";
     const hasRange = opts.lo > 0 && opts.hi > opts.lo;
@@ -157,8 +163,8 @@ const UI = (() => {
     const TAG = { gold: "فرصت طلایی", good: "فرصت مناسب", fair: "نزدیک قیمت تعادلی", high: "بالاتر از ارزش واقعی", over: "قیمت غیرمنطقی", sus: "قیمت مشکوک" };
     const dot = DOT[label] || (diff < 0 ? DOT.good : DOT.high);
     const xF = floor ? X(floor) : X(exp * 0.9), xM = X(exp), xC = ceil ? X(ceil) : X(exp * 1.1);
-    // جهت راست‌به‌چپ: سمت راست ارزان (سبز) و سمت چپ گران (قرمز)
-    const grad = `linear-gradient(to left, #10b981 0%, #10b981 ${xF}%, #d4a017 ${xM}%, #ef4444 ${xC}%, #b91c1c 100%)`;
+    // جهت راست‌به‌چپ: سمت راست ارزان — ته طیف (تخفیف عمیق) زون طلایی دارد و تا انتها سبز نیست؛ سمت چپ گران (قرمز)
+    const grad = `linear-gradient(to left, #d4a017 0%, #d4a017 6%, #10b981 18%, #10b981 ${xF}%, #d4a017 ${xM}%, #ef4444 ${xC}%, #b91c1c 100%)`;
     const H = opts.mini ? 8 : 12, D = opts.mini ? 10 : 16;
     // برچسب نزدیک لبه به داخل نوار تکیه می‌کند تا بریده نشود
     const capPos = (x) => (x > 78 ? "right:auto;left:-4px;transform:none" : x < 22 ? "right:-4px;transform:none" : "");
@@ -167,13 +173,15 @@ const UI = (() => {
         <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی همین ملک</span>
         <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;color:#111;background:${dot};">${TAG[label] || ""}${diffPct ? ` · ${fa(diffPct)}٪ ${diff < 0 ? "زیر" : "بالای"} تعادل` : ""}</span>
       </div>`}
-      <div class="pbar__track" style="position:relative;height:${H}px;border-radius:999px;background:${grad};border:1px solid var(--line);margin:${opts.mini ? "0" : "18px 0 20px"};">
-        ${hasRange && !opts.mini ? `<b class="pbar__tick" style="right:${xF}%" title="کف قیمت منصفانه"></b><b class="pbar__tick" style="right:${xC}%" title="سقف قیمت منصفانه"></b>` : ""}
+      <div class="pbar__track" style="position:relative;height:${H}px;border-radius:999px;background:${grad};border:1px solid var(--line);margin:${opts.mini ? "0" : hasRange ? "18px 0 46px" : "18px 0 20px"};">
+        ${hasRange && !opts.mini ? `<b class="pbar__tick pbar__tick--drop" style="right:${xF}%" title="کف قیمت منصفانه"><span class="pbar__cap pbar__cap--drop" style="${capPos(xF)}">کف قیمت: ${money(Math.round(floor))}</span></b><b class="pbar__tick pbar__tick--drop" style="right:${xC}%" title="سقف قیمت منصفانه"><span class="pbar__cap pbar__cap--drop" style="${capPos(xC)}">سقف قیمت: ${money(Math.round(ceil))}</span></b>` : ""}
         <b class="pbar__exp" style="position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.6);border-radius:2px;right:${xM}%;transform:translateX(50%);" title="میانه / قیمت تعادلی: ${money(exp)}">${opts.mini ? "" : `<span class="pbar__cap pbar__cap--top" style="${capPos(xM)}">میانه ${money(Math.round(exp))}</span>`}</b>
         <b class="pbar__me${opts.mini ? "" : " is-blink"}" style="--dot:${dot};position:absolute;top:50%;width:${D}px;height:${D}px;border-radius:50%;background:${dot};border:2px solid #fff;transform:translate(50%, -50%);right:${X(me)}%;z-index:2;" title="این آگهی: ${money(me)}">${opts.mini ? "" : `<span class="pbar__cap pbar__cap--bot" style="color:${dot};${capPos(X(me))}">این ملک ${money(Math.round(me))}</span>`}</b>
       </div>
-      ${opts.mini ? "" : `<div class="pbar__labs" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);white-space:nowrap;">
-        ${hasRange ? `<span><i style="color:#10b981">●</i> کف: ${money(Math.round(floor))}</span><span><i style="color:#ef4444">●</i> سقف: ${money(Math.round(ceil))}</span>` : `<span><i style="color:#10b981">●</i> ارزان‌تر</span><span>کف و سقف دقیق برای مشترکان</span><span><i style="color:#ef4444">●</i> گران‌تر</span>`}
+      ${opts.mini ? "" : hasRange ? `<div class="pbar__labs" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);white-space:nowrap;">
+        <span><i style="color:#d4a017">●</i> ارزان‌تر — سمت فرصت</span><span>گران‌تر <i style="color:#ef4444">●</i></span>
+      </div>` : `<div class="pbar__labs" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);white-space:nowrap;">
+        <span><i style="color:#10b981">●</i> ارزان‌تر</span><span>کف و سقف دقیق برای مشترکان</span><span><i style="color:#ef4444">●</i> گران‌تر</span>
       </div>`}
     </div>`;
   }

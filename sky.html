@@ -38,90 +38,6 @@
 </head>
 <body data-page="sky">
 
-  <!-- نوار فیلتر هوشمند متصل به کره زمین (برگرفته از طراحی صفحه اول) -->
-  <div id="sky-filter-bar" class="sky-filter-container" style="position: sticky; top: 12px; z-index: 999; margin: 0 auto 16px auto; max-width: 1200px; padding: 0 16px; width: 100%;">
-    <div style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 10px 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.4); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
-      
-      <!-- تب‌های دسته‌بندی و مناطق -->
-      <div class="sky-tabs" style="display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px;">
-        <button type="button" class="sky-tab active" data-filter="all" style="background: #20976A; color: #fff; border: none; border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-          <span>🔥</span><span>همهٔ فرصت‌ها</span>
-        </button>
-        <button type="button" class="sky-tab" data-filter="gold" style="background: rgba(213, 166, 38, 0.18); color: #D5A626; border: 1px solid rgba(213, 166, 38, 0.4); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-          <span>✨</span><span>فقط طلایی (اکازیون)</span>
-        </button>
-        <button type="button" class="sky-tab" data-filter="north" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-          <span>🌊</span><span>سواحل و مازندران</span>
-        </button>
-        <button type="button" class="sky-tab" data-filter="gilan" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-          <span>🌧️</span><span>گیلان و رشت</span>
-        </button>
-        <button type="button" class="sky-tab" data-filter="tehran" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-          <span>🏙️</span><span>تهران و البرز</span>
-        </button>
-      </div>
-
-      <!-- فیلترهای سریع استان و شهر + دکمه فیلتر پیشرفته -->
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <select id="sky-province-select" style="background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 6px 10px; font-size: 12px; font-family: inherit; outline: none; cursor: pointer;">
-          <option value="">همهٔ استان‌ها</option>
-          <option value="مازندران">مازندران</option>
-          <option value="گیلان">گیلان</option>
-          <option value="تهران">تهران</option>
-          <option value="البرز">البرز</option>
-          <option value="گلستان">گلستان</option>
-          <option value="اصفهان">اصفهان</option>
-          <option value="فارس">فارس</option>
-          <option value="خراسان رضوی">خراسان رضوی</option>
-        </select>
-        <button id="sky-adv-btn" type="button" style="background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-          <span>⚙️</span><span>فیلتر پیشرفته</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    (function(){
-      var tabs = document.querySelectorAll(".sky-tab");
-      var provSelect = document.getElementById("sky-province-select");
-      
-      function triggerSkyFilter(filterType, provName) {
-        if (window.FM && typeof window.FM.filterGlobe === "function") {
-          window.FM.filterGlobe({ type: filterType, province: provName });
-        } else if (window.skyApply && typeof window.skyApply === "function") {
-          window.skyApply({ type: filterType, province: provName });
-        } else {
-          var ev = new CustomEvent("skyFilterChange", { detail: { type: filterType, province: provName } });
-          window.dispatchEvent(ev);
-        }
-      }
-
-      tabs.forEach(function(btn){
-        btn.addEventListener("click", function(){
-          tabs.forEach(function(b){ 
-            b.classList.remove("active"); 
-            b.style.background = (b.dataset.filter === "gold") ? "rgba(213, 166, 38, 0.18)" : "rgba(255, 255, 255, 0.06)";
-            b.style.color = (b.dataset.filter === "gold") ? "#D5A626" : "#cbd5e1";
-          });
-          btn.classList.add("active");
-          btn.style.background = (btn.dataset.filter === "gold") ? "#D5A626" : "#20976A";
-          btn.style.color = (btn.dataset.filter === "gold") ? "#0f172a" : "#fff";
-          triggerSkyFilter(btn.dataset.filter, provSelect ? provSelect.value : "");
-        });
-      });
-
-      if (provSelect) {
-        provSelect.addEventListener("change", function(){
-          var activeTab = document.querySelector(".sky-tab.active");
-          var fType = activeTab ? activeTab.dataset.filter : "all";
-          triggerSkyFilter(fType, provSelect.value);
-        });
-      }
-    })();
-  </script>
-
-
   <button class="totop" id="toTop" type="button" aria-label="بازگشت به ابتدا" hidden>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
   </button>
@@ -168,17 +84,61 @@
     </section>
 
     <!-- کرهٔ زمین سه‌بعدی و زیر آن نقشهٔ مسطح (دوبعدی / ماهواره) با برج‌های قیمت محله‌ها -->
-    <!-- قیمت محله‌ها با فیلتر -->
+    <!-- قیمت محله‌ها با همان فیلتر صفحهٔ اصلی: چیپ‌های منطقه + استان/شهر/محله + فیلتر پیشرفته -->
     <section class="sky-filterbar">
       <h2 class="section-title is-center">قیمت هر متر محله‌ها</h2>
-      <p class="sky-filterbar__hint">استان، شهر و محله را انتخاب کنید؛ کرهٔ زمین و نقشهٔ پایین همان‌جا را نشان می‌دهند.</p>
-      <div class="searchbar" role="group" aria-label="فیلتر منطقه">
-        <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
-        <i class="searchbar__arrow" aria-hidden="true">←</i>
-        <label class="searchbar__field"><span>شهر</span><select id="fCity" disabled><option value="">همهٔ شهرها</option></select></label>
-        <i class="searchbar__arrow" aria-hidden="true">←</i>
-        <label class="searchbar__field is-district"><span>محله</span><select id="fDistrict" disabled><option value="">همهٔ محله‌ها</option></select></label>
-        <button class="searchbar__reset" id="fReset" type="button" hidden>پاک‌کردن ✕</button>
+      <p class="sky-filterbar__hint">منطقه را انتخاب کنید؛ کرهٔ زمین به همان‌جا پرواز می‌کند و نقشهٔ محله‌ها زیر کره همان‌جا را نشان می‌دهد.</p>
+      <div class="homefilter__inner">
+        <div class="vcat-Bar" id="visualCats" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;justify-content:center;">
+          <button type="button" class="btn btn--ghost is-on" data-vp="" data-vc="" style="border-radius:100px;font-size:13px;padding:8px 16px;">🔥 همهٔ ایران</button>
+          <button type="button" class="btn btn--ghost" data-vp="mazandaran" data-vc="" style="border-radius:100px;font-size:13px;padding:8px 16px;">🌊 مازندران و ساحلی</button>
+          <button type="button" class="btn btn--ghost" data-vp="gilan" data-vc="rasht" style="border-radius:100px;font-size:13px;padding:8px 16px;">🌧️ رشت و گیلان</button>
+          <button type="button" class="btn btn--ghost" data-vp="tehran" data-vc="tehran" style="border-radius:100px;font-size:13px;padding:8px 16px;">🏙️ تهران و البرز</button>
+          <button type="button" class="btn btn--ghost" data-vp="khorasan_razavi" data-vc="mashhad" style="border-radius:100px;font-size:13px;padding:8px 16px;">🕌 مشهد</button>
+          <button type="button" class="btn btn--ghost" data-vp="fars" data-vc="shiraz" style="border-radius:100px;font-size:13px;padding:8px 16px;">🏛️ شیراز و اصفهان</button>
+        </div>
+        <div class="searchbar" role="group" aria-label="فیلتر منطقه">
+          <label class="searchbar__field"><span>استان</span><select id="fProvince"><option value="">همهٔ استان‌ها</option></select></label>
+          <i class="searchbar__arrow" aria-hidden="true">←</i>
+          <label class="searchbar__field"><span>شهر</span><select id="fCity" disabled><option value="">همهٔ شهرها</option></select></label>
+          <i class="searchbar__arrow" aria-hidden="true">←</i>
+          <label class="searchbar__field is-district"><span>محله</span><select id="fDistrict" disabled><option value="">همهٔ محله‌ها</option></select></label>
+          <button class="btn btn--gold searchbar__apply" id="fApply" type="button" hidden style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;white-space:nowrap;">✓ اعمال فیلتر</button>
+          <button class="searchbar__reset" id="fReset" type="button" hidden>پاک‌کردن ✕</button>
+        </div>
+        <div class="advf__bar">
+          <button class="advf__toggle" id="advToggle" type="button" aria-expanded="false" aria-controls="advPanel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke-linecap="round"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+            فیلتر پیشرفته <b class="advf__count" id="advCount" hidden></b><i aria-hidden="true">▾</i>
+          </button>
+        </div>
+        <button class="alertbtn" id="alertBtn" type="button"><span class="alertbtn__bell" aria-hidden="true">🔔</span> خبرم کن <small>فرصت تازهٔ همین فیلتر در بله و تلگرام</small></button>
+        <div class="advf fmx" id="advPanel" hidden>
+          <div class="advf__grid">
+            <div class="advf__g"><span class="advf__h">نوع معامله</span><div class="advf__chips" data-adv="deal" data-one>
+              <button type="button" data-v="" class="is-on">همه</button><button type="button" data-v="sale">خرید</button><button type="button" data-v="presale">پیش‌فروش</button><button type="button" data-v="rent">رهن و اجاره</button><button type="button" data-v="daily">اجارهٔ روزانه</button></div></div>
+            <div class="advf__g"><span class="advf__h">نوع ملک <small>(چندتایی)</small></span><div class="advf__chips" data-adv="kinds">
+              <button type="button" data-v="apartment">آپارتمان</button><button type="button" data-v="villa">ویلا</button><button type="button" data-v="land">زمین</button><button type="button" data-v="garden">باغ</button><button type="button" data-v="suite">سوئیت</button><button type="button" data-v="shop">مغازه</button><button type="button" data-v="office">اداری</button></div></div>
+            <div class="advf__g advf__g--price"><span class="advf__h" id="advPriceH">بودجه (تومان)</span>
+              <div class="advf__range"><input id="advMin" inputmode="text" placeholder="از، مثلاً ۲ میلیارد"><input id="advMax" inputmode="text" placeholder="تا، مثلاً ۸ میلیارد"></div>
+              <div class="advf__range" id="advRent" hidden><input id="advDep" inputmode="text" placeholder="سقف ودیعه"><input id="advRentMax" inputmode="text" placeholder="سقف اجارهٔ ماهانه"></div></div>
+            <div class="advf__g"><span class="advf__h">متراژ (متر)</span><div class="advf__range"><input id="advAMin" inputmode="numeric" placeholder="از"><input id="advAMax" inputmode="numeric" placeholder="تا"></div></div>
+            <div class="advf__g"><span class="advf__h">تعداد خواب <small>(چندتایی)</small></span><div class="advf__chips" data-adv="rooms">
+              <button type="button" data-v="0">استودیو</button><button type="button" data-v="1">۱</button><button type="button" data-v="2">۲</button><button type="button" data-v="3">۳</button><button type="button" data-v="4">۴ و بیشتر</button></div></div>
+            <div class="advf__g"><span class="advf__h">سن بنا</span><div class="advf__chips" data-adv="ageMax" data-one>
+              <button type="button" data-v="" class="is-on">همه</button><button type="button" data-v="2">نوساز</button><button type="button" data-v="5">تا ۵ سال</button><button type="button" data-v="10">تا ۱۰ سال</button><button type="button" data-v="20">تا ۲۰ سال</button></div></div>
+            <div class="advf__g"><span class="advf__h">تازگی آگهی</span><div class="advf__chips" data-adv="fresh" data-one>
+              <button type="button" data-v="" class="is-on">همه</button><button type="button" data-v="1">۲۴ ساعت</button><button type="button" data-v="7">۷ روز</button><button type="button" data-v="30">۳۰ روز</button></div></div>
+            <div class="advf__g"><span class="advf__h">شهری یا روستایی</span><div class="advf__chips" data-adv="settle" data-one>
+              <button type="button" data-v="" class="is-on">همه</button><button type="button" data-v="urban">شهری</button><button type="button" data-v="rural">روستایی</button></div></div>
+            <div class="advf__g advf__g--wide"><span class="advf__h">امکانات <small>(چندتایی)</small></span><div class="advf__chips" data-adv="amenities">
+              <button type="button" data-v="seaview">دید دریا</button><button type="button" data-v="forest">جنگلی</button><button type="button" data-v="pool">استخر</button><button type="button" data-v="jacuzzi">جکوزی</button><button type="button" data-v="parking">پارکینگ</button><button type="button" data-v="elevator">آسانسور</button><button type="button" data-v="warehouse">انباری</button><button type="button" data-v="balcony">بالکن</button><button type="button" data-v="gated">شهرکی</button><button type="button" data-v="deed">سند تک‌برگ</button><button type="button" data-v="furnished">مبله</button><button type="button" data-v="barbecue">آلاچیق</button><button type="button" data-v="mountain">دید کوهستان</button></div></div>
+            <div class="advf__g advf__g--wide"><span class="advf__h">نمایش</span><div class="advf__chips" data-adv="opp" data-one>
+              <button type="button" data-v="" class="is-on">همهٔ آگهی‌های سنجیده‌شده</button><button type="button" data-v="1">فقط فرصت‌ها</button></div>
+              <div class="advf__chips" data-adv="drop"><button type="button" data-v="1">فقط کاهش قیمت</button></div></div>
+          </div>
+          <div class="advf__foot"><button type="button" class="advf__clear" id="advClear">پاک کردن فیلترهای پیشرفته</button><button type="button" class="advf__done" id="advDone">دیدن روی کره و نقشه</button></div>
+        </div>
       </div>
       <p class="sky-status" id="skyStatus" aria-live="polite">نمایش همهٔ مناطق تحت پوشش</p>
       <div class="skymap__stats" data-map-stats></div>
@@ -212,6 +172,7 @@
   <script src="/assets/vendor/fx/lenis.min.js"></script>
   <script src="/assets/site/js/api.js?v=51"></script>
   <script src="/assets/site/js/data.js?v=51"></script>
+  <script src="/assets/site/js/alerts.js?v=51"></script>
   <script src="/assets/site/js/share-kit.js?v=51"></script>
   <script src="/assets/site/js/poster.js?v=51"></script>
   <script src="/assets/site/js/app.js?v=51"></script>

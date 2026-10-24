@@ -85,8 +85,9 @@
 .pshare { display: flex; gap: .5rem; }
 .pshare .sharebtn { white-space: nowrap; }
 .pscore { display: flex; align-items: center; gap: 1.1rem; margin-top: 1.6rem; padding: 1.1rem 1.3rem; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); }
-.pscore__ring { --sp: 0; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; font-weight: 900; flex-shrink: 0; background: radial-gradient(closest-side, var(--panel) 76%, transparent 77% 100%), conic-gradient(var(--gold) calc(var(--sp) * 1%), var(--line) 0); }
-.pscore__ring span { color: var(--gold-text); }
+/* رنگ قوس و عدد دایره از --ring-c می‌آید؛ JS آن را با حکم فرصت هماهنگ می‌کند (طلایی/سبز/…) */
+.pscore__ring { --sp: 0; --ring-c: var(--gold); width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; font-weight: 900; flex-shrink: 0; background: radial-gradient(closest-side, var(--panel) 76%, transparent 77% 100%), conic-gradient(var(--ring-c) calc(var(--sp) * 1%), color-mix(in srgb, var(--ring-c) 16%, transparent) 0); }
+.pscore__ring span { color: var(--ring-c); }
 .pscore__txt b { display: block; font-size: 1rem; font-weight: 800; }
 .pscore__txt small { color: var(--ink-dim); font-size: .84rem; }
 .pprice { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: 1.1rem; }
@@ -118,14 +119,19 @@
 .pgallery__side .psource { margin-top: 0; padding: 1.1rem 1.4rem; }
 .pgallery__side .psource .btn { width: 100%; }
 
-/* گیج افقی کف/میانگین/سقف + نقطهٔ ملک */
+/* گیج افقی کف/میانگین/سقف + نقطهٔ ملک
+   جهت: راست = ارزان (چارک پایین و فرصت‌ها)، چپ = گران.
+   طیف از راست به چپ: زون طلاییِ تخفیف عمیق ← سبز ← نارنجی ← قرمز */
 .pgallery__side .panalysis h3 { margin-bottom: 1rem; }
 .panalysis .pbar-row { display: none !important; }
 .pgallery__side .panalysis__note { margin-top: 1.1rem; }
 .pgauge { margin-top: .4rem; }
+.pgauge__ends { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: .7rem; font-weight: 800; }
+.pgauge__ends .is-cheap { color: #D5A626; }
+.pgauge__ends .is-dear { color: #CF4751; }
 .pgauge__track {
   position: relative; height: 16px; border-radius: 999px; overflow: visible;
-  background: linear-gradient(90deg, #CF4751 0%, #CE7439 24%, #E59B32 44%, #D5A626 62%, #2FA377 82%, #20976A 100%);
+  background: linear-gradient(270deg, #E9C25A 0%, #D5A626 6%, #2FA377 18%, #20976A 36%, #7FA85C 54%, #E59B32 74%, #CE7439 86%, #CF4751 100%);
   box-shadow: inset 0 2px 5px rgba(0,0,0,.35), inset 0 -2px 4px rgba(255,255,255,.14), 0 6px 18px -6px rgba(0,0,0,.45);
 }
 .pgauge__track::before {
@@ -145,7 +151,7 @@
   box-shadow: 0 0 0 2px var(--panel);
 }
 .pgauge__avg::after { content: ""; position: absolute; top: -5px; right: 50%; transform: translateX(50%); border: 5px solid transparent; border-top-color: var(--ink); }
-.pgauge__dot { position: absolute; top: 50%; right: 55%; width: 0; opacity: 0; transition: right 1.1s cubic-bezier(.2, .9, .25, 1.2); }
+.pgauge__dot { position: absolute; top: 50%; right: 55%; width: 0; opacity: 0; transition: right 1.1s cubic-bezier(.2, .9, .25, 1.2); z-index: 3; }
 .pgauge__dot.is-on { opacity: 1; }
 .pgauge__dot::after {
   content: ""; position: absolute; top: -9px; right: -9px; width: 17px; height: 17px; border-radius: 50%;
@@ -162,15 +168,18 @@
   box-shadow: 0 8px 22px color-mix(in srgb, var(--dot, #D5A626) 55%, transparent);
 }
 .pgauge__dot b::after { content: ""; position: absolute; top: -4px; right: 50%; transform: translateX(50%) rotate(45deg); width: 8px; height: 8px; background: var(--dot, #D5A626); border-radius: 2px; }
+/* خط‌های راهنمای کف/میانه/سقف: از داخل تراک تا زیر برچسب هرکدام کشیده می‌شوند
+   تا مشخص باشد کدام انتهای نمودار کف است و کدام سقف */
 .panalysis { padding-top: 1.7rem; }
 .pgauge { margin-bottom: 1.6rem; }
-.pgauge__legend { display: flex; justify-content: space-between; margin-top: .8rem; }
-.pgauge__legend span { font-size: .7rem; color: var(--ink-faint); text-align: center; position: relative; padding-top: .1rem; }
-.pgauge__legend b { display: block; color: var(--ink-dim); font-size: .8rem; }
-.pgauge__legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: .3rem; vertical-align: 1px; }
-.pgauge__legend span:first-child::before { background: #20976A; }
-.pgauge__legend span:nth-child(2)::before { background: var(--ink-faint); }
-.pgauge__legend span:last-child::before { background: #CF4751; }
+.pgauge__axis { position: relative; height: 88px; }
+.pgauge__drop { position: absolute; top: -14px; right: 50%; width: 0; transition: right .9s var(--ease); }
+.pgauge__drop .pgauge__line { position: absolute; top: 0; right: -1px; height: 38px; border-right: 2px dashed color-mix(in srgb, var(--ink) 38%, transparent); }
+.pgauge__drop--avg .pgauge__line { height: 26px; border-right-style: solid; border-right-color: color-mix(in srgb, var(--ink) 55%, transparent); }
+.pgauge__drop .pgauge__cap { position: absolute; top: 40px; right: 0; transform: translateX(50%); white-space: nowrap; font-size: .68rem; color: var(--ink-faint); text-align: center; line-height: 1.5; }
+.pgauge__drop .pgauge__cap b { display: block; font-size: .78rem; color: var(--ink-dim); font-weight: 800; }
+.pgauge__drop.at-start .pgauge__cap { transform: translateX(2px); text-align: right; }
+.pgauge__drop.at-end .pgauge__cap { transform: translateX(-100%); text-align: left; }
 
 /* قلب ذخیره */
 .sharebtn.is-saved { color: #e0455a; border-color: color-mix(in srgb, #CF4751 55%, transparent); background: color-mix(in srgb, #CF4751 10%, transparent); }
