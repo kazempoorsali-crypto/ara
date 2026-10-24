@@ -461,7 +461,7 @@ def ad(app, base, lid):
         return None
     c = catalog.CITY_BY_KEY.get(l["city_key"], {})
     kind, deal = KIND.get(l.get("kind"), "ملک"), DEAL.get(l.get("deal"), "")
-    t_clean, claims = clean_title(l.get("title"), l.get("kind"), l.get("area"), l.get("district"))
+    t_clean, claims = (f"{KIND.get(l.get('kind'), 'ملک')} {fa(l['area'])} متری در {l.get('district') or ''}", []) if l.get("label") in ("gold", "good") else clean_title(l.get("title"), l.get("kind"), l.get("area"), l.get("district"))
     price = l.get("price") or l.get("pp")
     loc = "، ".join(x for x in (l.get("district"), c.get("name")) if x)
     label = LABEL.get(l.get("label") or "", "") if not l.get("excluded") else ""
@@ -783,6 +783,7 @@ def render(template: str, p: dict, version_tag: str) -> str:
             + '  <meta name="twitter:card" content="summary_large_image" />\n'
             + ('  <meta name="robots" content="noindex, follow" />\n' if p.get("noindex") else '  <meta name="robots" content="index, follow, max-image-preview:large" />\n')
             + "".join(f'  <script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>\n' for x in p["ld"])
+            + (f'  <script>if(!location.hash)history.replaceState(null,"","/{p["hash"]}");</script>\n' if p.get("hash") else "")
             # کاربر واقعی: نشانی سئو به مسیر همان صفحه در برنامه برده می‌شود (پیش از بارگذاری بقیهٔ اسکریپت‌ها)
             )
     out = re.sub(r"<title>.*?</title>", f"<title>{ESC(p['title'])}</title>", template, count=1, flags=re.S)

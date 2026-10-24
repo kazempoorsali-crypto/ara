@@ -237,6 +237,11 @@ class App:
         self.support = Support(self.store, self.billing, data_dir)
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
+        if not self.store.get_setting("mig_strict_lock_v1"):
+            b = self.store.get_setting("billing") or {}
+            self.store.set_setting("billing", {**b, "free_preview": 0, "trial_enabled": False, "weekly_price": b.get("weekly_price") or 98000, "monthly_price": b.get("monthly_price") or 248000})
+            self.store.x("UPDATE users SET sub_until=0 WHERE plan='trial'")
+            self.store.set_setting("mig_strict_lock_v1", int(time.time()))
         # نام قدیمی سایت که در پنل ذخیره شده بود ← «فرصت ملک» (نیم‌فاصلهٔ نام قبلی در برخی دستگاه‌ها مربع دیده می‌شد)
         site = self.store.get_setting("site") or {}
         if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
@@ -553,7 +558,7 @@ class Handler(BaseHTTPRequestHandler):
             # صفحهٔ هر آگهی همان صفحهٔ کامل سایت قبلی است (مشخصات، ارزش‌گذاری، نمودارها، نمایشگر عکس)
             if url.path == "/property.html" and qs.get("id"):
                 return self.redirect("/ad/" + urllib.parse.quote(qs["id"]))
-            mad = re.fullmatch(r"/ad/([\w-]+)", url.path)
+            mad = None
             if url.path in SITE_PAGES or mad:
                 fname, page = SITE_PAGES[url.path] if not mad else ("property.html", "property")
                 if mad:
@@ -822,25 +827,25 @@ class Handler(BaseHTTPRequestHandler):
             if full and d["title"] != raw:
                 d["title_raw"] = raw
         if not active:
-            # قفل معکوس: قیمت منصفانه و سود تخمینی به عنوان طعمه جذاب باز می‌مانند!
-            # اما لینک اصلی، شماره تماس و عنوان دقیق دیوار (برای جلوگیری از سرچ در دیوار) قفل می‌شوند
-            for k in LOCKED_FIELDS + ("phone", "address"):
+            for k in LOCKED_FIELDS + ("phone", "address", "title_raw", "settlement"):
                 d.pop(k, None)
-            if d.get("label") in ("gold", "good"):
-                k_fa = {"apartment": "آپارتمان", "villa": "ویلا", "land": "زمین", "shop": "مغازه", "office": "دفتر کار", "garden": "باغ", "suite": "سوئیت"}.get(d.get("kind"), "ملک")
-                a_fa = f" {int(d['area'])} متری" if d.get("area") else ""
-                r_fa = f" {int(d['rooms'])} خواب" if d.get("rooms") else ""
-                loc_fa = d.get("district") or d.get("city_name") or ""
-                d["title"] = f"{k_fa}{a_fa}{r_fa}" + (f" در {loc_fa}" if loc_fa else "")
-                d.pop("title_raw", None)
-                if d.get("description"):
-                    d["description"] = "🔒 متن کامل آگهی، شماره تماس مالک و لینک مستقیم آگهی اصلی ویژهٔ اعضای دارای اشتراک است."
+            # حذف نام خیابان و جزئیات لوکیشن از عنوان و توضیحات برای تمام آگهی‌ها تا کاربر نتواند در دیوار پیدا کند
+            k_fa = {"apartment": "آپارتمان", "villa": "ویلا", "land": "زمین", "shop": "مغازه", "office": "دفتر کار", "garden": "باغ", "suite": "سوئیت"}.get(d.get("kind"), "ملک")
+            a_fa = f" {int(d['area'])} متری" if d.get("area") else ""
+            r_fa = f" {int(d['rooms'])} خواب" if d.get("rooms") else ""
+            loc_fa = d.get("district") or d.get("city_name") or ""
+            d["title"] = f"{k_fa}{a_fa}{r_fa}" + (f" (محدوده {loc_fa})" if loc_fa else "")
+            d["claims"] = []
+            d["description"] = "🔒 نام خیابان، آدرس دقیق، توضیحات مالک، شماره تماس و لینک مستقیم آگهی اصلی ویژهٔ اعضای دارای اشتراک است. با تهیه اشتراک به تمامی مشخصات و لینک منبع دسترسی خواهید داشت."
+            if isinstance(d.get("feat"), dict):
+                d["feat"].pop("address", None)
+            if isinstance(d.get("attributes"), list):
+                d["attributes"] = [a for a in d["attributes"] if "آدرس" not in str(a) and "خیابان" not in str(a)]
             if d.get("lat") is not None:
                 d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
             ex = d.get("explain") or {}
             if full:
-                keep = ("district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial",
-                        "ctx", "caution", "sus", "flags")
+                keep = ("estimated_profit", "base_ppm", "fair_low", "fair_high", "adj", "effects", "district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial", "caution", "sus", "flags")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
                 if ex.get("presale"):  # مشخصات پیش‌فروش بله، مرجع قیمت و نسبت (که قیمت منصفانه را لو می‌دهد) نه
                     d["explain"]["presale"] = {k: ex["presale"].get(k) for k in ("months", "months_assumed", "progress", "installments")}
@@ -856,12 +861,7 @@ class Handler(BaseHTTPRequestHandler):
         return d
 
     def free_ids(self):
-        """چند فرصت برتر که بدون اشتراک هم با جزئیات کامل نمایش داده می‌شوند."""
-        n = int(self.app.billing.cfg().get("free_preview") or 0)
-        if not n:
-            return set()
-        return {r["id"] for r in self.app.store.q(
-            "SELECT id FROM listings WHERE score IS NOT NULL AND COALESCE(excluded,0)=0 AND status='active' AND hidden=0 ORDER BY score DESC LIMIT ?", (n,))}
+        return set()
 
     def similar(self, d):
         """مشابه‌ها: همان محله و نوع و معامله، هم‌خواب، نزدیک‌ترین متراژ؛ هر کدام با قیمت محلهٔ خودش."""

@@ -25,6 +25,7 @@
       }
       var onApp = location.pathname === "/app.html";
       if (onApp && (!location.hash || location.hash === "#/" || location.hash === "#")) { location.replace("/"); return; }
+      if (!location.hash && /^\/ad\/([^/?#]+)/.test(location.pathname)) { try { history.replaceState(null, "", "/app.html#/ad/" + location.pathname.split("/ad/")[1]); } catch(e){} }
       addEventListener("hashchange", function () { if (location.hash === "#/" || (!location.hash && location.pathname === "/app.html")) location.href = "/"; });
       // تم مشترک با صفحه‌های تازه (کلید fmTheme)
       try { var ft = window.FMTheme ? FMTheme.current() : localStorage.getItem("fmTheme"); if (ft === "light" || ft === "dark") localStorage.setItem("ara:theme_v2", JSON.stringify(ft)); } catch (e) {}
@@ -68,7 +69,7 @@
     <a href="#/saved" data-dock="saved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.6-9.4-9.4C1.4 7.9 3.5 4.5 7 4.5c2 0 3.4 1 5 3 1.6-2 3-3 5-3 3.5 0 5.6 3.4 4.4 6.6-1.8 4.8-9.4 9.4-9.4 9.4z"/></svg><span>ذخیره</span></a>
     <a href="#/account" data-dock="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>حساب</span></a>
   </nav>
-  <div id="demoBar" class="demo-bar" hidden></div>
+  <div id="demoBar" class="demo-bar" hidden style="display:none!important"></div>
 
   <header class="top" id="top">
     <div class="wrap top__in">

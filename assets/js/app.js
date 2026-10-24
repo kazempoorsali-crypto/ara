@@ -21,13 +21,7 @@ const App = (() => {
     (R.provinces || []).forEach((p) => { if (!PROVINCES.some((x) => x.id === p.id)) PROVINCES.push(p); });
     (R.cities || []).forEach((c) => { if (!CITIES.some((x) => x.id === c.id)) CITIES.push(c); });
     applySite();
-    if (info.useSamples) {
-      const bar = $("#demoBar");
-      bar.hidden = false;
-      bar.innerHTML = info.server
-        ? "<b>هنوز آگهی واقعی دریافت نشده است.</b> فعلاً آگهی‌های نمونه نمایش داده می‌شود؛ دریافت آگهی‌ها را در <a href='admin.html' style='text-decoration:underline'>پنل مدیریت</a> روشن کنید."
-        : "<b>پیش‌نمایش طراحی:</b> ";
-    }
+    if (false) {}
     updateFavCount();
     updateAccount();
     liveNumbers();
@@ -110,7 +104,18 @@ const App = (() => {
 
   /* ---------- مسیریابی ---------- */
   function parseHash() {
-    const h = location.hash.replace(/^#\/?/, "");
+    let h = location.hash.replace(/^#\/?/, "");
+    if (!h && location.pathname && location.pathname !== "/" && location.pathname !== "/app.html") {
+      const mAd = location.pathname.match(/^\/ad\/([^/?#]+)/);
+      const mMelk = location.pathname.match(/^\/melk\/([^/?#]+)(?:\/([^/?#]+))?/);
+      if (mAd) h = "ad/" + mAd[1];
+      else if (mMelk) h = mMelk[2] ? `s?city=${mMelk[1]}&district=${mMelk[2]}&sort=score` : `market?city=${mMelk[1]}`;
+      else if (location.pathname === "/method") h = "method";
+      else if (location.pathname === "/faq") h = "faq";
+      else if (location.pathname === "/support") h = "support";
+      else if (location.pathname.startsWith("/rahnama/") || location.pathname.startsWith("/maghale")) h = "p" + location.pathname;
+      if (h) try { history.replaceState(null, "", "/app.html#/" + h); } catch (e) {}
+    }
     const [path, query] = h.split("?");
     return { path: path || "", params: Object.fromEntries(new URLSearchParams(query || "")) };
   }
