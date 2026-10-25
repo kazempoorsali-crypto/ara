@@ -640,6 +640,14 @@ def ensure_articles(store):
         seed(store)
     except Exception:  # noqa: BLE001
         import traceback; traceback.print_exc()
+    # مقالهٔ تعاملی «آسانسور ارزش» (صفحهٔ جدای floors.html)؛ در فهرست مجله، صفحهٔ اول و نقشهٔ سایت هم می‌آید
+    import time as _t
+    if not store.q("SELECT 1 FROM articles WHERE slug='asansor-arzesh'", one=True):
+        now = int(_t.time())
+        store.x("INSERT INTO articles(slug,title,summary,body,city_key,published,created,updated) VALUES(?,?,?,?,?,1,?,?)",
+                ("asansor-arzesh", "آسانسور ارزش: هر طبقه و هر جهت ساختمان چقدر می‌ارزد؟",
+                 "طبقهٔ اول، میانی یا آخر؟ جنوبی یا شمالی؟ مزایا و معایب هر طبقه و اثرش بر قیمت هر متر، روی برش سه‌بعدی یک برج نمونه.",
+                 "این مقاله صفحهٔ تعاملی جداگانه دارد: /maghale/asansor-arzesh", "", now, now))
 
 
 def articles_list(store, limit=50, all_=False):

@@ -622,6 +622,15 @@
         <label class="field"><span>شعار کوتاه</span><input class="input" name="tagline" value="${esc(s.tagline)}"></label>
         <label class="field"><span>ایمیل پشتیبانی (اختیاری)</span><input class="input input--ltr" name="email" type="email" value="${esc(s.email)}"></label>
       </div><label class="field" style="margin-top:14px"><span>درباره سایت</span><textarea class="textarea" name="about">${esc(s.about)}</textarea></label></div>
+      <div class="panel"><h2>ویدیوی معرفی صفحهٔ اول</h2>
+        <p class="hint">ویدیو را در آپارات بارگذاری کنید و نشانی صفحهٔ آن را این‌جا بگذارید (مثلاً <span dir="ltr">https://www.aparat.com/v/AbCd1</span>). یوتیوب یا فایل مستقیم <span dir="ltr">mp4</span> هم پذیرفته می‌شود. با عوض کردن پیوند، ویدیوی سایت همان لحظه عوض می‌شود؛ تا خالی است، قاب «ویدیوی معرفی به‌زودی» نمایش داده می‌شود.</p>
+        <div class="grid2">
+          <label class="field"><span>پیوند ویدیو</span><input class="input input--ltr" name="video_url" value="${esc(s.video_url || "")}" placeholder="https://www.aparat.com/v/..."></label>
+          <label class="field"><span>عنوان بخش</span><input class="input" name="video_title" value="${esc(s.video_title || "")}" placeholder="فرصت ملک در یک نگاه"></label>
+        </div>
+        <label class="field" style="margin-top:12px"><span>توضیح کوتاه زیر عنوان</span><textarea class="textarea" name="video_desc" rows="2">${esc(s.video_desc || "")}</textarea></label>
+        ${s.video_url ? `<p class="hint"><a href="/#video" target="_blank" rel="noopener">دیدن بخش ویدیو در سایت ↗</a></p>` : ""}
+      </div>
       <div class="panel"><h2>طراحی سایت</h2>
         <div class="grid2"><label class="field"><span>طراحی فعال برای همهٔ بازدیدکنندگان</span><select class="select" name="design">
           <option value="classic" ${s.design !== "new" ? "selected" : ""}>طراحی قبلی</option>

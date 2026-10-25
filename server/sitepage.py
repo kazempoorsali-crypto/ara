@@ -223,6 +223,42 @@ def articles_html(app) -> str:
             f'<nav class="mag__guides" aria-label="راهنماها">{gl}</nav></div></section>')
 
 
+def video_embed(url: str):
+    """پیوند ویدیو ← (نوع، نشانی جاسازی). آپارات: aparat.com/v/HASH؛ یوتیوب؛ یا فایل مستقیم mp4/webm."""
+    u = (url or "").strip()
+    if not u.startswith("https://"):
+        return None
+    m = re.search(r"aparat\.com/(?:v|video/video/embed/videohash)/([A-Za-z0-9]+)", u)
+    if m:
+        return ("iframe", f"https://www.aparat.com/video/video/embed/videohash/{m.group(1)}/vt/frame")
+    m = re.search(r"(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([\w-]{6,20})", u)
+    if m:
+        return ("iframe", f"https://www.youtube-nocookie.com/embed/{m.group(1)}")
+    if re.search(r"\.(mp4|webm)(\?|$)", u, re.I):
+        return ("video", u)
+    return None
+
+
+def video_html(app) -> str:
+    """بخش ویدیوی معرفی صفحهٔ اول؛ پیوند، عنوان و توضیح از پنل مدیریت (تنظیمات سایت)."""
+    site = app.store.get_setting("site") or {}
+    esc = lambda t: str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    title = esc(site.get("video_title") or "فرصت ملک در یک نگاه")
+    desc = esc(site.get("video_desc") or "در چند دقیقه ببینید فرصت ملک چطور قیمت هر آگهی را با محلهٔ خودش می‌سنجد و فرصت‌های واقعی را پیدا می‌کند.")
+    emb = video_embed(site.get("video_url") or "")
+    if emb and emb[0] == "iframe":
+        player = (f'<iframe src="{esc(emb[1])}" title="{title}" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" '
+                  'allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>')
+    elif emb:
+        player = f'<video src="{esc(emb[1])}" controls preload="metadata" playsinline></video>'
+    else:
+        player = '<div class="vid__soon"><i aria-hidden="true">▶</i><b>ویدیوی معرفی به‌زودی</b></div>'
+    return (f'<section class="vid" id="video" aria-labelledby="vidT"><div class="vid__in">'
+            f'<div class="vid__txt"><p class="eyebrow">معرفی فرصت ملک</p><h2 class="section-title" id="vidT">{title}</h2><p class="section-sub">{desc}</p>'
+            f'<div class="vid__acts"><a class="btn btn--gold" href="#homefilter" data-scroll-to>شروع جست‌وجو</a><a class="btn btn--ghost" href="/maghale/asansor-arzesh">آسانسور ارزش ←</a></div></div>'
+            f'<div class="vid__frame">{player}</div></div></section>')
+
+
 def inject(html: bytes, data: dict) -> bytes:
     if (data.get("me") or {}).get("active"):
         html = mark_sub(html.decode()).encode()

@@ -343,7 +343,7 @@
     if (p.noimg) a.classList.add("is-noimg");
     a.innerHTML =
       '<span class="ncard__media">' + FM.badge(p, "ncard__badge") + FM.cardActs(p) +
-      '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
+      '<img src="' + E(FM.thumb(p.img)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
       (p.imgs.length > 1 ? '<span class="ncard__swap">' + FM.fa(p.imgs.length) + " عکس</span>" + '<span class="ncard__dots">' + p.imgs.slice(0, 8).map(function (_, i) { return "<i" + (i ? "" : ' class="is-on"') + "></i>"; }).join("") + "</span>" : "") +
       "</span>" +
       '<span class="ncard__body"><b>' + E(p.title) + "</b>" +
@@ -351,7 +351,7 @@
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
       (p.fairPrice && showFreeFair ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;text-align:center;">💎 ارزش کارشناسی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : (p.locked ? '<span class="ncard__lock" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(213,166,38,0.13);color:#b8860b;font-size:12px;font-weight:700;">💎 ارزش کارشناسی و سود خالص: <i>🔒 ویژه اعضا</i></span>' : '')) + "</span>";
-    if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8));
+    if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8).map(function (u) { return FM.thumb(u); }));
     return a;
   }
 
@@ -514,11 +514,11 @@
       if (p.head) { n = 0; return '<div class="hcard hcard--head"><span>ارزان‌شده‌های</span><b>' + E(p.head) + "</b></div>"; }
       var d = dropBits(p);
       if (!sub && n++ >= HUNT_FREE) {
-        return '<div class="hcard is-locked">' + d.chip + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
+        return '<div class="hcard is-locked">' + d.chip + '<img src="' + E(FM.thumb(p.img)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
           '<span class="hcard__lock"><i>🔒</i><b>کاهش قیمت قفل‌شده</b><button type="button" class="btn btn--gold" data-fm-sub>باز کردن با اشتراک</button></span>' +
           "<figcaption><b>" + (d.when ? d.when.replace(/<[^>]+>/g, "") : E(p.diffText || "")) + "</b><small>" + (p.area ? FM.fa(p.area) + " متر" : "") + "</small></figcaption></div>";
       }
-      return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + d.chip + FM.cardActs(p) + '<img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
+      return '<a class="hcard" href="' + FM.propUrl(p.id) + '">' + FM.badge(p, "hcard__badge") + d.chip + FM.cardActs(p) + '<img src="' + E(FM.thumb(p.img)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><figcaption><b>' + E(p.title) + "</b><small>" +
         (p.area ? FM.fa(p.area) + " متر  |  " : "") + E(p.loc || p.tag) + "</small>" + d.prices + d.when + "</figcaption></a>";
     }).join("") : '<p class="hscroll__empty">با این فیلترها فعلاً کاهش قیمتی ثبت نشده است.</p>';
     var hs = document.querySelector("[data-hscroll]"); if (hs && hunts.length) hs.hidden = false;
