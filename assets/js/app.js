@@ -2388,14 +2388,16 @@ const App = (() => {
     html += row("اختلاف با قیمت محله", UI.gapText(v));
     const fx = !l.locked && (ex.effects || []).length ? `<div class="pid__fx"><b>مهم‌ترین اثرها:</b><ul class="fx">${ex.effects.map(([name, e]) => `<li><span>${esc(name)}</span><b class="${e >= 0 ? "up" : "down"}"><bdi dir="ltr">${e >= 0 ? "+" : "−"}${pct(e)}</bdi></b></li>`).join("")}</ul>${ex.model ? `<p class="small muted">مدل قیمت با ${fa(ex.model.n)} آگهی ساخته شده است (ضریب تعیین ${fa(ex.model.r2)}).</p>` : ""}</div>` : "";
     /* سنجش شفاف: با اعداد واقعی همین آگهی، برای اعتماد؛ فقط وقتی دادهٔ واقعی هست */
-    const trust = !l.locked && v ? `<div class="pid__trust"><b>چرا می‌توانید به این سنجش اعتماد کنید</b><ul>
-      ${ex.district_raw_n ? `<li>سنجش با <b>${fa(ex.district_raw_n)}</b> آگهی معتبر همین محله انجام شده${ex.sellers ? ` از <b>${fa(ex.sellers)}</b> فروشندهٔ مستقل` : ""}؛ آگهی‌های تکراری یک فروشنده فقط یک رأی دارند.</li>` : ""}
-      ${ex.comp_n ? `<li><b>${fa(ex.comp_n)}</b> آگهی مشابه از نظر متراژ، سن و طبقه همین فاصله را تأیید کرده‌اند${ex.comp_disc != null ? ` (فاصلهٔ ${ex.comp_disc >= 0 ? pct(ex.comp_disc) + " ارزان‌تر" : pct(ex.comp_disc) + " گران‌تر"} از نزدیک‌ترین مشابه‌ها)` : ""}.</li>` : ""}
-      ${v.confidence ? `<li>اطمینان مدل: <b>${({ high: "بالا", medium: "متوسط", low: "کم" })[v.confidence] || "—"}</b>${v.rank && v.rank_n ? `؛ رتبهٔ <b>${fa(v.rank)}</b> از <b>${fa(v.rank_n)}</b> فرصت همین محله` : ""}.</li>` : ""}
-      ${ex.trend != null ? `<li>قیمت‌های قدیمی‌تر با روند ماهانهٔ بازار (${ex.trend > 0 ? "+" : "−"}${pct(Math.abs(ex.trend))} در ماه) به نرخ امروز آورده شده‌اند.</li>` : ""}
-      ${ex.age_days ? `<li>قیمت آگهی <b>${fa(ex.age_days)}</b> روز پیش درج شده؛ برای قیمت روز با فروشنده تماس بگیرید.</li>` : ""}
-      <li>سنجش کاملاً خودکار و بدون دست‌کاری انسانی است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</li>
-    </ul></div>` : "";
+    /* چرا به این سنجش اعتماد کنید: کاشی‌های کوچک «عدد درشت + توضیح کوتاه» به‌جای متن‌های شکسته زیر هم */
+    const tr = [];
+    if (ex.district_raw_n) tr.push([fa(ex.district_raw_n), "آگهی معتبر همین محله", ex.sellers ? `از ${fa(ex.sellers)} فروشندهٔ مستقل؛ آگهی‌های تکراری یک فروشنده یک رأی` : "آگهی‌های تکراری یک فروشنده یک رأی"]);
+    if (ex.comp_n) tr.push([fa(ex.comp_n), "آگهی مشابه تأییدکننده", ex.comp_disc != null ? `هم‌متراژ، هم‌سن و هم‌طبقه؛ ${ex.comp_disc >= 0 ? pct(ex.comp_disc) + " ارزان‌تر" : pct(Math.abs(ex.comp_disc)) + " گران‌تر"} از آن‌ها` : "هم‌متراژ، هم‌سن و هم‌طبقه"]);
+    if (v && v.confidence) tr.push([({ high: "بالا", medium: "متوسط", low: "کم" })[v.confidence] || "—", "اطمینان مدل", v.rank && v.rank_n ? `رتبهٔ ${fa(v.rank)} از ${fa(v.rank_n)} فرصت همین محله` : ""]);
+    if (ex.age_days) tr.push([fa(ex.age_days) + " روز", "عمر قیمت آگهی", "برای قیمت روز با فروشنده تماس بگیرید"]);
+    if (ex.trend) tr.push([(ex.trend > 0 ? "+" : ex.trend < 0 ? "−" : "") + pct(Math.abs(ex.trend)), "روند ماهانهٔ بازار", "قیمت‌های قدیمی‌تر با این روند به نرخ امروز آورده شده‌اند"]);
+    const trust = !l.locked && v && tr.length ? `<div class="pid__trust pid__trust--v2"><b class="pid__trust-h">چرا می‌توانید به این سنجش اعتماد کنید</b>
+      <div class="ptg">${tr.map(([n, t, sub]) => `<div class="ptg__i"><b>${n}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ""}</div>`).join("")}</div>
+      <p class="ptg__foot">✓ سنجش کاملاً خودکار و بدون دست‌کاری انسانی است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p></div>` : "";
     return `<section class="block pid pid--v2"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div><div class="pidg">${html}</div>${fx}${trust}
       <p class="pid__foot">«میانهٔ محله» یعنی نیمی از آگهی‌های محله گران‌ترند و نیمی ارزان‌تر. ${rent ? "«رهن کامل» یعنی ودیعه به‌اضافهٔ اجارهٔ ماهانه که به ودیعه تبدیل شده؛ هر ۱ میلیون تومان اجارهٔ ماهانه حدود ۳۳ میلیون تومان ودیعه حساب شده و همهٔ آگهی‌های اجاره با همین حساب مقایسه می‌شوند." : ""}</p></section>`;
   }
@@ -2419,29 +2421,57 @@ const App = (() => {
       caution.unshift("توجه به آگهی چندموردی: این آگهی شرکتی شامل چند فایل یا واحد مختلف است؛ مشخصات و قیمت ثبت‌شده ممکن است تنها به یکی از گزینه‌ها اختصاص داشته باشد.");
     }
 
-    // دلایل احتمالی قیمت پایین‌تر
-    const sellerReasons = (ex.ctx || []);
+    /* دلایل احتمالی تفاوت قیمت، از دادهٔ واقعی همین آگهی (نه فهرست کلی):
+       ۱) مشخصات ساختمان (آسانسور، پارکینگ، انباری، طبقه، سن بنا)، ۲) نشانه‌های متن آگهی، ۳) اثرهای مدل قیمت */
+    const d = l.verdict && l.verdict.delta != null ? l.verdict.delta : 0;
+    const cheap = d < -0.03, dear = d > 0.03;
+    const txt = ((l.title_raw || l.title || "") + " " + (l.description || "")).replace(/[‌]/g, " ");
+    const age = l.year ? Math.max(0, 1404 - (l.year > 1900 ? l.year - 621 : l.year)) : null;
+    const down = [], up = [];
+    const add = (arr, t, src) => { if (!arr.some((x) => x[0] === t)) arr.push([t, src]); };
+    const S1 = "مشخصات", S2 = "متن آگهی", S3 = "مدل قیمت";
+    const no = (k) => ft[k] === 0 || ft[k] === false, yes = (k) => ft[k] === 1 || ft[k] === true;
+    if (no("elevator") && ft.floor >= 3) add(down, `طبقهٔ ${fa(ft.floor)} بدون آسانسور`, S1);
+    else if (no("elevator") && ft.floor >= 1) add(down, "ساختمان آسانسور ندارد", S1);
+    if (no("parking")) add(down, "پارکینگ ندارد", S1);
+    if (no("warehouse")) add(down, "انباری ندارد", S1);
+    if (ft.floor === 0) add(down, "طبقهٔ همکف", S1);
+    if (age != null && age >= 20) add(down, `بنای حدود ${fa(age)} ساله`, S1);
+    if (age != null && age <= 3) add(up, age <= 1 ? "نوساز" : `بنای حدود ${fa(age)} ساله (تقریباً نو)`, S1);
+    if (yes("elevator") && yes("parking") && yes("warehouse")) add(up, "آسانسور، پارکینگ و انباری کامل", S1);
+    const TXT_DOWN = [[/فوری|فوری فوری|نیاز(\s*مند)?\s*(به)?\s*(پول|نقدینگی)|مهاجرت|زیر\s*قیمت\s*به\s*علت/, "نشانهٔ فروش فوری در متن آگهی"],
+      [/قولنامه|اوقاف|مشاع|سند\s*(ندارد|ندار)|بدون\s*سند|وکالتی|نسق/, "وضعیت سند خاص (قولنامه‌ای، اوقافی، مشاع یا وکالتی)"],
+      [/نیاز\s*به\s*بازسازی|کلنگی|قدیمی\s*ساز|تعمیرات\s*لازم/, "نیاز به بازسازی یا کلنگی"],
+      [/مستاجر\s*دار|با\s*مستاجر|مستأجر\s*دار/, "فروش با مستأجر"],
+      [/پاسیو|نورگیر\s*(ندارد|کم)|زیرزمین|نیم\s*طبقه/, "نور یا موقعیت واحد (پاسیو، زیرزمین یا نیم‌طبقه)"],
+      [/اقساط|قسطی|معاوضه|رهن\s*و\s*فروش|مشارکت/, "شرایط پرداخت یا معاوضه در آگهی"],
+      [/شروع\s*قیمت|از\s*متری|انواع\s*فایل|چند\s*واحد/, "قیمت پایهٔ آگهی چندواحدی، نه یک واحد مشخص"]];
+    const TXT_UP = [[/فول\s*بازسازی|بازسازی\s*شده|تازه\s*بازسازی|بازسازی\s*کامل/, "بازسازی‌شده"],
+      [/لوکس|لاکچری|مدرن|شیک|فول\s*امکانات/, "واحد لوکس یا فول امکانات"],
+      [/روف\s*گاردن|استخر|سونا|جکوزی|لابی|سالن\s*اجتماعات|نگهبانی|لابی\s*من/, "مشاعات ویژه (استخر، سونا، لابی، روف‌گاردن…)"],
+      [/دید\s*(دریا|ابدی|کوه|جنگل)|ویو|چشم\s*انداز/, "دید یا منظرهٔ ویژه"],
+      [/دو\s*نبش|دونبش|سر\s*نبش/, "ملک دونبش یا سرنبش"],
+      [/سند\s*تک\s*برگ|تک\s*برگ/, "سند تک‌برگ"],
+      [/شمالی|جنوبی\s*و\s*شمالی|نورگیر\s*عالی|آفتاب\s*گیر/, "جهت و نورگیری خوب"]];
+    TXT_DOWN.forEach(([re, t]) => { if (re.test(txt)) add(down, t, S2); });
+    TXT_UP.forEach(([re, t]) => { if (re.test(txt)) add(up, t, S2); });
+    (ex.effects || []).forEach(([name, e]) => { if (Math.abs(e) >= 0.03) add(e < 0 ? down : up, `${name} (${e < 0 ? "−" : "+"}${pct(Math.abs(e))} در مدل)`, S3); });
+    const pick = cheap ? down : dear ? up : down.concat(up);
+    const reasonTitle = cheap ? "دلایل احتمالی قیمت پایین‌تر" : dear ? "دلایل احتمالی قیمت بالاتر" : "عوامل مؤثر بر قیمت این ملک";
     let priceReasonsHtml = "";
-    if (sellerReasons.length) {
-      priceReasonsHtml = `<div style="font-weight:700;margin-bottom:6px;color:var(--ink)">${icon("check")} نکات ذکرشده توسط فروشنده:</div>${list(sellerReasons)}`;
+    if (pick.length) {
+      priceReasonsHtml = `<ul class="why__rs">${pick.slice(0, 7).map(([t, src]) => `<li><span>${esc(t)}</span><small>${src}</small></li>`).join("")}</ul>
+        <p class="muted small">این‌ها از مشخصات و متن همین آگهی پیدا شده‌اند؛ دلیل قطعی را از فروشنده بپرسید.</p>`;
     } else {
-      priceReasonsHtml = `
-        <p class="muted small" style="margin-bottom:8px">مالک در متن آگهی دلیل خاصی برای قیمت پیشنهادی ذکر نکرده است؛ با این حال در بازار مسکن معمولاً این تفاوت قیمت ناشی از یکی از موارد زیر است:</p>
-        <ul class="why__market-reasons small" style="display:grid;gap:5px;line-height:1.7;padding-inline-start:18px">
-          <li>نیاز فوری فروشنده به نقدینگی و تبدیل تعهدات مالی یا خرید ملک دیگر</li>
-          <li>وضعیت خاص سندی (قولنامه‌ای، اوقافی، مشاع، یا در دست اقدام بودن تک‌برگ)</li>
-          <li>مشخصات نقشه، طبقه یا نورگیر (طبقه بدون آسانسور، نورگیر پاسیو، برِ کم)</li>
-          <li>سن بنای واقعی متفاوت از سن بازسازی‌شده یا نیاز به بازسازی اساسی داخلی</li>
-          <li>اعلام قیمت پایه در آگهی‌های چندواحدی، پیش‌فروش یا پروژه‌ای مشاوران</li>
-          <li>استراتژی بازاریابی مشاور جهت ترغیب خریدار به تماس اولیه</li>
-        </ul>
-      `;
+      priceReasonsHtml = `<p class="small">در مشخصات و متن این آگهی دلیل روشنی برای ${cheap ? "پایین‌تر بودن" : dear ? "بالاتر بودن" : "تفاوت"} قیمت پیدا نشد.</p>
+        <p class="muted small">پیش از تصمیم این موارد را از فروشنده بپرسید: وضعیت سند، طبقه و نورگیری، سن واقعی بنا و علت فروش.</p>`;
     }
+    if ((ex.ctx || []).length) priceReasonsHtml = `<div class="why__ctx"><b>نکات ذکرشده توسط فروشنده:</b>${list(ex.ctx)}</div>` + priceReasonsHtml;
 
     return `<section class="block why"><h2>تحلیل قیمت و عوامل مؤثر<small>آنچه در محاسبه لحاظ شده، دلایل احتمالی قیمت مناسب، و نکات نیازمند استعلام</small></h2>
       <div class="why__grid">
         <div class="why__col"><h3>${icon("check")} در این برآورد لحاظ شده</h3>${l.verdict ? list(done) : "<p>این آگهی هنوز سنجیده نشده؛ در این محله آگهی کافی برای مقایسه نیست.</p>"}</div>
-        <div class="why__col"><h3>${icon("info")} دلایل قیمت پیشنهادی مناسب</h3>${priceReasonsHtml}</div>
+        <div class="why__col"><h3>${icon("info")} ${reasonTitle}</h3>${priceReasonsHtml}</div>
         <div class="why__col why__col--warn"><h3>${icon("alert")} پیش از خرید استعلام کن</h3>${caution.length ? list(caution) : "<p>پرچمی پیدا نشد؛ در متن آگهی نشانهٔ سند ناقص، مستأجر یا عکس غیرواقعی نبود. سند، پایان‌کار و بدهی را باز هم استعلام کن.</p>"}</div>
       </div></section>`;
   }
