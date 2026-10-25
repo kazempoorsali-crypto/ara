@@ -1,9 +1,9 @@
 
 /* ==========================================================================
-   FORSAT MELK - STABLE & PERFECT UI OVERRIDES (IMAGE 214 STATE)
+   FORSAT MELK - FINAL PERFECT STABLE OVERRIDES
    ========================================================================== */
 
-/* ۱. تفکیک کامل نوار گرادینت نمودارها از متون زیرین */
+/* ۱. گرادینت چندرنگ و نقطه درخشان روی نمودارها */
 .pbar__bar, .cmps__bar, .pgauge__track, .gauge__track, .rng__track {
   background: linear-gradient(to left, #D5A626 0%, #20976A 26%, #6b7c76 50%, #E0531F 76%, #7a1118 100%) !important;
   height: 12px !important;
@@ -26,7 +26,6 @@
   z-index: 5 !important;
 }
 
-/* شفافیت کامل پس‌زمینه متون زیر و بالای نمودارها */
 .pbar span:not(.pbar__bar):not(.cmps__bar),
 .pbar small, .pbar div:not(.pbar__bar),
 .pbar__lbl, .pbar__sub, .pbar__ticks, .pbar__ticks span,
@@ -37,7 +36,7 @@
   border: none !important;
 }
 
-/* ۲. وسط‌چین کردن کامل کادرهای شناسنامه قیمت */
+/* ۲. شناسنامه قیمت وسط‌چین و مرتب */
 .pid--pro .pid__head {
   display: flex !important;
   flex-direction: column !important;
@@ -65,35 +64,14 @@
   text-align: center !important;
   gap: 6px !important;
 }
-.pid-card--highlight {
-  background: rgba(213, 166, 38, 0.11) !important;
-  border-color: rgba(213, 166, 38, 0.45) !important;
-}
-.pid-card--good {
-  background: rgba(32, 151, 106, 0.11) !important;
-  border-color: rgba(32, 151, 106, 0.42) !important;
-}
-.pid-card__top {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-  gap: 4px !important;
-  width: 100% !important;
-}
+.pid-card--highlight { background: rgba(213, 166, 38, 0.11) !important; border-color: rgba(213, 166, 38, 0.45) !important; }
+.pid-card--good { background: rgba(32, 151, 106, 0.11) !important; border-color: rgba(32, 151, 106, 0.42) !important; }
+.pid-card__top { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-align: center !important; gap: 4px !important; width: 100% !important; }
 .pid-card__k { font-size: 12.5px !important; opacity: 0.8 !important; text-align: center !important; }
 .pid-card__v { font-size: 15px !important; font-weight: 900 !important; color: var(--ink) !important; text-align: center !important; }
 .pid-card__sub { font-size: 11.5px !important; opacity: 0.72 !important; line-height: 1.5 !important; text-align: center !important; }
 
-.pid-fx-box {
-  margin-top: 14px !important;
-  padding: 14px !important;
-  border-radius: 14px !important;
-  background: rgba(128, 128, 128, 0.04) !important;
-  border: 1px dashed rgba(128, 128, 128, 0.28) !important;
-  text-align: center !important;
-}
+.pid-fx-box { margin-top: 14px !important; padding: 14px !important; border-radius: 14px !important; background: rgba(128, 128, 128, 0.04) !important; border: 1px dashed rgba(128, 128, 128, 0.28) !important; text-align: center !important; }
 .pid-fx-box__title { display: block !important; font-size: 13px !important; font-weight: 800 !important; margin-bottom: 10px !important; text-align: center !important; }
 .pid-fx-pills { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 8px !important; }
 .pid-pill { display: inline-flex !important; align-items: center !important; gap: 8px !important; padding: 6px 14px !important; border-radius: 99px !important; font-size: 12.5px !important; background: rgba(128, 128, 128, 0.08) !important; border: 1px solid rgba(128, 128, 128, 0.22) !important; }
@@ -109,7 +87,7 @@
 .pid-tcard span { font-size: 13px !important; font-weight: 800 !important; }
 .pid-tcard small { font-size: 11.5px !important; opacity: 0.8 !important; line-height: 1.5 !important; }
 
-/* ۳. ماشین‌حساب هوشمند هماهنگ با تم روز و شب با انتخابگر استان/شهر/محله */
+/* ۳. ماشین‌حساب هوشمند با پشتیبانی کامل تم روز و شب و انتخابگر استان/شهر/محله */
 .est-widget { max-width: 1120px !important; margin: 42px auto 28px !important; padding: 0 18px !important; }
 .est-card {
   background: linear-gradient(145deg, #15231e, #0e1815) !important;
@@ -164,7 +142,7 @@ html[data-theme="light"] .est-res-box strong { color: #177350 !important; }
 .est-tag { padding: 4px 10px !important; border-radius: 8px !important; background: rgba(128, 128, 128, 0.12) !important; font-size: 12px !important; font-weight: 600 !important; }
 .est-tag--warn { background: rgba(224, 83, 31, 0.16) !important; color: #e0531f !important; }
 
-/* ۴. قفل اسکرول منوی شهرها و فیلتر پیشرفته */
+/* ۴. اسکرول منوی شهرها و فیلتر پیشرفته */
 #advPanel.advf { max-width: 780px !important; width: 95% !important; margin: 10px auto 0 !important; padding: 16px 18px !important; max-height: 68vh !important; overflow-y: auto !important; overscroll-behavior: contain !important; border-radius: 18px !important; }
 #advPanel .advf__grid { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important; gap: 10px 12px !important; }
 #advPanel .advf__g { background: rgba(128, 128, 128, 0.05) !important; border: 1px solid rgba(128, 128, 128, 0.18) !important; border-radius: 12px !important; padding: 10px 12px !important; }
