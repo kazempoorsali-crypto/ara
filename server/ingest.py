@@ -342,6 +342,14 @@ class Ingestor:
         srcs = ("divar", "sheypoor") if cfg.get("sheypoor") else ("divar",)
         marks = ",".join("?" * len(srcs))
         # جزئیات (عکس، مشخصات کامل): اول آگهی‌هایی که کاربری بازشان کرده، بعد فرصت‌ها، بعد بقیه به ترتیب تازگی
+        # بازبینی فوری: آگهی‌هایی که عکسشان در منبع دیگر نیست یا تازه باز شده‌اند (شاید در دیوار حذف شده باشند)
+        again = self.store.get_setting("recheck_wanted") or []
+        if again:
+            lid = again.pop(0)
+            self.store.set_setting("recheck_wanted", again)
+            row = self.store.q("SELECT id, token, source FROM listings WHERE id=? AND status='active'", (lid,), one=True)
+            if row and row["source"] in srcs:
+                return self.fetch_detail(cfg, row["id"], row["token"], recheck=True, source=row["source"])
         wanted = self.store.get_setting("detail_wanted") or []
         if wanted:
             lid = wanted.pop(0)
@@ -426,6 +434,7 @@ class Ingestor:
         except SourceError as e:
             if e.status in (404, 410):
                 self.store.mark(lid, status="removed", checked_at=int(time.time()))
+                self.dirty += 1
                 self.store.log_request("detail", True, f"{token}: آگهی در منبع حذف شده است")
                 return
             self.store.log_request("detail", False, f"{token}: {e}")
@@ -441,6 +450,8 @@ class Ingestor:
                 self.store.log_request("detail", False, f"{token}: پس از ۳ تلاش ناموفق کنار گذاشته شد")
                 return
             raise
+        if recheck:
+            self.store.mark(lid, checked_at=int(time.time()))
         current = self.store.get(lid) or {}
         city = catalog.find_city(d.get("city_name")) or catalog.CITY_BY_KEY.get(current.get("city_key"))
         item = self.from_detail(d, current, city)

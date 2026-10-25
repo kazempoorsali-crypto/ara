@@ -439,3 +439,29 @@
   .gallery--n2 > :first-child { grid-column: auto; }
   .gallery--n2 > :nth-child(n+2) { display: block; }
 }
+
+/* آگهی حذف‌شده در منبع */
+.ad-gone{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;line-height:1.8}
+.ad-gone svg{flex:none;width:22px;height:22px;margin-top:2px;color:#dc2626}
+.ad-gone b{display:block;font-size:15px}
+.ad-gone span{display:block;font-size:13px;color:#991b1b}
+.ad-gone--top{margin:0 0 14px}
+[data-theme="dark"] .ad-gone{background:#2a1214;border-color:#5b1d22;color:#fecaca}
+[data-theme="dark"] .ad-gone span{color:#fca5a5}
+
+/* ستون کناری صفحهٔ آگهی (ارزش‌گذاری، دکمهٔ آگهی اصلی، تماس…) روی دسکتاپ اسکرول مستقل دارد:
+   موس روی ستون کناری فقط همان را می‌برد پایین و موس روی ستون اصلی فقط ستون اصلی را */
+@media (min-width: 1181px) {
+  .ad__grid > .agent {
+    position: sticky; top: 92px; max-height: calc(100vh - 108px); max-height: calc(100dvh - 108px);
+    overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink, #888) 25%, transparent) transparent;
+  }
+  .ad__grid > .agent:has(.vcard) { padding: 2px 6px 12px 2px; margin-inline-end: -6px; }
+  .ad__grid > .agent::-webkit-scrollbar { width: 6px; }
+  .ad__grid > .agent::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink, #888) 25%, transparent); border-radius: 6px; }
+}
+/* موبایل: ستون کناری زیر محتواست؛ ذخیره، اشتراک و آگهی اصلی همیشه در نوار پایین در دسترس است */
+.mobile-cta .mcta__ic { flex: 0 0 46px; padding: 0; display: grid; place-items: center; }
+.mobile-cta .mcta__ic svg { width: 20px; height: 20px; }
+.mobile-cta .mcta__ic.is-on { color: #e11d48; border-color: #fda4af; }
+.mobile-cta .mcta__ic.is-on svg { fill: currentColor; }
