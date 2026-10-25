@@ -36,6 +36,9 @@
        (نزدیک شدن نشانگر یا لمس)؛ فقط HTML دانلود می‌شود، پس صفحهٔ اصلی کند نمی‌شود -->
   <script type="speculationrules">
   {
+    "prerender": [
+      { "source": "document", "where": { "or": [ { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" }
+    ],
     "prefetch": [
       { "source": "list", "urls": ["/sky.html"], "eagerness": "eager" },
       { "source": "document", "where": { "or": [ { "href_matches": "/ad/*" }, { "href_matches": "/app.html" }, { "href_matches": "/account.html" } ] }, "eagerness": "moderate" }

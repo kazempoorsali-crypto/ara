@@ -108,8 +108,9 @@
     f.addEventListener("load", function () { if (f.src) { sendLive(); setTimeout(sendLive, 1500); } });
     // کرهٔ سه‌بعدی بعد از نمایش فیلترها بار می‌شود تا صفحه همان اول قفل نشود
     var start = function () { if (!f.src && f.dataset.src) f.src = f.dataset.src; };
-    var idle = function () { (window.requestIdleCallback || function (cb) { setTimeout(cb, 200); })(start, { timeout: 1200 }); };
-    if (document.readyState === "complete") idle(); else window.addEventListener("load", idle);
+    // دیگر منتظر بار شدن همهٔ عکس‌های صفحه نمی‌ماند: کمی بعد از نمایش فیلترها (فایل‌هایش از صفحهٔ اول در کش است)
+    var idle = function () { (window.requestIdleCallback || function (cb) { setTimeout(cb, 120); })(start, { timeout: 400 }); };
+    idle();   // در پیش‌بارگذاری (prerender) هم همین حالا، تا با کلیک کره آماده باشد
   })();
 
   selProvince.addEventListener("change", function () {

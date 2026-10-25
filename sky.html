@@ -25,6 +25,13 @@
       document.documentElement.setAttribute("data-theme", t);
     })();
   </script>
+  <!-- پیش‌بارگذاری صفحه‌های محتمل بعدی: با رفتن موس روی پیوند، صفحه از قبل ساخته می‌شود تا با کلیک فوراً باز شود -->
+  <script type="speculationrules">
+  {
+    "prerender": [ { "source": "document", "where": { "or": [ { "href_matches": "/" }, { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" } ],
+    "prefetch": [ { "source": "list", "urls": ["/"], "eagerness": "eager" } ]
+  }
+  </script>
   <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <!-- کتابخانه و بافت کرهٔ زمین هم‌زمان با صفحه دانلود می‌شوند تا کادر زنده زودتر آماده شود -->
   <link rel="preload" href="/assets/vendor/globe/three.module.min.js" as="script" crossorigin />
