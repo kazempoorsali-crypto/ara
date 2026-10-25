@@ -36,27 +36,38 @@ def _money(v) -> str:
 
 
 class Alerts:
-    def __init__(self, store, billing, bale):
-        self.store, self.billing, self.bale = store, billing, bale
+    def __init__(self, store, billing, bale, telegram=None):
+        self.store, self.billing, self.bale, self.tg = store, billing, bale, telegram
         with store.lock:
             store.db.executescript(SQL)
+            cols = [r[1] for r in store.db.execute("PRAGMA table_info(alerts)")]
+            if "channel" not in cols:   # کانال ارسال هر هشدار: بله یا تلگرام
+                store.db.execute("ALTER TABLE alerts ADD COLUMN channel TEXT DEFAULT 'bale'")
             store.db.commit()
         self.stop = threading.Event()
         self.thread = None
         self.state = {"last_run": None, "sent": 0, "last_error": None}
 
+    def bot(self, ch):
+        """پیام‌رسان هر کانال؛ تلگرام فقط اگر در پنل تنظیم شده باشد."""
+        return self.tg if ch == "telegram" and self.tg else self.bale
+
     # ---------------------------------------------------------- api
     def mine(self, phone) -> dict:
-        rows = [dict(r) for r in self.store.q("SELECT id,province,city,district,deal,kinds,max_price,min_score,created FROM alerts WHERE phone=? AND active=1 ORDER BY id DESC", (phone,))]
+        rows = [dict(r) for r in self.store.q("SELECT id,province,city,district,deal,kinds,max_price,min_score,created,channel FROM alerts WHERE phone=? AND active=1 ORDER BY id DESC", (phone,))]
         linked = bool(self.bale.chat_of(phone))
-        return {"items": rows, "linked": linked, "bot": self.bale.cfg().get("bot_username") or "", "ready": self.bale.ready()}
+        tg = self.tg
+        return {"items": rows, "linked": linked, "bot": self.bale.cfg().get("bot_username") or "", "ready": self.bale.ready(),
+                "telegram": {"ready": bool(tg and tg.ready()), "linked": bool(tg and tg.chat_of(phone)), "bot": (tg.cfg().get("bot_username") or "") if tg else ""}}
 
     def add(self, phone, data: dict) -> dict:
         u = self.billing.user(phone)
         if not (u and u["active"]):
             raise ValueError("هشدار فرصت‌های تازه برای مشترکان است؛ اول اشتراک را فعال کنید")
-        if not self.bale.ready():
-            raise ValueError("ارسال هشدار فعلاً در دسترس نیست")
+        ch = "telegram" if data.get("channel") == "telegram" else "bale"
+        b = self.bot(ch)
+        if not b.ready():
+            raise ValueError("ارسال هشدار در " + ("تلگرام" if ch == "telegram" else "بله") + " فعلاً در دسترس نیست")
         n = self.store.q("SELECT COUNT(*) n FROM alerts WHERE phone=? AND active=1", (phone,), one=True)["n"]
         if n >= MAX_PER_USER:
             raise ValueError(f"حداکثر {_fa(MAX_PER_USER)} هشدار فعال می‌توانید داشته باشید؛ یکی را حذف کنید")
@@ -70,24 +81,27 @@ class Alerts:
             maxp = None
         deal = clean("deal") if clean("deal") in ("sale", "rent", "presale") else ""
         now = int(time.time())
-        aid = self.store.x("INSERT INTO alerts(phone,province,city,district,deal,kinds,max_price,min_score,created,last_check,day,sent_day,active) "
-                           "VALUES(?,?,?,?,?,?,?,?,?,?,?,0,1)",
-                           (phone, prov, city, clean("district"), deal, clean("kinds"), maxp, 80, now, now, time.strftime("%Y-%m-%d"))).lastrowid
-        out = {"ok": True, "id": aid, **self.mine(phone)}
-        if out["linked"]:   # تأیید فوری در خود بله تا کاربر ببیند پیام‌ها به کجا می‌رسد
-            out["confirmed"] = bool(self.bale.send(self.bale.chat_of(phone), "🔔 هشدار «خبرم کن» ثبت شد.\nاز این پس هر آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در این فیلتر پیدا شود، همین‌جا برایتان فرستاده می‌شود."))
-        if not out["linked"]:   # پیوند یک‌باره با ربات: کاربر «شروع» را می‌زند و حساب به گفت‌وگو وصل می‌شود
-            out["link"] = self.bale.link_url("alert_" + self.bale._nonce("alert", phone=phone))
+        aid = self.store.x("INSERT INTO alerts(phone,province,city,district,deal,kinds,max_price,min_score,created,last_check,day,sent_day,active,channel) "
+                           "VALUES(?,?,?,?,?,?,?,?,?,?,?,0,1,?)",
+                           (phone, prov, city, clean("district"), deal, clean("kinds"), maxp, 80, now, now, time.strftime("%Y-%m-%d"), ch)).lastrowid
+        out = {"ok": True, "id": aid, "channel": ch, **self.mine(phone)}
+        chat = b.chat_of(phone)
+        out["linked_ch"] = bool(chat)
+        if chat:   # تأیید فوری در همان پیام‌رسان تا کاربر ببیند پیام‌ها به کجا می‌رسد
+            out["confirmed"] = bool(b.send(chat, "🔔 هشدار «خبرم کن» ثبت شد.\nاز این پس هر آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در این فیلتر پیدا شود، همین‌جا برایتان فرستاده می‌شود."))
+        else:   # پیوند یک‌باره با ربات: کاربر «شروع» را می‌زند و حساب به گفت‌وگو وصل می‌شود
+            out["link"] = b.link_url("alert_" + b._nonce("alert", phone=phone))
         return out
 
-    def test(self, phone) -> dict:
-        """پیام آزمایشی در بله: کاربر مطمئن می‌شود هشدارها به گفت‌وگوی درست می‌رسد."""
-        if not self.bale.ready():
-            raise ValueError("ارسال پیام در بله فعلاً در دسترس نیست")
-        chat = self.bale.chat_of(phone)
+    def test(self, phone, ch="bale") -> dict:
+        """پیام آزمایشی در بله یا تلگرام: کاربر مطمئن می‌شود هشدارها به گفت‌وگوی درست می‌رسد."""
+        b = self.bot(ch)
+        if not b.ready():
+            raise ValueError("ارسال پیام در " + b.NAME + " فعلاً در دسترس نیست")
+        chat = b.chat_of(phone)
         if not chat:
-            return {"ok": False, "link": self.bale.link_url("alert_" + self.bale._nonce("alert", phone=phone)), **self.mine(phone)}
-        ok = bool(self.bale.send(chat, "✅ پیام آزمایشی فرصت ملک\nهشدارهای «خبرم کن» دقیقاً همین‌جا به دستتان می‌رسد."))
+            return {"ok": False, "link": b.link_url("alert_" + b._nonce("alert", phone=phone)), **self.mine(phone)}
+        ok = bool(b.send(chat, "✅ پیام آزمایشی فرصت ملک\nهشدارهای «خبرم کن» دقیقاً همین‌جا به دستتان می‌رسد."))
         return {"ok": ok, "sent": ok, **self.mine(phone)}
 
     def remove(self, phone, aid) -> dict:
@@ -96,13 +110,16 @@ class Alerts:
 
     # ---------------------------------------------------------- matcher
     def run_once(self) -> int:
-        if not self.bale.ready():
+        if not self.bale.ready() and not (self.tg and self.tg.ready()):
             return 0
         sent_total, today, now = 0, time.strftime("%Y-%m-%d"), int(time.time())
         for a in [dict(r) for r in self.store.q("SELECT * FROM alerts WHERE active=1")]:
             try:
                 u = self.billing.user(a["phone"])
-                chat = self.bale.chat_of(a["phone"])
+                b = self.bot(a.get("channel") or "bale")
+                if not b.ready():
+                    continue
+                chat = b.chat_of(a["phone"])
                 if not (u and u["active"] and chat):
                     continue
                 sent_day = a["sent_day"] if a["day"] == today else 0
@@ -128,7 +145,7 @@ class Alerts:
                         break
                     if self.store.q("SELECT 1 FROM alerts_sent WHERE alert_id=? AND listing_id=?", (a["id"], d["id"]), one=True):
                         continue
-                    if self.bale.send(chat, self.text(d), reply_markup={"inline_keyboard": [[{"text": "مشاهدهٔ ارزیابی کامل", "url": f"https://forsatmelk.ir/ad/{d['id']}"}]]}):
+                    if b.send(chat, self.text(d), reply_markup={"inline_keyboard": [[{"text": "مشاهدهٔ ارزیابی کامل", "url": f"https://forsatmelk.ir/ad/{d['id']}"}]]}):
                         self.store.x("INSERT OR IGNORE INTO alerts_sent VALUES(?,?,?)", (a["id"], d["id"], now))
                         done += 1
                 self.store.x("UPDATE alerts SET last_check=?, day=?, sent_day=? WHERE id=?", (now, today, sent_day + done, a["id"]))

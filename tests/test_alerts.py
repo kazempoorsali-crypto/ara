@@ -29,9 +29,15 @@ class FakeBale:
         self.sent.append((chat, text, extra)); return {"ok": True}
 
 
+class FakeTG(FakeBale):
+    NAME = "تلگرام"
+    def cfg(self): return {"bot_username": "forsatmelk_tg_bot"}
+    def link_url(self, payload): return "https://t.me/forsatmelk_tg_bot?start=" + payload
+
+
 st = Store(Path(tempfile.mkdtemp()) / "t.db")
-bill, bale = Billing(st), FakeBale()
-al = Alerts(st, bill, bale)
+bill, bale, tg = Billing(st), FakeBale(), FakeTG()
+al = Alerts(st, bill, bale, tg)
 PH, FREE = "09121234567", "09120000000"
 now = int(time.time())
 st.x("INSERT INTO users(phone, created, sub_until, plan) VALUES(?, 0, ?, 'monthly')", (PH, now + 86400 * 10))
@@ -76,6 +82,17 @@ t = al.test(PH)
 ok(t["sent"] and len(bale.sent) == k + 2 and "آزمایشی" in bale.sent[-1][1], "پیام آزمایشی به همان گفت‌وگوی بله رسید")
 ok(al.test(FREE).get("link", "").endswith("alert_Nalert"), "حساب وصل‌نشده: پیام آزمایشی پیوند وصل شدن برمی‌گرداند")
 al.remove(PH, r3["id"])
+# تلگرام: هشدار با کانال تلگرام پیوند t.me می‌دهد و پیام‌ها به ربات تلگرام می‌رود، نه بله
+r4 = al.add(PH, {"city": "amol", "channel": "telegram"})
+ok(r4["channel"] == "telegram" and r4.get("link", "").startswith("https://t.me/"), "هشدار تلگرامی: پیوند ربات تلگرام")
+tg.links[PH] = 777
+listing("tgh", 93, "gold", 9e9, now + 60)
+st.x("UPDATE alerts SET last_check=?", (now,))
+nb = len(bale.sent)
+al.run_once()
+ok(any(c == 777 and "آپارتمان tgh" in t for c, t, _ in tg.sent), "آگهی تازه به گفت‌وگوی تلگرام رسید")
+ok(al.mine(PH)["telegram"]["linked"], "وضعیت وصل بودن تلگرام برمی‌گردد")
+al.remove(PH, r4["id"])
 st.x("UPDATE users SET sub_until=? WHERE phone=?", (now - 10, PH))
 r2 = al.mine(PH)
 ok(r2["linked"], "وضعیت پیوند ربات برمی‌گردد")

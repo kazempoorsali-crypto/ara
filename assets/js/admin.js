@@ -48,7 +48,7 @@
   }
 
   /* ---------- اسکلت ---------- */
-  const TABS = [["dash", "داشبورد"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["flags", "گزارش‌های کاربران"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
+  const TABS = [["dash", "داشبورد"], ["visits", "بازدید سایت"], ["ingest", "دریافت آگهی‌ها"], ["valuation", "ارزش‌گذاری و امتیاز"], ["excluded", "آگهی‌های کنارگذاشته"], ["users", "کاربران و پرداخت‌ها"], ["support", "پشتیبانی و تیکت‌ها"], ["flags", "گزارش‌های کاربران"], ["articles", "مقاله‌ها و سئو"], ["billing", "اشتراک، درگاه و پیامک"], ["site", "تنظیمات سایت"], ["security", "رمز عبور"]];
   async function load() {
     try { S = await api("admin/state"); } catch (e) { if (e.message !== "401") toast(e.message); return; }
     $("#root").innerHTML = `<div class="adm">
@@ -61,7 +61,7 @@
     </div>`;
     $$(".side [data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; location.hash = tab; load(); }));
     $("#logout").addEventListener("click", (e) => { e.preventDefault(); token = ""; sessionStorage.removeItem("ara-admin"); login(); });
-    ({ dash, ingest, valuation: valuationTab, excluded, users, support, flags: flagsTab, articles, billing, site, security }[tab] || dash)();
+    ({ dash, visits: visitsTab, ingest, valuation: valuationTab, excluded, users, support, flags: flagsTab, articles, billing, site, security }[tab] || dash)();
     clearInterval(timer);
     if (tab === "dash" || tab === "ingest" || tab === "valuation") timer = setInterval(refreshLive, 15000);
   }
@@ -108,6 +108,49 @@
         ${S.log.slice(0, 20).map((r) => `<tr><td>${when(r.at)}</td><td>${{ search: "فهرست", detail: "جزئیات", test: "آزمون", discover: "کشف شناسه", sms: "پیامک" }[r.kind] || r.kind}</td><td class="${r.ok ? "ok" : "bad"}">${r.ok ? "موفق" : "خطا"}</td><td>${esc(r.note)}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">هنوز درخواستی ارسال نشده است.</td></tr>'}
       </tbody></table></div></div>`;
     $$("[data-go]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.go; location.hash = tab; load(); }));
+  }
+
+  /* ---------- بازدید سایت ---------- */
+  let vDays = 30;
+  async function visitsTab() {
+    main().innerHTML = `<h1>بازدید سایت</h1><p class="muted">در حال خواندن آمار…</p>`;
+    let R;
+    try { R = await api("admin/analytics", { days: vDays }); } catch (e) { main().innerHTML = `<h1>بازدید سایت</h1><p class="bad">${esc(e.message)}</p>`; return; }
+    const t = R.totals || {};
+    const dur = (s) => !s ? "—" : s < 60 ? fa(s) + " ثانیه" : fa(Math.floor(s / 60)) + " دقیقه" + (s % 60 ? " و " + fa(s % 60) + " ثانیه" : "");
+    const bars = (rows, total, label) => {
+      const max = Math.max(1, ...rows.map((r) => r.u || r.n));
+      return rows.length ? `<div class="vbars">${rows.map((r) => `<div class="vbar"><span>${esc(label ? label(r) : r.k)}</span><i style="width:${Math.max(2, Math.round(100 * (r.u || r.n) / max))}%"></i><b>${fa(r.u != null ? r.u : r.n)}</b>${total ? `<small>${fa(Math.round(100 * (r.u || r.n) / Math.max(1, total)))}٪</small>` : ""}</div>`).join("")}</div>` : '<p class="muted">هنوز داده‌ای نیست.</p>';
+    };
+    const kindName = { search: "موتور جست‌وجو", ai: "هوش مصنوعی", social: "پیام‌رسان و شبکهٔ اجتماعی", direct: "مستقیم (تایپ نشانی یا نشانک)", ref: "سایت‌های دیگر" };
+    const kinds = Object.entries(R.source_kinds || {}).map(([k, u]) => ({ k: kindName[k] || k, u })).sort((a, b) => b.u - a.u);
+    const kSum = kinds.reduce((a, b) => a + b.u, 0);
+    const ser = R.series || [], smax = Math.max(1, ...ser.map((d) => d.visitors));
+    const botKind = { search: "موتور جست‌وجو", ai: "هوش مصنوعی", seo: "ابزار سئو" };
+    main().innerHTML = `<h1>بازدید سایت</h1>
+      <p class="muted">آمار از خود سرور سایت (بدون سرویس بیرونی و بدون نگه‌داری IP). بازدیدکنندهٔ یکتا در هر روز یک بار شمرده می‌شود؛ بازدیدهای پیش‌بارگذاری و ربات‌ها جزو بازدید نیستند.</p>
+      <div class="seg" style="margin:10px 0 16px">${[1, 7, 30, 90, 365].map((d) => `<button class="btn btn--sm ${d === vDays ? "btn--ink" : "btn--line"}" data-vd="${d}">${d === 1 ? "امروز" : fa(d) + " روز"}</button>`).join(" ")}</div>
+      <div class="kpis">
+        <div><b>${fa(t.visitors || 0)}</b><span>بازدیدکنندهٔ یکتا</span></div>
+        <div><b>${fa(t.views || 0)}</b><span>بازدید صفحه</span></div>
+        <div><b>${fa(t.sessions || 0)}</b><span>نشست (ورود به سایت)</span></div>
+        <div><b>${dur(t.avg_session)}</b><span>میانگین مدت ماندن در هر نشست</span></div>
+        <div><b>${fa(t.pages_per_session || 0)}</b><span>صفحه در هر نشست</span></div>
+        <div><b>${fa(t.bounce || 0)}٪</b><span>خروج پس از یک صفحه</span></div>
+        <div><b>${fa(t.online || 0)}</b><span>آنلاین (۵ دقیقهٔ اخیر)</span></div>
+        <div><b>${fa(t.today || 0)}</b><span>بازدیدکنندهٔ امروز</span></div>
+        <div><b>${fa(t.users || 0)}</b><span>بازدید کاربران واردشده</span></div>
+      </div>
+      <div class="panel"><h2>روند روزانهٔ بازدیدکنندگان</h2>${ser.length ? `<div class="vser">${ser.map((d) => `<div title="${esc(d.day)}: ${fa(d.visitors)} بازدیدکننده، ${fa(d.views)} بازدید"><i style="height:${Math.max(3, Math.round(100 * d.visitors / smax))}%"></i><small>${fa(d.day.slice(8))}</small></div>`).join("")}</div>` : '<p class="muted">هنوز داده‌ای نیست.</p>'}</div>
+      <div class="grid2">
+        <div class="panel"><h2>از کجا آمده‌اند؟</h2>${bars(kinds, kSum)}<h3 style="margin-top:14px;font-size:14px">جزئیات منبع</h3>${bars(R.sources || [])}</div>
+        <div class="panel"><h2>دستگاه</h2>${bars(R.devices || [], t.visitors)}<h3 style="margin-top:14px;font-size:14px">مرورگر</h3>${bars(R.browsers || [], t.visitors)}<h3 style="margin-top:14px;font-size:14px">سیستم‌عامل</h3>${bars(R.os || [], t.visitors)}</div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h2>پربازدیدترین صفحه‌ها</h2>${bars(R.pages || [], 0, (r) => r.k)}</div>
+        <div class="panel"><h2>خزنده‌ها: گوگل و دستیارهای هوش مصنوعی</h2><p class="hint">تعداد درخواست صفحه از ربات‌ها (برای ایندکس در گوگل یا پاسخ‌دادن دستیارهایی مثل ChatGPT و Perplexity)؛ جزو بازدید انسانی حساب نمی‌شود.</p>${bars((R.bots || []).map((b) => ({ k: b.k + " — " + (botKind[b.kind] || b.kind), n: b.n })), 0)}</div>
+      </div>`;
+    $$("[data-vd]").forEach((b) => b.addEventListener("click", () => { vDays = +b.dataset.vd; visitsTab(); }));
   }
 
   /* ---------- دریافت ---------- */
@@ -487,6 +530,20 @@
         <p class="hint">وضعیت: ${S.bale_state?.running ? "در حال کار" : "خاموش (توکن یا نام ربات وارد نشده)"}${S.bale_state?.last_ok ? "، آخرین ارتباط موفق " + when(S.bale_state.last_ok) : ""}${S.bale_state?.last_error ? `، آخرین خطا: <span class="bad">${esc(S.bale_state.last_error)}</span>` : ""}؛ ${S.bale_state?.links || 0} کاربر ربات را وصل کرده‌اند.</p>
         <button type="button" class="btn btn--line" id="baleTest">آزمون اتصال ربات</button> <span id="baleRes" class="small"></span>
       </div>
+      <div class="panel"><h2>پیام‌رسان تلگرام: هشدار «خبرم کن»</h2>
+        <ol class="hint" style="line-height:2.1;padding-inline-start:18px">
+          <li>در تلگرام، ربات <b dir="ltr">@BotFather</b> را باز کنید، دستور <b dir="ltr">/newbot</b> را بزنید و نام و نام کاربری ربات را بدهید؛ توکن را این‌جا بگذارید.</li>
+          <li>«ذخیره» و سپس «آزمون اتصال» را بزنید. کاربر در «خبرم کن» گزینهٔ تلگرام را انتخاب می‌کند، یک بار ربات را باز و «Start» را می‌زند و از آن پس هشدارها در تلگرام می‌آید.</li>
+          <li><b>مهم:</b> اگر سرور در ایران است، سرور تلگرام (api.telegram.org) فقط با پروکسی خروجی در دسترس است؛ همان پروکسی بخش «دریافت آگهی‌ها» برای تلگرام هم به کار می‌رود. اگر آزمون اتصال خطا داد، پروکسی را بررسی کنید.</li>
+        </ol>
+        <div class="grid2">
+          <label class="field"><span>توکن ربات تلگرام</span><input class="input input--ltr" name="tg_token" value="${esc(S.telegram?.token || "")}" placeholder="123456789:AA..."></label>
+          <label class="field"><span>نام کاربری ربات (بدون @)</span><input class="input input--ltr" name="tg_bot" value="${esc(S.telegram?.bot_username || "")}" placeholder="forsatmelk_bot"></label>
+        </div>
+        <label class="switch"><input type="checkbox" name="tg_alerts" ${S.telegram?.alerts !== false ? "checked" : ""}><i></i>ارسال هشدار «خبرم کن» در تلگرام فعال باشد</label>
+        <p class="hint">وضعیت: ${S.telegram_state?.running ? "در حال کار" : "خاموش (توکن یا نام ربات وارد نشده)"}${S.telegram_state?.last_ok ? "، آخرین ارتباط موفق " + when(S.telegram_state.last_ok) : ""}${S.telegram_state?.last_error ? `، آخرین خطا: <span class="bad">${esc(S.telegram_state.last_error)}</span>` : ""}؛ ${fa(S.telegram_state?.links || 0)} کاربر ربات را وصل کرده‌اند و ${fa(S.telegram_state?.alerts || 0)} هشدار فعال تلگرامی هست.</p>
+        <button type="button" class="btn btn--line" id="tgTest">آزمون اتصال ربات تلگرام</button> <span id="tgRes" class="small"></span>
+      </div>
       <div class="panel"><h2>سامانه پیامک برای کد ورود</h2><div class="grid2">
         <label class="field"><span>سامانه</span><select class="select" name="provider">
           <option value="payamak" ${sm.provider === "payamak" ? "selected" : ""}>پنل پیامک هاست‌ایران / ملی پیامک</option>
@@ -521,6 +578,11 @@
       $("#emRes").textContent = "در حال ارسال… (اول «ذخیره» را زده باشید)";
       try { const r = await api("admin/email-test", { to: $("#emTo").value.trim() }); $("#emRes").innerHTML = r.ok ? '<span class="ok">ارسال شد</span>' : `<span class="bad">${esc(r.error)}</span>`; } catch (err) { $("#emRes").textContent = err.message; }
     });
+    $("#tgTest").addEventListener("click", async () => {
+      $("#tgRes").textContent = "در حال آزمون…";
+      try { const r = await api("admin/telegram-test", {}); $("#tgRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.bot.first_name || "")} @${esc(r.bot.username || "")}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
+      catch (err) { $("#tgRes").textContent = err.message; }
+    });
     $("#baleTest").addEventListener("click", async () => {
       $("#baleRes").textContent = "در حال آزمون…";
       try { const r = await api("admin/bale-test", {}); $("#baleRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.bot.first_name || "")} @${esc(r.bot.username || "")}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
@@ -543,6 +605,7 @@
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
+        telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
         sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), ticket_template: f.ticket_template.value.trim(), reply_template: f.reply_template.value.trim(), dev_mode: f.dev_mode.checked },
       };

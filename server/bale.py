@@ -35,10 +35,12 @@ def _fa(n) -> str:
 
 
 class Bale:
+    KEY, TBL, API, DEFAULTS, NAME = "bale", "bale", API, DEFAULT_BALE, "بله"
+
     def __init__(self, store, billing):
         self.store, self.billing = store, billing
         with store.lock:
-            store.db.executescript(SQL)
+            store.db.executescript(SQL.replace("bale_", self.TBL + "_"))
             store.db.commit()
         self.state = {"running": False, "last_ok": None, "last_error": None, "bot": None}
         self.stop = threading.Event()
@@ -46,7 +48,7 @@ class Bale:
 
     # ---------------------------------------------------------- config
     def cfg(self):
-        return {**DEFAULT_BALE, **(self.store.get_setting("bale") or {})}
+        return {**self.DEFAULTS, **(self.store.get_setting(self.KEY) or {})}
 
     def ready(self) -> bool:
         c = self.cfg()
@@ -66,13 +68,13 @@ class Bale:
     def call(self, method, body=None, timeout=30):
         from divar_client import NET, _opener
         c = self.cfg()
-        req = urllib.request.Request(API.format(token=c["token"], method=method),
+        req = urllib.request.Request(self.API.format(token=c["token"], method=method),
                                      data=json.dumps(body or {}).encode(), method="POST",
                                      headers={"content-type": "application/json"})
         with _opener(NET["proxy"]).open(req, timeout=timeout) as r:
             res = json.loads(r.read().decode() or "{}")
         if not res.get("ok"):
-            raise RuntimeError(res.get("description") or "خطای بله")
+            raise RuntimeError(res.get("description") or "خطای " + self.NAME)
         return res.get("result")
 
     def send(self, chat_id, text, **extra):
@@ -83,7 +85,7 @@ class Bale:
             return None
 
     def chat_of(self, phone):
-        r = self.store.q("SELECT chat_id FROM bale_links WHERE phone=?", (phone,), one=True)
+        r = self.store.q(f"SELECT chat_id FROM {self.TBL}_links WHERE phone=?", (phone,), one=True)
         return r["chat_id"] if r else None
 
     def test(self) -> dict:
@@ -95,12 +97,12 @@ class Bale:
     def _nonce(self, kind, phone=None, pid=None) -> str:
         n = secrets.token_urlsafe(9).replace("-", "x").replace("_", "y")
         now = int(time.time())
-        self.store.x("INSERT INTO bale_nonce VALUES(?,?,?,?,?)", (n, kind, phone, pid, now))
-        self.store.x("DELETE FROM bale_nonce WHERE created < ?", (now - 86400,))
+        self.store.x(f"INSERT INTO {self.TBL}_nonce VALUES(?,?,?,?,?)", (n, kind, phone, pid, now))
+        self.store.x(f"DELETE FROM {self.TBL}_nonce WHERE created < ?", (now - 86400,))
         return n
 
     def _take(self, n):
-        r = self.store.q("SELECT * FROM bale_nonce WHERE nonce=? AND created > ?", (n, int(time.time()) - 86400), one=True)
+        r = self.store.q(f"SELECT * FROM {self.TBL}_nonce WHERE nonce=? AND created > ?", (n, int(time.time()) - 86400), one=True)
         return dict(r) if r else None
 
     # ---------------------------------------------------------- otp
@@ -151,7 +153,7 @@ class Bale:
 
     # ---------------------------------------------------------- updates
     def link(self, phone, chat_id, user_id=None):
-        self.store.x("INSERT OR REPLACE INTO bale_links VALUES(?,?,?,?)", (phone, chat_id, user_id, int(time.time())))
+        self.store.x(f"INSERT OR REPLACE INTO {self.TBL}_links VALUES(?,?,?,?)", (phone, chat_id, user_id, int(time.time())))
 
     def handle(self, u: dict):
         from billing import norm_phone
@@ -232,7 +234,7 @@ class Bale:
             self.send(chat, "سلام! این ربات رسمی فرصت ملک است: کد ورود، صورت‌حساب اشتراک و پیام فعال‌سازی را همین‌جا دریافت می‌کنید.\nforsatmelk.ir")
 
     def loop(self):
-        offset = int(self.store.get_setting("bale_offset") or 0)
+        offset = int(self.store.get_setting(self.KEY + "_offset") or 0)
         while not self.stop.is_set():
             if not self.ready():
                 self.state["running"] = False
@@ -250,7 +252,7 @@ class Bale:
                         traceback.print_exc()
                         self.state["last_error"] = str(e)[:200]
                 if ups:
-                    self.store.set_setting("bale_offset", offset)
+                    self.store.set_setting(self.KEY + "_offset", offset)
             except Exception as e:  # noqa: BLE001
                 self.state["last_error"] = str(e)[:200]
                 self.stop.wait(10)
@@ -258,7 +260,7 @@ class Bale:
     def start(self):
         if self.thread and self.thread.is_alive():
             return
-        self.thread = threading.Thread(target=self.loop, name="bale", daemon=True)
+        self.thread = threading.Thread(target=self.loop, name=self.KEY, daemon=True)
         self.thread.start()
 
     # ---------------------------------------------------------- notify
@@ -270,6 +272,52 @@ class Bale:
         self.send(chat, f"✅ پرداخت شما دریافت شد و اشتراک فعال است.\n"
                         f"طرح: {plan_name} ({_fa(days)} روز)\nمبلغ: {_fa(amount)} تومان\nشمارهٔ فاکتور: {_fa(pid)}\n"
                         f"اعتبار تا: {jdate(until)}\nفاکتور: https://forsatmelk.ir/#/invoice/{pid}")
+
+
+TG_API = "https://api.telegram.org/bot{token}/{method}"
+DEFAULT_TG = {"token": "", "bot_username": "", "alerts": True}
+
+
+class Telegram(Bale):
+    """ربات تلگرام فقط برای هشدار «خبرم کن» (همان API ربات‌های بله، با سرور تلگرام).
+    توجه: اگر سرور در ایران است، دسترسی به api.telegram.org معمولاً فقط با پروکسی خروجی ممکن است
+    (همان پروکسی بخش «دریافت آگهی‌ها»)."""
+    KEY, TBL, API, DEFAULTS, NAME = "telegram", "tg", TG_API, DEFAULT_TG, "تلگرام"
+
+    def otp_ready(self) -> bool:
+        return False
+
+    def pay_ready(self) -> bool:
+        return False
+
+    def ready(self) -> bool:
+        c = self.cfg()
+        return bool(c["token"] and c["bot_username"] and c.get("alerts", True))
+
+    def link_url(self, payload: str) -> str:
+        return f"https://t.me/{self.cfg()['bot_username'].lstrip('@')}?start={payload}"
+
+    def notify_paid(self, *a, **k):
+        return None
+
+    def handle(self, u: dict):
+        m = u.get("message") or {}
+        chat = (m.get("chat") or {}).get("id")
+        if not chat:
+            return
+        text = (m.get("text") or "").strip()
+        frm = m.get("from") or {}
+        if text.startswith("/start"):
+            arg = text[6:].strip()
+            if arg.startswith("alert_"):
+                n = self._take(arg[6:])
+                if not n or n["kind"] != "alert":
+                    self.send(chat, "این پیوند منقضی شده است؛ در سایت دوباره «خبرم کن» را بزنید.")
+                    return
+                self.link(n["phone"], chat, frm.get("id"))
+                self.send(chat, "🔔 هشدار فرصت‌های تازه در تلگرام فعال شد.\nهر وقت آگهی تازه‌ای با امتیاز بالا در منطقهٔ انتخابی شما پیدا شود، همین‌جا خبرتان می‌کنیم (حداکثر چند پیام در روز).")
+                return
+            self.send(chat, "سلام! این ربات رسمی فرصت ملک است: هشدار فرصت‌های تازهٔ ملک را همین‌جا دریافت می‌کنید.\nforsatmelk.ir")
 
 
 def send_instant_opportunity_alert(chat_id, deal_data, bot_token):

@@ -225,11 +225,18 @@ class App:
         self.ingest = Ingestor(self.store)
         self.ingest.migrate()
         self.billing = Billing(self.store)
-        from bale import Bale
+        from bale import Bale, Telegram
         self.bale = Bale(self.store, self.billing)
         self.billing.bale = self.bale
         from alerts import Alerts
-        self.alerts = Alerts(self.store, self.billing, self.bale)
+        self.telegram = Telegram(self.store, self.billing)   # فقط برای هشدار «خبرم کن»
+        from analytics import Analytics
+        self.analytics = Analytics(self.store)   # آمار بازدید برای پنل مدیریت
+        try:
+            self.analytics.prune()   # بیش از ۴۰۰ روز نگه داشته نمی‌شود
+        except Exception:  # noqa: BLE001
+            pass
+        self.alerts = Alerts(self.store, self.billing, self.bale, self.telegram)
         from mailer import Mailer
         from accounts import Accounts
         self.mailer = Mailer(self.store)
@@ -554,6 +561,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.api_get(url.path, qs)
             if not url.path.startswith("/assets/") and self.limited("page"):
                 return None
+            if not url.path.startswith("/assets/"):
+                try:
+                    self.app.analytics.bot_hit(self.headers.get("user-agent") or "")
+                except Exception:  # noqa: BLE001
+                    pass
             if url.path == "/robots.txt":
                 return self.send_text(seo.robots(self.base_url()), "text/plain; charset=utf-8")
             if url.path in ("/llms.txt", "/llms-full.txt"):
@@ -582,6 +594,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_text("<!doctype html><meta charset=utf-8><title>یافت نشد</title><p>این آگهی پیدا نشد. <a href='/'>صفحهٔ اصلی</a></p>",
                                           "text/html; charset=utf-8", status=404, cache="no-cache")
                 body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
+                if page == "home":
+                    body = body.replace("<!--FM_ARTICLES-->", sitepage.articles_html(self.app), 1)
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
                 # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
@@ -650,6 +664,16 @@ class Handler(BaseHTTPRequestHandler):
             return None
         try:
             data = self.body()
+            if url.path == "/api/t":   # آمار بازدید (بدون IP)؛ حداکثر ۶۰ رویداد در دقیقه از هر نشانی
+                if not LIMITER.allow("t:" + self.client_ip(), 60, 60):
+                    return self.send_json({"ok": True})
+                u = None
+                try:
+                    u = self.user()
+                except Exception:  # noqa: BLE001
+                    pass
+                return self.send_json(self.app.analytics.hit(data if isinstance(data, dict) else {}, self.client_ip(),
+                                                              self.headers.get("user-agent") or "", (self.headers.get("host") or "").split(":")[0], bool(u)))
             if url.path == "/pay/callback":
                 return self.pay_callback({**{k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}, **data})
             return self.api_post(url.path, data)
@@ -1074,7 +1098,7 @@ class Handler(BaseHTTPRequestHandler):
             if data.get("action") == "remove":
                 return self.send_json(a.alerts.remove(u["phone"], data.get("id")))
             if data.get("action") == "test":
-                return self.send_json(a.alerts.test(u["phone"]))
+                return self.send_json(a.alerts.test(u["phone"], "telegram" if data.get("channel") == "telegram" else "bale"))
             return self.send_json(a.alerts.add(u["phone"], data))
         if path == "/api/me/profile":
             u = self.user()
@@ -1185,6 +1209,9 @@ class Handler(BaseHTTPRequestHandler):
                 "billing": {**a.billing.cfg(), "bezan_api_key": "•••" if a.billing.cfg().get("bezan_api_key") else ""}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
+                "telegram": {**a.telegram.cfg(), "token": "•••" if a.telegram.cfg()["token"] else ""},
+                "telegram_state": {**a.telegram.state, "links": s.q("SELECT COUNT(*) n FROM tg_links", one=True)["n"],
+                                   "alerts": s.q("SELECT COUNT(*) n FROM alerts WHERE active=1 AND channel='telegram'", one=True)["n"]},
                 "tiles": s.get_setting("tiles") or {"street": "", "sat": ""},
                 "email": {**a.mailer.cfg(), "password": "•••" if a.mailer.cfg()["password"] else ""}, "email_last": s.get_setting("email_last"),
                 "geo": {"stats": s.get_setting("geo_stats") or {}, "centers": len(s.get_setting("district_centers") or {}),
@@ -1272,6 +1299,15 @@ class Handler(BaseHTTPRequestHandler):
                 if "bot_username" in new:
                     new["bot_username"] = str(new["bot_username"]).strip().lstrip("@")
                 s.set_setting("bale", {**cur, **new})
+            if isinstance(data.get("telegram"), dict):
+                from bale import DEFAULT_TG
+                cur = {**DEFAULT_TG, **(s.get_setting("telegram") or {})}
+                new = {k: v for k, v in data["telegram"].items() if k in DEFAULT_TG}
+                if new.get("token") in ("•••", None):
+                    new.pop("token", None)
+                if "bot_username" in new:
+                    new["bot_username"] = str(new["bot_username"]).strip().lstrip("@")
+                s.set_setting("telegram", {**cur, **new})
             if isinstance(data.get("sms"), dict):
                 cur = {**DEFAULT_SMS, **(s.get_setting("sms") or {})}
                 new = {k: v for k, v in data["sms"].items() if k in DEFAULT_SMS}
@@ -1341,6 +1377,13 @@ class Handler(BaseHTTPRequestHandler):
             if r.get("merchant_id") or r.get("store_name"):
                 return self.send_json({"ok": True, "store": r.get("store_name"), "subscription": r.get("subscription")})
             return self.send_json({"ok": False, "error": r.get("detail") or r.get("error") or "پاسخ نامعتبر"})
+        if path == "/api/admin/analytics":
+            return self.send_json(a.analytics.report(int((data or {}).get("days") or 30)))
+        if path == "/api/admin/telegram-test":
+            try:
+                return self.send_json({"ok": True, "bot": a.telegram.test()})
+            except Exception as e:  # noqa: BLE001
+                return self.send_json({"ok": False, "error": str(e)[:200]})
         if path == "/api/admin/bale-test":
             try:
                 me = a.bale.test()
@@ -1430,6 +1473,7 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
+    Handler.app.telegram.start()
     Handler.app.alerts.start()
     Handler.app.billing.start_bezan_poller()
     httpd = BoundedServer((args.host, args.port), Handler)
