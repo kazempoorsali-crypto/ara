@@ -147,6 +147,7 @@ const App = (() => {
     // صفحهٔ اصلیِ سایت قبلی دیگر نمایش داده نمی‌شود: مستقیم به صفحهٔ اصلی سایت جدید (بدون بار شدن دوبارهٔ نسخهٔ قدیمی)
     else if (!document.documentElement.classList.contains("embed") && (location.pathname === "/app.html" || location.hash === "#/" || !location.hash)) { location.replace("/"); return; }
     else homePage();
+    document.documentElement.classList.add("app-ready");
     // متن «دربارهٔ بازار» که سرور برای همین نشانی ساخته، فقط روی همان صفحه دیده می‌شود
     const st = $("#seoText");
     if (st) st.hidden = (st.dataset.hash || "#/").replace(/^#?\/?$/, "#/") !== (location.hash || "#/").replace(/^#?\/?$/, "#/");
@@ -2323,6 +2324,37 @@ const App = (() => {
         : l.contact_mode && l.contact_mode !== "none" ? `<p class="small muted">شمارهٔ این آگهی در دسترس نیست؛ از آگهی اصلی تماس بگیرید.</p>` : ""}
     </div>`;
   }
+  /* کارت سبز «ارزش این خرید»: قیمت آگهی، ارزش کارشناسی و سود احتمالی خریدار در یک نگاه (مثل کارت گالری صفحهٔ اول) */
+  function profitCard(l) {
+    const v = l.verdict;
+    if (!v || l.excluded || l.label === "sus" || l.deal === "rent" || l.deal === "daily") return "";
+    const ask = l.pp || l.price;
+    if (!ask) return "";
+    if (l.locked) {
+      return `<div class="pcard pcard--lock"><div class="pcard__row">
+        <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
+        <div><span>ارزش کارشناسی</span><b class="blur">۰٫۰ میلیارد</b><small>🔒</small></div>
+        <div><span>سود احتمالی شما</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
+        <p class="pcard__note">${esc(UI.gapText(v))}؛ ارزش کارشناسی دقیق و سود خالص این خرید برای مشترکان نمایش داده می‌شود.</p>
+        <button type="button" class="btn btn--gold btn--block" data-pcard-sub>دیدن ارزش کارشناسی و سود (اشتراک)</button></div>`;
+    }
+    const ex = l.explain || {};
+    const fair = l.fair_price || (v.delta != null ? ask / (1 + v.delta) : null) || (ex.estimated_profit ? ask + ex.estimated_profit : null);
+    if (!fair) return "";
+    const gain = fair - ask, pctv = gain / fair;
+    const good = gain > 0, flat = Math.abs(pctv) < 0.03;
+    const tone = flat ? "fair" : good ? "good" : "bad";
+    const head = flat ? "هم‌قیمت بازار محله" : good ? "زیر قیمت بازار؛ خرید به‌صرفه" : "بالاتر از قیمت بازار محله";
+    return `<div class="pcard pcard--${tone}">
+      <div class="pcard__head"><b>${head}</b>${!flat ? `<span>${good ? "−" : "+"}${fa(Math.round(Math.abs(pctv) * 100))}٪</span>` : ""}</div>
+      <div class="pcard__row">
+        <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
+        <div><span>ارزش کارشناسی</span><b>${money(fair)}</b><small>تومان</small></div>
+        <div class="pcard__gain"><span>${good ? "سود احتمالی شما" : "بیشتر از ارزش"}</span><b>${flat ? "—" : money(Math.abs(gain))}</b><small>${flat ? "تفاوت ناچیز" : "تومان"}</small></div>
+      </div>
+      ${ex.fair_low && ex.fair_high ? `<p class="pcard__note">بازهٔ ارزش منصفانه: ${money(ex.fair_low)} تا ${money(ex.fair_high)} تومان؛ برآورد آماری از آگهی‌های همین محله، نه قیمت قطعی.</p>` : `<p class="pcard__note">برآورد آماری از آگهی‌های همین محله، نه قیمت قطعی.</p>`}
+    </div>`;
+  }
   /* شناسنامهٔ قیمت: این آگهی در برابر محلهٔ خودش */
   function priceIdCard(l) {
     const v = l.verdict, ex = l.explain || {};
@@ -2331,7 +2363,13 @@ const App = (() => {
     const ask = l.deal === "daily" ? l.price : l.pp;
     const meM = l.deal === "daily" ? ask : l.area ? ask / l.area : null;
     const expM = meM && !v.approx ? meM / (1 + v.delta) : null;
-    const row = (k, val, sub = "") => `<div class="pid__row"><span>${k}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    // هر ردیف یک کاشی جدا با آیکن، عنوان، عدد درشت و توضیح کوچک (به‌جای ردیف‌های پشت‌سرهم)
+    const ICO = { "پیش": "🏗", "میانهٔ": "📊", "سازگاری": "🧭", "قیمت مورد": "🎯", "قیمت واحد": "🏢", "تأیید": "✅", "تعدیل": "⚖️", "این آگهی": "🏷", "اختلاف": "📉" };
+    const row = (k, val, sub = "") => {
+      const ic = Object.keys(ICO).find((x) => k.indexOf(x) === 0);
+      const tone = k.indexOf("قیمت مورد") === 0 ? " pidt--exp" : k.indexOf("اختلاف") === 0 ? " pidt--gap" : k.indexOf("این آگهی") === 0 ? " pidt--ask" : "";
+      return `<div class="pidt${tone}"><i aria-hidden="true">${ic ? ICO[ic] : "•"}</i><div><span>${k}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div></div>`;
+    };
     let html = "";
     const ps = ex.presale;
     if (ps) {
@@ -2358,7 +2396,7 @@ const App = (() => {
       ${ex.age_days ? `<li>قیمت آگهی <b>${fa(ex.age_days)}</b> روز پیش درج شده؛ برای قیمت روز با فروشنده تماس بگیرید.</li>` : ""}
       <li>سنجش کاملاً خودکار و بدون دست‌کاری انسانی است؛ پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</li>
     </ul></div>` : "";
-    return `<section class="block pid"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div>${html}${fx}${trust}
+    return `<section class="block pid pid--v2"><div class="pid__head"><h2>شناسنامهٔ قیمت</h2><span>این آگهی در برابر محلهٔ خودش</span></div><div class="pidg">${html}</div>${fx}${trust}
       <p class="pid__foot">«میانهٔ محله» یعنی نیمی از آگهی‌های محله گران‌ترند و نیمی ارزان‌تر. ${rent ? "«رهن کامل» یعنی ودیعه به‌اضافهٔ اجارهٔ ماهانه که به ودیعه تبدیل شده؛ هر ۱ میلیون تومان اجارهٔ ماهانه حدود ۳۳ میلیون تومان ودیعه حساب شده و همهٔ آگهی‌های اجاره با همین حساب مقایسه می‌شوند." : ""}</p></section>`;
   }
   /* تحلیل قیمت و عوامل مؤثر: جایگزینی حرفه‌ای واژه ارزانی و تشریح دلایل اقتصادی */
@@ -2413,21 +2451,25 @@ const App = (() => {
     const me = { ...l, _self: true };
     const rows = [me, ...sim].filter((x) => x.verdict && x.area && x.deal !== "daily");
     if (rows.length < 2) return sim.length ? `<section class="block"><h2>مشابه‌ها</h2><div class="cards">${sim.slice(0, 3).map((x) => UI.card(x, { compare: false })).join("")}</div></section>` : `<section class="block"><h2>مشابه‌ها</h2><p class="fn">در این محله و با همین تعداد خواب، آگهی مشابه دیگری نیست.</p></section>`;
-    const ppm = (x) => x.pp / x.area, exp = (x) => ppm(x) / (1 + x.verdict.delta);
-    const all = rows.flatMap((x) => [ppm(x), exp(x)]), lo = Math.min(...all) * 0.9, hi = Math.max(...all) * 1.08;
-    const X = (val) => ((val - lo) / (hi - lo)) * 100;
-    return `<section class="block"><h2>مشابه‌ها<small>هم‌محله، هم‌خواب و نزدیک‌ترین متراژ؛ همه روی یک مقیاس، هر ردیف با قیمت محلهٔ خودش</small></h2>
+    /* هر ردیف نسبت به قیمت محلهٔ خودش: وسط نوار (خاکستری) = هم‌قیمت محله؛ به راست ارزان‌تر (سبز، بعد طلایی)، به چپ گران‌تر (قرمز، بعد قرمز تیره)
+       همان رنگ‌بندی نمودار قیمت بالای صفحه؛ دامنهٔ نوار ±۴۰٪ */
+    const ppm = (x) => x.pp / x.area;
+    const R = 0.4, X = (d) => 50 + Math.max(-R, Math.min(R, d)) / R * 46;   // درصد از راست؛ ارزان‌تر (d منفی) سمت راست
+    const COL = { gold: "#d4a017", good: "#10b981", fair: "#9aa3a0", high: "#ef4444", over: "#991b1b" };
+    const gapTxt = (d) => Math.abs(d) < 0.03 ? "هم‌قیمت محله" : `${fa(Math.round(Math.abs(d) * 100))}٪ ${d < 0 ? "زیر" : "بالای"} قیمت محله`;
+    return `<section class="block"><h2>مشابه‌ها<small>هم‌محله، هم‌خواب و نزدیک‌ترین متراژ؛ هر ردیف در برابر قیمت محلهٔ خودش</small></h2>
       <div class="cmps-head" aria-hidden="true"><span>آگهی</span><span>قیمت هر متر</span><span>در برابر قیمت محلهٔ خودش</span><span>حکم</span></div>
-      <ol class="cmps">${rows.slice(0, 7).map((x) => `<li class="${x._self ? "is-self" : ""}">
+      <ol class="cmps">${rows.slice(0, 7).map((x) => { const d = x.verdict.delta || 0; return `<li class="${x._self ? "is-self" : ""}">
         <span>${x._self ? "<b>همین آگهی</b>" : `<a href="#/ad/${encodeURIComponent(x.id)}">${fa(x.area)} متر، ${money(x.pp)}</a>`}<small>${esc(x.district || "")}${x.rooms != null ? "، " + (x.rooms ? fa(x.rooms) + " خواب" : "استودیو") : ""}</small></span>
-        <span>متری ${money(ppm(x))}</span>
-        <span class="cmps__bar" style="position:relative;height:10px;border-radius:999px;background:linear-gradient(to left, #10b981 0%, #d4a017 50%, #ef4444 100%);opacity:0.9;border:1px solid var(--line);display:block;width:100%;">
-          <b class="pbar__exp" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;box-shadow:0 0 2px rgba(0,0,0,0.6);border-radius:1px;right:${X(exp(x))}%;" title="قیمت محله: متری ${money(exp(x))}"></b>
-          <b class="pbar__me" style="position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:${({ gold: "#f5c542", good: "#22c55e", fair: "#9aa3a0", high: "#ef4444", over: "#dc2626" })[x.verdict.label] || "#94a3b8"};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(50%, -50%);right:${X(ppm(x))}%;" title="این آگهی: متری ${money(ppm(x))}"></b>
+        <span class="cmps__ppm">متری ${money(ppm(x))}<small>${x.verdict.approx ? "حدود " : ""}${gapTxt(d)}</small></span>
+        <span class="cmps__bar cmps__bar--v2" title="${gapTxt(d)}">
+          <b class="cmps__mid" title="قیمت محله برای همین خانه"></b>
+          <b class="cmps__me" style="right:${X(d).toFixed(1)}%;background:${COL[x.verdict.label] || "#94a3b8"}"></b>
         </span>
-        <span>${UI.labelPill(x.verdict)}</span></li>`).join("")}</ol>
-      <p class="fn">نقطهٔ پررنگ قیمت هر متر آگهی است و خط عمودی قیمت محله برای همان خانه.</p></section>`;
+        <span>${UI.labelPill(x.verdict)}</span></li>`; }).join("")}</ol>
+      <p class="fn">خط سفید وسط نوار قیمت محله برای همان خانه است و نقطه، جای این آگهی؛ هرچه به راست (طلایی) نزدیک‌تر، ارزان‌تر از محله.</p></section>`;
   }
+
 
   async function adPage(id) {
     view().innerHTML = `<div class="wrap ad"><div class="skeleton" style="height:440px"></div></div>`;
@@ -2436,7 +2478,9 @@ const App = (() => {
     const c = UI.cityOf(l.city_key);
     UI.seen.add(l.id);
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
-    const gal = Array.from({ length: 5 }, (_, i) => `<button data-img="${i}" aria-label="تصویر ${fa(i + 1)}">${UI.media(l, imgs.length ? Math.min(i, imgs.length - 1) : i)}${i === 4 && imgs.length > 5 ? `<span class="more">+${fa(imgs.length - 5)} عکس</span>` : ""}</button>`).join("");
+    // هر عکس فقط یک بار: به تعداد عکس‌های واقعی کاشی ساخته می‌شود (قبلاً با کمتر از ۵ عکس، آخرین عکس تکرار می‌شد)
+    const galN = imgs.length ? Math.min(5, imgs.length) : 5;
+    const gal = Array.from({ length: galN }, (_, i) => `<button data-img="${i}" aria-label="تصویر ${fa(i + 1)}">${UI.media(l, imgs.length ? Math.min(i, imgs.length - 1) : i)}${i === 4 && imgs.length > 5 ? `<span class="more">+${fa(imgs.length - 5)} عکس</span>` : ""}</button>`).join("");
     const ft = l.feat || {};
     const facts = [["نوع", UI.kindName(l.kind)], ["متراژ", l.area && fa(l.area) + " متر"], ["اتاق", l.rooms != null && fa(l.rooms)],
       ["سال ساخت", l.year && faY(l.year)], ["طبقه", ft.floor != null ? fa(ft.floor) + (ft.floors_total ? " از " + fa(ft.floors_total) : "") : l.floor != null && fa(l.floor)],
@@ -2450,7 +2494,7 @@ const App = (() => {
     view().innerHTML = `
     <article class="wrap ad">
       <nav class="crumbs"><a href="/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
-      <div class="gallery" id="gal">${gal}</div>
+      <div class="gallery gallery--n${galN}" id="gal">${gal}</div>
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
         <div>
@@ -2460,6 +2504,7 @@ const App = (() => {
             <p class="muted">${esc([c && "استان " + UI.provOf(c.province).name, c ? c.name : l.city_name, l.district].filter(Boolean).join("، "))}${l.first_seen ? "، ثبت در سامانه " + UI.ago(l.first_seen) : ""}</p>
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
+          ${profitCard(l)}
           <div class="facts">${facts.filter(([, x]) => x).map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>
           <div class="mobile-only">${valuationCard(l)}</div>
           ${l.history && l.history.length > 1 ? `<section class="block"><h2>تاریخچه قیمت</h2>${UI.spark(l.history, l.deal)}</section>` : ""}
@@ -3296,6 +3341,7 @@ const App = (() => {
     document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) $$(".dd.is-open").forEach((d) => d.classList.remove("is-open")); });
     view().addEventListener("click", (e) => {
       const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); }
+      if (e.target.closest("[data-pcard-sub]")) { e.preventDefault(); subscribeDialog(); return; }
       const sh = e.target.closest("[data-adshare]"); if (sh) { e.preventDefault(); e.stopPropagation(); window.__fmAdShare && window.__fmAdShare(); return; }
       const cs = e.target.closest("[data-cshare]");
       if (cs) {

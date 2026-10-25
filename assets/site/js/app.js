@@ -95,20 +95,21 @@
 
     /* انیمیشن خود صفحهٔ بارگذاری با CSS است و از همان لحظهٔ رسیدن صفحه اجرا می‌شود؛ اینجا فقط صبر می‌کنیم
        تا صفحه واقعاً بار شود (و انیمیشن یک بار کامل دیده شود)، و هرگز بیش از ۸ ثانیه معطل نمی‌مانیم */
+    /* بار دوم به بعد (یا برگشت به صفحه): بدون انتظار. بار اول: کوتاه، فقط تا قلم و خود صفحه آماده شود؛
+       منتظر بار شدن همهٔ عکس‌ها نمی‌مانیم (روی اینترنت کند همین چند ثانیه معطلی می‌ساخت) */
+    if (seen) return finish();
     FM.stopScroll();
-    var minMs = seen || LITE ? 600 : 2700;
-    var loaded = document.readyState === "complete", sched = false;
+    var minMs = LITE ? 500 : 1300, done2 = false;
     function go() {
-      if (!loaded || sched) return;
-      sched = true;
+      if (done2) return; done2 = true;
       setTimeout(function () {
         intro.classList.add("is-loaded");   // نوار پیشرفت تا آخر پر می‌شود
-        setTimeout(finish, 280);
+        setTimeout(finish, 250);
       }, Math.max(0, minMs - performance.now()));
     }
-    if (!loaded) addEventListener("load", function () { loaded = true; go(); });
-    setTimeout(function () { loaded = true; go(); }, 8000);
-    go();
+    var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    fonts.then(go, go);
+    setTimeout(go, 2600);   // هرگز بیش از حدود سه ثانیه
   }
 
 

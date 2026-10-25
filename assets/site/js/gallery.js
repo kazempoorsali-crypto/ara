@@ -91,18 +91,33 @@
     return "/app.html#/s?" + Object.keys(q).map(function (k) { return k + "=" + encodeURIComponent(q[k]); }).join("&");
   }
   if (advPanel && advToggle) {
-    advToggle.addEventListener("click", function () {
-      var open = advPanel.hidden;
-      advPanel.hidden = !open; advToggle.setAttribute("aria-expanded", open); advToggle.classList.toggle("is-open", open);
-      if (open) { try { history.pushState({ fmAdv: true }, "", location.hash || location.pathname); } catch(e){} }
-      if (window.ScrollTrigger) setTimeout(function () { ScrollTrigger.refresh(); }, 50);
-    });
-    window.addEventListener("popstate", function () {
-      if (advPanel && !advPanel.hidden) {
-        advPanel.hidden = true; advToggle.setAttribute("aria-expanded", "false"); advToggle.classList.remove("is-open");
-        if (window.ScrollTrigger) setTimeout(function () { ScrollTrigger.refresh(); }, 50);
+    /* فیلتر پیشرفته پنجرهٔ جداگانه است: اسکرول فقط داخل خودش (صفحهٔ زیر تکان نمی‌خورد) و «برگشت» آن را می‌بندد */
+    advPanel.setAttribute("data-lenis-prevent", "");
+    var advBd = document.createElement("div"); advBd.className = "advf__bd"; advBd.hidden = true; document.body.appendChild(advBd);
+    if (!advPanel.querySelector(".advf__top")) {
+      advPanel.insertAdjacentHTML("afterbegin", '<div class="advf__top"><b>فیلتر پیشرفته</b><button type="button" class="advf__x" aria-label="بستن">✕</button></div>');
+    }
+    document.body.appendChild(advPanel);   // روی همهٔ صفحه، نه وسط بخش فیلتر
+    var advBack = null;
+    function advShow(on) {
+      if (on === !advPanel.hidden) return;
+      advPanel.hidden = !on; advBd.hidden = !on;
+      advPanel.classList.toggle("is-sheet", on);
+      advToggle.setAttribute("aria-expanded", on); advToggle.classList.toggle("is-open", on);
+      document.body.classList.toggle("adv-open", on);
+      if (on) {
+        FM.stopScroll && FM.stopScroll();
+        var g = advPanel.querySelector(".advf__grid"); if (g) g.scrollTop = 0;
+        advBack = FM.backable ? FM.backable(advPanel, function () { advBack = null; advShow(false); }) : null;
+      } else {
+        FM.startScroll && FM.startScroll();
+        if (advBack) { var f = advBack; advBack = null; f(); }
       }
-    });
+    }
+    advToggle.addEventListener("click", function () { advShow(advPanel.hidden); });
+    advBd.addEventListener("click", function () { advShow(false); });
+    advPanel.addEventListener("click", function (e) { if (e.target.closest(".advf__x")) advShow(false); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !advPanel.hidden) advShow(false); });
     var tmr = null;
     var later = function () { clearTimeout(tmr); tmr = setTimeout(refresh, 350); };
     advPanel.addEventListener("click", function (e) {
@@ -138,6 +153,7 @@
       refresh();
     });
     document.getElementById("advDone").addEventListener("click", function () {
+      advShow(false);
       var g = document.getElementById("gallery");
       if (g) (FM.scrollToEl ? FM.scrollToEl(g, { offset: -80 }) : g.scrollIntoView({ behavior: "smooth" }));
     });

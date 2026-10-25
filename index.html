@@ -345,71 +345,38 @@
       </div>
     </section>
     <!-- ══════════ ۵) ماشین‌حساب هوشمند قیمت منصفانه ملک ══════════ -->
-    <section class="est-widget" id="estimatorBox" style="max-width:1120px;margin:36px auto 20px;padding:0 16px;">
-      <div style="background:linear-gradient(135deg, rgba(63,161,132,0.14), rgba(224,182,78,0.08));border:1px solid rgba(63,161,132,0.35);border-radius:20px;padding:24px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
-        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
-          <div>
-            <span style="background:#20976A;color:#fff;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;">رایگان و آنی</span>
-            <h3 style="margin:8px 0 4px;font-size:20px;">ماشین‌حساب هوشمندِ «قیمت منصفانه ملک»</h3>
-            <p style="margin:0;opacity:0.85;font-size:13.5px;">مشخصات ملک را وارد کنید تا هوش مصنوعی فرصت ملک، قیمت واقعی آن را بر اساس معاملات و آگهی‌های همان محله محاسبه کند.</p>
-          </div>
+    <section class="est" id="estimatorBox">
+      <div class="est__card fmx">
+        <div class="est__head">
+          <span class="est__badge">رایگان و آنی</span>
+          <h3>ماشین‌حساب هوشمندِ «قیمت منصفانه ملک»</h3>
+          <p>مشخصات ملک را وارد کنید؛ قیمت منصفانه با همان مدل آماری سایت و بر پایهٔ آگهی‌های معتبر همان محله برآورد می‌شود.</p>
         </div>
-        <form id="quickEstForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;">
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;text-align:center;"><span style="font-weight:600;">شهر</span>
-            <select id="qeCity" style="height:44px;padding:0 10px;border-radius:10px;background:rgba(0,0,0,0.22);color:inherit;border:1px solid rgba(128,128,128,0.3);text-align:center;text-align-last:center;font-family:inherit;font-size:13.5px;"></select>
-          </label>
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;text-align:center;"><span style="font-weight:600;">محله</span>
-            <select id="qeDist" style="height:44px;padding:0 10px;border-radius:10px;background:rgba(0,0,0,0.22);color:inherit;border:1px solid rgba(128,128,128,0.3);text-align:center;text-align-last:center;font-family:inherit;font-size:13.5px;"><option value="">انتخاب محله…</option></select>
-          </label>
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;text-align:center;"><span style="font-weight:600;">متراژ (متر)</span>
-            <input id="qeArea" type="number" min="20" max="2000" value="100" required style="height:44px;padding:0 10px;border-radius:10px;background:rgba(0,0,0,0.22);color:inherit;border:1px solid rgba(128,128,128,0.3);text-align:center;font-family:inherit;font-size:14px;font-weight:700;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;text-align:center;"><span style="font-weight:600;">سال ساخت (شمسی)</span>
-            <input id="qeYear" type="number" min="1360" max="1405" value="1400" style="height:44px;padding:0 10px;border-radius:10px;background:rgba(0,0,0,0.22);color:inherit;border:1px solid rgba(128,128,128,0.3);text-align:center;font-family:inherit;font-size:14px;font-weight:700;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;text-align:center;"><span style="font-weight:600;">طبقه</span>
-            <input id="qeFloor" type="number" min="0" max="30" value="2" style="height:44px;padding:0 10px;border-radius:10px;background:rgba(0,0,0,0.22);color:inherit;border:1px solid rgba(128,128,128,0.3);text-align:center;font-family:inherit;font-size:14px;font-weight:700;" />
-          </label>
-          <button type="submit" class="btn btn--gold" style="height:44px;min-width:175px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-weight:800;font-size:13.5px;border-radius:10px;">محاسبه قیمت واقعی</button>
+        <form class="est__form" id="quickEstForm" autocomplete="off">
+          <div class="est__row est__row--loc">
+            <label class="est__f"><span>استان</span><select id="qeProv"></select></label>
+            <label class="est__f"><span>شهر</span><select id="qeCity"></select></label>
+            <label class="est__f"><span>محله</span><select id="qeDist"><option value="">انتخاب محله…</option></select></label>
+          </div>
+          <div class="est__kinds" id="qeKind" role="radiogroup" aria-label="نوع ملک">
+            <button type="button" data-k="apartment" class="is-on">🏢 آپارتمان</button><button type="button" data-k="villa">🏡 ویلا و خانه</button><button type="button" data-k="land">🌳 زمین</button><button type="button" data-k="shop">🏪 مغازه</button><button type="button" data-k="office">💼 اداری</button>
+          </div>
+          <div class="est__row">
+            <label class="est__f"><span>متراژ (متر)</span><input id="qeArea" type="number" inputmode="numeric" min="15" max="5000" value="100" required></label>
+            <label class="est__f" data-apt="year"><span>سال ساخت (شمسی)</span><input id="qeYear" type="number" inputmode="numeric" min="1340" max="1410" value="1398"></label>
+            <label class="est__f" data-apt="rooms"><span>اتاق خواب</span><select id="qeRooms"><option value="">—</option><option value="0">استودیو</option><option value="1">۱</option><option value="2" selected>۲</option><option value="3">۳</option><option value="4">۴ و بیشتر</option></select></label>
+            <label class="est__f" data-apt="floor"><span>طبقه</span><input id="qeFloor" type="number" inputmode="numeric" min="0" max="60" value="2"></label>
+            <label class="est__f" data-apt="floors"><span>تعداد کل طبقات</span><input id="qeFloors" type="number" inputmode="numeric" min="1" max="60" value="4"></label>
+          </div>
+          <div class="est__opts" id="qeOpts">
+            <button type="button" data-o="elevator" class="is-on" data-apt="elevator">🛗 آسانسور</button><button type="button" data-o="parking" class="is-on">🚗 پارکینگ</button><button type="button" data-o="warehouse" class="is-on">📦 انباری</button><button type="button" data-o="deed_single">📜 سند تک‌برگ</button><button type="button" data-o="renovated">🛠 بازسازی‌شده</button>
+          </div>
+          <button type="submit" class="est__go">محاسبهٔ قیمت منصفانه</button>
         </form>
-        <div id="qeResult" hidden style="margin-top:16px;padding:16px;border-radius:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(224,182,78,0.4);"></div>
+        <div class="est__res" id="qeResult" hidden aria-live="polite"></div>
       </div>
     </section>
-    <script>
-    document.addEventListener("DOMContentLoaded", function(){
-      var qeCity = document.getElementById("qeCity"), qeDist = document.getElementById("qeDist"), qeForm = document.getElementById("quickEstForm"), qeRes = document.getElementById("qeResult");
-      if (qeCity && window.FM && FM.data && FM.data.regions) {
-        var allCities = [];
-        FM.data.regions.forEach(function(pr){ (pr.cities||[]).forEach(function(ct){ allCities.push(ct); }); });
-        allCities.sort(function(a,b){ return (b.n||0) - (a.n||0); });
-        qeCity.innerHTML = allCities.map(function(c){ return '<option value="'+c.id+'">'+c.name+' ('+FM.fa(c.n||0)+' آگهی)</option>'; }).join("");
-        function loadQeDists(){
-          var cid = qeCity.value;
-          var cObj = allCities.filter(function(x){ return x.id === cid; })[0];
-          var ds = (cObj && cObj.districts) || [];
-          qeDist.innerHTML = ds.length ? ds.map(function(d){ return '<option value="'+d.name+'">'+d.name+'</option>'; }).join("") : '<option value="">همه محله‌ها</option>';
-        }
-        qeCity.addEventListener("change", loadQeDists);
-        loadQeDists();
-        qeForm.addEventListener("submit", function(ev){
-          ev.preventDefault();
-          var city = qeCity.value, dist = qeDist.value, area = document.getElementById("qeArea").value, year = document.getElementById("qeYear").value, floor = document.getElementById("qeFloor").value;
-          qeRes.hidden = false;
-          qeRes.innerHTML = "در حال محاسبه قیمت کارشناسی در محله…";
-          fetch("/api/estimate?city="+encodeURIComponent(city)+"&district="+encodeURIComponent(dist)+"&area="+encodeURIComponent(area)+"&year="+encodeURIComponent(year)+"&floor="+encodeURIComponent(floor)+"&elevator=1&parking=1&warehouse=1")
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-              if (d.error) { qeRes.innerHTML = '<span style="color:#e0531f;">' + d.error + '</span>'; return; }
-              qeRes.innerHTML = '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">' +
-                '<div><b style="font-size:17px;color:#e0b64e;">💎 ارزش منصفانه این ملک: ' + FM.money(Math.round(d.total)) + '</b>' +
-                '<div style="font-size:13px;margin-top:4px;">قیمت کارشناسی هر متر: <b>' + FM.money(Math.round(d.ppm)) + '</b> (بر پایهٔ ' + FM.fa(d.n || 10) + ' آگهی معتبر در همین محله)</div></div>' +
-                '<a href="/app.html#/s?city='+encodeURIComponent(city)+'&district='+encodeURIComponent(dist)+'&opp=1" class="btn btn--gold" style="font-size:13px;">مشاهده املاک زیر قیمت این محله ←</a>' +
-                '</div>';
-            }).catch(function(){ qeRes.innerHTML = "خطا در ارتباط با سرور."; });
-        });
-      }
-    });
-    </script>
+    <script src="/assets/site/js/estimator.js" defer></script>
 
 
     <!-- ══════════ ۳) هر طبقه یک داستان — روی برش سه‌بعدی ساختمان ══════════ -->

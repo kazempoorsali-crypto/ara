@@ -500,6 +500,16 @@ class Handler(BaseHTTPRequestHandler):
     def user(self):
         return self.app.billing.user_by_token(self.headers.get("x-user-token"))
 
+    def page_user(self):
+        """کاربرِ درخواستِ صفحه (نه API): توکن در کوکی fy_t که خود سایت از localStorage می‌گذارد؛
+        فقط برای ساختن صفحه با دادهٔ درست (مشترک بدون قفل) از همان اول، تا قفل‌ها اول نیایند و بعد نپرند."""
+        raw = self.headers.get("cookie") or ""
+        m = re.search(r"(?:^|;\s*)fy_t=([A-Za-z0-9_\-]{20,80})", raw)
+        try:
+            return self.app.billing.user_by_token(m.group(1)) if m else None
+        except Exception:  # noqa: BLE001
+            return None
+
     def client_ip(self) -> str:
         """نشانی واقعی کاربر؛ پشت وب‌سرور (Caddy/Nginx) از سرآیند X-Forwarded-For."""
         # فقط وقتی درخواست از وب‌سرور محلی (Caddy) آمده، به سرآیند اعتماد می‌شود؛ و آخرین نشانی (که خود Caddy
@@ -584,11 +594,25 @@ class Handler(BaseHTTPRequestHandler):
                             f'{"دربارهٔ بازار ملک و فرصت‌های امروز" if page == "home" else "خلاصهٔ تحلیل این آگهی"}'
                             f'<small>برای خواندن کامل بزنید</small></summary><div class="seo-fold__body">{sp["body"]}</div></details></div></section>\n')
                     body = body.replace('<footer class="foot', fold + '    <footer class="foot', 1)
-                return self.send_text(body, "text/html; charset=utf-8", cache="no-cache")
+                return self.send_text(body, "text/html; charset=utf-8", cache="private, no-cache")
             p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
             if p is not None:
                 tpl = self.page_html((ROOT / "app.html").read_bytes()).decode()
-                return self.send_text(seo.render(tpl, p, VERSION), "text/html; charset=utf-8", cache="no-cache")
+                body = seo.render(tpl, p, VERSION)
+                mad = re.fullmatch(r"/ad/([\w-]+)", url.path)
+                if mad:
+                    # دادهٔ آگهی همراه خود صفحه می‌آید (یک رفت‌وبرگشت کمتر) و جای صفحه تا آماده شدن اسکلت خاکستری است، نه متن خام
+                    pu = self.page_user()
+                    pre = self.listing_payload(mad.group(1), pu)
+                    if pre:
+                        js = json.dumps({"id": mad.group(1), "data": pre}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+                        body = body.replace("</head>", f"<script>window.AD_PRELOAD={js};</script>\n</head>", 1)
+                    if pu and pu.get("active"):
+                        body = sitepage.mark_sub(body)
+                    body = body.replace('<main id="view" tabindex="-1"></main>',
+                                        '<main id="view" tabindex="-1"><div class="wrap ad"><div class="skeleton" style="height:440px;margin-top:22px"></div>'
+                                        '<div class="skeleton" style="height:120px;margin-top:22px"></div></div></main>', 1)
+                return self.send_text(body, "text/html; charset=utf-8", cache="private, no-cache")
             if re.fullmatch(r"/(melk|ad|rahnama|maghale)/.*", url.path):
                 tpl = self.page_html((ROOT / "app.html").read_bytes()).decode()
                 body = seo.render(tpl, {"title": "یافت نشد", "desc": "این صفحه پیدا نشد.", "canonical": self.base_url() + "/",
@@ -813,18 +837,11 @@ class Handler(BaseHTTPRequestHandler):
     # ---------------------------------------------------------- public api
     def gate(self, d: dict, user, full=False):
 
-        # یکتاسازی و انتخاب نسخه باکیفیت عکس‌ها
+        # هر عکس یک بار: نسخهٔ کوچک و بزرگِ یک عکس (thumbnail/post، اندازه‌های مختلف) نام فایل یکسان دارند؛ نسخهٔ بزرگ نگه داشته می‌شود
         if isinstance(d.get("images"), list):
-            _seen, _uniq = set(), []
-            for u in d["images"]:
-                if not u: continue
-                u_str = str(u).replace("/thumbnail/", "/web_image/").replace("/thumb/", "/web_image/")
-                base = re.sub(r"[_.-]\d+x\d+", "", u_str.split("?")[0])
-                if base not in _seen:
-                    _seen.add(base)
-                    _uniq.append(u_str)
-            d["images"] = _uniq[:10]
-            if _uniq and not d.get("image"): d["image"] = _uniq[0]
+            d["images"] = sitepage.dedup_images(d["images"])[:12]
+            if d["images"] and not d.get("image"):
+                d["image"] = d["images"][0]
         """پیوند دیوار و جزئیات کامل ارزش‌گذاری فقط برای مشترکان فعال."""
         active = bool(user and user["active"]) or d.get("id") in self.free_ids()
         d["locked"] = not active
@@ -876,6 +893,25 @@ class Handler(BaseHTTPRequestHandler):
                 d.pop("address", None)
             d["contact_mode"] = disp["contact_mode"]
         return d
+
+    def listing_payload(self, lid, u):
+        """دادهٔ کامل صفحهٔ یک آگهی (همان پاسخ /api/listing) برای کاربر u؛ None اگر نبود."""
+        a = self.app
+        d = a.store.get(lid)
+        if not d or (d["hidden"] and not self.is_admin()):
+            return None
+        d["verdict"] = a.store.verdict(d)
+        d["history"] = a.store.history(d["id"])
+        if not d.get("detail_at") and d.get("source") in ("divar", "sheypoor"):
+            wanted = a.store.get_setting("detail_wanted") or []  # عکس و مشخصات این آگهی در نوبت اول دریافت
+            if d["id"] not in wanted:
+                a.store.set_setting("detail_wanted", ([d["id"]] + wanted)[:200])
+                a.ingest.poke()
+            d["detail_pending"] = True
+        d["similar"] = [self.gate(x, u) for x in self.similar(d)]
+        if d.get("excluded"):
+            d["excluded_reasons"] = (d.get("explain") or {}).get("flags", [])
+        return self.gate(d, u, full=True)
 
     def free_ids(self):
         return set()
@@ -992,22 +1028,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(out)
         m = re.fullmatch(r"/api/listing/([\w-]+)", path)
         if m:
-            d = a.store.get(m.group(1))
-            if not d or (d["hidden"] and not self.is_admin()):
+            d = self.listing_payload(m.group(1), self.user())
+            if not d:
                 return self.send_json({"error": "یافت نشد"}, 404)
-            d["verdict"] = a.store.verdict(d)
-            d["history"] = a.store.history(d["id"])
-            if not d.get("detail_at") and d.get("source") in ("divar", "sheypoor"):
-                wanted = a.store.get_setting("detail_wanted") or []  # عکس و مشخصات این آگهی در نوبت اول دریافت
-                if d["id"] not in wanted:
-                    a.store.set_setting("detail_wanted", ([d["id"]] + wanted)[:200])
-                    a.ingest.poke()
-                d["detail_pending"] = True
-            u = self.user()
-            d["similar"] = [self.gate(x, u) for x in self.similar(d)]
-            if d.get("excluded"):
-                d["excluded_reasons"] = (d.get("explain") or {}).get("flags", [])
-            return self.send_json(self.gate(d, u, full=True))
+            return self.send_json(d)
         if path.startswith("/api/admin/"):
             if not self.is_admin():
                 return self.send_json({"error": "ورود لازم است"}, 401)

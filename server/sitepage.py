@@ -17,12 +17,32 @@ KEEP = ("id", "title", "kind", "deal", "city_key", "city_name", "province", "dis
         "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "estimated_profit", "detail_pending", "contact_mode", "why", "drop_info")
 
 
+def _img_key(u: str) -> str:
+    name = str(u).split("?")[0].rstrip("/").rsplit("/", 1)[-1].lower()
+    name = re.sub(r"\.(webp|jpe?g|png|gif|avif)$", "", name)
+    return re.sub(r"([_.-](\d{2,4}x\d{2,4}|thumb|thumbnail|small|medium|large|big|orig))+$", "", name)
+
+
+def dedup_images(images) -> list:
+    """فهرست عکس‌ها بدون تکرار؛ از دو نسخهٔ یک عکس، نسخهٔ غیر بندانگشتی (بزرگ) می‌ماند و ترتیب حفظ می‌شود."""
+    order, best = [], {}
+    small = lambda u: bool(re.search(r"thumb|small|_\d{2,3}x\d{2,3}", str(u), re.I))
+    for u in images or []:
+        if not u:
+            continue
+        k = _img_key(u)
+        if k not in best:
+            order.append(k)
+            best[k] = u
+        elif small(best[k]) and not small(u):
+            best[k] = u
+    return [best[k] for k in order]
+
+
 def _trim(d):
     out = {k: d[k] for k in KEEP if k in d and d[k] not in (None, "", [])}
     if isinstance(out.get("images"), list):
-        imgs = [u for u in out["images"] if u and "thumb" not in str(u) and "web_image" not in str(u)]
-        if not imgs and out["images"]: imgs = out["images"]
-        out["images"] = list(dict.fromkeys(imgs))[:10]
+        out["images"] = dedup_images(out["images"])[:10]
     if isinstance(out.get("description"), str):
         out["description"] = out["description"][:1200]
     return out
@@ -116,7 +136,7 @@ def _common(app):
     }
 
 
-def _top(handler):
+def _top(handler, user=None):
     """برترین فرصت‌های خالص برای ویترین صفحه اول (بدون پیش‌فروش، بدون اقساطی/معاوضه و بدون هشدار مشکوک)."""
     app = handler.app
     raw_items = app.store.search({"opp": 1, "deal": "sale", "sort": "score", "limit": 120, "imgs": 1})["items"]
@@ -149,15 +169,28 @@ def _top(handler):
                 clean_top.append(x)
                 if len(clean_top) >= 24:
                     break
-    return [_trim(handler.gate(dict(x), None)) for x in clean_top[:24]]
+    return [_trim(handler.gate(dict(x), user)) for x in clean_top[:24]]
+
+
+def mark_sub(html: str) -> str:
+    """مشترک: نشانهٔ is-sub از همان اول روی <html> تا قفل‌ها حتی یک لحظه دیده نشوند."""
+    return re.sub(r"<html\b([^>]*)>", lambda m: m.group(0) if "is-sub" in m.group(1) else
+                  ("<html" + re.sub(r'class="', 'class="is-sub ', m.group(1), 1) + ">" if 'class="' in m.group(1) else "<html" + m.group(1) + ' class="is-sub">'), html, count=1)
 
 
 def boot(handler, page, qs):
-    """داده‌ای که در صفحه با window.FM_BOOT در دسترس است (برای مهمان؛ پس از ورود، صفحه خودش دوباره می‌خواند)."""
+    """داده‌ای که در صفحه با window.FM_BOOT در دسترس است.
+    کاربر واردشده (کوکی fy_t): حساب و فرصت‌ها از همان اول برای خودش ساخته می‌شود؛ مشترک قفل نمی‌بیند."""
     app = handler.app
     data = {"page": page, **common(app)}
+    u = handler.page_user()
+    if u:
+        data["me"] = u
     if page in ("home", "sky"):
-        data["properties"] = cached("top", 60, lambda: _top(handler))
+        if u and u.get("active"):   # فهرست مشترکان برای همهٔ مشترکان یکی است
+            data["properties"] = cached("top-sub", 60, lambda: _top(handler, u))
+        else:
+            data["properties"] = cached("top", 60, lambda: _top(handler))
     if page == "property":
         lid = (qs.get("id") or "").strip()
         d = app.store.get(lid) if lid else None
@@ -171,6 +204,8 @@ def boot(handler, page, qs):
 
 
 def inject(html: bytes, data: dict) -> bytes:
+    if (data.get("me") or {}).get("active"):
+        html = mark_sub(html.decode()).encode()
     js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     tag = f"<script>window.FM_BOOT={js};</script>".encode()
     if b"<!--FM_BOOT-->" in html:

@@ -52,7 +52,6 @@
   /* دکمهٔ «برگشت» گوشی/مرورگر هر پنجرهٔ باز را می‌بندد (نه صفحهٔ زیر آن را):
      هر پنجره یک قدم در تاریخچه می‌گذارد؛ برگشت فقط بالاترین پنجره را می‌بندد و بستن با دکمه هم آن قدم را برمی‌دارد */
   var stack = [], ignore = 0, seq = 0, leaving = false;
-  window.addEventListener("beforeunload", function () { leaving = true; });
   window.addEventListener("pagehide", function () { leaving = true; });
   function popOurs(ids) {   // اگر هنوز روی قدم همین پنجره‌ایم، برمی‌گردیم (اگر صفحه در حال رفتن یا نشانی عوض شده باشد، نه)
     setTimeout(function () {
