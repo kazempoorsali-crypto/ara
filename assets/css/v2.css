@@ -414,3 +414,28 @@
 .cmps__me { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.55); transform: translate(50%, -50%); }
 .cmps__ppm { display: grid; } .cmps__ppm small { font-size: 11.5px; }
 @media (min-width: 641px) { .cmps-head, .cmps li { grid-template-columns: 1.4fr .9fr 1.6fr 130px; } .cmps li > span:last-child { justify-self: start; } }
+/* «چرا اعتماد کنید»: کاشی‌های جمع‌وجور */
+.pid__trust--v2 { padding: 14px; }
+.pid__trust--v2 .pid__trust-h { display: block; font-size: 14px; margin-bottom: 10px; }
+.ptg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.ptg__i { display: grid; gap: 2px; align-content: start; padding: 10px 12px; border-radius: 12px; background: rgba(32,151,106,.08); border: 1px solid rgba(32,151,106,.25); min-width: 0; }
+.ptg__i b { display: block; margin: 0; font-size: 18px; font-weight: 900; color: #20976A; line-height: 1.4; }
+.ptg__i span { font-size: 12.5px; font-weight: 800; }
+.ptg__i small { font-size: 11.5px; line-height: 1.7; color: var(--muted); }
+.ptg__foot { margin: 10px 0 0; font-size: 12px; color: var(--muted); line-height: 1.8; }
+/* دلایل احتمالی قیمت: هر دلیل با منبعش */
+.why__rs { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.why__rs li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(127,127,127,.07); font-size: 13px; }
+.why__rs small { flex: none; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 10.5px; color: var(--muted); }
+.why__ctx { margin-bottom: 8px; } .why__ctx b { font-size: 12.5px; }
+/* گالری با یک یا دو عکس: نه سرتاسری؛ اندازهٔ معقول و وسط */
+.gallery--n1 { grid-template-columns: 1fr; grid-template-rows: 380px; max-width: 760px; margin-inline: auto; }
+.gallery--n2 { grid-template-columns: 1fr 1fr; grid-template-rows: 340px; max-width: 980px; margin-inline: auto; }
+.gallery--n2 > :nth-child(2) { grid-row: auto; }
+.gallery--n1 img, .gallery--n2 img { object-fit: cover; }
+@media (max-width: 860px) {
+  .gallery--n1 { grid-template-rows: 240px; }
+  .gallery--n2 { grid-template-columns: 1fr 1fr; grid-template-rows: 200px; }
+  .gallery--n2 > :first-child { grid-column: auto; }
+  .gallery--n2 > :nth-child(n+2) { display: block; }
+}
