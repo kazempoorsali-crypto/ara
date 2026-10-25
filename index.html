@@ -145,7 +145,7 @@
           <a class="menu__link" href="/app.html#/s"><span class="menu__txt">جست‌وجوی فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/app.html#/market"><span class="menu__txt">بازار محله‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/sky.html" data-navpage><span class="menu__txt">قیمت از دید آسمان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-          <a class="menu__link" href="#floors" data-scroll-to><span class="menu__txt">هر طبقه، یک داستان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/maghale/asansor-arzesh"><span class="menu__txt">آسانسور ارزش: قیمت هر طبقه</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link menu__link--hot" href="/account.html" data-fm-sub><span class="menu__txt">خرید اشتراک (هفتگی / ماهانه)</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/app.html#/saved"><span class="menu__txt">علاقه‌مندی‌های من</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/account.html" data-fm-login><span class="menu__txt">ورود / عضویت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
@@ -384,77 +384,8 @@
     <script src="/assets/site/js/estimator.js" defer></script>
 
 
-    <!-- ══════════ ۳) هر طبقه یک داستان — روی برش سه‌بعدی ساختمان ══════════ -->
-    <section class="floors" id="floors" data-floors>
-      <div class="floors__pin" data-floors-pin>
-        <div class="floors__head">
-          <p class="eyebrow">هر طبقه، یک داستان</p>
-          <h2 class="section-title">آسانسورِ ارزش، روی برجِ نمونه</h2>
-          <p class="section-sub">با اسکرول، نشانگر روی برش سه‌بعدی ساختمان بالا می‌رود؛ وضعیت هر گروه طبقه با مزایا و معایبش روشن می‌شود.</p>
-        </div>
-        <div class="floors__body">
-          <div class="floors__visual" data-floors-visual>
-            <figure class="floors__figure">
-              <!-- لایهٔ بلوپرینت (زیر) -->
-              <span class="ink-bp" aria-hidden="true">
-                <img src="/assets/img/rebuild/building-cutaway-v17.webp" alt="" loading="lazy">
-                <i class="ink-grid"></i>
-              </span>
-              <!-- لایهٔ واقعی که با ماسک جوهر ظاهر می‌شود -->
-              <svg class="floors__ink" viewBox="0 0 1000 625" preserveAspectRatio="none" role="img" aria-label="برش سه‌بعدی ساختمان نمونه">
-                <defs>
-                  <mask id="inkMaskF" maskContentUnits="userSpaceOnUse">
-                    <path class="ink-path-f" fill="#fff" style="filter:url(#inkDispF)" d="M 0 30 Q 500 55 1000 20 L 1000 0 L 0 0 Z" data-final="M 0 700 Q 500 880 1000 700 L 1000 0 L 0 0 Z"/>
-                  </mask>
-                  <filter id="inkDispF" x="-20%" y="-20%" width="140%" height="140%">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.045 0.055" numOctaves="4" seed="5" result="noise"/>
-                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G"/>
-                    <feGaussianBlur stdDeviation="1.6" result="bl"/>
-                    <feComponentTransfer in="bl" result="ct"><feFuncA type="linear" slope="2.2" intercept="-0.6"/></feComponentTransfer>
-                  </filter>
-                </defs>
-                <image href="/assets/img/rebuild/building-cutaway-v17.webp" x="0" y="0" width="1000" height="625" preserveAspectRatio="xMidYMid slice" mask="url(#inkMaskF)"/>
-              </svg>
-              <i class="floors__sun" aria-hidden="true"></i>
-              <!-- برج خط‌وبند (سبک مرجع) — پایهٔ همیشگی -->
-              <svg class="floors__wire" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-                <g fill="none" stroke="#3a3a34" stroke-width="1.4">
-                  <rect x="150" y="30" width="100" height="270"/>
-                  <line x1="150" y1="60" x2="250" y2="60"/><line x1="150" y1="95" x2="250" y2="95"/>
-                  <line x1="150" y1="130" x2="250" y2="130"/><line x1="150" y1="165" x2="250" y2="165"/>
-                  <line x1="150" y1="200" x2="250" y2="200"/><line x1="150" y1="235" x2="250" y2="235"/>
-                  <line x1="150" y1="270" x2="250" y2="270"/>
-                  <line x1="183" y1="30" x2="183" y2="300"/><line x1="216" y1="30" x2="216" y2="300"/>
-                  <rect x="60" y="240" width="90" height="60"/>
-                  <line x1="60" y1="270" x2="150" y2="270"/>
-                  <rect x="250" y="255" width="90" height="45"/>
-                  <line x1="250" y1="285" x2="340" y2="285"/>
-                  <path d="M60 240 L105 205 L150 240"/>
-                  <path d="M10 300 L10 265 L60 265"/>
-                </g>
-              </svg>
-            </figure>
-                          
-            <i class="floors__cursor" data-floors-cursor aria-hidden="true"></i>
-            <span class="floors__cursor-label" data-cursor-label>طبقه اول</span>
-          </div>
-          <div class="floors__panels" data-floors-panels><!-- پنل‌ها با JS --></div>
-          <div class="floors__aspect">
-          <article class="faspect" style="--fa:#20976A">
-            <b><i>☀</i> واحد جنوبی</b>
-            <ul><li>نور کامل روز در همهٔ فصل‌ها</li><li>قبض انرژی کمتر در زمستان</li><li>تقاضا و قیمت هر متر بالاتر</li></ul>
-            <small>معمولاً تقاضای بیشتری از واحد شمالیِ هم‌طبقه دارد</small>
-          </article>
-          <article class="faspect" style="--fa:#5b8bd0">
-            <b><i>☁</i> واحد شمالی</b>
-            <ul><li>خنک‌تر در تابستان</li><li>قیمت ورودی پایین‌تر</li><li>مناسب دفتر و کارگاه هنری</li></ul>
-            <small>نور مستقیم کمتر؛ در مناطق مرطوب به تهویه بیشتر نیاز دارد</small>
-          </article>
-          </div>
-        </div>
-        <div class="floors__progress"><i data-floors-bar></i></div>
-      </div>
-    </section>
+    <!-- ══════════ ۳) ویدیوی معرفی (پیوند از پنل مدیریت) ══════════ -->
+    <!--FM_VIDEO-->
 
     <!-- ══════════ ۴) مسئله و راه‌حل + پنج سطح ══════════ -->
     <section class="problem" id="problem">
@@ -535,7 +466,7 @@
         </nav>
         <nav aria-label="تجربه"><h4>تجربه</h4>
           <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
-          <a href="#floors" data-scroll-to>هر طبقه، یک داستان</a>
+          <a href="/maghale/asansor-arzesh">آسانسور ارزش (هر طبقه، یک داستان)</a>
           <a href="#assistant" data-scroll-to>دستیار هوشمند</a>
         </nav>
         <nav aria-label="مجله"><h4>مجله و راهنما</h4>
@@ -588,7 +519,6 @@
   <script src="/assets/site/js/poster.js?v=1792938785"></script>
   <script src="/assets/site/js/app.js?v=1792938785"></script>
   <script src="/assets/site/js/gallery.js?v=1792938785"></script>
-  <script src="/assets/site/js/floors.js?v=1792938785"></script>
   <script src="/assets/site/js/assistant.js?v=1792938785"></script>
   <script src="/assets/site/js/account.js?v=1792938785"></script>
 </body>

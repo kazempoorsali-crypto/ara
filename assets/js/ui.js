@@ -107,9 +107,11 @@ const UI = (() => {
   }
   // در حالت سرور، عکس از طریق همان سرور (با کش) بارگذاری می‌شود تا محدودیت نمایش در سایت دیگر مشکلی نسازد
   const imgSrc = (u) => (DataLayer.server && /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "/img?u=" + encodeURIComponent(u) : u);
-  function media(l, i = 0, cls = "") {
+  // w: عرض نسخهٔ کوچک (کارت‌ها و کاشی‌های کنار گالری)؛ بدون w همان عکس کامل (نمای بزرگ)
+  function media(l, i = 0, cls = "", w = 0) {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
-    if (imgs[i]) return `<img src="${esc(imgSrc(imgs[i]))}" alt="${esc(l.title)}" loading="lazy" referrerpolicy="no-referrer" class="${cls} img-blur-load" onload="this.classList.add('is-loaded')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:UI.scene(${esc(JSON.stringify({ id: l.id, title: l.title, scene: l.scene || (l.vertical === "car" ? "road" : "city"), kind: l.kind, vertical: l.vertical, amenities: l.amenities }))},${i})}).firstChild)">`;
+    const src = (u) => { const x = imgSrc(u); return w && x.indexOf("/img?u=") === 0 ? x + "&w=" + w : x; };
+    if (imgs[i]) return `<img src="${esc(src(imgs[i]))}" alt="${esc(l.title)}" loading="lazy" referrerpolicy="no-referrer" class="${cls} img-blur-load" onload="this.classList.add('is-loaded')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:UI.scene(${esc(JSON.stringify({ id: l.id, title: l.title, scene: l.scene || (l.vertical === "car" ? "road" : "city"), kind: l.kind, vertical: l.vertical, amenities: l.amenities }))},${i})}).firstChild)">`;
     return scene({ ...l, scene: l.scene || (l.vertical === "car" ? "road" : "city") }, i);
   }
 
@@ -215,7 +217,7 @@ const UI = (() => {
       : v ? `<p class="card__verdict">${dealPill(v)}</p><p class="card__conf">${confLine(v)}${v.wide ? "، قیمت‌های این محله پراکنده‌اند" : ""}</p>`
       : `<p class="card__verdict"><span class="lab lab--pending">در انتظار داده</span></p>`;
     return `<article class="card${l.label === "gold" ? " card--gold" : ""}" data-id="${esc(l.id)}">
-      <div class="card__media">${media(l)}
+      <div class="card__media">${media(l, 0, "", 560)}
         ${scoreBadge(l)}
         <div class="card__badges">${typePill(l)}${l.presale ? '<span class="pill pill--presale">پیش‌فروش</span>' : ""}${multiPill}${l.price_drop ? `<span class="pill pill--drop">${fa(Math.round(l.price_drop * 100))}٪ کاهش</span>` : ""}${l.featured ? '<span class="pill pill--feat">ویژه</span>' : ""}${l.source === "sample" ? '<span class="pill pill--glass">نمونه</span>' : ""}${seen.has(l.id) ? '<span class="pill pill--glass">دیده‌ای</span>' : ""}</div>
         <button class="card__fav ${favs.has(l.id) ? "is-on" : ""}" data-fav="${esc(l.id)}" aria-label="ذخیره">${icon("heart")}</button>

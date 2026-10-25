@@ -426,7 +426,7 @@
         a.dataset.status = p.status;
         a.href = FM.propUrl(p.id);
         a.style.bottom = slot.b + "%";
-        a.innerHTML = '<span class="hspot__img"><img src="' + FM.esc(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
+        a.innerHTML = '<span class="hspot__img"><img src="' + FM.esc(FM.thumb(p.img, 360)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
           '<span class="hspot__txt">' + FM.badge(p) + '<b>' + FM.esc(p.title) + '</b><small>' + FM.esc(p.diffText || p.tag) + '</small></span>' +
           '<span class="hspot__score">' + FM.fa(p.score) + '</span><i class="hspot__beam" aria-hidden="true"></i>';
         spots.appendChild(a);

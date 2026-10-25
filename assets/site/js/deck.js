@@ -24,7 +24,7 @@
     a.setAttribute("aria-label", p.title + " — " + p.loc);
     if (p.noimg) a.classList.add("is-noimg");
     a.innerHTML =
-      '<span class="dcard__img"><img src="' + E(p.img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><img class="alt" src="' + E(p.img2) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
+      '<span class="dcard__img"><img src="' + E(FM.thumb(p.img)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"><img class="alt" src="' + E(FM.thumb(p.img2)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG"></span>' +
       '<span class="dcard__grade"></span>' +
       FM.badge(p, "dcard__tag") + FM.cardActs(p) +
       (p.score != null ? '<span class="dcard__score">' + FM.fa(p.score) + "</span>" : "") +

@@ -1,0 +1,271 @@
+﻿<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>آسانسور ارزش: قیمت هر طبقه و هر جهت ساختمان | فرصت ملک</title>
+  <meta name="description" content="طبقهٔ اول، میانی یا آخر؟ جنوبی یا شمالی؟ مزایا و معایب هر طبقه و هر جهت ساختمان و اثرش بر قیمت هر متر، روی برش سه‌بعدی یک برج نمونه." />
+  <meta name="theme-color" content="#0c1712" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/assets/img/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="فرصت ملک" />
+  <!--FM_BOOT-->
+  <script src="/assets/site/js/theme-auto.js"></script>
+  <script>
+    // صفحهٔ بارگذاری: بار دوم در همین زبانه کوتاه‌تر پخش شود
+    try { if (sessionStorage.getItem("fmIntro2") === "1") document.documentElement.classList.add("intro-fast"); } catch (e) {}
+    (function () {
+      // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
+      var h = location.hash, m;
+      if (/^#\//.test(h) && h !== "#/") {
+        if ((m = h.match(/^#\/ad\/([^?]+)/))) { location.replace("/ad/" + m[1]); return; }
+        if ((m = h.match(/^#\/invoice\/([^?]+)/))) { location.replace("/account.html?invoice=" + m[1]); return; }
+        if (/^#\/(account|reset)/.test(h)) { location.replace("/account.html" + (h.indexOf("?") > -1 ? h.slice(h.indexOf("?")) : "")); return; }
+        location.replace("/app.html" + h); return;
+      }
+      try { history.scrollRestoration = "manual"; } catch (e) {}
+      // تم خودکار: روز روشن و شب تیره بر پایهٔ طلوع و غروب ایران (مگر کاربر دستی انتخاب کرده باشد)
+      var t = window.FMTheme ? FMTheme.current() : "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- پیش‌واکشی هوشمند (Speculation Rules): صفحهٔ «قیمت از دید آسمان» در زمان بیکاری، صفحهٔ هر ملک به محض قصد کاربر
+       (نزدیک شدن نشانگر یا لمس)؛ فقط HTML دانلود می‌شود، پس صفحهٔ اصلی کند نمی‌شود -->
+  <script type="speculationrules">
+  {
+    "prerender": [
+      { "source": "document", "where": { "or": [ { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" }
+    ],
+    "prefetch": [
+      { "source": "list", "urls": ["/sky.html"], "eagerness": "eager" },
+      { "source": "document", "where": { "or": [ { "href_matches": "/ad/*" }, { "href_matches": "/app.html" }, { "href_matches": "/account.html" } ] }, "eagerness": "moderate" }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="/assets/site/css/main.css?v=1792938785" />
+  <link rel="stylesheet" href="/assets/site/css/account.css?v=1792938785" />
+  <link rel="stylesheet" href="/assets/site/css/share.css?v=1792938785" />
+</head>
+<body data-page="article">
+  <!-- ══════════ ناوبری ══════════ -->
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a class="nav__brand" href="#hero" data-scroll-to aria-label="فرصت ملک">
+        <span class="logo-badge">
+          <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="10" r="5" fill="#e0531f"/>
+          </svg>
+        </span>
+        <span class="nav__txt"><b>فرصت ملک</b><small>ارزش واقعی ملک</small></span>
+      </a>
+      <nav class="nav__links" aria-label="ناوبری">
+        <a href="/app.html#/s?opp=1&sort=score">ویترین فرصت‌ها</a>
+        <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+        <a href="/app.html#/market">بازار محله‌ها</a>
+        <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
+        <a href="#problem" data-scroll-to>روش ما</a>
+        <a href="/maghale">مجله و راهنما</a>
+        <a href="/app.html#/support" class="nav__ticket">ثبت تیکت</a>
+      </nav>
+      <div class="nav__act">
+        <a class="btn btn--gold nav__cta" id="accountBtn" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="accountLabel">ورود و اشتراک</span></a>
+        <button class="nav__iconbtn" id="themeBtn" type="button" aria-label="تغییر حالت روشن/تیره">
+          <svg class="theme-ico--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+          <svg class="theme-ico--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="nav__ham" id="menuBtn" type="button" aria-label="منو" aria-expanded="false"><i></i><i></i></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════ منوی تمام‌صفحه ══════════ -->
+  <div class="menu" id="menu" aria-hidden="true" role="dialog" aria-label="منوی اصلی">
+    <div class="menu__bg"></div>
+    <div class="menu__grid">
+      <div class="menu__visual" aria-hidden="true">
+        <div class="menu__imgs-track" data-menu-track>
+          <figure class="menu__img is-1"><img src="/assets/img/cards/idea-1.jpeg" alt=""></figure>
+          <figure class="menu__img is-2"><img src="/assets/img/scene/living-1280.webp" alt=""></figure>
+          <figure class="menu__img is-3"><img src="/assets/img/cards/penthouse-view.jpg" alt=""></figure>
+          <figure class="menu__img is-4"><img src="/assets/img/cards/forest-house.jpg" alt=""></figure>
+        </div>
+      </div>
+      <div class="menu__links-w">
+        <div class="menu__head">
+          <span class="logo-badge"><svg viewBox="0 0 48 48" fill="none"><path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="10" r="5" fill="#e0531f"/></svg></span>
+          <span>فرصت ملک</span>
+          <i></i>
+          <button class="menu__close" id="menuClose" type="button">بستن ✕</button>
+        </div>
+        <nav class="menu__links">
+          <a class="menu__link" href="/app.html#/s?opp=1&sort=score"><span class="menu__txt">ویترین فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/s"><span class="menu__txt">جست‌وجوی فرصت‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/market"><span class="menu__txt">بازار محله‌ها</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/sky.html" data-navpage><span class="menu__txt">قیمت از دید آسمان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="#floors" data-scroll-to><span class="menu__txt">هر طبقه، یک داستان</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link menu__link--hot" href="/account.html" data-fm-sub><span class="menu__txt">خرید اشتراک (هفتگی / ماهانه)</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/saved"><span class="menu__txt">علاقه‌مندی‌های من</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/account.html" data-fm-login><span class="menu__txt">ورود / عضویت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/account.html"><span class="menu__txt">حساب من</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/maghale"><span class="menu__txt">مجله و راهنمای خرید ملک</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/app.html#/support"><span class="menu__txt">پشتیبانی و تیکت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="#assistant" data-scroll-to><span class="menu__txt">دستیار هوشمند</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </nav>
+        <div class="menu__foot" data-menu-foot><span data-stat-text="cities"></span><i></i><span data-stat-text="districts"></span><i></i><span>به‌روزرسانی روزانه</span></div>
+      </div>
+    </div>
+  </div>
+
+  <main id="main" class="art-page">
+    <article class="art wrap">
+      <nav class="art__crumbs" aria-label="مسیر"><a href="/">صفحهٔ اصلی</a> › <a href="/maghale">مجله</a> › <span>آسانسور ارزش</span></nav>
+      <h1 class="art__h">آسانسور ارزش: هر طبقه و هر جهت ساختمان چقدر می‌ارزد؟</h1>
+      <p class="art__lead">دو آپارتمان هم‌متراژ در یک ساختمان می‌توانند قیمت‌های متفاوتی داشته باشند. طبقه، نورگیری، جهت واحد و امکانات ساختمان (آسانسور، پارکینگ، انباری) هر کدام بخشی از قیمت هر متر را می‌سازند. در این صفحه با اسکرول روی برش سه‌بعدی یک برج نمونه، مزایا و معایب هر گروه طبقه و اثرش بر قیمت را می‌بینید؛ همان عواملی که موتور ارزش‌گذاری فرصت ملک هنگام مقایسهٔ هر آگهی با آگهی‌های مشابه همان محله در نظر می‌گیرد.</p>
+    </article>
+    <!-- ══════════ ۳) هر طبقه یک داستان — روی برش سه‌بعدی ساختمان ══════════ -->
+    <section class="floors" id="floors" data-floors>
+      <div class="floors__pin" data-floors-pin>
+        <div class="floors__head">
+          <p class="eyebrow">هر طبقه، یک داستان</p>
+          <h2 class="section-title">آسانسورِ ارزش، روی برجِ نمونه</h2>
+          <p class="section-sub">با اسکرول، نشانگر روی برش سه‌بعدی ساختمان بالا می‌رود؛ وضعیت هر گروه طبقه با مزایا و معایبش روشن می‌شود.</p>
+        </div>
+        <div class="floors__body">
+          <div class="floors__visual" data-floors-visual>
+            <figure class="floors__figure">
+              <!-- لایهٔ بلوپرینت (زیر) -->
+              <span class="ink-bp" aria-hidden="true">
+                <img src="/assets/img/rebuild/building-cutaway-v17.webp" alt="" loading="lazy">
+                <i class="ink-grid"></i>
+              </span>
+              <!-- لایهٔ واقعی که با ماسک جوهر ظاهر می‌شود -->
+              <svg class="floors__ink" viewBox="0 0 1000 625" preserveAspectRatio="none" role="img" aria-label="برش سه‌بعدی ساختمان نمونه">
+                <defs>
+                  <mask id="inkMaskF" maskContentUnits="userSpaceOnUse">
+                    <path class="ink-path-f" fill="#fff" style="filter:url(#inkDispF)" d="M 0 30 Q 500 55 1000 20 L 1000 0 L 0 0 Z" data-final="M 0 700 Q 500 880 1000 700 L 1000 0 L 0 0 Z"/>
+                  </mask>
+                  <filter id="inkDispF" x="-20%" y="-20%" width="140%" height="140%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.045 0.055" numOctaves="4" seed="5" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G"/>
+                    <feGaussianBlur stdDeviation="1.6" result="bl"/>
+                    <feComponentTransfer in="bl" result="ct"><feFuncA type="linear" slope="2.2" intercept="-0.6"/></feComponentTransfer>
+                  </filter>
+                </defs>
+                <image href="/assets/img/rebuild/building-cutaway-v17.webp" x="0" y="0" width="1000" height="625" preserveAspectRatio="xMidYMid slice" mask="url(#inkMaskF)"/>
+              </svg>
+              <i class="floors__sun" aria-hidden="true"></i>
+              <!-- برج خط‌وبند (سبک مرجع) — پایهٔ همیشگی -->
+              <svg class="floors__wire" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <g fill="none" stroke="#3a3a34" stroke-width="1.4">
+                  <rect x="150" y="30" width="100" height="270"/>
+                  <line x1="150" y1="60" x2="250" y2="60"/><line x1="150" y1="95" x2="250" y2="95"/>
+                  <line x1="150" y1="130" x2="250" y2="130"/><line x1="150" y1="165" x2="250" y2="165"/>
+                  <line x1="150" y1="200" x2="250" y2="200"/><line x1="150" y1="235" x2="250" y2="235"/>
+                  <line x1="150" y1="270" x2="250" y2="270"/>
+                  <line x1="183" y1="30" x2="183" y2="300"/><line x1="216" y1="30" x2="216" y2="300"/>
+                  <rect x="60" y="240" width="90" height="60"/>
+                  <line x1="60" y1="270" x2="150" y2="270"/>
+                  <rect x="250" y="255" width="90" height="45"/>
+                  <line x1="250" y1="285" x2="340" y2="285"/>
+                  <path d="M60 240 L105 205 L150 240"/>
+                  <path d="M10 300 L10 265 L60 265"/>
+                </g>
+              </svg>
+            </figure>
+                          
+            <i class="floors__cursor" data-floors-cursor aria-hidden="true"></i>
+            <span class="floors__cursor-label" data-cursor-label>طبقه اول</span>
+          </div>
+          <div class="floors__panels" data-floors-panels><!-- پنل‌ها با JS --></div>
+          <div class="floors__aspect">
+          <article class="faspect" style="--fa:#20976A">
+            <b><i>☀</i> واحد جنوبی</b>
+            <ul><li>نور کامل روز در همهٔ فصل‌ها</li><li>قبض انرژی کمتر در زمستان</li><li>تقاضا و قیمت هر متر بالاتر</li></ul>
+            <small>معمولاً تقاضای بیشتری از واحد شمالیِ هم‌طبقه دارد</small>
+          </article>
+          <article class="faspect" style="--fa:#5b8bd0">
+            <b><i>☁</i> واحد شمالی</b>
+            <ul><li>خنک‌تر در تابستان</li><li>قیمت ورودی پایین‌تر</li><li>مناسب دفتر و کارگاه هنری</li></ul>
+            <small>نور مستقیم کمتر؛ در مناطق مرطوب به تهویه بیشتر نیاز دارد</small>
+          </article>
+          </div>
+        </div>
+        <div class="floors__progress"><i data-floors-bar></i></div>
+      </div>
+    </section>
+
+    <article class="art wrap">
+      <h2>این عوامل در قیمت‌گذاری فرصت ملک چطور حساب می‌شوند؟</h2>
+      <p>اثر طبقه، آسانسور، سن بنا، پارکینگ و انباری یک عدد ثابت برای همهٔ شهرها نیست. مدل قیمت فرصت ملک برای هر شهر و استان، از روی آگهی‌های همان منطقه اندازه‌گیری می‌کند که مثلاً «طبقهٔ چهارم بدون آسانسور» در آن محله چند درصد از قیمت هر متر کم می‌کند. سپس قیمت هر آگهی با قیمت مورد انتظار برای همان خانه، با همان مشخصات، مقایسه می‌شود.</p>
+      <ul>
+        <li><b>طبقه‌های پایین:</b> دسترسی آسان و مناسب سالمندان، ولی نور کمتر و سروصدا و گاهی رطوبت بیشتر.</li>
+        <li><b>طبقه‌های میانی:</b> تعادل نور، دسترسی و آرامش؛ معمولاً پرتقاضاترین گروه.</li>
+        <li><b>طبقهٔ آخر:</b> دید و نور بیشتر، ولی در ساختمان‌های قدیمی خطر نفوذ آب از بام و گرمای تابستان.</li>
+        <li><b>بدون آسانسور:</b> هرچه طبقه بالاتر، اثر منفی بیشتر؛ در طبقهٔ سوم به بالا معمولاً محسوس است.</li>
+      </ul>
+      <p class="art__cta"><a class="btn btn--gold" href="/#homefilter">پیدا کردن ملک‌های زیر قیمت در محلهٔ شما</a> <a class="btn btn--ghost" href="/maghale">مقاله‌های دیگر</a></p>
+    </article>
+    <footer class="foot" id="foot">
+      <div class="foot__topo" aria-hidden="true">
+        <svg viewBox="0 0 1440 400" preserveAspectRatio="xMidYMid slice">
+          <g fill="none" stroke="currentColor" stroke-width="1" opacity=".35">
+            <path d="M-60 320c180-90 340 40 520-30s300-150 520-90 340 120 520 60"/>
+            <path d="M-60 360c190-100 350 30 530-40s300-140 520-80 340 110 520 50"/>
+            <path d="M-60 400c200-110 360 20 540-50s300-130 520-70 340 100 520 40"/>
+          </g>
+        </svg>
+      </div>
+      <div class="foot__grid">
+        <div class="foot__about">
+          <span class="logo-badge logo-badge--lg"><svg viewBox="0 0 48 48" fill="none"><path d="M6 34c5-3.8 10-3.8 15 0s10 3.8 15 0" stroke="#3fa184" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M9 26 23 14l14 12" stroke="#f6f3ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="10" r="5" fill="#e0531f"/></svg></span>
+          <b>فرصت ملک</b>
+          <p>موتور مستقل پردازش و رتبه‌بندی آماری آگهی‌های عمومی املاک. فرصت ملک مشاور املاک نیست؛ «برآورد بازار» برآورد آماری است و پیش از معامله، بازدید حضوری و استعلام سند الزامی است.</p>
+        </div>
+        <nav aria-label="املاک"><h4>املاک</h4>
+          <a href="/app.html#/s?opp=1&sort=score">ویترین فرصت‌ها</a>
+          <a href="/app.html#/s">جست‌وجوی فرصت‌ها</a>
+          <a href="/app.html#/market">بازار محله‌ها</a>
+          <a href="/app.html#/estimate">ارزیابی یک ملک</a>
+        </nav>
+        <nav aria-label="تجربه"><h4>تجربه</h4>
+          <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
+          <a href="#floors" data-scroll-to>هر طبقه، یک داستان</a>
+          <a href="#assistant" data-scroll-to>دستیار هوشمند</a>
+        </nav>
+        <nav aria-label="مجله"><h4>مجله و راهنما</h4>
+          <a href="/maghale">همهٔ مقاله‌ها</a>
+          <a href="/rahnama/melk-arzan">ملک زیر قیمت را چطور پیدا کنیم؟</a>
+          <a href="/rahnama/gheymat-mahalle">قیمت هر متر محله</a>
+          <a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a>
+          <a href="/rahnama/ejare">چک‌لیست رهن و اجاره</a>
+        </nav>
+        <nav aria-label="روش"><h4>روش</h4>
+          <a href="#problem" data-scroll-to>مسئله و راه‌حل</a>
+          <a href="/#problem" data-scroll-to>پنج سطح ارزش‌گذاری</a>
+          <a href="/account.html">حساب من و اشتراک</a>
+          <a href="/app.html#/support">پشتیبانی و تیکت</a>
+        </nav>
+      </div>
+      <div class="foot__legal">
+        <span>© فرصت ملک — همهٔ آگهی‌ها از آگهی‌های عمومی پالایش و سنجیده می‌شوند.</span>
+        <span id="siteVer" dir="ltr"></span>
+      </div>
+    </footer>
+  </main>
+  <script src="/assets/vendor/fx/gsap.min.js"></script>
+  <script src="/assets/vendor/fx/ScrollTrigger.min.js"></script>
+  <script src="/assets/vendor/fx/lenis.min.js"></script>
+  <script src="/assets/site/js/api.js?v=1"></script>
+  <script src="/assets/site/js/data.js?v=1"></script>
+  <script src="/assets/site/js/share-kit.js?v=1"></script>
+  <script src="/assets/site/js/poster.js?v=1"></script>
+  <script src="/assets/site/js/app.js?v=1"></script>
+  <script src="/assets/site/js/floors.js?v=1"></script>
+  <script src="/assets/site/js/account.js?v=1"></script>
+</body>
+</html>

@@ -41,6 +41,10 @@ window.FM = window.FM || {};
     if (!u) return "";
     return /^https:\/\/[^/]*(divarcdn\.com|divar\.ir|sheypoor\.com|sheypoor\.ir)\//i.test(u) ? "/img?u=" + encodeURIComponent(u) : u;
   };
+  /* نسخهٔ کوچک‌شدهٔ عکس برای کارت‌ها (عرض w پیکسل، WebP)؛ صفحهٔ ملک و نمای بزرگ همان عکس کامل را می‌گیرند */
+  FM.thumb = function (u, w) {
+    return u && u.indexOf("/img?u=") === 0 && u.indexOf("&w=") < 0 ? u + "&w=" + (w || 560) : u;
+  };
   // جای عکسِ خالی هم‌رنگ تم: روشن در تم روشن، تیره در تم تیره
   Object.defineProperty(FM, "NOIMG", { configurable: true, get: function () {
     return document.documentElement.getAttribute("data-theme") === "light" ? "/assets/site/img/noimg-light.svg" : "/assets/site/img/noimg.svg";

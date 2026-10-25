@@ -1214,3 +1214,35 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .mag__guides { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .mag__guides a { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); font-size: .84rem; color: var(--ink); text-decoration: none; }
 .mag__guides a:hover { border-color: var(--gold); }
+/* «دیده‌ای» پررنگ و واضح: نشان چشم روی کارت‌هایی که قبلاً باز کرده‌اید */
+.seen-tag { top: 2.6rem; right: .5rem; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 9px; font-size: .72rem; font-weight: 800;
+  background: rgba(10, 16, 13, .9) !important; color: #fff !important; border: 1px solid rgba(233, 185, 73, .9) !important; opacity: 1 !important; filter: none !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
+.seen-tag::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+  color: #e9b949; }
+.seen-tag { color: #fff !important; z-index: 7 !important; }
+.seen-tag::before { background: #e9b949; }
+/* ===== ویدیوی معرفی صفحهٔ اول ===== */
+.vid { padding: 64px 16px; }
+.vid__in { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 32px; align-items: center; }
+.vid__txt .section-title { margin: 6px 0 10px; }
+.vid__txt .section-sub { margin: 0; line-height: 2; }
+.vid__acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.vid__frame { position: relative; aspect-ratio: 16 / 9; border-radius: 22px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+  background: radial-gradient(120% 120% at 70% 20%, color-mix(in srgb, #20976A 28%, transparent), transparent 60%), #0b1510; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
+.vid__frame iframe, .vid__frame video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; }
+.vid__soon { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; color: #f1eee6; }
+.vid__soon i { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 28px; background: rgba(233,185,73,.9); color: #16120a; box-shadow: 0 0 0 10px rgba(233,185,73,.15); }
+.vid__soon b { font-size: 1rem; }
+@media (max-width: 860px) { .vid { padding: 44px 14px; } .vid__in { grid-template-columns: 1fr; gap: 18px; } .vid__frame { border-radius: 16px; } .vid__txt { text-align: center; } .vid__acts { justify-content: center; } }
+/* ===== صفحهٔ مقالهٔ تعاملی (آسانسور ارزش) ===== */
+.art-page { padding-top: 96px; }
+.art { max-width: 860px; margin: 0 auto; padding: 0 18px; line-height: 2.1; }
+.art__crumbs { font-size: .82rem; color: var(--ink-faint); margin-bottom: 10px; } .art__crumbs a { color: inherit; }
+.art__h { font-size: clamp(1.4rem, 3.4vw, 2.2rem); line-height: 1.6; margin: 0 0 12px; }
+.art__lead { font-size: 1rem; color: var(--ink-faint); }
+.art h2 { font-size: 1.25rem; margin: 30px 0 10px; }
+.art ul { padding-inline-start: 22px; } .art li { margin: 6px 0; }
+.art__cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 40px; }

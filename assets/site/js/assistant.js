@@ -118,7 +118,7 @@
   function propertyCard(p) {
     return (
       '<a class="msg-card" href="' + FM.propUrl(p.id) + '">' +
-      '<img src="' + FM.esc(p.img) + '" alt="" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
+      '<img src="' + FM.esc(FM.thumb(p.img, 360)) + '" alt="" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
       '<span><b>' + FM.esc(p.title) + "</b><small>" + FM.esc(p.loc) + (p.area ? "  |  " + FM.fa(p.area) + " متر" : "") + "</small>" +
       '<span class="msg-card__row"><b>' + FM.esc(p.priceText) + '</b><i class="st-text" data-status="' + p.status + '">' + FM.esc(p.diffText || p.tag) + "</i></span></span></a>"
     );

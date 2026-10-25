@@ -2510,7 +2510,7 @@ const App = (() => {
     const imgs = l.images && l.images.length ? l.images : l.image ? [l.image] : [];
     // هر عکس فقط یک بار: به تعداد عکس‌های واقعی کاشی ساخته می‌شود (قبلاً با کمتر از ۵ عکس، آخرین عکس تکرار می‌شد)
     const galN = imgs.length ? Math.min(5, imgs.length) : 5;
-    const gal = Array.from({ length: galN }, (_, i) => `<button data-img="${i}" aria-label="تصویر ${fa(i + 1)}">${UI.media(l, imgs.length ? Math.min(i, imgs.length - 1) : i)}${i === 4 && imgs.length > 5 ? `<span class="more">+${fa(imgs.length - 5)} عکس</span>` : ""}</button>`).join("");
+    const gal = Array.from({ length: galN }, (_, i) => `<button data-img="${i}" aria-label="تصویر ${fa(i + 1)}">${UI.media(l, imgs.length ? Math.min(i, imgs.length - 1) : i, "", galN <= 2 || i === 0 ? 800 : 560)}${i === 4 && imgs.length > 5 ? `<span class="more">+${fa(imgs.length - 5)} عکس</span>` : ""}</button>`).join("");
     const ft = l.feat || {};
     const facts = [["نوع", UI.kindName(l.kind)], ["متراژ", l.area && fa(l.area) + " متر"], ["اتاق", l.rooms != null && fa(l.rooms)],
       ["سال ساخت", l.year && faY(l.year)], ["طبقه", ft.floor != null ? fa(ft.floor) + (ft.floors_total ? " از " + fa(ft.floors_total) : "") : l.floor != null && fa(l.floor)],
@@ -3043,7 +3043,7 @@ const App = (() => {
     const best = (fn, low = true) => { const v = ls.map(fn).filter((x) => x > 0); return v.length ? (low ? Math.min(...v) : Math.max(...v)) : null; };
     const row = (label, fn, b = null, fmt = (x) => x ?? "—") => `<tr><th>${label}</th>${ls.map((l) => { const x = fn(l); return `<td class="${b !== null && x === b ? "is-best" : ""}">${fmt(x, l)}</td>`; }).join("")}</tr>`;
     openDialog(`<div class="dlg__head"><h2>مقایسه</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
-      <div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th></th>${ls.map((l) => `<th><div class="cmp-img">${UI.media(l)}</div><a href="#/ad/${encodeURIComponent(l.id)}" data-close>${UI.tt(l.title)}</a></th>`).join("")}</tr></thead><tbody>
+      <div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th></th>${ls.map((l) => `<th><div class="cmp-img">${UI.media(l, 0, "", 360)}</div><a href="#/ad/${encodeURIComponent(l.id)}" data-close>${UI.tt(l.title)}</a></th>`).join("")}</tr></thead><tbody>
       ${row("امتیاز", (l) => l.score, best((l) => l.score, false), (x) => (x != null ? fa(Math.round(x)) : "—"))}
       ${row("نسبت به قیمت منصفانه", (l) => l.verdict, null, (x) => (x ? UI.dealPill(x) : "—"))}
       ${row("شهر و محله", (l) => [l.city_name || UI.cityOf(l.city_key)?.name, l.district].filter(Boolean).join("، "))}
@@ -3123,7 +3123,7 @@ const App = (() => {
       }
       setTimeout(() => $("#aiInput").focus(), 50);
     }
-    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز، " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + UI.gapPct(l.verdict) + " فاصله با برآورد" : ""}</small></span></a>`).join("")}</div>`;
+    const mini = (ls) => `<div class="mini">${ls.map((l) => `<a href="#/ad/${encodeURIComponent(l.id)}"><span class="mini__img">${UI.media(l, 0, "", 360)}</span><span><b>${UI.tt(l.title)}</b><small>${l.score != null ? fa(Math.round(l.score)) + " امتیاز، " : ""}${esc(UI.pinLabel(l))}${l.verdict && l.verdict.delta < 0 ? "، " + UI.gapPct(l.verdict) + " فاصله با برآورد" : ""}</small></span></a>`).join("")}</div>`;
     const nz = (t) => UI.fold(t);
     const citiesIn = (t) => { const f = nz(t); return CITIES.filter((c) => f.includes(nz(c.name))).sort((a, b) => f.indexOf(nz(a.name)) - f.indexOf(nz(b.name))); };
     const rep = async (c) => (await DataLayer.market(c, "sale", "apartment").catch(() => ({}))).report;

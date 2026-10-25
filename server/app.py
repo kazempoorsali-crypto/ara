@@ -80,7 +80,9 @@ from valuation import DEFAULT_THRESHOLDS  # noqa: E402
 
 DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ارزش واقعی ملک، محله به محله", "about": "", "email": "",
                 # طراحی سایت: classic (قبلی) یا new (طراحی سینمایی تازه)؛ پیش‌نمایش برای خود مالک با ?design=new
-                "design": "classic"}
+                "design": "classic",
+                # ویدیوی معرفی صفحهٔ اول (پیوند آپارات، یوتیوب یا فایل mp4)؛ با تغییر پیوند در پنل، ویدیوی سایت عوض می‌شود
+                "video_url": "", "video_title": "فرصت ملک در یک نگاه", "video_desc": ""}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -554,7 +556,7 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/img":
                 if self.limited("img"):
                     return None
-                return self.image_proxy(qs.get("u") or "")
+                return self.image_proxy(qs.get("u") or "", qs.get("w") or "")
             if url.path.startswith("/api/"):
                 if not url.path.startswith("/api/admin/") and self.limited("api"):
                     return None
@@ -580,7 +582,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_text(SITEMAP["xml"], "application/xml; charset=utf-8")
             # صفحه‌های سایت اصلی: دادهٔ واقعی (آمار، محله‌ها، فرصت‌ها) در خود HTML گذاشته می‌شود
             SITE_PAGES = {"/": ("index.html", "home"), "/index.html": ("index.html", "home"),
-                          "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property")}
+                          "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property"),
+                          "/maghale/asansor-arzesh": ("floors.html", "article")}
             # صفحهٔ هر آگهی همان صفحهٔ کامل سایت قبلی است (مشخصات، ارزش‌گذاری، نمودارها، نمایشگر عکس)
             if url.path == "/property.html" and qs.get("id"):
                 return self.redirect("/ad/" + urllib.parse.quote(qs["id"]))
@@ -596,10 +599,16 @@ class Handler(BaseHTTPRequestHandler):
                 body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
                 if page == "home":
                     body = body.replace("<!--FM_ARTICLES-->", sitepage.articles_html(self.app), 1)
+                    body = body.replace("<!--FM_VIDEO-->", sitepage.video_html(self.app), 1)
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
                 # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
-                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "") if page != "sky" else None
+                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "") if page not in ("sky", "article") else None
+                if page == "article":   # مقالهٔ تعاملی: پیوند متعارف و دادهٔ ساختاریافتهٔ مقاله
+                    ld = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": "آسانسور ارزش: هر طبقه و هر جهت ساختمان چقدر می‌ارزد؟",
+                                     "inLanguage": "fa-IR", "mainEntityOfPage": self.base_url() + url.path,
+                                     "publisher": {"@type": "Organization", "name": "فرصت ملک"}}, ensure_ascii=False)
+                    body = body.replace("</head>", f'  <link rel="canonical" href="{self.base_url()}{url.path}" />\n  <script type="application/ld+json">{ld}</script>\n</head>', 1)
                 if page == "sky":   # پیوند متعارف برای صفحهٔ قیمت محله‌ها
                     body = body.replace("</head>", f'  <link rel="canonical" href="{self.base_url()}/sky.html" />\n</head>', 1)
                 if sp:
@@ -795,7 +804,7 @@ class Handler(BaseHTTPRequestHandler):
             total -= p.stat().st_size
             p.unlink(missing_ok=True)
 
-    def image_proxy(self, u):
+    def image_proxy(self, u, w=""):
         """عکس آگهی از طریق همین سرور، با کش روی دیسک؛ فقط از میزبان‌های عکس دیوار و شیپور."""
         import hashlib as _h
         host = (urllib.parse.urlsplit(u).hostname or "").lower()
@@ -831,6 +840,20 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             f.write_bytes(data)
         data = f.read_bytes()
+        # نسخهٔ کوچک برای کارت‌ها (w=360/560/800): چند برابر کم‌حجم‌تر از عکس کامل؛ یک بار ساخته و کش می‌شود
+        try:
+            tw = int(w or 0)
+        except ValueError:
+            tw = 0
+        if tw in (360, 560, 800) and webp_ok():
+            tf = f.with_suffix(f".w{tw}.webp")
+            if not tf.is_file():
+                try:
+                    to_webp(data, tf, max_w=tw, quality=72)
+                except Exception:  # noqa: BLE001
+                    tf = None
+            if tf and tf.is_file():
+                data = tf.read_bytes()
         # عکس JPEG/PNG برای مرورگرهای پشتیبان به WebP تبدیل و جدا کش می‌شود (کم‌حجم‌تر، بارگذاری سریع‌تر)
         if data[8:12] != b"WEBP" and "image/webp" in (self.headers.get("accept") or ""):
             wf = f.with_suffix(".webp")
@@ -846,7 +869,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("content-type", ctype)
         self.send_header("content-length", str(len(data)))
         self.send_header("vary", "Accept")
-        self.send_header("cache-control", "public, max-age=604800")
+        self.send_header("cache-control", "public, max-age=2592000, immutable")   # عکس آگهی تغییر نمی‌کند
         self.end_headers()
         self.wfile.write(data)
         return None
