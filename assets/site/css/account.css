@@ -1197,3 +1197,20 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .est__wait i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(127,127,127,.3); border-top-color: var(--gold); animation: estSpin .8s linear infinite; }
 @keyframes estSpin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) { .est__card { padding: 18px 14px; } .est__row--loc { grid-template-columns: 1fr; } .est__out { grid-template-columns: 1fr; } .est__go { width: 100%; } }
+.alrt__ch--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 520px) { .alrt__ch--3 { grid-template-columns: 1fr; } }
+/* ===== مجلهٔ فرصت ملک (صفحهٔ اول) ===== */
+.mag { padding: 56px 16px 40px; }
+.mag__in { max-width: 1120px; margin: 0 auto; }
+.mag__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+.mag__head .section-title { margin: 4px 0 0; font-size: clamp(1.3rem, 2.6vw, 1.9rem); }
+.mag__all { font-weight: 800; color: var(--gold); }
+.mag__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.mag__card { display: grid; gap: 8px; align-content: start; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 90%, transparent); color: var(--ink); text-decoration: none; transition: transform .25s, border-color .25s; }
+.mag__card:hover { transform: translateY(-3px); border-color: var(--gold); }
+.mag__card b { font-size: 1rem; line-height: 1.7; }
+.mag__card span { font-size: .84rem; line-height: 1.9; color: var(--ink-faint); }
+.mag__card i { font-style: normal; font-size: .82rem; font-weight: 800; color: var(--gold); }
+.mag__guides { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.mag__guides a { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); font-size: .84rem; color: var(--ink); text-decoration: none; }
+.mag__guides a:hover { border-color: var(--gold); }

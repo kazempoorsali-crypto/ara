@@ -203,6 +203,26 @@ def boot(handler, page, qs):
     return data
 
 
+def articles_html(app) -> str:
+    """بخش «از مجلهٔ فرصت ملک» صفحهٔ اول: پیوند واقعی (قابل خزش برای گوگل) به تازه‌ترین مقاله‌ها و راهنماها."""
+    import seo
+    arts = cached("arts-home", 300, lambda: seo.articles_list(app.store, 6))
+    esc = lambda t: str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    import urllib.parse
+    cards = "".join(
+        f'<a class="mag__card" href="/maghale/{urllib.parse.quote(a["slug"])}"><b>{esc(a["title"])}</b>'
+        f'{"<span>" + esc(a.get("summary"))[:160] + "</span>" if a.get("summary") else ""}<i>خواندن ←</i></a>' for a in arts)
+    guides = [("/rahnama/melk-arzan", "ملک زیر قیمت را چطور پیدا کنیم؟"), ("/rahnama/gheymat-mahalle", "قیمت هر متر محله را چطور به دست بیاوریم؟"),
+              ("/rahnama/kharid-melk", "چک‌لیست خرید ملک"), ("/rahnama/ejare", "چک‌لیست رهن و اجاره"), ("/rahnama/pish-forosh", "راهنمای خرید پیش‌فروش")]
+    gl = "".join(f'<a href="{u}">{t}</a>' for u, t in guides)
+    grid = f'<div class="mag__grid">{cards}</div>' if cards else ""
+    return (f'<section class="mag" id="magazine" aria-labelledby="magT"><div class="mag__in">'
+            f'<div class="mag__head"><p class="eyebrow">مجلهٔ فرصت ملک</p><h2 class="section-title" id="magT">مقاله‌ها و راهنمای خرید ملک</h2>'
+            f'<a class="mag__all" href="/maghale">همهٔ مقاله‌ها ←</a></div>'
+            f'{grid}'
+            f'<nav class="mag__guides" aria-label="راهنماها">{gl}</nav></div></section>')
+
+
 def inject(html: bytes, data: dict) -> bytes:
     if (data.get("me") or {}).get("active"):
         html = mark_sub(html.decode()).encode()

@@ -2554,3 +2554,14 @@ html {
 
 /* Hide any legacy demo banner */
 .demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }
+/* پنل مدیریت: نمودارهای ساده‌ی بازدید */
+.vbars { display: grid; gap: 7px; }
+.vbar { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto auto; gap: 8px; align-items: center; font-size: 13px; }
+.vbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; }
+.vbar i { display: block; height: 10px; border-radius: 999px; background: linear-gradient(to left, #20976A, #7fc7a6); }
+.vbar b { font-weight: 800; min-width: 32px; text-align: left; }
+.vbar small { color: var(--muted); min-width: 34px; text-align: left; }
+.vser { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding-top: 8px; direction: ltr; }
+.vser > div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 4px; }
+.vser i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: #20976A; }
+.vser small { font-size: 9px; color: var(--muted); margin-top: 3px; }

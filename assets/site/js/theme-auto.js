@@ -63,3 +63,87 @@
     else root.setAttribute("data-theme", want);
   }, 5 * 60 * 1000);
 })();
+
+/* علامت مثبت/منفی کنار درصدها در متن راست‌به‌چپ سمت راست عدد می‌افتاد (مثلاً «۱۶٪−»).
+   هر «+۱۶٪» یا «−۱۶٪» در صفحه چپ‌به‌راست جدا (LRI…PDI) می‌شود تا علامت سمت چپ بماند: «−۱۶٪». در همهٔ صفحه‌ها و محتوای تازه. */
+(function () {
+  "use strict";
+  var RE = /(^|[^⁦\d۰-۹])([+\-−–]\s?[\d۰-۹][\d۰-۹٫.,]*\s?[٪%])/g;
+  var TEST = /[+\-−–]\s?[\d۰-۹][\d۰-۹٫.,]*\s?[٪%]/;
+  function fixNode(t) {
+    var v = t.nodeValue;
+    if (!v || !TEST.test(v)) return;
+    var p = t.parentNode;
+    if (!p || /^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(p.nodeName) || p.closest && p.closest("[dir=ltr], bdi, svg")) return;
+    var nv = v.replace(RE, function (m, a, b) { return a + "⁦" + b.replace(/\s/g, "") + "⁩"; });
+    if (nv !== v) t.nodeValue = nv;
+  }
+  function walk(root) {
+    if (root.nodeType === 3) return fixNode(root);
+    if (root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n;
+    while ((n = w.nextNode())) fixNode(n);
+  }
+  function start() {
+    walk(document.body);
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) {
+        if (m.type === "characterData") fixNode(m.target);
+        else m.addedNodes.forEach(walk);
+      });
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+})();
+
+/* آمار بازدید برای پنل مدیریت (سرور خود سایت؛ بدون سرویس بیرونی و بدون کوکی ردیابی):
+   بازدید فقط وقتی صفحه واقعاً دیده شد ثبت می‌شود (نه در پیش‌بارگذاری) و هنگام ترک صفحه مدت دیدن فرستاده می‌شود. */
+(function () {
+  "use strict";
+  if (window.top !== window || /(^|[?&])embed=1/.test(location.search)) return;   // نقشهٔ جاسازی‌شده داخل صفحهٔ آسمان
+  var sid = "";
+  try { sid = sessionStorage.getItem("fmSid") || ""; if (!sid) { sid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4); sessionStorage.setItem("fmSid", sid); } } catch (e) {}
+  var cur = null, shown = 0, acc = 0, firstRef = document.referrer;
+  function post(data, beacon) {
+    var body = JSON.stringify(data);
+    try {
+      if (beacon && navigator.sendBeacon) return navigator.sendBeacon("/api/t", new Blob([body], { type: "application/json" }));
+      var tk = ""; try { tk = localStorage.getItem("fy:token") || ""; } catch (e) {}
+      return fetch("/api/t", { method: "POST", headers: { "content-type": "application/json", "x-user-token": tk }, body: body, keepalive: true, credentials: "same-origin" })
+        .then(function (r) { return r.json(); }).catch(function () { return {}; });
+    } catch (e) { return null; }
+  }
+  // نشانی خوانا برای گزارش: صفحه‌های برنامهٔ قدیمی (#/ad/…، #/p/maghale/…) با همان نشانی اصلی‌شان
+  function route() {
+    var h = (location.hash || "").split("?")[0], m;
+    if ((m = h.match(/^#\/ad\/(.+)/))) return "/ad/" + m[1];
+    if ((m = h.match(/^#\/p\/(.+)/))) return "/" + m[1];
+    if ((m = h.match(/^#\/(s|market|sky|support|saved|account|estimate|faq|method|invoice)\b/))) return "/" + (m[1] === "s" ? "search" : m[1]);
+    return location.pathname;
+  }
+  function view() {
+    var utm = (location.search.match(/[?&]utm_source=([^&#]+)/) || [])[1] || "";
+    var rec = { id: 0 };
+    cur = rec; acc = 0; shown = document.visibilityState === "visible" ? Date.now() : 0;
+    var p = post({ e: "view", p: route(), r: firstRef, s: sid, u: decodeURIComponent(utm) });
+    firstRef = location.href;   // صفحه‌های بعدی همین برگه «داخلی»اند
+    if (p && p.then) p.then(function (j) { rec.id = j && j.id || 0; });
+  }
+  function end() {
+    if (!cur) return;
+    if (shown) { acc += Date.now() - shown; shown = 0; }
+    if (cur.id && acc > 1500) post({ e: "end", id: cur.id, d: Math.round(acc / 1000) }, true);
+  }
+  function begin() {
+    view();
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") end(); else if (cur) shown = Date.now();
+    });
+    addEventListener("pagehide", end);
+    addEventListener("pageshow", function (e) { if (e.persisted) view(); });   // برگشت از کش مرورگر هم یک بازدید است
+    var last = route();
+    addEventListener("hashchange", function () { var r = route(); if (r !== last) { last = r; end(); view(); } });
+  }
+  if (document.prerendering) document.addEventListener("prerenderingchange", begin, { once: true });
+  else if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", begin); else begin();
+})();

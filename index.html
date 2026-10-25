@@ -36,6 +36,9 @@
        (نزدیک شدن نشانگر یا لمس)؛ فقط HTML دانلود می‌شود، پس صفحهٔ اصلی کند نمی‌شود -->
   <script type="speculationrules">
   {
+    "prerender": [
+      { "source": "document", "where": { "or": [ { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" }
+    ],
     "prefetch": [
       { "source": "list", "urls": ["/sky.html"], "eagerness": "eager" },
       { "source": "document", "where": { "or": [ { "href_matches": "/ad/*" }, { "href_matches": "/app.html" }, { "href_matches": "/account.html" } ] }, "eagerness": "moderate" }
@@ -104,6 +107,7 @@
         <a href="/app.html#/market">بازار محله‌ها</a>
         <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
         <a href="#problem" data-scroll-to>روش ما</a>
+        <a href="/maghale">مجله و راهنما</a>
         <a href="/app.html#/support" class="nav__ticket">ثبت تیکت</a>
       </nav>
       <div class="nav__act">
@@ -146,6 +150,7 @@
           <a class="menu__link" href="/app.html#/saved"><span class="menu__txt">علاقه‌مندی‌های من</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/account.html" data-fm-login><span class="menu__txt">ورود / عضویت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/account.html"><span class="menu__txt">حساب من</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="menu__link" href="/maghale"><span class="menu__txt">مجله و راهنمای خرید ملک</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="/app.html#/support"><span class="menu__txt">پشتیبانی و تیکت</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
           <a class="menu__link" href="#assistant" data-scroll-to><span class="menu__txt">دستیار هوشمند</span><svg class="menu__arrow" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </nav>
@@ -505,6 +510,7 @@
     </section>
 
     <!-- فوتر -->
+    <!--FM_ARTICLES-->
     <footer class="foot" id="foot">
       <div class="foot__topo" aria-hidden="true">
         <svg viewBox="0 0 1440 400" preserveAspectRatio="xMidYMid slice">
@@ -531,6 +537,13 @@
           <a href="/sky.html" data-navpage>قیمت از دید آسمان</a>
           <a href="#floors" data-scroll-to>هر طبقه، یک داستان</a>
           <a href="#assistant" data-scroll-to>دستیار هوشمند</a>
+        </nav>
+        <nav aria-label="مجله"><h4>مجله و راهنما</h4>
+          <a href="/maghale">همهٔ مقاله‌ها</a>
+          <a href="/rahnama/melk-arzan">ملک زیر قیمت را چطور پیدا کنیم؟</a>
+          <a href="/rahnama/gheymat-mahalle">قیمت هر متر محله</a>
+          <a href="/rahnama/kharid-melk">چک‌لیست خرید ملک</a>
+          <a href="/rahnama/ejare">چک‌لیست رهن و اجاره</a>
         </nav>
         <nav aria-label="روش"><h4>روش</h4>
           <a href="#problem" data-scroll-to>مسئله و راه‌حل</a>

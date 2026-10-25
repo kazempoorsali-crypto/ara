@@ -46,6 +46,13 @@
       }
     })();
   </script>
+  <!-- پیش‌بارگذاری صفحه‌های محتمل بعدی: با رفتن موس روی پیوند، صفحه از قبل ساخته می‌شود تا با کلیک فوراً باز شود -->
+  <script type="speculationrules">
+  {
+    "prerender": [ { "source": "document", "where": { "or": [ { "href_matches": "/" }, { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" } ],
+    "prefetch": [ { "source": "list", "urls": ["/"], "eagerness": "eager" } ]
+  }
+  </script>
   <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="assets/css/style.css" />

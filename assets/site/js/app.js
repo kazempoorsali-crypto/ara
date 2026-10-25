@@ -775,4 +775,35 @@
       });
     });
   })();
+
+  /* گرم کردن «قیمت از دید آسمان» برای همهٔ مرورگرها: بعد از بار شدن صفحه و در زمان بیکاری، فایل‌های سنگین آن
+     (کرهٔ سه‌بعدی، بافت زمین، نقشهٔ زندهٔ داخل صفحه و اسکریپت‌هایش) با اولویت پایین در کش مرورگر گذاشته می‌شوند تا با کلیک فوراً باز شود.
+     با موس روی پیوند یا لمس آن، خود صفحه هم فوراً گرفته می‌شود. */
+  (function warmSky() {
+    var conn = navigator.connection;
+    if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ""))) return;
+    if (location.pathname === "/sky.html") return;
+    var tag = ((document.querySelector('script[src*="/assets/site/js/app.js"]') || {}).src || "").split("?v=")[1] || "";
+    var v = tag ? "?v=" + tag : "";
+    var dark = document.documentElement.getAttribute("data-theme") !== "light";
+    var tone = dark ? "night" : "day";
+    var done = {};
+    function pf(url, as) {
+      if (done[url]) return; done[url] = 1;
+      var l = document.createElement("link"); l.rel = "prefetch"; l.href = url; if (as) l.as = as; document.head.appendChild(l);
+    }
+    var SKY = ["/sky.html", "/assets/site/js/sky.js" + v, "/assets/site/css/pages.css" + v,
+      "/assets/vendor/globe/three.module.min.js", "/assets/vendor/globe/earth-" + tone + "-2048.webp", "/assets/vendor/globe/earth-" + tone + "-1024.webp",
+      "/app.html?embed=1", "/assets/js/globe.js" + v, "/assets/vendor/leaflet/leaflet.js" + v, "/assets/vendor/leaflet/leaflet.css" + v,
+      "/assets/css/style.css" + v, "/assets/css/cine.css" + v, "/assets/css/v2.css" + v,
+      "/assets/js/data.js" + v, "/assets/js/nlp.js" + v, "/assets/js/api.js" + v, "/assets/js/ui.js" + v, "/assets/js/ribbons.js" + v,
+      "/assets/js/app.js" + v, "/assets/js/cine.js" + v, "/assets/js/fx.js" + v];
+    function warm() { SKY.forEach(function (u) { pf(u); }); }
+    var go = function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1200); })(warm, { timeout: 4000 }); };
+    if (document.readyState === "complete") setTimeout(go, 800); else addEventListener("load", function () { setTimeout(go, 800); });
+    // نیت کاربر: موس یا لمس روی هر پیوند به آسمان ← همان لحظه
+    function intent(e) { var a = e.target.closest && e.target.closest('a[href*="sky.html"]'); if (a) warm(); }
+    document.addEventListener("pointerover", intent, { passive: true });
+    document.addEventListener("touchstart", intent, { passive: true });
+  })();
 })();
