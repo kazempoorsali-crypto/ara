@@ -359,3 +359,58 @@
 
 /* Hide any legacy demo banner */
 .demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }
+/* ===== کارت سبز «ارزش این خرید» در صفحهٔ ملک ===== */
+.pcard { margin: 16px 0 4px; padding: 16px; border-radius: 18px; border: 1.5px solid rgba(32,151,106,.45); background: linear-gradient(160deg, rgba(32,151,106,.16), rgba(32,151,106,.05)); }
+.pcard--bad { border-color: rgba(207,71,81,.45); background: linear-gradient(160deg, rgba(207,71,81,.14), rgba(207,71,81,.04)); }
+.pcard--fair { border-color: rgba(127,140,135,.45); background: linear-gradient(160deg, rgba(127,140,135,.14), rgba(127,140,135,.04)); }
+.pcard--lock { border-color: rgba(213,166,38,.5); background: linear-gradient(160deg, rgba(213,166,38,.14), rgba(213,166,38,.04)); }
+.pcard__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.pcard__head b { font-size: 15px; font-weight: 900; color: #20976A; }
+.pcard--bad .pcard__head b { color: #CF4751; } .pcard--fair .pcard__head b { color: var(--muted); }
+.pcard__head span { padding: 3px 12px; border-radius: 999px; background: #20976A; color: #fff; font-weight: 900; font-size: 14px; direction: ltr; }
+.pcard--bad .pcard__head span { background: #CF4751; }
+.pcard__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pcard__row > div { display: grid; gap: 2px; text-align: center; padding: 10px 6px; border-radius: 12px; background: rgba(127,127,127,.07); min-width: 0; }
+.pcard__row span { font-size: 12px; color: var(--muted); }
+.pcard__row b { font-size: clamp(14px, 1.6vw, 18px); font-weight: 900; overflow-wrap: anywhere; }
+.pcard__row small { font-size: 11px; color: var(--muted); }
+.pcard__gain { background: rgba(32,151,106,.16) !important; }
+.pcard__gain b { color: #20976A; }
+.pcard--bad .pcard__gain { background: rgba(207,71,81,.14) !important; } .pcard--bad .pcard__gain b { color: #CF4751; }
+.pcard__note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.8; color: var(--muted); }
+.pcard--lock .btn { margin-top: 10px; }
+.pcard .blur { filter: blur(6px); user-select: none; }
+@media (max-width: 420px) { .pcard__row { grid-template-columns: 1fr; } .pcard__row > div { grid-template-columns: 1fr auto auto; align-items: baseline; text-align: right; gap: 8px; } }
+/* ===== شناسنامهٔ قیمت: کاشی‌های مرتب به‌جای ردیف‌های پشت‌سرهم ===== */
+.pid--v2 .pidg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pidt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(127,127,127,.05); min-width: 0; }
+.pidt > i { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-style: normal; font-size: 17px; background: rgba(127,127,127,.1); }
+.pidt > div { display: grid; gap: 3px; min-width: 0; }
+.pidt span { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+.pidt b { font-size: 16px; font-weight: 900; overflow-wrap: anywhere; }
+.pidt small { font-size: 11.5px; line-height: 1.75; color: var(--muted); }
+.pidt--exp { border-color: rgba(32,151,106,.45); background: rgba(32,151,106,.08); } .pidt--exp b { color: #20976A; }
+.pidt--ask { border-color: rgba(213,166,38,.45); background: rgba(213,166,38,.07); }
+.pidt--gap { grid-column: 1 / -1; border-color: rgba(32,151,106,.3); }
+.pid--v2 .pid__fx { margin-top: 12px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line); }
+.pid--v2 .fx { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 8px 0 0; list-style: none; }
+.pid--v2 .fx li { display: inline-flex; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12.5px; }
+@media (max-width: 640px) { .pid--v2 .pidg { grid-template-columns: 1fr; } }
+/* گالری صفحهٔ ملک به تعداد عکس‌های واقعی (بدون کاشی تکراری) */
+.gallery--n1 { grid-template-columns: 1fr; grid-template-rows: 440px; }
+.gallery--n2 { grid-template-columns: 2fr 1fr; }
+.gallery--n2 > :nth-child(2) { grid-row: 1 / 3; }
+.gallery--n3 { grid-template-columns: 2fr 1fr; }
+.gallery--n4 { grid-template-columns: 2fr 1fr 1fr; }
+.gallery--n4 > :nth-child(4) { grid-column: 2 / 4; }
+@media (max-width: 860px) {
+  .gallery--n1 { grid-template-rows: 300px; }
+  .gallery--n2 > :nth-child(2) { grid-row: auto; }
+}
+/* مشابه‌ها: نوار طلایی ← سبز ← خاکستری ← قرمز ← قرمز تیره (از راست)، همان رنگ‌بندی نمودار قیمت */
+.cmps__bar--v2 { position: relative; display: block; height: 10px; border-radius: 999px; border: 1px solid rgba(127,127,127,.3);
+  background: linear-gradient(to left, #d4a017 0%, #d4a017 8%, #10b981 26%, #9aa3a0 50%, #ef4444 74%, #991b1b 100%); }
+.cmps__mid { position: absolute; top: -4px; bottom: -4px; right: 50%; width: 2px; background: #fff; box-shadow: 0 0 2px rgba(0,0,0,.6); transform: translateX(50%); }
+.cmps__me { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.55); transform: translate(50%, -50%); }
+.cmps__ppm { display: grid; } .cmps__ppm small { font-size: 11.5px; }
+@media (min-width: 641px) { .cmps-head, .cmps li { grid-template-columns: 1.4fr .9fr 1.6fr 130px; } .cmps li > span:last-child { justify-self: start; } }

@@ -3,11 +3,21 @@
 window.FM = window.FM || {};
 FM.api = (function () {
   "use strict";
+  /* کوکی fy_t: سرور صفحه را از همان اول برای کاربر واردشده می‌سازد (مشترک قفل نمی‌بیند و صفحه نمی‌پرد) */
+  FM.syncTokenCookie = function (v) {
+    try { document.cookie = "fy_t=" + (v || "") + "; path=/; SameSite=Lax" + (v ? "; max-age=2592000" : "; max-age=0") + (location.protocol === "https:" ? "; Secure" : ""); } catch (e) {}
+  };
   var me = null, config = null;
   var tok = {
     get: function () { try { return localStorage.getItem("fy:token") || ""; } catch (e) { return ""; } },
-    set: function (v) { try { v ? localStorage.setItem("fy:token", v) : localStorage.removeItem("fy:token"); } catch (e) { /* حالت خصوصی */ } },
+    set: function (v) { try { v ? localStorage.setItem("fy:token", v) : localStorage.removeItem("fy:token"); } catch (e) { /* حالت خصوصی */ } FM.syncTokenCookie(v); },
   };
+  // حسابی که سرور در خود صفحه گذاشته (FM_BOOT.me): از لحظهٔ اول معلوم است مشترک هست یا نه
+  (function () {
+    var t = tok.get(), b = window.FM_BOOT && window.FM_BOOT.me;
+    FM.syncTokenCookie(t);
+    if (t && b) me = b;
+  })();
   var H = function () { return { "content-type": "application/json", "x-user-token": tok.get() }; };
   var qs = function (o) { return Object.keys(o).filter(function (k) { return o[k] !== "" && o[k] != null; }).map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(o[k]); }).join("&"); };
   function json(r) {

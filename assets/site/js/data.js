@@ -356,6 +356,8 @@ FM.cityPicker = function (sel, onChange) {
   field.appendChild(btn);
   var panel = document.createElement("div");
   panel.className = "cpick fmx"; panel.hidden = true;
+  panel.setAttribute("data-lenis-prevent", "");   // چرخ موس فهرست شهرها را می‌برد، نه کل صفحه را
+  var cpBack = null;
   field.appendChild(panel);
   orig.parentNode.insertBefore(field, orig.nextSibling);
   orig.style.display = "none";
@@ -383,6 +385,9 @@ FM.cityPicker = function (sel, onChange) {
   function open(on) {
     panel.hidden = !on; btn.setAttribute("aria-expanded", on); field.classList.toggle("is-open", on);
     document.body.classList.toggle("cpick-open", on);   // دکمهٔ دستیار و «بالا» روی دکمهٔ تأیید نیفتند
+    // «برگشت» گوشی/مرورگر فهرست را می‌بندد
+    if (on && !cpBack && FM.backable) cpBack = FM.backable(panel, function () { cpBack = null; open(false); });
+    if (!on && cpBack) { var f = cpBack; cpBack = null; f(); }
     if (on) {
       render(); setTimeout(function () { var i = panel.querySelector(".cpick__q"); if (i && matchMedia("(pointer: fine)").matches) i.focus(); }, 30);
       /* گوشی: کادر شهر بالای صفحه بیاید تا کل پنجره و دکمهٔ تأیید دیده شود */

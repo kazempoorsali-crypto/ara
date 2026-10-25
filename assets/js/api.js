@@ -11,7 +11,10 @@ const DataLayer = (() => {
   };
   let config = DEFAULT_CONFIG, server = false, useSamples = true, stats = null, me = null;
   const tok = { get() { try { return localStorage.getItem("fy:token") || ""; } catch { return ""; } },
-                set(v) { try { v ? localStorage.setItem("fy:token", v) : localStorage.removeItem("fy:token"); } catch { /* حالت خصوصی */ } } };
+                set(v) { try { v ? localStorage.setItem("fy:token", v) : localStorage.removeItem("fy:token"); } catch { /* حالت خصوصی */ } cookie(v); } };
+  // کوکی fy_t: سرور صفحهٔ آگهی را از همان اول برای کاربر واردشده (مشترک بدون قفل) می‌سازد
+  const cookie = (v) => { try { document.cookie = "fy_t=" + (v || "") + "; path=/; SameSite=Lax" + (v ? "; max-age=2592000" : "; max-age=0") + (location.protocol === "https:" ? "; Secure" : ""); } catch { /* */ } };
+  cookie(tok.get());
   const H = () => ({ "content-type": "application/json", "x-user-token": tok.get() });
 
   async function init() {
@@ -248,6 +251,9 @@ const DataLayer = (() => {
       const hist = l.price_drop ? [{ at: l.first_seen, price: Math.round(l.pp / (1 - l.price_drop)) }, { at: l.first_seen + 5 * 86400, price: l.pp }] : [{ at: l.first_seen, price: l.pp }];
       return { ...l, verdict: verdict(l), history: hist, similar: sim, attributes: {}, locked: true, fair_price: undefined, fair_ppm: undefined, excluded_reasons: l.excluded ? l.explain?.flags : undefined };
     }
+    // دادهٔ همین آگهی که سرور همراه صفحه فرستاده (یک بار؛ بعد از ورود/خروج دوباره از سرور خوانده می‌شود)
+    const pre = window.AD_PRELOAD;
+    if (pre && pre.id === id && pre.data) { window.AD_PRELOAD = null; return pre.data; }
     const r = await fetch("api/listing/" + encodeURIComponent(id), { headers: H() });
     return r.ok ? r.json() : null;
   }
