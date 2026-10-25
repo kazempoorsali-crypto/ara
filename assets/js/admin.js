@@ -625,7 +625,7 @@
       <div class="panel"><h2>ویدیوی معرفی صفحهٔ اول</h2>
         <p class="hint">ویدیو را در آپارات بارگذاری کنید و نشانی صفحهٔ آن را این‌جا بگذارید (مثلاً <span dir="ltr">https://www.aparat.com/v/AbCd1</span>). یوتیوب یا فایل مستقیم <span dir="ltr">mp4</span> هم پذیرفته می‌شود. با عوض کردن پیوند، ویدیوی سایت همان لحظه عوض می‌شود؛ تا خالی است، قاب «ویدیوی معرفی به‌زودی» نمایش داده می‌شود.</p>
         <div class="grid2">
-          <label class="field"><span>پیوند ویدیو</span><input class="input input--ltr" name="video_url" value="${esc(s.video_url || "")}" placeholder="https://www.aparat.com/v/..."></label>
+          <label class="field"><span>پیوند ویدیو</span><input class="input input--ltr" name="video_url" value="${esc(s.video_url || "")}" placeholder="https://www.aparat.com/v/... یا کد جاسازی آپارات"></label>
           <label class="field"><span>عنوان بخش</span><input class="input" name="video_title" value="${esc(s.video_title || "")}" placeholder="فرصت ملک در یک نگاه"></label>
         </div>
         <label class="field" style="margin-top:12px"><span>توضیح کوتاه زیر عنوان</span><textarea class="textarea" name="video_desc" rows="2">${esc(s.video_desc || "")}</textarea></label>

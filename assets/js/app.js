@@ -2518,12 +2518,17 @@ const App = (() => {
     const has = (a) => (l.amenities || []).includes(a);
     const amen = AMENITIES.map((a) => `<li class="${has(a.id) ? "" : "is-off"}">${icon(has(a.id) ? "check" : "x")}${a.name}</li>`).join("");
     const attrs = Object.entries(l.attributes || {}).filter(([, val]) => val && String(val).length < 80);
-    const divarBtn = l.locked
+    // آگهی در منبع حذف شده: از جست‌وجو و صفحهٔ اول بیرون رفته؛ پیوند قدیمی فقط پیام و مشابه‌ها را نشان می‌دهد
+    const gone = l.status === "removed";
+    const divarBtn = gone
+      ? `<div class="ad-gone">${icon("alert")}<div><b>این آگهی در منبع حذف شده است</b><span>فروش یا اجاره احتمالاً انجام شده یا آگهی‌دهنده آن را برداشته است. آگهی‌های مشابه پایین صفحه را ببینید.</span></div></div>`
+      : l.locked
       ? `<button class="btn btn--hot btn--block btn--lg" id="divarBtn">${icon("arrow")} مشاهده آگهی اصلی</button><p class="agent__note">پیوند مستقیم آگهی اصلی و جزئیات کامل ارزش‌گذاری برای مشترکان فعال است.</p>`
       : l.url ? `<a class="btn btn--hot btn--block btn--lg" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">${icon("arrow")} مشاهده آگهی اصلی</a><p class="agent__note">اطلاعات تماس و جزئیات بیشتر در آگهی اصلی است.</p>` : "";
     view().innerHTML = `
     <article class="wrap ad">
       <nav class="crumbs"><a href="/">خانه</a>${c ? `<span><a href="#/s?city=${c.id}&sort=score">${c.name}</a></span>` : ""}${l.district && c ? `<span><a href="#/s?city=${c.id}&district=${encodeURIComponent(l.district)}&sort=score">${esc(l.district)}</a></span>` : ""}<span>${UI.tt(l.title)}</span></nav>
+      ${gone ? `<div class="ad-gone ad-gone--top">${icon("alert")}<div><b>این آگهی در منبع حذف شده است</b><span>اطلاعات زیر آخرین وضعیت ثبت‌شده پیش از حذف است و دیگر قابل پیگیری نیست.</span></div></div>` : ""}
       <div class="gallery gallery--n${galN}" id="gal">${gal}</div>
       ${l.detail_pending && !imgs.length ? `<p class="note-soft small" style="margin-top:10px">${icon("info", 'width="16"')} عکس‌ها و مشخصات کامل این آگهی در نوبت اول دریافت قرار گرفت؛ چند دقیقه دیگر صفحه را تازه کنید.</p>` : ""}
       <div class="ad__grid">
@@ -2547,7 +2552,7 @@ const App = (() => {
           <section class="block"><h2>پیش از معامله</h2><ul class="check">${["دیدن اصل سند و تطبیق مشخصات با ملک", "استعلام وضعیت حقوقی، رهن و توقیف", "پایان‌کار و پروانه ساخت (ملک نوساز)", "بدهی عوارض، آب، برق و گاز", l.deal === "rent" ? "دریافت کد رهگیری اجاره‌نامه" : "تنظیم قرارداد با کد رهگیری"].map((x) => `<li>${x}</li>`).join("")}</ul></section>
           ${similarSection(l)}
         </div>
-        <aside class="agent" id="agent">
+        <aside class="agent" id="agent" data-lenis-prevent>
           <div class="desktop-only">${valuationCard(l)}</div>
           ${divarBtn}
           ${contactBox(l, c)}
@@ -2560,7 +2565,7 @@ const App = (() => {
         </aside>
       </div>
     </article>
-    <div class="mobile-cta">${l.locked ? `<button class="btn btn--hot" id="divarBtnM">مشاهده آگهی اصلی</button>` : l.url ? `<a class="btn btn--hot" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">مشاهده آگهی اصلی</a>` : ""}</div>`;
+    <div class="mobile-cta"><button class="btn btn--line mcta__ic" id="adFavM" aria-label="ذخیره">${icon("heart")}</button><button class="btn btn--line mcta__ic" data-adshare aria-label="اشتراک‌گذاری یا پوستر">${icon("share")}</button>${gone ? "" : l.locked ? `<button class="btn btn--hot" id="divarBtnM">مشاهده آگهی اصلی</button>` : l.url ? `<a class="btn btn--hot" href="${esc(l.url)}" target="_blank" rel="noopener nofollow">مشاهده آگهی اصلی</a>` : ""}</div>`;
     document.body.classList.add("has-mcta");
     document.title = `${l.title} | ${cfg.site.name}`;
     const cc = UI.cityOf(l.city_key), pos = l.latlng_exact || !cc ? [l.lat, l.lng] : [cc.lat, cc.lng];
@@ -2569,7 +2574,10 @@ const App = (() => {
     $("#gal").addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b) lightbox(l, imgs.length ? Math.min(+b.dataset.img, imgs.length - 1) : +b.dataset.img); });
     $("#openMapBtn")?.addEventListener("click", () => openMapModal(l, pos, cc));
     $("#mini")?.addEventListener("dblclick", () => openMapModal(l, pos, cc));
-    $("#adFav").addEventListener("click", (e) => { toggleFav(l.id); e.currentTarget.querySelector("span").textContent = state.favs.has(l.id) ? "ذخیره شد" : "ذخیره"; });
+    const favSync = () => { const on = state.favs.has(l.id); $("#adFav span").textContent = on ? "ذخیره شد" : "ذخیره"; $("#adFavM")?.classList.toggle("is-on", on); };
+    $("#adFav").addEventListener("click", () => { toggleFav(l.id); favSync(); });
+    $("#adFavM")?.addEventListener("click", () => { toggleFav(l.id); favSync(); });
+    favSync();
     $("#adReport")?.addEventListener("click", () => openReportDialog(l.id));
     const handleShare = async () => {
       // پنجرهٔ اشتراک مشترک سایت: پیوند (کپی، گوشی، تلگرام، واتساپ) یا پوستر استوری/پست

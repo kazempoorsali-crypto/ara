@@ -28,6 +28,28 @@ DIVAR_API = "https://api.divar.ir"
 PAGINATION_TYPE = "type.googleapis.com/post_list.PaginationData"
 
 
+REMOVED_TEXT = re.compile(r"(این آگهی|آگهی).{0,20}(حذف شده|منقضی شده|غیرفعال شده|دیگر در دسترس نیست|دیگر قابل نمایش نیست)")
+
+
+def removed_post(p) -> bool:
+    """پاسخ ۲۰۰ دیوار برای آگهی حذف‌شده: نه عنوان دارد نه عکس، یا پیام «این آگهی حذف شده» در ویجت‌هاست."""
+    if not isinstance(p, dict):
+        return False
+    secs = p.get("sections") or []
+    names = {s.get("section_name") for s in secs if isinstance(s, dict)}
+    if secs and not ({"TITLE", "IMAGE", "DESCRIPTION", "LIST_DATA"} & names):
+        return True
+    for s in secs:
+        if not isinstance(s, dict) or s.get("section_name") not in ("TITLE", "STATIC", "BANNER", "MESSAGE", None):
+            continue
+        for w in s.get("widgets") or []:
+            d = (w or {}).get("data") or {}
+            txt = " ".join(str(d.get(k) or "") for k in ("title", "subtitle", "text", "message", "description"))
+            if REMOVED_TEXT.search(txt):
+                return True
+    return False
+
+
 class SourceError(Exception):
     def __init__(self, msg, status=None, retry_after=None, quota=False):
         super().__init__(msg)
@@ -376,6 +398,8 @@ class DirectSource:
     def detail(self, token: str):
         _, _, text = _http("GET", f"{self.api}/v8/posts-v2/web/{token}", None, self.headers, self.timeout)
         p = json.loads(text)
+        if removed_post(p):
+            raise SourceError("آگهی در دیوار حذف یا منقضی شده است", status=410)
         sections = {s.get("section_name"): s.get("widgets", []) for s in p.get("sections", [])}
         out = {"token": token, "title": None, "description": None, "attributes": {}, "images": [],
                "category_text": "", "city_name": (p.get("city") or {}).get("name"), "district": None,

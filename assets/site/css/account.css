@@ -1246,3 +1246,8 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .art h2 { font-size: 1.25rem; margin: 30px 0 10px; }
 .art ul { padding-inline-start: 22px; } .art li { margin: 6px 0; }
 .art__cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 40px; }
+.vid__box { display: grid; gap: 10px; min-width: 0; }
+.vid__fs { justify-self: end; border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); background: transparent; color: inherit; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: .85rem; cursor: pointer; }
+.vid__fs:hover { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.vid__frame:fullscreen { border-radius: 0; border: 0; aspect-ratio: auto; }
+@media (max-width: 860px) { .vid__fs { justify-self: center; } }

@@ -135,6 +135,19 @@
       });
     });
 
+    /* ویدیوی معرفی: دکمهٔ تمام‌صفحه کنار پخش‌کننده (صدا و تمام‌صفحهٔ خود آپارات هم داخل پخش‌کننده هست).
+       آیفون تمام‌صفحهٔ iframe را پشتیبانی نمی‌کند؛ آن‌جا دکمهٔ تمام‌صفحهٔ داخل پخش‌کننده کار می‌کند و این دکمه پنهان است */
+    document.querySelectorAll("[data-vid-fs]").forEach(function (b) {
+      var box = b.parentNode.querySelector(".vid__frame"), v = box && box.querySelector("video");
+      var can = box && (box.requestFullscreen || box.webkitRequestFullscreen || (v && v.webkitEnterFullscreen));
+      if (!can) { b.hidden = true; return; }
+      b.addEventListener("click", function () {
+        if (box.requestFullscreen) box.requestFullscreen().catch(function () {});
+        else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+        else if (v) v.webkitEnterFullscreen();
+      });
+    });
+
     document.querySelectorAll("[data-scroll-to]").forEach(function (a) {
       a.addEventListener("click", function (e) {
         var id = a.getAttribute("href");

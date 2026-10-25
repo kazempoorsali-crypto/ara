@@ -16,6 +16,7 @@ import secrets
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -151,7 +152,9 @@ SECURITY_HEADERS = {
     "X-Permitted-Cross-Domain-Policies": "none",
     # اسکریپت و اتصال فقط از خود سایت؛ کاشی نقشه و عکس از https
     "Content-Security-Policy": ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-                                "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; "
+                                "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob: https:; "
+                                # ویدیوی معرفی صفحهٔ اول (پخش‌کنندهٔ آپارات یا یوتیوب در iframe)
+                                "frame-src 'self' https://www.aparat.com https://aparat.com https://www.youtube-nocookie.com https://www.youtube.com; "
                                 "frame-ancestors 'self'; base-uri 'self'; form-action 'self' https:; object-src 'none'"),
 }
 
@@ -818,7 +821,7 @@ class Handler(BaseHTTPRequestHandler):
         if not f.is_file():
             from divar_client import NET, _opener, _system_proxies
             req = urllib.request.Request(u, headers={"user-agent": "Mozilla/5.0", "referer": "https://divar.ir/" if "divar" in host else "https://www.sheypoor.com/"})
-            data = None
+            data, gone = None, False
             for proxy in [NET["proxy"]] + (["none"] if NET["proxy"] == "auto" and _system_proxies() else []):
                 try:
                     with _opener(proxy).open(req, timeout=15) as r:
@@ -827,8 +830,13 @@ class Handler(BaseHTTPRequestHandler):
                             break  # تغییر مسیر به میزبان دیگر (جلوگیری از سوءاستفاده برای دسترسی به نشانی‌های داخلی)
                         data = r.read(6_000_000)
                     break
+                except urllib.error.HTTPError as e:
+                    gone = e.code in (404, 410)
+                    break
                 except Exception:  # noqa: BLE001
                     continue
+            if gone:
+                self.recheck_by_image(u)
             # فقط عکس واقعی (JPEG، PNG، WebP، GIF) ذخیره و نمایش داده می‌شود
             if data and not (data[:3] == b"\xff\xd8\xff" or data[:4] == b"\x89PNG" or data[8:12] == b"WEBP" or data[:4] == b"GIF8"):
                 data = None
@@ -941,6 +949,26 @@ class Handler(BaseHTTPRequestHandler):
             d["contact_mode"] = disp["contact_mode"]
         return d
 
+    def queue_recheck(self, ids):
+        """آگهی‌ها در صف بازبینی فوری؛ اگر در منبع حذف شده باشند وضعیتشان «حذف‌شده» می‌شود و از سایت می‌روند."""
+        a = self.app
+        again = a.store.get_setting("recheck_wanted") or []
+        new = [i for i in ids if i not in again]
+        if new:
+            a.store.set_setting("recheck_wanted", (new + again)[:300])
+            a.ingest.poke()
+
+    def recheck_by_image(self, u):
+        """عکس آگهی در دیوار/شیپور دیگر نیست: معمولاً یعنی آگهی حذف شده؛ آگهی‌های صاحب این عکس بازبینی می‌شوند."""
+        name = urllib.parse.urlsplit(u).path.rsplit("/", 1)[-1]
+        if len(name) < 8 or "%" in name:
+            return
+        now = int(time.time())
+        rows = self.app.store.q("""SELECT id FROM listings WHERE status='active' AND (images LIKE ? OR image LIKE ?)
+                                   AND COALESCE(checked_at, detail_at, 0) < ? LIMIT 5""",
+                                (f"%{name}%", f"%{name}%", now - 3600))
+        self.queue_recheck([r["id"] for r in rows])
+
     def listing_payload(self, lid, u):
         """دادهٔ کامل صفحهٔ یک آگهی (همان پاسخ /api/listing) برای کاربر u؛ None اگر نبود."""
         a = self.app
@@ -955,6 +983,9 @@ class Handler(BaseHTTPRequestHandler):
                 a.store.set_setting("detail_wanted", ([d["id"]] + wanted)[:200])
                 a.ingest.poke()
             d["detail_pending"] = True
+        elif d.get("status") == "active" and d.get("source") in ("divar", "sheypoor") \
+                and time.time() - (d.get("checked_at") or d.get("detail_at") or 0) > 12 * 3600:
+            self.queue_recheck([d["id"]])  # آگهی باز شد و مدتی بازبینی نشده: شاید در منبع حذف شده باشد
         d["similar"] = [self.gate(x, u) for x in self.similar(d)]
         if d.get("excluded"):
             d["excluded_reasons"] = (d.get("explain") or {}).get("flags", [])

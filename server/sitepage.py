@@ -226,11 +226,12 @@ def articles_html(app) -> str:
 def video_embed(url: str):
     """پیوند ویدیو ← (نوع، نشانی جاسازی). آپارات: aparat.com/v/HASH؛ یوتیوب؛ یا فایل مستقیم mp4/webm."""
     u = (url or "").strip()
-    if not u.startswith("https://"):
-        return None
-    m = re.search(r"aparat\.com/(?:v|video/video/embed/videohash)/([A-Za-z0-9]+)", u)
+    # پیوند صفحهٔ ویدیو، پیوند کوتاه، یا کد جاسازی کامل (iframe یا script) که آپارات می‌دهد
+    m = re.search(r"aparat\.com/(?:v|embed|video/video/embed/videohash)/([A-Za-z0-9]{3,32})", u)
     if m:
         return ("iframe", f"https://www.aparat.com/video/video/embed/videohash/{m.group(1)}/vt/frame")
+    if not u.startswith("https://"):
+        return None
     m = re.search(r"(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([\w-]{6,20})", u)
     if m:
         return ("iframe", f"https://www.youtube-nocookie.com/embed/{m.group(1)}")
@@ -256,7 +257,9 @@ def video_html(app) -> str:
     return (f'<section class="vid" id="video" aria-labelledby="vidT"><div class="vid__in">'
             f'<div class="vid__txt"><p class="eyebrow">معرفی فرصت ملک</p><h2 class="section-title" id="vidT">{title}</h2><p class="section-sub">{desc}</p>'
             f'<div class="vid__acts"><a class="btn btn--gold" href="#homefilter" data-scroll-to>شروع جست‌وجو</a><a class="btn btn--ghost" href="/maghale/asansor-arzesh">آسانسور ارزش ←</a></div></div>'
-            f'<div class="vid__frame">{player}</div></div></section>')
+            f'<div class="vid__box"><div class="vid__frame">{player}</div>'
+            + ('<button type="button" class="vid__fs" data-vid-fs>⛶ نمایش تمام‌صفحه</button>' if emb else "")
+            + '</div></div></section>')
 
 
 def inject(html: bytes, data: dict) -> bytes:
