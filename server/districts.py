@@ -33,13 +33,16 @@ def tokens(name: str | None) -> list:
     return [t for t in re.split(r"[\s،,\-/]+", s) if t]
 
 
-def is_junk(name: str | None, city_name: str | None = None) -> bool:
+def is_junk(name: str | None, city_name: str | None = None, province_name: str | None = None) -> bool:
     s = norm(name).strip()
     if not s:
         return True
     if JUNK.search(s):
         return True
-    return bool(city_name) and core(s) == core(city_name)
+    # نام خود شهر یا استانِ همان شهر («گیلان» در صومعه‌سرا) محله نیست
+    # برای استان فقط برابری کامل نام (بدون حذف پیشوند): «بلوار گیلان» محلهٔ واقعی است، «گیلان» نیست
+    flat = lambda t: norm(t).replace(" ", "").replace("\u200c", "")
+    return (bool(city_name) and core(s) == core(city_name)) or (bool(province_name) and flat(s) == flat(province_name))
 
 
 def matches(want: str, district: str | None) -> bool:
@@ -74,9 +77,11 @@ def fix_districts(store) -> dict:
     updates, stats = [], {"junk": 0, "merged": 0, "inferred": 0}
     for city, items in by_city.items():
         cname = next((x["city_name"] for x in items if x.get("city_name")), None)
+        import catalog as _cat
+        pname = (_cat.PROVINCES.get((_cat.CITY_BY_KEY.get(city) or {}).get("province")) or {}).get("name")
         # ۱. حذف مقدارهای بی‌معنا
         for x in items:
-            if x["district"] and is_junk(x["district"], cname):
+            if x["district"] and is_junk(x["district"], cname, pname):
                 x["_new"] = None
                 stats["junk"] += 1
         # ۲. یکی کردن شکل‌های یک نام: پرتکرارترین شکل

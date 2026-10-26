@@ -646,6 +646,11 @@ class Handler(BaseHTTPRequestHandler):
                     body = body.replace('<footer class="foot', fold + '    <footer class="foot', 1)
                 return self.send_text(body, "text/html; charset=utf-8", cache="private, no-cache")
             p = seo.page(self.app, self.base_url(), url.path) if not url.path.startswith(("/assets/", "/admin")) else None
+            if p is not None and p.get("redirect"):
+                self.send_response(301)
+                self.send_header("location", urllib.parse.quote(p["redirect"], safe="/"))
+                self.end_headers()
+                return None
             if p is not None:
                 tpl = self.page_html((ROOT / "app.html").read_bytes()).decode()
                 body = seo.render(tpl, p, VERSION)
