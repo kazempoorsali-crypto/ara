@@ -105,7 +105,7 @@ id: l.id,
       locked: !!l.locked,
       fairPrice: l.fair_price || (l.verdict && l.verdict.fair) || 0,
       fairPpm: l.fair_ppm || (l.verdict && l.verdict.fair_ppm) || 0,
-      profit: l.estimated_profit || (l.verdict && l.verdict.estimated_profit) || (l.fair_price && price && l.fair_price > price ? l.fair_price - price : 0),
+      profit: l.estimated_profit || (l.verdict && l.verdict.estimated_profit) || 0,   // فقط سود محتاطانهٔ فرصت‌ها؛ نه فاصلهٔ خام تا برآورد
       why: l.why || null,
     };
   };

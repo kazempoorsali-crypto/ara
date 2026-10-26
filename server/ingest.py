@@ -48,6 +48,17 @@ DEFAULT_EXPANSION = {"auto": True, "active": list(catalog.NORTH), "order": list(
                      "threshold": 0.9, "deep_pages": 30, "log": []}
 
 
+
+def _value_proc(path: str, th):
+    """اجرای بازمحاسبه در فرایند فرزند با اتصال جداگانهٔ خودش به پایگاه داده و اولویت پایین پردازنده."""
+    try:
+        os.nice(10)
+    except Exception:  # noqa: BLE001
+        pass
+    from pathlib import Path
+    from store import Store
+    return valuation.recompute(Store(Path(path)), th)
+
 class Ingestor:
     def __init__(self, store):
         self.store = store
@@ -244,12 +255,26 @@ class Ingestor:
                 D.GEO_WAKE.wait(600)
 
     def run_valuation(self):
-        """بازمحاسبه قیمت منصفانه، پاک‌سازی و امتیاز همه آگهی‌ها."""
+        """بازمحاسبه قیمت منصفانه، پاک‌سازی و امتیاز همه آگهی‌ها.
+        در فرایند جدا و با اولویت پایین اجرا می‌شود: محاسبهٔ سنگین چند ده‌ثانیه‌ای دیگر قفل پایگاه داده و پردازندهٔ
+        سرور وب را نمی‌گیرد (پیش‌تر در همین فرایند، هر درخواست سایت در این مدت چند ثانیه منتظر می‌ماند)."""
         if not self.valuing.acquire(blocking=False):
             return None
         try:
             self.dirty = 0
-            return valuation.recompute(self.store, self.store.get_setting("thresholds"))
+            th = self.store.get_setting("thresholds")
+            path = getattr(self.store, "path", None)
+            if path and os.environ.get("ARA_VALUE_INPROC") != "1":
+                try:
+                    import concurrent.futures as cf
+                    import multiprocessing as mp
+                    with cf.ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as ex:
+                        info = ex.submit(_value_proc, str(path), th).result(timeout=1800)
+                    self.store._median_cache = (0, {})
+                    return info
+                except Exception:  # noqa: BLE001  فرایند جدا ممکن نشد: همان روش قبلی
+                    traceback.print_exc()
+            return valuation.recompute(self.store, th)
         except Exception:
             traceback.print_exc()
             return None
@@ -259,7 +284,8 @@ class Ingestor:
     def value_loop(self):
         last = 0
         while not self.stop.is_set():
-            if self.dirty >= 25 or (self.dirty and time.time() - last > 600) or not last:
+            # بیش از هر ۵ دقیقه یک بار نه (با دریافت پیوسته، هر ۲۵ تغییر یعنی تقریباً همیشه در حال محاسبه)
+            if (self.dirty >= 25 and time.time() - last > 300) or (self.dirty and time.time() - last > 600) or not last:
                 self.run_valuation()
                 last = time.time()
             self.stop.wait(20)

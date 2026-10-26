@@ -350,7 +350,7 @@
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
-      (p.fairPrice && showFreeFair ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;text-align:center;">💎 ارزش کارشناسی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : (p.locked ? '<span class="ncard__lock" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(213,166,38,0.13);color:#b8860b;font-size:12px;font-weight:700;">💎 ارزش کارشناسی و سود خالص: <i>🔒 ویژه اعضا</i></span>' : '')) + "</span>";
+      (p.fairPrice && showFreeFair ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;text-align:center;">💎 ارزش برآوردی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : (p.locked ? '<span class="ncard__lock" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(213,166,38,0.13);color:#b8860b;font-size:12px;font-weight:700;">💎 ارزش کارشناسی و سود خالص: <i>🔒 ویژه اعضا</i></span>' : '')) + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8).map(function (u) { return FM.thumb(u); }));
     return a;
   }

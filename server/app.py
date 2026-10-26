@@ -934,7 +934,7 @@ class Handler(BaseHTTPRequestHandler):
                 d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
             ex = d.get("explain") or {}
             if full:
-                keep = ("estimated_profit", "base_ppm", "fair_low", "fair_high", "adj", "effects", "district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial", "caution", "sus", "flags")
+                keep = ("estimated_profit", "base_ppm", "fair_low", "fair_high", "adj", "effects", "district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial", "caution", "sus", "flags", "deed_weak", "unknown")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
                 if ex.get("presale"):  # مشخصات پیش‌فروش بله، مرجع قیمت و نسبت (که قیمت منصفانه را لو می‌دهد) نه
                     d["explain"]["presale"] = {k: ex["presale"].get(k) for k in ("months", "months_assumed", "progress", "installments")}
@@ -997,7 +997,7 @@ class Handler(BaseHTTPRequestHandler):
     def similar(self, d):
         """مشابه‌ها: همان محله و نوع و معامله، هم‌خواب، نزدیک‌ترین متراژ؛ هر کدام با قیمت محلهٔ خودش."""
         s = self.app.store
-        base = {"city": d["city_key"], "deal": d["deal"], "kinds": d.get("kind") or "", "limit": 60, "sort": "score"}
+        base = {"city": d["city_key"], "deal": d["deal"], "kinds": d.get("kind") or "", "limit": 60, "sort": "score", "_lite": 1}
         pool = []
         if d.get("district"):
             pool = s.search({**base, "district": d["district"], **({"rooms": d["rooms"]} if d.get("rooms") is not None else {})})["items"]
@@ -1046,7 +1046,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/listings":
             u = self.user()
             sub = bool(u and u["active"])
-            qs = dict(qs)
+            qs = dict(qs); qs.pop("_lite", None)
             if qs.get("sus") and not sub:
                 qs.pop("sus")
             r = a.store.search(qs)

@@ -237,7 +237,8 @@ const DataLayer = (() => {
 
   async function search(f) {
     if (useSamples) return localSearch(f);
-    return json(await fetch("api/listings?" + qs(f), { headers: H() }));
+    // نقطه‌های نقشه (تا ۳۰۰۰ مورد، چند صد کیلوبایت) فقط برای صفحهٔ جست‌وجو که نقشه دارد
+    return json(await fetch("/api/listings?" + qs(f.points ? f : { ...f, points: "0" }), { headers: H() }));
   }
   async function get(id) {
     if (useSamples || id.startsWith("smp-")) {
