@@ -155,7 +155,7 @@
         var id = a.getAttribute("href");
         if (!id || id.charAt(0) !== "#") return;
         var t = document.querySelector(id);
-        if (!t) return;
+        if (!t) { if (location.pathname !== "/") { e.preventDefault(); location.href = "/" + id; } return; }
         e.preventDefault();
         var wasMenu = document.body.classList.contains("menu-open");
         closeMenu();
