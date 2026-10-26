@@ -96,6 +96,7 @@ class Billing:
     def __init__(self, store):
         self.store = store
         self.bale = None   # در App مقداردهی می‌شود
+        self.telegram = None
         from accounts import ensure_schema
         ensure_schema(store)
 
@@ -305,10 +306,12 @@ class Billing:
             self.store.x("UPDATE payments SET status='paid', paid_at=?, ref_id=? WHERE id=?", (now, ref, pay_id))
         if notify:
             self.notify_active(phone, days)
-            if self.bale:   # رسید فوری در بله (اگر کاربر ربات را آغاز کرده باشد)
-                pay = self.store.q("SELECT amount, id FROM payments WHERE id=?", (pay_id,), one=True) if pay_id else None
+            pay = self.store.q("SELECT amount, id FROM payments WHERE id=?", (pay_id,), one=True) if pay_id else None
+            for bot in (self.bale, self.telegram):   # رسید فوری در بله و تلگرام (اگر کاربر ربات را وصل کرده باشد)
+                if not bot:
+                    continue
                 try:
-                    self.bale.notify_paid(phone, plan["name"] if plan else plan_id, days, until, pay["amount"] if pay else 0, pay["id"] if pay else 0)
+                    bot.notify_paid(phone, plan["name"] if plan else plan_id, days, until, pay["amount"] if pay else 0, pay["id"] if pay else 0)
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -571,13 +574,14 @@ class Billing:
         import threading
 
         def run():
-            try:
-                if self.bale and self.bale.ready():
-                    chat = self.bale.chat_of(phone)
-                    if chat:
-                        self.bale.send(chat, text)
-            except Exception:  # noqa: BLE001
-                pass
+            for bot in (self.bale, self.telegram):   # بله و تلگرام (هر کدام که کاربر وصل کرده باشد)
+                try:
+                    if bot and bot.ready() and bot.cfg().get("notify", True):
+                        chat = bot.chat_of(phone)
+                        if chat:
+                            bot.send(chat, text)
+                except Exception:  # noqa: BLE001
+                    pass
             s = self.sms_cfg()
             tpl = s.get(sms_template_key) if sms_template_key else None
             if tpl and self.sms_live():

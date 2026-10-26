@@ -569,6 +569,6 @@
     const q = Object.fromEntries(new URLSearchParams(location.search));
     if (q.invoice) invoicePage(q.invoice);
     else if (q.token) resetPage(q);
-    else accountPage(q);
+    else { accountPage(q); if (q.subscribe) subscribeDialog(); }   // پیوند «فعال‌سازی اشتراک» از ربات تلگرام
   }).catch(() => { if (onAccountPage()) view().innerHTML = '<div class="empty"><h3>ارتباط با سرور برقرار نشد</h3><p>کمی بعد دوباره امتحان کنید.</p></div>'; });
 })();

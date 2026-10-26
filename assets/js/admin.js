@@ -532,17 +532,20 @@
         <p class="hint">وضعیت: ${S.bale_state?.running ? "در حال کار" : "خاموش (توکن یا نام ربات وارد نشده)"}${S.bale_state?.last_ok ? "، آخرین ارتباط موفق " + when(S.bale_state.last_ok) : ""}${S.bale_state?.last_error ? `، آخرین خطا: <span class="bad">${esc(S.bale_state.last_error)}</span>` : ""}؛ ${S.bale_state?.links || 0} کاربر ربات را وصل کرده‌اند.</p>
         <button type="button" class="btn btn--line" id="baleTest">آزمون اتصال ربات</button> <span id="baleRes" class="small"></span>
       </div>
-      <div class="panel"><h2>پیام‌رسان تلگرام: هشدار «خبرم کن»</h2>
+      <div class="panel"><h2>ربات تلگرام: دستیار هوشمند، پشتیبانی و هشدار «خبرم کن»</h2>
         <ol class="hint" style="line-height:2.1;padding-inline-start:18px">
           <li>در تلگرام، ربات <b dir="ltr">@BotFather</b> را باز کنید، دستور <b dir="ltr">/newbot</b> را بزنید و نام و نام کاربری ربات را بدهید؛ توکن را این‌جا بگذارید.</li>
-          <li>«ذخیره» و سپس «آزمون اتصال» را بزنید. کاربر در «خبرم کن» گزینهٔ تلگرام را انتخاب می‌کند، یک بار ربات را باز و «Start» را می‌زند و از آن پس هشدارها در تلگرام می‌آید.</li>
+          <li>«ذخیره» و سپس «آزمون اتصال» را بزنید. کاربر ربات را باز و «Start» را می‌زند؛ منوی فارسی ظاهر می‌شود و با «👤 حساب من» شماره‌اش را تأیید می‌کند تا اشتراکش شناخته شود. در «خبرم کن» سایت هم گزینهٔ تلگرام هست.</li>
           <li><b>مهم:</b> اگر سرور در ایران است، سرور تلگرام (api.telegram.org) فقط با پروکسی خروجی در دسترس است؛ همان پروکسی بخش «دریافت آگهی‌ها» برای تلگرام هم به کار می‌رود. اگر آزمون اتصال خطا داد، پروکسی را بررسی کنید.</li>
         </ol>
         <div class="grid2">
           <label class="field"><span>توکن ربات تلگرام</span><input class="input input--ltr" name="tg_token" value="${esc(S.telegram?.token || "")}" placeholder="123456789:AA..."></label>
           <label class="field"><span>نام کاربری ربات (بدون @)</span><input class="input input--ltr" name="tg_bot" value="${esc(S.telegram?.bot_username || "")}" placeholder="forsatmelk_bot"></label>
         </div>
-        <label class="switch"><input type="checkbox" name="tg_alerts" ${S.telegram?.alerts !== false ? "checked" : ""}><i></i>ارسال هشدار «خبرم کن» در تلگرام فعال باشد</label>
+        <label class="switch"><input type="checkbox" name="tg_assistant" ${S.telegram?.assistant !== false ? "checked" : ""}><i></i>دستیار هوشمند فارسی (منو، جست‌وجوی شهر و محله، شکارهای طلایی، رادار، ماشین‌حساب، قیمت محله، پرسش‌ها و تیکت پشتیبانی)</label><br>
+        <label class="switch"><input type="checkbox" name="tg_alerts" ${S.telegram?.alerts !== false ? "checked" : ""}><i></i>ارسال هشدار «خبرم کن» در تلگرام فعال باشد</label><br>
+        <label class="switch"><input type="checkbox" name="tg_notify" ${S.telegram?.notify !== false ? "checked" : ""}><i></i>رسید پرداخت، پاسخ تیکت‌ها و یادآوری تمدید اشتراک در تلگرام</label>
+        <p class="hint">پرسشی که ربات پاسخ مطمئنش را ندارد، با تأیید کاربر به‌صورت تیکت در بخش «پشتیبانی» همین پنل ثبت می‌شود و پاسخ شما خودکار در تلگرام به کاربر می‌رسد.</p>
         <p class="hint">وضعیت: ${S.telegram_state?.running ? "در حال کار" : "خاموش (توکن یا نام ربات وارد نشده)"}${S.telegram_state?.last_ok ? "، آخرین ارتباط موفق " + when(S.telegram_state.last_ok) : ""}${S.telegram_state?.last_error ? `، آخرین خطا: <span class="bad">${esc(S.telegram_state.last_error)}</span>` : ""}؛ ${fa(S.telegram_state?.links || 0)} کاربر ربات را وصل کرده‌اند و ${fa(S.telegram_state?.alerts || 0)} هشدار فعال تلگرامی هست.</p>
         <button type="button" class="btn btn--line" id="tgTest">آزمون اتصال ربات تلگرام</button> <span id="tgRes" class="small"></span>
       </div>
@@ -607,7 +610,7 @@
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
-        telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked },
+        telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked, assistant: f.tg_assistant.checked, notify: f.tg_notify.checked },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
         sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), ticket_template: f.ticket_template.value.trim(), reply_template: f.reply_template.value.trim(), dev_mode: f.dev_mode.checked },
       };
