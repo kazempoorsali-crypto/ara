@@ -173,6 +173,17 @@ def _top(handler, user=None):
     return [_trim(handler.gate(dict(x), user)) for x in clean_top[:24]]
 
 
+def fa_num(n) -> str:
+    """عدد با رقم فارسی و جداکنندهٔ هزارگان."""
+    return f"{n:,}".translate(str.maketrans("0123456789,", "۰۱۲۳۴۵۶۷۸۹٬"))
+
+
+def html_class(html: str, cls: str) -> str:
+    """افزودن یک کلاس به <html> صفحه (پیش از اجرای هر اسکریپتی)."""
+    return re.sub(r"<html\b([^>]*)>", lambda m: m.group(0) if cls in m.group(1) else
+                  ("<html" + re.sub(r'class="', f'class="{cls} ', m.group(1), 1) + ">" if 'class="' in m.group(1) else "<html" + m.group(1) + f' class="{cls}">'), html, count=1)
+
+
 def mark_sub(html: str) -> str:
     """مشترک: نشانهٔ is-sub از همان اول روی <html> تا قفل‌ها حتی یک لحظه دیده نشوند."""
     return re.sub(r"<html\b([^>]*)>", lambda m: m.group(0) if "is-sub" in m.group(1) else

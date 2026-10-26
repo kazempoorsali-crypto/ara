@@ -839,3 +839,33 @@ a.hero__stat:hover b { color: #ecd07c; }
 
 /* Hide any legacy demo banner */
 .demo-bar, .preview-bar, .mock-banner, [data-demo-banner], #demoBanner { display: none !important; }
+
+/* ---------- سربرگ و منو در لپ‌تاپ‌ها (۱۰۸۰ تا ۱۴۴۰ پیکسل، مثلاً بزرگ‌نمایی ۱۲۵٪ یا ۱۵۰٪ ویندوز) ---------- */
+/* هیچ گزینه‌ای دو خطی نشود؛ به‌جایش فاصله‌ها کم و گزینه‌های کم‌اهمیت‌تر به منوی سه‌خطی سپرده می‌شوند */
+.nav__links a, .nav__txt b, .nav__txt small, .nav__cta { white-space: nowrap; }
+@media (max-width: 1440px) {
+  .nav__inner { gap: 1rem; padding: 0 1.1rem; }
+  .nav__links { gap: 1rem; }
+  .nav__links a { font-size: .84rem; }
+  .nav__act { gap: .55rem; }
+  .nav__cta { padding: .55rem 1.05rem; font-size: .84rem; }
+}
+@media (max-width: 1340px) {
+  .nav__links .nav__ticket, .nav__links a[href="#problem"] { display: none; }
+  .nav__txt small { display: none; }
+}
+@media (max-width: 1200px) {
+  .nav__links a[href="/maghale"] { display: none; }
+  .nav__iconbtn { width: 40px; height: 40px; }
+  .nav__ham { width: 42px; height: 42px; }
+}
+/* منوی سه‌خطی: اندازهٔ متن به ارتفاع صفحه هم وابسته است و اگر جا نشد، خود منو اسکرول می‌خورد */
+.menu__grid { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.menu__txt { font-size: clamp(1.1rem, min(3.2vw, 4.4vh), 2.3rem); }
+.menu__link { padding: min(.8rem, 1.4vh) 0; }
+@media (max-height: 820px) {
+  .menu__grid { align-items: start; padding-top: calc(var(--nav-h) + 1rem); padding-bottom: 1.5rem; }
+  .menu__head { margin-bottom: .8rem; }
+  .menu__foot { margin-top: 1rem; }
+  .menu__visual { height: min(66vh, 560px); }
+}

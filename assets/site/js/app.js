@@ -77,11 +77,12 @@
     var intro = document.getElementById("intro");
     if (!intro) return done();
     var seen = false;
-    try { seen = sessionStorage.getItem("fmIntro2") === "1"; } catch (e) {}
+    try { seen = sessionStorage.getItem("fmIntro2") === "1" || localStorage.getItem("fmIntroSeen") === "1"; } catch (e) {}
+    if (document.documentElement.classList.contains("intro-fast")) seen = true;
 
     function finish() {
       if (finish._d) return; finish._d = true;
-      try { sessionStorage.setItem("fmIntro2", "1"); } catch (e) {}
+      try { sessionStorage.setItem("fmIntro2", "1"); localStorage.setItem("fmIntroSeen", "1"); } catch (e) {}
       intro.classList.add("is-done");
       setTimeout(function () { intro.style.display = "none"; }, 1000);
       FM.startScroll();
@@ -99,7 +100,7 @@
        منتظر بار شدن همهٔ عکس‌ها نمی‌مانیم (روی اینترنت کند همین چند ثانیه معطلی می‌ساخت) */
     if (seen) return finish();
     FM.stopScroll();
-    var minMs = LITE ? 500 : 1300, done2 = false;
+    var minMs = LITE ? 400 : 900, done2 = false;
     function go() {
       if (done2) return; done2 = true;
       setTimeout(function () {
@@ -148,24 +149,6 @@
       });
     });
 
-    /* تمام‌صفحه (دکمهٔ خود آپارات یا «نمایش تمام‌صفحه»): دکمهٔ «برگشت» گوشی فقط از تمام‌صفحه بیرون می‌آید و از سایت خارج نمی‌شود؛
-       با ورود به تمام‌صفحه یک قدم در تاریخچهٔ همین صفحه ثبت می‌شود و اگر کاربر خودش (Esc یا دکمهٔ پخش‌کننده) بیرون آمد، همان قدم برداشته می‌شود */
-    var fsDismiss = null;
-    function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
-    function onFs() {
-      if (fsEl() && !fsDismiss && window.FM && FM.backable) {
-        fsDismiss = FM.backable(fsEl(), function () {
-          fsDismiss = null;
-          if (!fsEl()) return;
-          if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
-          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        });
-      } else if (!fsEl() && fsDismiss) {
-        var d = fsDismiss; fsDismiss = null; d();
-      }
-    }
-    document.addEventListener("fullscreenchange", onFs);
-    document.addEventListener("webkitfullscreenchange", onFs);
 
     document.querySelectorAll("[data-scroll-to]").forEach(function (a) {
       a.addEventListener("click", function (e) {

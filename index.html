@@ -15,7 +15,8 @@
   <script src="/assets/site/js/theme-auto.js"></script>
   <script>
     // صفحهٔ بارگذاری: بار دوم در همین زبانه کوتاه‌تر پخش شود
-    try { if (sessionStorage.getItem("fmIntro2") === "1") document.documentElement.classList.add("intro-fast"); } catch (e) {}
+    // پردهٔ ابتدایی فقط یک بار برای هر بازدیدکننده (نه هر بار که مرورگر بسته و باز شود)
+    try { if (sessionStorage.getItem("fmIntro2") === "1" || localStorage.getItem("fmIntroSeen") === "1") document.documentElement.classList.add("intro-fast"); } catch (e) {}
     (function () {
       // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
       var h = location.hash, m;
@@ -124,7 +125,7 @@
   <!-- ══════════ منوی تمام‌صفحه ══════════ -->
   <div class="menu" id="menu" aria-hidden="true" role="dialog" aria-label="منوی اصلی">
     <div class="menu__bg"></div>
-    <div class="menu__grid">
+    <div class="menu__grid" data-lenis-prevent>
       <div class="menu__visual" aria-hidden="true">
         <div class="menu__imgs-track" data-menu-track>
           <figure class="menu__img is-1"><img src="/assets/img/cards/idea-1.jpeg" alt=""></figure>
