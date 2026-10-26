@@ -542,6 +542,8 @@
           <label class="field"><span>توکن ربات تلگرام</span><input class="input input--ltr" name="tg_token" value="${esc(S.telegram?.token || "")}" placeholder="123456789:AA..."></label>
           <label class="field"><span>نام کاربری ربات (بدون @)</span><input class="input input--ltr" name="tg_bot" value="${esc(S.telegram?.bot_username || "")}" placeholder="forsatmelk_bot"></label>
         </div>
+        <label class="field"><span>نشانی واسط تلگرام (اگر سرور در ایران است)</span><input class="input input--ltr" name="tg_api" value="${esc(S.telegram?.api_base || "")}" placeholder="https://forsatmelk-tg.yourname.workers.dev"></label>
+        <p class="hint">سرورهای ایران به api.telegram.org دسترسی ندارند (خطای «Network is unreachable»). یک واسط رایگان در Cloudflare Workers بسازید (راهنما: فایل <b dir="ltr">deploy/telegram-relay-worker.js</b>) و نشانی آن را این‌جا بگذارید. خالی یعنی اتصال مستقیم.</p>
         <label class="switch"><input type="checkbox" name="tg_assistant" ${S.telegram?.assistant !== false ? "checked" : ""}><i></i>دستیار هوشمند فارسی (منو، جست‌وجوی شهر و محله، شکارهای طلایی، رادار، ماشین‌حساب، قیمت محله، پرسش‌ها و تیکت پشتیبانی)</label><br>
         <label class="switch"><input type="checkbox" name="tg_alerts" ${S.telegram?.alerts !== false ? "checked" : ""}><i></i>ارسال هشدار «خبرم کن» در تلگرام فعال باشد</label><br>
         <label class="switch"><input type="checkbox" name="tg_notify" ${S.telegram?.notify !== false ? "checked" : ""}><i></i>رسید پرداخت، پاسخ تیکت‌ها و یادآوری تمدید اشتراک در تلگرام</label>
@@ -610,7 +612,7 @@
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
-        telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked, assistant: f.tg_assistant.checked, notify: f.tg_notify.checked },
+        telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked, assistant: f.tg_assistant.checked, notify: f.tg_notify.checked, api_base: f.tg_api.value.trim() },
         bale: { token: f.bale_token.value.trim(), bot_username: f.bale_bot.value.trim(), provider_token: f.bale_provider.value.trim(), otp: f.bale_otp.checked, pay: f.bale_pay.checked, notify: f.bale_notify.checked },
         sms: { provider: f.provider.value, username: f.username.value.trim(), api_key: f.api_key.value.trim(), template: f.template.value.trim(), notify_template: f.notify_template.value.trim(), ticket_template: f.ticket_template.value.trim(), reply_template: f.reply_template.value.trim(), dev_mode: f.dev_mode.checked },
       };

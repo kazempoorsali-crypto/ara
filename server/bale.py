@@ -68,7 +68,7 @@ class Bale:
     def call(self, method, body=None, timeout=30):
         from divar_client import NET, _opener
         c = self.cfg()
-        req = urllib.request.Request(self.API.format(token=c["token"], method=method),
+        req = urllib.request.Request(self.api_url(c, method),
                                      data=json.dumps(body or {}).encode(), method="POST",
                                      headers={"content-type": "application/json"})
         with _opener(NET["proxy"]).open(req, timeout=timeout) as r:
@@ -76,6 +76,9 @@ class Bale:
         if not res.get("ok"):
             raise RuntimeError(res.get("description") or "خطای " + self.NAME)
         return res.get("result")
+
+    def api_url(self, c, method) -> str:
+        return self.API.format(token=c["token"], method=method)
 
     def send(self, chat_id, text, **extra):
         try:
@@ -277,7 +280,8 @@ class Bale:
 TG_API = "https://api.telegram.org/bot{token}/{method}"
 DEFAULT_TG = {"token": "", "bot_username": "", "alerts": True,
               "assistant": True,   # دستیار هوشمند: منو، جست‌وجو، ماشین‌حساب، پرسش‌ها و پشتیبانی (tgbot.py)
-              "notify": True}      # رسید پرداخت، پاسخ تیکت و یادآوری تمدید در تلگرام
+              "notify": True,      # رسید پرداخت، پاسخ تیکت و یادآوری تمدید در تلگرام
+              "api_base": ""}      # نشانی واسط (مثلاً Cloudflare Worker) وقتی api.telegram.org از سرور فیلتر است
 
 
 class Telegram(Bale):
@@ -299,6 +303,26 @@ class Telegram(Bale):
 
     def link_url(self, payload: str) -> str:
         return f"https://t.me/{self.cfg()['bot_username'].lstrip('@')}?start={payload}"
+
+    def api_url(self, c, method) -> str:
+        base = (c.get("api_base") or "").strip().rstrip("/") or "https://api.telegram.org"
+        return f"{base}/bot{c['token']}/{method}"
+
+    def call(self, method, body=None, timeout=30):
+        import urllib.error
+        try:
+            return super().call(method, body, timeout)
+        except urllib.error.HTTPError as e:   # تلگرام خطا را با کد HTTP و متن JSON برمی‌گرداند (مثلاً توکن نادرست)
+            try:
+                desc = json.loads(e.read().decode() or "{}").get("description") or ""
+            except Exception:  # noqa: BLE001
+                desc = ""
+            raise RuntimeError(("توکن ربات نادرست است یا باطل شده" if e.code == 401 else f"خطای تلگرام {e.code}") + (f" ({desc})" if desc else "")) from None
+        except (urllib.error.URLError, OSError) as e:
+            via = (self.cfg().get("api_base") or "").strip()
+            raise RuntimeError(("نشانی واسط تلگرام در دسترس نیست یا درست کار نمی‌کند" if via else
+                                "سرور به api.telegram.org دسترسی ندارد (فیلتر)؛ «نشانی واسط تلگرام» را در پنل تنظیم کنید")
+                               + f" — {getattr(e, 'reason', e)}") from None
 
     def start(self):
         super().start()

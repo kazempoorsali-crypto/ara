@@ -1398,6 +1398,11 @@ class Handler(BaseHTTPRequestHandler):
                     new.pop("token", None)
                 elif "token" in new:
                     new["token"] = str(new["token"]).strip()
+                if "api_base" in new:
+                    v = str(new["api_base"] or "").strip().rstrip("/")
+                    if v and not re.fullmatch(r"https?://[\w.-]+(:\d+)?(/[\w./-]*)?", v):
+                        return self.send_json({"error": "نشانی واسط تلگرام باید با https:// شروع شود"}, 400)
+                    new["api_base"] = v
                 if "bot_username" in new:
                     new["bot_username"] = str(new["bot_username"]).strip().lstrip("@")
                 s.set_setting("telegram", {**cur, **new})
