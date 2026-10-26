@@ -246,8 +246,12 @@ class Bale:
                 continue
             self.state["running"] = True
             try:
-                ups = self.call("getUpdates", {**({"offset": offset + 1} if offset else {}), "timeout": 25}, timeout=40) or []
-                self.state["last_ok"] = int(time.time())
+                wait = self.poll_wait()
+                ups = self.call("getUpdates", {**({"offset": offset + 1} if offset else {}), "timeout": wait}, timeout=wait + 25) or []
+                now = int(time.time())
+                self.state.update(last_ok=now, last_poll=now, poll_error=None)
+                if ups:
+                    self.state["last_updates"] = now
                 for u in ups:
                     offset = max(offset, int(u.get("update_id") or 0))
                     try:
@@ -258,8 +262,11 @@ class Bale:
                 if ups:
                     self.store.set_setting(self.KEY + "_offset", offset)
             except Exception as e:  # noqa: BLE001
-                self.state["last_error"] = str(e)[:200]
+                self.state["last_error"] = self.state["poll_error"] = f"دریافت پیام‌ها: {e}"[:200]
                 self.stop.wait(10)
+
+    def poll_wait(self) -> int:
+        return 25
 
     def start(self):
         if self.thread and self.thread.is_alive():
@@ -310,6 +317,10 @@ class Telegram(Bale):
         if "script.google.com" in base:   # اسکریپت گوگل مسیر اضافه پس از /exec را فقط با ورود به حساب می‌پذیرد؛ مسیر در پارامتر می‌رود
             return f"{base}?path=" + urllib.parse.quote(f"bot{c['token']}/{method}", safe="/:")
         return f"{base}/bot{c['token']}/{method}"
+
+    def poll_wait(self) -> int:
+        # پشت واسط (اسکریپت گوگل و…) انتظار کوتاه‌تر: درخواست طولانی از واسط و ریدایرکت آن با مهلت‌ها برخورد نکند
+        return 8 if (self.cfg().get("api_base") or "").strip() else 25
 
     def call(self, method, body=None, timeout=30):
         import urllib.error
