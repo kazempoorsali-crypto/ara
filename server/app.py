@@ -236,7 +236,8 @@ class App:
         self.bale = Bale(self.store, self.billing)
         self.billing.bale = self.bale
         from alerts import Alerts
-        self.telegram = Telegram(self.store, self.billing)   # فقط برای هشدار «خبرم کن»
+        self.telegram = Telegram(self.store, self.billing)   # هشدار «خبرم کن»، رسید، پاسخ پشتیبانی و دستیار هوشمند
+        self.billing.telegram = self.telegram
         from analytics import Analytics
         self.analytics = Analytics(self.store)   # آمار بازدید برای پنل مدیریت
         try:
@@ -249,6 +250,8 @@ class App:
         self.mailer = Mailer(self.store)
         self.accounts = Accounts(self.store, self.billing, self.mailer)
         self.support = Support(self.store, self.billing, data_dir)
+        from tgbot import Assistant
+        self.telegram.assistant = Assistant(self.telegram, self, estimate_value)   # دستیار فارسی ربات تلگرام
         self.flags = Flags(self.store)
         seo.ensure_articles(self.store)
         # اصلاح امتیازهای اشتباه قبلی در دیتابیس
@@ -1393,6 +1396,8 @@ class Handler(BaseHTTPRequestHandler):
                 new = {k: v for k, v in data["telegram"].items() if k in DEFAULT_TG}
                 if new.get("token") in ("•••", None):
                     new.pop("token", None)
+                elif "token" in new:
+                    new["token"] = str(new["token"]).strip()
                 if "bot_username" in new:
                     new["bot_username"] = str(new["bot_username"]).strip().lstrip("@")
                 s.set_setting("telegram", {**cur, **new})

@@ -275,14 +275,17 @@ class Bale:
 
 
 TG_API = "https://api.telegram.org/bot{token}/{method}"
-DEFAULT_TG = {"token": "", "bot_username": "", "alerts": True}
+DEFAULT_TG = {"token": "", "bot_username": "", "alerts": True,
+              "assistant": True,   # دستیار هوشمند: منو، جست‌وجو، ماشین‌حساب، پرسش‌ها و پشتیبانی (tgbot.py)
+              "notify": True}      # رسید پرداخت، پاسخ تیکت و یادآوری تمدید در تلگرام
 
 
 class Telegram(Bale):
-    """ربات تلگرام فقط برای هشدار «خبرم کن» (همان API ربات‌های بله، با سرور تلگرام).
+    """ربات تلگرام: هشدار «خبرم کن»، رسید و پاسخ پشتیبانی، و دستیار هوشمند فارسی (tgbot.Assistant).
     توجه: اگر سرور در ایران است، دسترسی به api.telegram.org معمولاً فقط با پروکسی خروجی ممکن است
     (همان پروکسی بخش «دریافت آگهی‌ها»)."""
     KEY, TBL, API, DEFAULTS, NAME = "telegram", "tg", TG_API, DEFAULT_TG, "تلگرام"
+    assistant = None   # در App ساخته می‌شود
 
     def otp_ready(self) -> bool:
         return False
@@ -292,15 +295,21 @@ class Telegram(Bale):
 
     def ready(self) -> bool:
         c = self.cfg()
-        return bool(c["token"] and c["bot_username"] and c.get("alerts", True))
+        return bool(c["token"] and c["bot_username"] and (c.get("alerts", True) or c.get("assistant", True)))
 
     def link_url(self, payload: str) -> str:
         return f"https://t.me/{self.cfg()['bot_username'].lstrip('@')}?start={payload}"
 
-    def notify_paid(self, *a, **k):
-        return None
+    def start(self):
+        super().start()
+        if self.assistant and not getattr(self, "_periodic", None):
+            from tgbot import periodic
+            self._periodic = threading.Thread(target=periodic, args=(self.assistant, self.stop), name="tg-assistant", daemon=True)
+            self._periodic.start()
 
     def handle(self, u: dict):
+        if self.assistant and self.cfg().get("assistant", True):
+            return self.assistant.handle(u)
         m = u.get("message") or {}
         chat = (m.get("chat") or {}).get("id")
         if not chat:
