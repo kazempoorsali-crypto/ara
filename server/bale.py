@@ -317,6 +317,9 @@ class Telegram(Bale):
                 desc = json.loads(e.read().decode() or "{}").get("description") or ""
             except Exception:  # noqa: BLE001
                 desc = ""
+            via = (self.cfg().get("api_base") or "").strip()
+            if via and not desc and e.code in (401, 403):   # پاسخ خود واسط، نه تلگرام (مثلاً اسکریپت گوگل که دسترسی‌اش روی Anyone نیست)
+                raise RuntimeError("واسط اجازهٔ دسترسی نمی‌دهد؛ در اسکریپت گوگل، Who has access باید Anyone باشد") from None
             raise RuntimeError(("توکن ربات نادرست است یا باطل شده" if e.code == 401 else f"خطای تلگرام {e.code}") + (f" ({desc})" if desc else "")) from None
         except (urllib.error.URLError, OSError) as e:
             via = (self.cfg().get("api_base") or "").strip()
