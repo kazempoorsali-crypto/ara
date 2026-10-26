@@ -17,6 +17,7 @@ import secrets
 import threading
 import time
 import traceback
+import urllib.parse
 import urllib.request
 
 API = "https://tapi.bale.ai/bot{token}/{method}"
@@ -306,6 +307,8 @@ class Telegram(Bale):
 
     def api_url(self, c, method) -> str:
         base = (c.get("api_base") or "").strip().rstrip("/") or "https://api.telegram.org"
+        if "script.google.com" in base:   # اسکریپت گوگل مسیر اضافه پس از /exec را فقط با ورود به حساب می‌پذیرد؛ مسیر در پارامتر می‌رود
+            return f"{base}?path=" + urllib.parse.quote(f"bot{c['token']}/{method}", safe="/:")
         return f"{base}/bot{c['token']}/{method}"
 
     def call(self, method, body=None, timeout=30):

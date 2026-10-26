@@ -543,7 +543,7 @@
           <label class="field"><span>نام کاربری ربات (بدون @)</span><input class="input input--ltr" name="tg_bot" value="${esc(S.telegram?.bot_username || "")}" placeholder="forsatmelk_bot"></label>
         </div>
         <label class="field"><span>نشانی واسط تلگرام (اگر سرور در ایران است)</span><input class="input input--ltr" name="tg_api" value="${esc(S.telegram?.api_base || "")}" placeholder="https://forsatmelk-tg.yourname.workers.dev"></label>
-        <p class="hint">سرورهای ایران به api.telegram.org دسترسی ندارند (خطای «Network is unreachable»). یک واسط رایگان در Cloudflare Workers بسازید (راهنما: فایل <b dir="ltr">deploy/telegram-relay-worker.js</b>) و نشانی آن را این‌جا بگذارید. خالی یعنی اتصال مستقیم.</p>
+        <p class="hint">سرورهای ایران به api.telegram.org دسترسی ندارند (خطای «Network is unreachable»). یک واسط رایگان بسازید و نشانی آن را این‌جا بگذارید: اسکریپت گوگل (فایل <b dir="ltr">deploy/telegram-relay-apps-script.gs</b>؛ نشانی به <b dir="ltr">/exec</b> ختم می‌شود) یا Cloudflare Workers (فایل <b dir="ltr">deploy/telegram-relay-worker.js</b>). خالی یعنی اتصال مستقیم.</p>
         <label class="switch"><input type="checkbox" name="tg_assistant" ${S.telegram?.assistant !== false ? "checked" : ""}><i></i>دستیار هوشمند فارسی (منو، جست‌وجوی شهر و محله، شکارهای طلایی، رادار، ماشین‌حساب، قیمت محله، پرسش‌ها و تیکت پشتیبانی)</label><br>
         <label class="switch"><input type="checkbox" name="tg_alerts" ${S.telegram?.alerts !== false ? "checked" : ""}><i></i>ارسال هشدار «خبرم کن» در تلگرام فعال باشد</label><br>
         <label class="switch"><input type="checkbox" name="tg_notify" ${S.telegram?.notify !== false ? "checked" : ""}><i></i>رسید پرداخت، پاسخ تیکت‌ها و یادآوری تمدید اشتراک در تلگرام</label>
