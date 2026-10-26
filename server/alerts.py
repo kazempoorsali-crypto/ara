@@ -55,10 +55,19 @@ class Alerts:
     # ---------------------------------------------------------- api
     def mine(self, phone) -> dict:
         rows = [dict(r) for r in self.store.q("SELECT id,province,city,district,deal,kinds,max_price,min_score,created,channel FROM alerts WHERE phone=? AND active=1 ORDER BY id DESC", (phone,))]
-        linked = bool(self.bale.chat_of(phone))
         tg = self.tg
-        return {"items": rows, "linked": linked, "bot": self.bale.cfg().get("bot_username") or "", "ready": self.bale.ready(),
-                "telegram": {"ready": bool(tg and tg.ready()), "linked": bool(tg and tg.chat_of(phone)), "bot": (tg.cfg().get("bot_username") or "") if tg else ""}}
+        linked = bool(self.bale.chat_of(phone))
+        # تلگرام فقط وقتی پیشنهاد می‌شود که ربات واقعاً با سرور تلگرام در ارتباط باشد (نه فقط توکن وارد شده باشد)
+        tg_ok = bool(tg and tg.ready() and (time.time() - (tg.state.get("last_ok") or 0)) < 900)
+        tg_linked = bool(tg and tg.chat_of(phone))
+        out = {"items": rows, "linked": linked, "bot": self.bale.cfg().get("bot_username") or "", "ready": self.bale.ready(),
+               "telegram": {"ready": tg_ok, "linked": tg_linked, "bot": (tg.cfg().get("bot_username") or "") if tg else ""}}
+        # پیوند یک‌بارهٔ اتصال برای کانالی که هنوز وصل نیست
+        if out["ready"] and not linked:
+            out["connect"] = self.bale.link_url("alert_" + self.bale._nonce("alert", phone=phone))
+        if tg_ok and not tg_linked:
+            out["telegram"]["connect"] = tg.link_url("alert_" + tg._nonce("alert", phone=phone))
+        return out
 
     def add(self, phone, data: dict) -> dict:
         u = self.billing.user(phone)
