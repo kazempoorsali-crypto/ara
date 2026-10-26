@@ -318,7 +318,7 @@ const App = (() => {
             <!-- ۱. فرصت طلایی -->
             <div class="tier-card tier-card--gold">
               <div class="tier-badge">فرصت طلایی</div>
-              <div class="tier-info"><b>نمره ۸۵ تا ۱۰۰</b><span>دست‌کم ۲۲٪ زیر قیمت کارشناسی محله، با اطمینان کافی و فول‌امکانات</span></div>
+              <div class="tier-info"><b>نمره ۸۵ تا ۱۰۰</b><span>دست‌کم ۲۲٪ زیر ارزش برآوردی محله، با اطمینان کافی و فول‌امکانات</span></div>
             </div>
 
             <!-- ۲. فرصت مناسب -->
@@ -330,7 +330,7 @@ const App = (() => {
             <!-- ۳. قیمت متعادل -->
             <div class="tier-card tier-card--fair">
               <div class="tier-badge">قیمت متعادل</div>
-              <div class="tier-info"><b>نمره ۵۰ تا ۶۴</b><span>هم‌سطح ارزش کارشناسی و عرف منصفانه محله</span></div>
+              <div class="tier-info"><b>نمره ۵۰ تا ۶۴</b><span>هم‌سطح ارزش برآوردی و عرف منصفانه محله</span></div>
             </div>
 
             <!-- ۴. بالاتر از ارزش واقعی -->
@@ -2175,7 +2175,7 @@ const App = (() => {
       $("#grid").innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton"></div>').join("");
       const id = ++reqId;
       const { pick, focus, dcity, ...Q } = F;
-      const [r, picked] = await Promise.all([DataLayer.search({ ...Q, limit: PER, offset: page * PER }), pick ? DataLayer.get(pick).catch(() => null) : null]);
+      const [r, picked] = await Promise.all([DataLayer.search({ ...Q, limit: PER, offset: page * PER, points: 1 }), pick ? DataLayer.get(pick).catch(() => null) : null]);
       if (id !== reqId || !$("#grid")) return;
       focusBox(picked);
       if (picked) r.items = r.items.filter((l) => l.id !== picked.id);
@@ -2330,29 +2330,39 @@ const App = (() => {
     if (!v || l.excluded || l.label === "sus" || l.deal === "rent" || l.deal === "daily") return "";
     const ask = l.pp || l.price;
     if (!ask) return "";
+    const ex = l.explain || {};
+    // سند براتی، قول‌نامه‌ای یا وکالتی: با آگهی‌های سند‌دار محله مقایسه‌پذیر نیست؛ ارزش و سود ساختگی نشان داده نمی‌شود
+    if (ex.deed_weak) {
+      return `<div class="pcard pcard--fair"><div class="pcard__head"><b>قیمت این آگهی سنجیده نشد</b></div>
+        <div class="pcard__row"><div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div></div>
+        <p class="pcard__note">سند این ملک براتی، قول‌نامه‌ای یا وکالتی است و چنین ملکی معمولاً ارزان‌تر از سند تک‌برگ معامله می‌شود؛ مقایسهٔ قیمتش با آگهی‌های سند‌دار محله گمراه‌کننده است. وضعیت حقوقی سند را حتماً استعلام کنید.</p></div>`;
+    }
     if (l.locked) {
       return `<div class="pcard pcard--lock"><div class="pcard__row">
         <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
-        <div><span>ارزش کارشناسی</span><b class="blur">۰٫۰ میلیارد</b><small>🔒</small></div>
-        <div><span>سود احتمالی شما</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
-        <p class="pcard__note">${esc(UI.gapText(v))}؛ ارزش کارشناسی دقیق و سود خالص این خرید برای مشترکان نمایش داده می‌شود.</p>
-        <button type="button" class="btn btn--gold btn--block" data-pcard-sub>دیدن ارزش کارشناسی و سود (اشتراک)</button></div>`;
+        <div><span>ارزش برآوردی بازار</span><b class="blur">۰٫۰ میلیارد</b><small>🔒</small></div>
+        <div><span>سود احتمالی</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
+        <p class="pcard__note">${esc(UI.gapText(v))}؛ ارزش برآوردی و سود احتمالی این خرید برای مشترکان نمایش داده می‌شود.</p>
+        <button type="button" class="btn btn--gold btn--block" data-pcard-sub>دیدن ارزش برآوردی و سود (اشتراک)</button></div>`;
     }
-    const ex = l.explain || {};
-    const fair = l.fair_price || (v.delta != null ? ask / (1 + v.delta) : null) || (ex.estimated_profit ? ask + ex.estimated_profit : null);
+    const fair = l.fair_price || (v.delta != null ? ask / (1 + v.delta) : null);
     if (!fair) return "";
-    const gain = fair - ask, pctv = gain / fair;
-    const good = gain > 0, flat = Math.abs(pctv) < 0.03;
-    const tone = flat ? "fair" : good ? "good" : "bad";
-    const head = flat ? "هم‌قیمت بازار محله" : good ? "زیر قیمت بازار؛ خرید به‌صرفه" : "بالاتر از قیمت بازار محله";
+    // حکم کارت همان برچسب سایت است؛ سود فقط برای «فرصت»ها و محتاطانه (کران پایین بازهٔ ارزش منهای قیمت آگهی)
+    const opp = l.label === "gold" || l.label === "good", bad = l.label === "high" || l.label === "over";
+    const tone = opp ? "good" : bad ? "bad" : "fair";
+    const pctv = (fair - ask) / fair;
+    const head = opp ? "زیر قیمت بازار محله" : bad ? "بالاتر از قیمت بازار محله" : "در محدودهٔ قیمت بازار محله";
+    const gain = opp ? (ex.estimated_profit || 0) : bad ? ask - fair : 0;
+    const unk = (ex.unknown || []).length ? `<p class="pcard__note">${esc(ex.unknown.join(" و "))} در آگهی نیامده؛ برآورد با احتیاط بیشتری انجام شد و پیش از تصمیم باید پرسیده شود.</p>` : "";
     return `<div class="pcard pcard--${tone}">
-      <div class="pcard__head"><b>${head}</b>${!flat ? `<span>${good ? "−" : "+"}${fa(Math.round(Math.abs(pctv) * 100))}٪</span>` : ""}</div>
+      <div class="pcard__head"><b>${head}</b>${opp || bad ? `<span>${opp ? "−" : "+"}${fa(Math.round(Math.abs(pctv) * 100))}٪</span>` : ""}</div>
       <div class="pcard__row">
         <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
-        <div><span>ارزش کارشناسی</span><b>${money(fair)}</b><small>تومان</small></div>
-        <div class="pcard__gain"><span>${good ? "سود احتمالی شما" : "بیشتر از ارزش"}</span><b>${flat ? "—" : money(Math.abs(gain))}</b><small>${flat ? "تفاوت ناچیز" : "تومان"}</small></div>
+        <div><span>ارزش برآوردی بازار</span><b>${money(fair)}</b><small>تومان</small></div>
+        <div class="pcard__gain"><span>${opp ? "سود احتمالی (محتاطانه)" : bad ? "بیشتر از ارزش" : "تفاوت با بازار"}</span><b>${gain > 0 ? money(gain) : "—"}</b><small>${gain > 0 ? "تومان" : "ناچیز یا در بازهٔ خطای برآورد"}</small></div>
       </div>
-      ${ex.fair_low && ex.fair_high ? `<p class="pcard__note">بازهٔ ارزش منصفانه: ${money(ex.fair_low)} تا ${money(ex.fair_high)} تومان؛ برآورد آماری از آگهی‌های همین محله، نه قیمت قطعی.</p>` : `<p class="pcard__note">برآورد آماری از آگهی‌های همین محله، نه قیمت قطعی.</p>`}
+      ${ex.fair_low && ex.fair_high ? `<p class="pcard__note">بازهٔ ارزش برآوردی: ${money(ex.fair_low)} تا ${money(ex.fair_high)} تومان. این عدد برآورد آماری از آگهی‌های همین محله با تعدیل سن بنا، طبقه، آسانسور و دیگر مشخصات است، نه کارشناسی رسمی؛ سود محتاطانه از کران پایین این بازه حساب شده است.</p>` : `<p class="pcard__note">برآورد آماری از آگهی‌های همین محله، نه کارشناسی رسمی.</p>`}
+      ${unk}
     </div>`;
   }
   /* شناسنامهٔ قیمت: این آگهی در برابر محلهٔ خودش */
@@ -3443,7 +3453,7 @@ function renderPriceSpectrumGauge(data) {
   return `
     <div class="spectrum-gauge-box p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-right my-3" dir="rtl">
       <div class="flex items-center justify-between text-xs mb-3">
-        <span class="font-bold text-slate-200">طیف قیمت کارشناسی در مقایسه با محله</span>
+        <span class="font-bold text-slate-200">طیف ارزش برآوردی در مقایسه با محله</span>
         <span class="px-2 py-0.5 rounded text-[11px] font-bold ${badgeColor}">
           ${badgeTitle}
         </span>
@@ -3465,7 +3475,7 @@ function renderPriceSpectrumGauge(data) {
         <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center z-10 opacity-75" style="right: ${fairPct}%;">
           <div class="w-2 h-5 bg-sky-300 rounded-sm"></div>
           <span class="absolute -bottom-5 whitespace-nowrap text-[9px] text-sky-300">
-            کارشناسی: ${fair} م
+            برآورد: ${fair} م
           </span>
         </div>
       </div>

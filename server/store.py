@@ -76,6 +76,7 @@ def primary_price(d: dict) -> float | None:
 class Store:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
+        self.path = path
         self.db = sqlite3.connect(str(path), check_same_thread=False, timeout=30)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.RLock()
@@ -314,13 +315,15 @@ class Store:
                  "drop": "price_drop DESC",
                  # تازه‌ترین کاهش قیمت اول (آخرین تغییر ثبت‌شده در تاریخچهٔ قیمت)
                  "drop_new": "(SELECT MAX(at) FROM price_history ph WHERE ph.listing_id = listings.id) DESC, price_drop DESC"}.get(f.get("sort") or "score", "score IS NULL, score DESC, discount DESC")
-        total = self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]
+        lite = bool(f.get("_lite"))  # فقط چند آگهی (مثلاً «مشابه‌ها»): بدون شمارش کل و بدون ۳۰۰۰ نقطهٔ نقشه
         limit = max(1, min(int(f.get("limit") or 24), 60))
         offset = max(0, int(f.get("offset") or 0))
         items = [self.row_to_dict(r) for r in self.q(f"SELECT * FROM listings WHERE {w} ORDER BY {order} LIMIT ? OFFSET ?", (*args, limit, offset))]
+        total = len(items) + offset if lite else self.q(f"SELECT COUNT(*) n FROM listings WHERE {w}", args, one=True)["n"]
         for d in items:
             d["verdict"] = self.verdict(d)
-        points = [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score,label FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
+        points = [] if lite or str(f.get("points")) == "0" else \
+            [dict(r) for r in self.q(f"SELECT id,lat,lng,deal,pp,price,deposit,rent,vertical,city_key,score,label FROM listings WHERE {w} AND lat IS NOT NULL LIMIT 3000", args)]
         if f.get("drop_info"):
             for d in items:
                 d["drop_info"] = self.last_drop(d)

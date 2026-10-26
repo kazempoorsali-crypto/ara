@@ -178,7 +178,7 @@ const UI = (() => {
       : capPos(x);
     return `<div class="pbar${opts.mini ? " pbar--mini" : ""}" role="img" aria-label="این آگهی متری ${money(me)}، قیمت تعادلی متری ${money(exp)}${hasRange ? `، کف ${money(floor)} و سقف ${money(ceil)}` : ""}" style="display:grid;gap:6px;margin:${opts.mini ? "6px 0" : "10px 0 4px"};">
       ${opts.mini ? "" : `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-        <span style="font-weight:700;color:var(--ink);">طیف قیمت کارشناسی همین ملک</span>
+        <span style="font-weight:700;color:var(--ink);">طیف ارزش برآوردی همین ملک</span>
         <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;color:#111;background:${dot};">${TAG[label] || ""}${diffPct ? ` · ${fa(diffPct)}٪ ${diff < 0 ? "زیر" : "بالای"} تعادل` : ""}</span>
       </div>`}
       <div class="pbar__track" style="position:relative;height:${H}px;border-radius:999px;background:${grad};border:1px solid var(--line);margin:${opts.mini ? "0" : hasRange ? "18px 0 46px" : "18px 0 20px"};">

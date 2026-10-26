@@ -199,6 +199,37 @@ def apply_model(m, x):
     return total, contrib
 
 
+def _rule_age(a):
+    """ضریب عرف بازار برای سن بنا (همان ابزار «تخمین ارزش»): نوساز +۶٪، سپس هر سال حدود ۱٫۲٪ کمتر، حداکثر ۳۵٪."""
+    return 0.06 if a <= 2 else max(-0.35, -0.012 * (a - 2))
+
+
+def guard_effects(model, feat: dict, kg: str, contrib: dict):
+    """اثرهای مدل با منطق بازار سازگار می‌شوند (و همین در خود قیمت اعمال می‌شود، نه فقط در نمایش):
+    بنای مسن‌تر از میانگین دست‌کم به اندازهٔ عرف بازار ارزان‌تر است؛ طبقهٔ بالا بدون آسانسور جریمه دارد؛
+    نداشتن آسانسور، پارکینگ یا سند تک‌برگ هرگز قیمت را بالا نمی‌برد. ← (مجموع اثر، اثرها)"""
+    c = dict(contrib)
+    age = feat.get("age")
+    if age is not None and model and "age" in model["stats"]:
+        mu = model["stats"]["age"][0]
+        if age > mu:
+            floor = math.log(1 + _rule_age(age)) - math.log(1 + _rule_age(max(0.0, mu)))
+            if c.get("age", 0) + c.get("age2", 0) > floor:
+                c["age"], c["age2"] = floor, 0.0
+    fl, el = feat.get("floor"), feat.get("elevator")
+    if el == 0:
+        if c.get("elevator", 0) > 0:
+            c["elevator"] = 0.0
+        if kg == "apartment" and fl is not None and fl >= 3:
+            rule = math.log(1 - 0.04 * min(8, fl - 2))
+            if c.get("elevator", 0) + c.get("floor_noelev", 0) > rule:
+                c["elevator"], c["floor_noelev"] = rule, 0.0
+    for k in ("parking", "deed_single", "warehouse"):
+        if feat.get(k) == 0 and c.get(k, 0) > 0:
+            c[k] = 0.0
+    return sum(c.values()), c
+
+
 def _median(vals):
     return statistics.median(vals) if vals else None
 
@@ -389,8 +420,37 @@ def _presale_fair(items, deal, th):
                     "n": n_ps, "scope": scope, "slope": round(b, 4), "slope_source": src}
 
 
+FEAT_VERSION = 2   # با هر بهبود استخراج ویژگی (سن از متن، سند براتی، …) یک واحد بالا می‌رود تا آگهی‌های موجود هم بازخوانی شوند
+
+
+def refresh_features(store):
+    """بازخوانی یک‌بارهٔ ویژگی‌های آگهی‌های موجود با قاعده‌های تازهٔ استخراج (در فرایند بازمحاسبه، نه سرور وب)."""
+    import features
+    if (store.get_setting("feat_version") or 0) >= FEAT_VERSION:
+        return
+    rows = store.q("SELECT * FROM listings WHERE status='active'")
+    ups = []
+    for r in rows:
+        d = store.row_to_dict(r)
+        old = d.get("feat") or {}
+        try:
+            new = features.extract(d)
+        except Exception:  # noqa: BLE001
+            continue
+        ups.append((json.dumps({**old, **{k: v for k, v in new.items() if v is not None or k not in old}}, ensure_ascii=False), d["id"]))
+    for i in range(0, len(ups), 400):
+        with store.lock:
+            store.db.executemany("UPDATE listings SET feat=? WHERE id=?", ups[i:i + 400])
+            store.db.commit()
+    store.set_setting("feat_version", FEAT_VERSION)
+
+
 def recompute(store, thresholds: dict | None = None) -> dict:
     t0 = time.time()
+    try:
+        refresh_features(store)
+    except Exception:  # noqa: BLE001
+        import traceback; traceback.print_exc()
     th = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
     try:  # محله‌ها پیش از هر چیز مرتب می‌شوند: بی‌معناها حذف، شکل‌های یک نام یکی، بی‌محله‌ها از روی متن
         from districts import fix_districts, place_listings
@@ -554,7 +614,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 if l["_v"] is None:
                     continue
                 model = city_models.get(l["city_key"]) or prov_model
-                l["_adj"] = max(-0.6, min(0.6, apply_model(model, l["_x"])[0])) if model else 0.0
+                l["_adj"] = max(-0.6, min(0.6, guard_effects(model, l.get("feat") or {}, kg, apply_model(model, l["_x"])[1])[0])) if model else 0.0
         dbase = {k: _wmedian([(l["_vb"] - l["_adj"], l["_wb"]) for l in ls]) for k, ls in members.items()}
         spatial = _spatial(members, dbase, float(th.get("spatial_tol") or 0.25))
         if deal == "sale":
@@ -611,7 +671,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             sw, sw2 = sum(w for _, w in pairs), sum(w * w for _, w in pairs)
             l["_neff"] = (sw * sw / sw2) if sw2 else len(pairs)
             model = city_models.get(l["city_key"]) or prov_model
-            adj, contrib = (apply_model(model, l["_x"]) if model else (0.0, {}))
+            adj, contrib = (guard_effects(model, l.get("feat") or {}, kg, apply_model(model, l["_x"])[1]) if model else (0.0, {}))
             adj = max(-0.6, min(0.6, adj))
             hed = base + adj
             # تأیید با نزدیک‌ترین آگهی‌های مشابه همان محله (متراژ، سن، طبقه، خواب، آسانسور)
@@ -623,7 +683,9 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             comps = heapq.nsmallest(COMPS_K, [m for m in pool if m["_sk"] != l["_sk"]],
                                     key=(lambda m: _dist({**l, "feat": {**(l.get("feat") or {}), "age": 0}}, m)) if l["_presale"] else (lambda m: _dist(l, m)))
             comp = _wmedian([(m["_vb"] - m["_adj"] + adj, m["_cf"] / (1 + _dist(l, m))) for m in comps]) if len(comps) >= COMPS_MIN else None
-            fair_log = hed if comp is None else 0.6 * hed + 0.4 * comp
+            # مقایسه با نزدیک‌ترین آگهی‌های واقعاً مشابه (سن، طبقه، آسانسور، متراژ) وزن بیشتری می‌گیرد وقتی ارزان‌تر از مدل است:
+            # خانهٔ قدیمی را با میانهٔ محله‌ای که نوسازها بالا برده‌اند گران برآورد نکنیم
+            fair_log = hed if comp is None else (0.4 * hed + 0.6 * comp if comp < hed else 0.6 * hed + 0.4 * comp)
             if l.get("_nbref") is not None:  # محلهٔ مشکوک: فرصت باید در برابر قیمت مجاورها هم برقرار باشد
                 l["_disc_nb"] = 1 - math.exp(l["_vraw"] - (l["_nbref"] + adj))
             l["_comp_v"] = math.exp(comp) if comp is not None else None
@@ -638,16 +700,7 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                 merged[LABELS.get(k, k)] = merged.get(LABELS.get(k, k), 0) + c
             raw_contrib = sorted(((lab, round(math.exp(c) - 1, 3)) for lab, c in merged.items() if abs(c) >= 0.01),
                                  key=lambda t: -abs(t[1]))[:6]
-            # اصلاح علامت اثر: اگر ملک پارکینگ ندارد، اثر پارکینگ نباید مثبت چاپ شود
-            fixed_contrib = []
-            f_data = l.get("feat") or {}
-            for lab, val in raw_contrib:
-                if "پارکینگ" in str(lab) and not f_data.get("parking"):
-                    val = -abs(val)
-                elif "آسانسور" in str(lab) and not f_data.get("elevator") and int(f_data.get("floor") or 1) >= 2:
-                    val = -abs(val)
-                fixed_contrib.append((lab, val))
-            l["_contrib"] = fixed_contrib
+            l["_contrib"] = raw_contrib   # علامت اثرها در guard_effects درست شده و همان در قیمت آمده است
             l["_model"] = {"n": model["n"], "r2": round(model["r2"], 2)} if model else None
         _presale_fair(items, deal, th)
         if acc:
@@ -715,9 +768,19 @@ def recompute(store, thresholds: dict | None = None) -> dict:
             # و برآورد مقایسه‌ای نزدیک‌ترین آگهی‌های مشابه هم دست‌کم نیمی از آستانهٔ فرصت را تأیید کند
             outside = -(l.get("_r") or 0) >= th["disp_k"] * (l.get("_unc") or l.get("_sigma") or 0.15)
             dc = l.get("_disc_comp")
-            agree = (dc is None or dc >= th["opp"] * 0.5) and (l.get("_disc_nb") is None or l["_disc_nb"] >= th["opp"] * 0.5)
+            agree = (dc is None or dc >= th["opp"] * 0.75) and (l.get("_disc_nb") is None or l["_disc_nb"] >= th["opp"] * 0.5)
             ok = outside and agree and (not l["_presale"] or d >= th["opp"] + float(th.get("presale_extra") or 0))
-            l["_label"] = ("gold" if d >= th["gold"] and ok else "good" if d >= th["opp"] and ok
+            ft = l.get("feat") or {}
+            # سند براتی/قول‌نامه‌ای/وکالتی: با آگهی‌های سند‌دار قابل مقایسه نیست؛ «فرصت» اعلام نمی‌شود
+            l["_deed_weak"] = ft.get("deed_single") == 0 or "deed_weak" in (ft.get("caution") or [])
+            # مشخصات کلیدی ناپیدا (سن بنا، یا آسانسور برای طبقهٔ دوم به بالا): فرصت فقط با فاصلهٔ بیشتر، و هرگز طلایی
+            l["_unknown"] = [n for n, miss in (("سن بنا", l["_kg"] == "apartment" and ft.get("age") is None),
+                                                ("آسانسور", l["_kg"] == "apartment" and (ft.get("floor") or 0) >= 2 and ft.get("elevator") is None)) if miss]
+            if l["_deed_weak"]:
+                ok = False
+            elif l["_unknown"]:
+                ok = ok and d >= th["opp"] + 0.06
+            l["_label"] = ("gold" if d >= th["gold"] and ok and not l["_unknown"] else "good" if d >= th["opp"] and ok
                            else "over" if d <= -float(th.get("over") or 0.30) else "high" if d <= -th["opp"] else "fair")
             l["_wide"] = d >= th["opp"] and not ok
             l["_disagree"] = d >= th["opp"] and outside and not agree
@@ -811,14 +874,20 @@ def recompute(store, thresholds: dict | None = None) -> dict:
                               + (["چند کاربر این آگهی را گزارش کرده‌اند؛ در حال بررسی"] if l.get("user_review") else [])
                               + (["فاصله با برآورد بازار خیلی زیاد و نزدیک مرز قیمت‌های مشکوک است؛ پیش از هر اقدامی قیمت، سند و واقعی بودن آگهی را استعلام کن"] if l.get("_near_sus") else [])
                               + (["پیش‌فروش: قرارداد رسمی پیش‌فروش ساختمان، پروانهٔ ساخت، بیمهٔ تکمیل پروژه و سابقهٔ سازنده را استعلام کن"] if l["_presale"] else []),
-                   "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT]}
+                   "sus": [SIGNAL_TEXT[k] for k in feat.get("sus", []) if k in SIGNAL_TEXT],
+                   "deed_weak": bool(l.get("_deed_weak")), "unknown": l.get("_unknown") or [],
+                   "comp_v": round(l["_comp_v"]) if l.get("_comp_v") else None}
         updates.append((round(l["_fair_v"]) if l.get("_fair_v") else None, round(fair) if fair else None,
                         round(d, 4) if d is not None else None, score, conf,
                         json.dumps(explain, ensure_ascii=False), excluded, json.dumps(flags), label,
                         settlement(l.get("title"), l.get("description"), l.get("district"), feat), l["id"]))
+    # نوشتن در بسته‌های کوچک: قفل نوشتن پایگاه داده هر بار فقط کسری از ثانیه گرفته می‌شود و سایت منتظر نمی‌ماند
+    for i in range(0, len(updates), 400):
+        with store.lock:
+            store.db.executemany("""UPDATE listings SET fair_ppm=?, fair_price=?, discount=?, score=?, confidence=?, explain=?,
+                                    excluded=?, flags=?, label=?, settlement=? WHERE id=?""", updates[i:i + 400])
+            store.db.commit()
     with store.lock:
-        store.db.executemany("""UPDATE listings SET fair_ppm=?, fair_price=?, discount=?, score=?, confidence=?, explain=?,
-                                excluded=?, flags=?, label=?, settlement=? WHERE id=?""", updates)
         store.db.execute("DELETE FROM market")
         store.db.executemany("INSERT INTO market VALUES(?,?,?,?,?,?,?,?)", market)
         store.db.commit()
