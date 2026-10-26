@@ -431,7 +431,9 @@ def district(app, base, key, dname):
     if match["opp"]:
         faq.append((f"در {dname} آپارتمان با امتیاز فرصت هست؟", f"بله، {fa(match['opp'])} آگهی در حال حاضر دست‌کم __OPP__ فاصله با برآورد آگهی‌های مشابه همین محله‌اند."))
     faq_html, faq_ld = _faq(faq)
-    title = f"قیمت ملک در {dname} {name} | آپارتمان و فرصت‌های شناسایی‌شده | {site['name']}"
+    # عنوان به شکل جست‌وجوی واقعی کاربران («قیمت آپارتمان در …»، «خرید خانه در …») با میانهٔ واقعی قیمت هر متر همین محله
+    ppm = f" — متری {fa(round(drow['median_ppm'] / 1e6))} میلیون" if drow and drow.get("median_ppm") and drow["median_ppm"] >= 1e6 else ""
+    title = f"قیمت آپارتمان و خانه در {dname} {name}{ppm} | {site['name']}"
     desc = ps[-1] if drow else ps[0]
     desc = desc + f" آپارتمان، ویلا و زمین در {dname} با سنجش هر آگهی در برابر آگهی‌های مشابه همین محله."
     crumbs = [("صفحهٔ اصلی", "/"), (f"ملک {name}", city_path(key)), (dname, city_path(key, dname))]
@@ -756,6 +758,8 @@ def _fill(app, text: str) -> str:
 
 def page(app, base, path):
     p = _page(app, base, path)
+    if p and p.get("redirect"):
+        return p
     if p:
         p["title"], p["desc"], p["body"] = _fill(app, p["title"]), _fill(app, p["desc"]), _fill(app, p["body"])
         p["ld"] = json.loads(_fill(app, json.dumps(p["ld"], ensure_ascii=False)))
@@ -771,7 +775,8 @@ def _page(app, base, path):
         return city(app, base, m.group(1))
     m = re.fullmatch(r"/melk/([a-z_]+)/(.+)", path)
     if m:
-        return district(app, base, m.group(1), m.group(2))
+        # محلهٔ ناموجود یا بی‌معنا («سراسر ایران»، نام استان): تغییر مسیر دائمی به صفحهٔ همان شهر
+        return district(app, base, m.group(1), m.group(2)) or ({"redirect": city_path(m.group(1))} if m.group(1) in catalog.CITY_BY_KEY else None)
     m = re.fullmatch(r"/ad/([\w-]+)", path)
     if m:
         return ad(app, base, m.group(1))
