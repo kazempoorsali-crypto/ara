@@ -83,7 +83,9 @@ DEFAULT_SITE = {"name": "فرصت ملک", "tagline": "ارزش واقعی مل�
                 # طراحی سایت: classic (قبلی) یا new (طراحی سینمایی تازه)؛ پیش‌نمایش برای خود مالک با ?design=new
                 "design": "classic",
                 # ویدیوی معرفی صفحهٔ اول (پیوند آپارات، یوتیوب یا فایل mp4)؛ با تغییر پیوند در پنل، ویدیوی سایت عوض می‌شود
-                "video_url": "", "video_title": "فرصت ملک در یک نگاه", "video_desc": ""}
+                "video_url": "", "video_title": "فرصت ملک در یک نگاه", "video_desc": "",
+                # چند ویدیو: [{url, title, desc, on}]؛ برای هر بازدید یکی از ویدیوهای فعال به‌تصادف نمایش داده می‌شود
+                "videos": []}
 # contact_mode: none = هیچ شماره‌ای نشان داده نمی‌شود؛ owner = فقط شمارهٔ آگهی‌های شخصی (مالک)؛ all = شمارهٔ هر آگهی‌دهنده
 DEFAULT_DISPLAY = {"show_samples": True, "contact_mode": "none", "show_address": True}
 # اطلاعاتی که فقط مالک سایت می‌تواند بدهد؛ تا خالی است، جمله یا سطر مربوط در سایت نمایش داده نمی‌شود
@@ -1319,6 +1321,11 @@ class Handler(BaseHTTPRequestHandler):
             for key, default in (("site", DEFAULT_SITE), ("display", DEFAULT_DISPLAY), ("billing", DEFAULT_BILLING)):
                 if isinstance(data.get(key), dict):
                     clean = {k: v for k, v in data[key].items() if k in default}
+                    if key == "site" and "videos" in clean:   # فهرست ویدیوها: فقط پیوند، عنوان، توضیح و وضعیت؛ حداکثر ۱۲ ردیف
+                        vs = clean["videos"] if isinstance(clean["videos"], list) else []
+                        clean["videos"] = [{"url": str(v.get("url") or "").strip()[:2000], "title": str(v.get("title") or "").strip()[:120],
+                                            "desc": str(v.get("desc") or "").strip()[:400], "on": bool(v.get("on"))}
+                                           for v in vs if isinstance(v, dict) and str(v.get("url") or "").strip()][:12]
                     s.set_setting(key, {**default, **(s.get_setting(key) or {}), **clean})
             if isinstance(data.get("support"), dict):
                 sup = {**DEFAULT_SUPPORT, **(s.get_setting("support") or {})}

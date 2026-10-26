@@ -622,14 +622,16 @@
         <label class="field"><span>شعار کوتاه</span><input class="input" name="tagline" value="${esc(s.tagline)}"></label>
         <label class="field"><span>ایمیل پشتیبانی (اختیاری)</span><input class="input input--ltr" name="email" type="email" value="${esc(s.email)}"></label>
       </div><label class="field" style="margin-top:14px"><span>درباره سایت</span><textarea class="textarea" name="about">${esc(s.about)}</textarea></label></div>
-      <div class="panel"><h2>ویدیوی معرفی صفحهٔ اول</h2>
-        <p class="hint">ویدیو را در آپارات بارگذاری کنید و نشانی صفحهٔ آن را این‌جا بگذارید (مثلاً <span dir="ltr">https://www.aparat.com/v/AbCd1</span>). یوتیوب یا فایل مستقیم <span dir="ltr">mp4</span> هم پذیرفته می‌شود. با عوض کردن پیوند، ویدیوی سایت همان لحظه عوض می‌شود؛ تا خالی است، قاب «ویدیوی معرفی به‌زودی» نمایش داده می‌شود.</p>
-        <div class="grid2">
-          <label class="field"><span>پیوند ویدیو</span><input class="input input--ltr" name="video_url" value="${esc(s.video_url || "")}" placeholder="https://www.aparat.com/v/... یا کد جاسازی آپارات"></label>
-          <label class="field"><span>عنوان بخش</span><input class="input" name="video_title" value="${esc(s.video_title || "")}" placeholder="فرصت ملک در یک نگاه"></label>
+      <div class="panel"><h2>ویدیوهای معرفی صفحهٔ اول</h2>
+        <p class="hint">هر ویدیو را در آپارات بارگذاری کنید و نشانی صفحهٔ آن را در یک ردیف بگذارید (مثلاً <span dir="ltr">https://www.aparat.com/v/AbCd1</span>؛ کد جاسازی آپارات، یوتیوب یا فایل mp4 هم پذیرفته می‌شود). از ویدیوهای «فعال»، برای هر بازدید یکی به‌تصادف نمایش داده می‌شود؛ اگر فقط یکی فعال باشد، همیشه همان. عنوان و توضیح هر ردیف اختیاری است و اگر خالی بماند، عنوان و توضیح عمومی پایین به کار می‌رود.</p>
+        <style>@media (max-width:760px){.vrow{grid-template-columns:auto minmax(0,1fr) auto!important}.vrow .v_title,.vrow .v_desc{grid-column:1/-1}}</style>
+        <div id="vids" style="display:grid;gap:10px;margin-top:10px"></div>
+        <button type="button" class="btn btn--line btn--sm" id="vidAdd" style="margin-top:10px">+ افزودن ویدیو</button>
+        <div class="grid2" style="margin-top:16px">
+          <label class="field"><span>عنوان عمومی بخش</span><input class="input" name="video_title" value="${esc(s.video_title || "")}" placeholder="فرصت ملک در یک نگاه"></label>
+          <label class="field"><span>توضیح عمومی زیر عنوان</span><input class="input" name="video_desc" value="${esc(s.video_desc || "")}"></label>
         </div>
-        <label class="field" style="margin-top:12px"><span>توضیح کوتاه زیر عنوان</span><textarea class="textarea" name="video_desc" rows="2">${esc(s.video_desc || "")}</textarea></label>
-        ${s.video_url ? `<p class="hint"><a href="/#video" target="_blank" rel="noopener">دیدن بخش ویدیو در سایت ↗</a></p>` : ""}
+        <p class="hint"><a href="/#video" target="_blank" rel="noopener">دیدن بخش ویدیو در سایت ↗</a> (با هر بار تازه کردن صفحه ممکن است ویدیوی دیگری بیاید)</p>
       </div>
       <div class="panel"><h2>طراحی سایت</h2>
         <div class="grid2"><label class="field"><span>طراحی فعال برای همهٔ بازدیدکنندگان</span><select class="select" name="design">
@@ -655,9 +657,28 @@
         <label class="field"><span>پیوند نماد اعتماد الکترونیکی</span><input class="input input--ltr" id="o_enamad_url" value="${esc(S.owner.enamad_url)}"></label>
       </div><label class="field" style="margin-top:12px"><span>سیاست بازگشت وجه (یک یا دو جمله)</span><textarea class="textarea" id="o_refund_text">${esc(S.owner.refund_text)}</textarea></label></div>
       <button class="btn btn--hot btn--lg">ذخیره</button></form>`;
+    // ردیف‌های ویدیو: دست‌کم سه ردیف؛ پیوند تکی قدیمی هم به‌عنوان ردیف اول می‌آید
+    const vlist = (s.videos && s.videos.length ? s.videos : s.video_url ? [{ url: s.video_url, on: true }] : []).slice();
+    const vrow = (v = {}) => {
+      const r = document.createElement("div");
+      r.className = "vrow";
+      r.style.cssText = "display:grid;grid-template-columns:auto minmax(0,2fr) minmax(0,1fr) minmax(0,1.2fr) auto;gap:8px;align-items:center;padding:10px;border:1px solid var(--line,#ddd);border-radius:12px";
+      r.innerHTML = `<label title="فعال" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="v_on" ${v.on !== false && v.url ? "checked" : v.url ? "" : "checked"}> فعال</label>
+        <input class="input input--ltr v_url" placeholder="https://www.aparat.com/v/..." value="${esc(v.url || "")}">
+        <input class="input v_title" placeholder="عنوان (اختیاری)" value="${esc(v.title || "")}">
+        <input class="input v_desc" placeholder="توضیح کوتاه (اختیاری)" value="${esc(v.desc || "")}">
+        <button type="button" class="btn btn--ghost btn--sm v_del" title="حذف ردیف">✕</button>`;
+      r.querySelector(".v_del").addEventListener("click", () => { r.remove(); if ($$("#vids .vrow").length < 1) $("#vids").appendChild(vrow()); });
+      return r;
+    };
+    while (vlist.length < 3) vlist.push({});
+    vlist.forEach((v) => $("#vids").appendChild(vrow(v)));
+    $("#vidAdd").addEventListener("click", () => { if ($$("#vids .vrow").length < 12) $("#vids").appendChild(vrow()); });
     $("#sf").addEventListener("submit", async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target).entries());
+      data.videos = $$("#vids .vrow").map((r) => ({ url: r.querySelector(".v_url").value.trim(), title: r.querySelector(".v_title").value.trim(), desc: r.querySelector(".v_desc").value.trim(), on: r.querySelector(".v_on").checked })).filter((v) => v.url);
+      data.video_url = (data.videos.find((v) => v.on) || {}).url || "";   // سازگاری با نسخه‌های قبلی
       const owner = Object.fromEntries(["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].map((k) => [k, $("#o_" + k).value.trim()]));
       ["support_url", "support_label", "legal_name", "enamad_url", "refund_text"].forEach((k) => delete data[k]);
       try { await api("admin/settings", { tiles: { street: $("#tileStreet").value.trim(), sat: $("#tileSat").value.trim() }, site: data, owner, display: { show_samples: $("#showSamples").checked, contact_mode: $("#contactMode").value, show_address: $("#showAddress").checked } }); toast("ذخیره شد"); S = await api("admin/state"); } catch (err) { toast(err.message); }

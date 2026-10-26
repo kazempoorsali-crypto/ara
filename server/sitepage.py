@@ -5,6 +5,7 @@ import re
 و صفحه آن بخش را پنهان می‌کند (هیچ عدد ساختگی‌ای ساخته نمی‌شود).
 """
 import json
+import random
 import threading
 import time
 
@@ -244,9 +245,14 @@ def video_html(app) -> str:
     """بخش ویدیوی معرفی صفحهٔ اول؛ پیوند، عنوان و توضیح از پنل مدیریت (تنظیمات سایت)."""
     site = app.store.get_setting("site") or {}
     esc = lambda t: str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-    title = esc(site.get("video_title") or "فرصت ملک در یک نگاه")
-    desc = esc(site.get("video_desc") or "در چند دقیقه ببینید فرصت ملک چطور قیمت هر آگهی را با محلهٔ خودش می‌سنجد و فرصت‌های واقعی را پیدا می‌کند.")
-    emb = video_embed(site.get("video_url") or "")
+    # ویدیوهای فعال (فهرست پنل؛ برای سازگاری، پیوند تکی قدیمی هم)؛ هر بازدید یکی به‌تصادف
+    pool = [v for v in (site.get("videos") or []) if isinstance(v, dict) and v.get("on") and video_embed(v.get("url") or "")]
+    if not pool and video_embed(site.get("video_url") or ""):
+        pool = [{"url": site["video_url"]}]
+    pick = random.choice(pool) if pool else {}
+    title = esc(pick.get("title") or site.get("video_title") or "فرصت ملک در یک نگاه")
+    desc = esc(pick.get("desc") or site.get("video_desc") or "در چند دقیقه ببینید فرصت ملک چطور قیمت هر آگهی را با محلهٔ خودش می‌سنجد و فرصت‌های واقعی را پیدا می‌کند.")
+    emb = video_embed(pick.get("url") or "")
     if emb and emb[0] == "iframe":
         player = (f'<iframe src="{esc(emb[1])}" title="{title}" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" '
                   'allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>')

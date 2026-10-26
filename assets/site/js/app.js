@@ -148,6 +148,25 @@
       });
     });
 
+    /* تمام‌صفحه (دکمهٔ خود آپارات یا «نمایش تمام‌صفحه»): دکمهٔ «برگشت» گوشی فقط از تمام‌صفحه بیرون می‌آید و از سایت خارج نمی‌شود؛
+       با ورود به تمام‌صفحه یک قدم در تاریخچهٔ همین صفحه ثبت می‌شود و اگر کاربر خودش (Esc یا دکمهٔ پخش‌کننده) بیرون آمد، همان قدم برداشته می‌شود */
+    var fsDismiss = null;
+    function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+    function onFs() {
+      if (fsEl() && !fsDismiss && window.FM && FM.backable) {
+        fsDismiss = FM.backable(fsEl(), function () {
+          fsDismiss = null;
+          if (!fsEl()) return;
+          if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        });
+      } else if (!fsEl() && fsDismiss) {
+        var d = fsDismiss; fsDismiss = null; d();
+      }
+    }
+    document.addEventListener("fullscreenchange", onFs);
+    document.addEventListener("webkitfullscreenchange", onFs);
+
     document.querySelectorAll("[data-scroll-to]").forEach(function (a) {
       a.addEventListener("click", function (e) {
         var id = a.getAttribute("href");
