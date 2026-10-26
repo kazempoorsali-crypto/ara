@@ -276,6 +276,12 @@ class App:
     def regions(self):
         """استان‌های فعال غیرشمالی و شهرهایشان برای سایت (شمال در خود سایت ثابت است)."""
         act = [p for p in self.ingest.expansion()["active"] if p not in catalog.NORTH]
+        # استان‌هایی که آگهی فعال دارند (حتی اگر دریافتشان متوقف شده) هم شناخته شوند؛ وگرنه صفحهٔ محلهٔ تهران «۰ آگهی» نشان می‌داد
+        now = time.time()
+        if now - getattr(self, "_live_prov_at", 0) > 300:
+            self._live_prov = [r[0] for r in self.store.q("SELECT DISTINCT province FROM listings WHERE status='active' AND hidden=0 AND province IS NOT NULL")]
+            self._live_prov_at = now
+        act += [p for p in self._live_prov if p in catalog.PROVINCES and p not in catalog.NORTH and p not in act]
         return {"active": catalog.NORTH + act,
                 "provinces": [{"id": p, "name": catalog.PROVINCES[p]["name"], "center": list(catalog.PROVINCES[p]["center"])} for p in act],
                 "cities": [{"id": c["key"], "name": c["name"], "province": c["province"], "lat": c["lat"], "lng": c["lng"], "tags": []}
@@ -580,11 +586,14 @@ class Handler(BaseHTTPRequestHandler):
                 if LLMS.get(key, (0,))[0] < time.time() - 1800:
                     LLMS[key] = (time.time(), seo.llms(self.app, self.base_url(), full=url.path == "/llms-full.txt"))
                 return self.send_text(LLMS[key][1], "text/markdown; charset=utf-8")
-            if url.path == "/sitemap.xml":
+            if re.fullmatch(r"/[0-9a-f]{32}\.txt", url.path) and url.path[1:-4] == seo.indexnow_key(self.app.store):
+                return self.send_text(url.path[1:-4], "text/plain; charset=utf-8")
+            msm = re.fullmatch(r"/sitemap(?:-(pages|places|ads))?\.xml", url.path)
+            if msm:
                 key = self.base_url()
                 if SITEMAP.get("key") != key or time.time() - SITEMAP.get("at", 0) > 600:
                     SITEMAP.update(key=key, at=time.time(), xml=seo.sitemap(self.app, key))
-                return self.send_text(SITEMAP["xml"], "application/xml; charset=utf-8")
+                return self.send_text(SITEMAP["xml"][msm.group(1) or "index"], "application/xml; charset=utf-8")
             # صفحه‌های سایت اصلی: دادهٔ واقعی (آمار، محله‌ها، فرصت‌ها) در خود HTML گذاشته می‌شود
             SITE_PAGES = {"/": ("index.html", "home"), "/index.html": ("index.html", "home"),
                           "/sky.html": ("sky.html", "sky"), "/property.html": ("property.html", "property"),
@@ -602,13 +611,26 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_text("<!doctype html><meta charset=utf-8><title>یافت نشد</title><p>این آگهی پیدا نشد. <a href='/'>صفحهٔ اصلی</a></p>",
                                           "text/html; charset=utf-8", status=404, cache="no-cache")
                 body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
+                ua = self.headers.get("user-agent") or ""
+                if page == "home" and self.base_url().startswith("https://") and self.app.store.get_setting("public_base") != self.base_url():
+                    self.app.store.set_setting("public_base", self.base_url())   # برای گزارش IndexNow
+                if page == "home" and re.search(r"bot|crawl|spider|slurp|lighthouse|pagespeed|headless|gtmetrix|preview", ua, re.I):
+                    body = sitepage.html_class(body, "intro-fast")   # خزنده‌ها و ابزارهای سنجش سرعت پردهٔ ابتدایی را نمی‌بینند
                 if page == "home":
+                    # شمارنده‌های بالای صفحه با عدد واقعی در خود HTML (نه «۰» تا اجرای اسکریپت)
+                    stt = data.get("stats") or {}
+                    body = re.sub(r'data-count="0" data-stat="(\w+)" data-suffix="">۰</b>',
+                                  lambda m: f'data-count="{int(stt.get(m.group(1)) or 0)}" data-stat="{m.group(1)}" data-suffix="">{sitepage.fa_num(int(stt.get(m.group(1)) or 0))}</b>', body)
                     body = body.replace("<!--FM_ARTICLES-->", sitepage.articles_html(self.app), 1)
                     body = body.replace("<!--FM_VIDEO-->", sitepage.video_html(self.app), 1)
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
                 # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
                 sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "") if page not in ("sky", "article") else None
+                if page == "article":
+                    ar = self.app.store.q("SELECT * FROM articles WHERE slug='asansor-arzesh'", one=True)
+                    vid = seo.article_video(dict(ar) if ar else {}, "آسانسور ارزش")
+                    body = body.replace("<!--FM_ART_VIDEO-->", vid, 1)
                 if page == "article":   # مقالهٔ تعاملی: پیوند متعارف و دادهٔ ساختاریافتهٔ مقاله
                     ld = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": "آسانسور ارزش: هر طبقه و هر جهت ساختمان چقدر می‌ارزد؟",
                                      "inLanguage": "fa-IR", "mainEntityOfPage": self.base_url() + url.path,
@@ -1488,8 +1510,11 @@ class Handler(BaseHTTPRequestHandler):
             now = int(time.time())
             old = s.q("SELECT created FROM articles WHERE slug=?", (slug,), one=True)
             ck = data.get("city_key") if data.get("city_key") in catalog.CITY_BY_KEY else None
-            s.x("INSERT OR REPLACE INTO articles VALUES(?,?,?,?,?,?,?,?)",
-                (slug, title, (data.get("summary") or "").strip()[:300], body, ck, int(bool(data.get("published", True))), old["created"] if old else now, now))
+            vurl = (data.get("video_url") or "").strip()[:2000]
+            if vurl and not sitepage.video_embed(vurl):
+                raise ValueError("پیوند ویدیو شناخته نشد؛ نشانی صفحهٔ ویدیو در آپارات (aparat.com/v/...) یا یوتیوب را بگذارید")
+            s.x("INSERT OR REPLACE INTO articles(slug,title,summary,body,city_key,published,created,updated,video_url) VALUES(?,?,?,?,?,?,?,?,?)",
+                (slug, title, (data.get("summary") or "").strip()[:300], body, ck, int(bool(data.get("published", True))), old["created"] if old else now, now, vurl))
             SITEMAP.clear()
             return self.send_json({"ok": True, "slug": slug})
         if path == "/api/admin/expansion":
@@ -1536,6 +1561,7 @@ def main():
     Handler.app.bale.start()
     Handler.app.telegram.start()
     Handler.app.alerts.start()
+    threading.Thread(target=seo.indexnow_loop, args=(Handler.app,), name="indexnow", daemon=True).start()
     Handler.app.billing.start_bezan_poller()
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"

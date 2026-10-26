@@ -634,6 +634,9 @@ ARTICLES_SQL = """CREATE TABLE IF NOT EXISTS articles (slug TEXT PRIMARY KEY, ti
 def ensure_articles(store):
     with store.lock:
         store.db.execute(ARTICLES_SQL)
+        # ویدیوی هر مقاله (پیوند آپارات یا یوتیوب)؛ خالی یعنی فعلاً ویدیویی ندارد
+        if "video_url" not in {r[1] for r in store.db.execute("PRAGMA table_info(articles)")}:
+            store.db.execute("ALTER TABLE articles ADD COLUMN video_url TEXT")
         store.db.commit()
     try:  # مقاله‌های آغازین، فقط یک بار
         from articles_seed import seed
@@ -696,7 +699,7 @@ def article(app, base, slug):
     # آمار زندهٔ بازار در لحظهٔ مطالعه؛ با هر به‌روزرسانی داده خودکار عوض می‌شود
     live = ('<aside class="seo-live"><b>آمار زندهٔ بازار</b><p>هم‌اکنون __LISTINGS__ آگهی ملک در __CITIES__ شهر سنجیده شده و __OPPS__ فرصت شناسایی‌شده است؛ '
             'آخرین به‌روزرسانی داده: __UPDATED__. <a href="/#/s?sort=score&opp=1">دیدن فرصت‌ها</a> · <a href="/#/market">بازار محله‌ها</a></p></aside>')
-    body = _fill(app, _crumbs_html(crumbs) + f'<h1>{ESC(a["title"])}</h1><p class="seo-upd">به‌روزرسانی: __UPDATED__</p>' + live
+    body = _fill(app, _crumbs_html(crumbs) + f'<h1>{ESC(a["title"])}</h1><p class="seo-upd">به‌روزرسانی: __UPDATED__</p>' + article_video(a, a["title"]) + live
             + render_body(a["body"]) + (f'<p><a href="{city_path(c["key"])}">آگهی‌ها و فرصت‌های امروز {ESC(c["name"])}</a></p>' if c else ""))
     ld = [_crumbs_ld(base, crumbs), {"@context": "https://schema.org", "@type": "Article", "headline": a["title"][:110], "inLanguage": "fa-IR",
           "datePublished": time.strftime("%Y-%m-%d", time.gmtime(a["created"])), "dateModified": time.strftime("%Y-%m-%d", time.gmtime(max(a["updated"], _updated(st) or 0))),
@@ -705,6 +708,18 @@ def article(app, base, slug):
     return {"title": f"{a['title']} | {site['name']}", "desc": (a.get("summary") or a["title"])[:300],
             "canonical": base + "/maghale/" + urllib.parse.quote(slug), "body": body, "ld": ld,
             "hash": "#/p/maghale/" + urllib.parse.quote(slug), "kind": "content"}
+
+
+def article_video(a: dict, title: str) -> str:
+    """ویدیوی موشن مقاله (اگر در پنل گذاشته شده باشد) با کنترل صدا و تمام‌صفحهٔ خود پخش‌کننده."""
+    from sitepage import video_embed
+    emb = video_embed((a or {}).get("video_url") or "")
+    if not emb:
+        return ""
+    t = ESC(title)
+    player = (f'<iframe src="{ESC(emb[1])}" title="{t}" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen '
+              'referrerpolicy="strict-origin-when-cross-origin"></iframe>') if emb[0] == "iframe" else f'<video src="{ESC(emb[1])}" controls preload="metadata" playsinline></video>'
+    return f'<figure class="art-video"><div class="art-video__frame">{player}</div><figcaption>ویدیوی این مقاله</figcaption></figure>'
 
 
 def article_index(app, base):
@@ -871,32 +886,108 @@ def llms(app, base, full=False) -> str:
     return _fill(app, "\n".join(L) + "\n")
 
 
-def sitemap(app, base) -> str:
-    st = app.store
-    act = app.regions()["active"]
-    urls = [(base + "/", None, "daily", "1.0"), (base + "/method", None, "monthly", "0.4"), (base + "/faq", None, "monthly", "0.4"),
-            (base + "/rahnama/kharid-melk", None, "monthly", "0.5"), (base + "/rahnama/ejare", None, "monthly", "0.5"),
-            (base + "/rahnama/pish-forosh", None, "monthly", "0.5"), (base + "/rahnama/melk-arzan", None, "monthly", "0.6"), (base + "/rahnama/gheymat-mahalle", None, "monthly", "0.7"),
-            (base + "/sky.html", None, "daily", "0.6"), (base + "/about", None, "yearly", "0.3")]
-    arts = articles_list(st, 1000)
-    if arts:
-        urls.append((base + "/maghale", arts[0]["updated"], "weekly", "0.5"))
-        urls += [(base + "/maghale/" + urllib.parse.quote(a["slug"]), a["updated"], "monthly", "0.6") for a in arts]
-    last = {r["city_key"]: r["t"] for r in st.q("""SELECT city_key, MAX(last_seen) t FROM listings WHERE status='active' AND hidden=0
-                                                    AND vertical='estate' GROUP BY city_key""")}
-    counts = _counts(st)
-    for c in catalog.CITIES:
-        if c["province"] in act and last.get(c["key"]):
-            urls.append((base + city_path(c["key"]), last[c["key"]], "daily", "0.9"))
-            if counts.get(c["key"], 0) >= 20:
-                urls.append((base + guide_path(c["key"]), last[c["key"]], "weekly", "0.7"))
-            for d in st.districts(c["key"]):
-                if d["n"] >= 5:
-                    urls.append((base + city_path(c["key"], d["name"]), last[c["key"]], "daily", "0.7"))
-    room = max(0, 49000 - len(urls))
-    for r in st.q("""SELECT id, last_seen FROM listings WHERE status='active' AND hidden=0 AND vertical='estate' AND COALESCE(excluded,0)=0
-                     ORDER BY (label IN ('gold','good')) DESC, last_seen DESC LIMIT ?""", (room,)):
-        urls.append((f"{base}/ad/{r['id']}", r["last_seen"], "weekly", "0.6"))
+SITEMAP_PARTS = ("pages", "places", "ads")
+SITEMAP_ADS = 5000   # آگهی‌ها عمر کوتاه دارند: فقط فرصت‌ها و تازه‌ترین‌ها، تا بودجهٔ خزش صرف صفحه‌های شهر و محله شود
+
+
+def _urlset(urls) -> str:
     rows = "".join(f"<url><loc>{ESC(u)}</loc>" + (f"<lastmod>{time.strftime('%Y-%m-%d', time.gmtime(t))}</lastmod>" if t else "")
                    + f"<changefreq>{cf}</changefreq><priority>{pr}</priority></url>" for u, t, cf, pr in urls)
     return f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{rows}</urlset>'
+
+
+def sitemap(app, base) -> dict:
+    """نقشهٔ سایت در چند فایل: صفحه‌ها و مقاله‌ها، شهرها و محله‌ها، آگهی‌ها؛ به‌علاوهٔ فهرست آن‌ها (sitemap.xml)."""
+    st = app.store
+    act = app.regions()["active"]
+    pages = [(base + "/", None, "daily", "1.0"), (base + "/method", None, "monthly", "0.4"), (base + "/faq", None, "monthly", "0.4"),
+             (base + "/rahnama/kharid-melk", None, "monthly", "0.5"), (base + "/rahnama/ejare", None, "monthly", "0.5"),
+             (base + "/rahnama/pish-forosh", None, "monthly", "0.5"), (base + "/rahnama/melk-arzan", None, "monthly", "0.6"), (base + "/rahnama/gheymat-mahalle", None, "monthly", "0.7"),
+             (base + "/sky.html", None, "daily", "0.6"), (base + "/about", None, "yearly", "0.3")]
+    arts = articles_list(st, 1000)
+    if arts:
+        pages.append((base + "/maghale", arts[0]["updated"], "weekly", "0.5"))
+        pages += [(base + "/maghale/" + urllib.parse.quote(a["slug"]), a["updated"], "monthly", "0.6") for a in arts]
+    last = {r["city_key"]: r["t"] for r in st.q("""SELECT city_key, MAX(last_seen) t FROM listings WHERE status='active' AND hidden=0
+                                                    AND vertical='estate' GROUP BY city_key""")}
+    # تاریخ واقعی هر محله: تازه‌ترین آگهی ثبت‌شده در همان محله (نه تاریخ کل شهر)
+    dlast = {(r["city_key"], (r["district"] or "").replace(" ", "").replace("\u200c", "")): r["t"]
+             for r in st.q("""SELECT city_key, district, MAX(first_seen) t FROM listings WHERE status='active' AND hidden=0
+                              AND vertical='estate' AND district IS NOT NULL GROUP BY city_key, district""")}
+    counts = _counts(st)
+    places = []
+    for c in catalog.CITIES:
+        if c["province"] in act and last.get(c["key"]):
+            places.append((base + city_path(c["key"]), last[c["key"]], "daily", "0.9"))
+            if counts.get(c["key"], 0) >= 20:
+                pages.append((base + guide_path(c["key"]), last[c["key"]], "weekly", "0.7"))
+            for d in st.districts(c["key"]):
+                if d["n"] >= 5:
+                    t = dlast.get((c["key"], d["name"].replace(" ", "").replace("\u200c", ""))) or last[c["key"]]
+                    places.append((base + city_path(c["key"], d["name"]), t, "daily", "0.7"))
+    ads = [(f"{base}/ad/{r['id']}", r["last_seen"], "weekly", "0.5")
+           for r in st.q("""SELECT id, last_seen FROM listings WHERE status='active' AND hidden=0 AND vertical='estate' AND COALESCE(excluded,0)=0
+                            ORDER BY (label IN ('gold','good')) DESC, last_seen DESC LIMIT ?""", (SITEMAP_ADS,))]
+    parts = {"pages": pages, "places": places, "ads": ads}
+    out = {k: _urlset(v[:49000]) for k, v in parts.items()}
+    lm = lambda v: max((t for _, t, _, _ in v if t), default=None)
+    out["index"] = ('<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                    + "".join(f"<sitemap><loc>{ESC(base)}/sitemap-{k}.xml</loc>"
+                              + (f"<lastmod>{time.strftime('%Y-%m-%d', time.gmtime(lm(parts[k])))}</lastmod>" if lm(parts[k]) else "") + "</sitemap>"
+                              for k in SITEMAP_PARTS) + "</sitemapindex>")
+    return out
+
+
+# ---------------------------------------------------------- IndexNow (بینگ، یاندکس و …)
+def indexnow_key(store) -> str:
+    """کلید ثابت IndexNow سایت (یک بار ساخته و نگه داشته می‌شود)."""
+    k = store.get_setting("indexnow_key")
+    if not k:
+        import secrets
+        k = secrets.token_hex(16)
+        store.set_setting("indexnow_key", k)
+    return k
+
+
+def indexnow_loop(app, stop=None):
+    """هر ساعت نشانی صفحه‌های تازه یا تغییرکرده (شهر، محله، مقاله، آگهی تازه) به IndexNow گزارش می‌شود؛
+    گوگل از IndexNow پشتیبانی نمی‌کند و نقشهٔ سایت را خودش می‌خواند."""
+    import threading
+    import urllib.request
+    stop = stop or threading.Event()
+    stop.wait(300)
+    while not stop.is_set():
+        try:
+            base = app.store.get_setting("public_base") or ""
+            host = urllib.parse.urlsplit(base).hostname or ""
+            if base.startswith("https://") and host and not host.startswith(("127.", "localhost")):
+                since = app.store.get_setting("indexnow_at") or (time.time() - 86400)
+                sm = sitemap(app, base)
+                urls = [u for part in ("pages", "places", "ads") for u, t, _, _ in _parse_urlset(sm[part]) if t and t >= int(since)][:9000]
+                if urls:
+                    key = indexnow_key(app.store)
+                    body = json.dumps({"host": host, "key": key, "keyLocation": f"{base}/{key}.txt", "urlList": urls}).encode()
+                    req = urllib.request.Request("https://api.indexnow.org/indexnow", data=body, headers={"content-type": "application/json; charset=utf-8"})
+                    with urllib.request.urlopen(req, timeout=20) as r:
+                        app.store.set_setting("indexnow_last", {"at": int(time.time()), "n": len(urls), "status": r.status})
+                app.store.set_setting("indexnow_at", int(time.time()) - 60)
+        except Exception as e:  # noqa: BLE001
+            try:
+                app.store.set_setting("indexnow_last", {"at": int(time.time()), "error": str(e)[:200]})
+            except Exception:  # noqa: BLE001
+                pass
+        stop.wait(3600)
+
+
+def _parse_urlset(xml: str):
+    """(نشانی، زمان lastmod) از خروجی نقشهٔ سایت."""
+    out = []
+    for m in re.finditer(r"<loc>([^<]+)</loc>(?:<lastmod>([\d-]+)</lastmod>)?", xml):
+        t = None
+        if m.group(2):
+            try:
+                t = int(time.mktime(time.strptime(m.group(2), "%Y-%m-%d")))
+            except ValueError:
+                t = None
+        out.append((m.group(1).replace("&amp;", "&"), t, None, None))
+    return out

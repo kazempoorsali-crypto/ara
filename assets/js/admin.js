@@ -395,6 +395,8 @@
       <label class="field"><span>نشانی کوتاه (خالی = از روی عنوان)</span><input class="input" name="slug" value="${esc(a.slug || "")}" ${a.slug ? "readonly" : ""}></label></div>
       <label class="field"><span>خلاصه (توضیح زیر عنوان در گوگل، حدود ۱۵۰ نویسه)</span><input class="input" name="summary" value="${esc(a.summary || "")}" maxlength="300"></label>
       <label class="field"><span>شهر مرتبط (اختیاری)</span><select class="select" name="city_key"><option value="">—</option>${cities.map((c) => `<option value="${c.key}" ${a.city_key === c.key ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+      <label class="field"><span>پیوند ویدیوی موشن مقاله (اختیاری؛ آپارات یا یوتیوب)</span><input class="input input--ltr" name="video_url" value="${esc(a.video_url || "")}" placeholder="https://www.aparat.com/v/..."></label>
+      <p class="hint">ویدیو زیر عنوان مقاله و با کنترل صدا و تمام‌صفحه نمایش داده می‌شود. تا وقتی این خانه خالی است، در صفحهٔ مقاله جای خالی‌ای دیده نمی‌شود.</p>
       <label class="field"><span>متن مقاله</span><textarea class="input" name="body" rows="16" style="padding:10px 14px;line-height:2">${esc(a.body || "")}</textarea></label>
       <p class="hint">قالب ساده: خطی که با «## » شروع شود عنوان بخش، با «- » فهرست؛ پیوند: [متن](/melk/rasht). هر پاراگراف یک خط. متن را خودتان و بر پایهٔ واقعیت بنویسید؛ گوگل محتوای تکراری، کپی یا انبوه ماشینی را جریمه می‌کند.</p>
       <label class="switch"><input type="checkbox" name="published" ${a.published === 0 ? "" : "checked"}><i></i>منتشر شود</label>
@@ -404,14 +406,14 @@
         <p class="hint">برای هر شهر (<a href="/melk/rasht" target="_blank">/melk/rasht</a>)، هر محله با دست‌کم ۵ آگهی، هر آگهی (/ad/...)، راهنمای خرید هر شهر با دست‌کم ۲۰ آگهی (<a href="/rahnama/rasht" target="_blank">/rahnama/rasht</a>) و چک‌لیست‌های خرید و اجاره، صفحه‌ای با عنوان، توضیح و متن ساخته‌شده از دادهٔ واقعی همان لحظه. فهرست همهٔ این صفحه‌ها: <a href="/sitemap.xml" target="_blank">sitemap.xml</a> — این نشانی را در سرچ کنسول گوگل ثبت کنید.</p></div>
       <div id="artBox">${form()}</div>
       <div class="panel"><h2>مقاله‌ها</h2>${r.items.length ? `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>عنوان</th><th>نشانی</th><th>وضعیت</th><th>به‌روزرسانی</th><th></th></tr></thead><tbody>
-        ${r.items.map((a) => `<tr><td>${esc(a.title)}</td><td><a href="/maghale/${encodeURIComponent(a.slug)}" target="_blank" dir="ltr">/maghale/${esc(a.slug)}</a></td><td>${a.published ? "منتشرشده" : "پیش‌نویس"}</td><td>${when(a.updated)}</td><td style="white-space:nowrap"><button class="btn btn--line btn--sm" data-edit="${esc(a.slug)}">ویرایش</button> <button class="btn btn--ghost btn--sm" data-del="${esc(a.slug)}">حذف</button></td></tr>`).join("")}
+        ${r.items.map((a) => `<tr><td>${esc(a.title)}${a.video_url ? ' <span title="ویدیو دارد">🎬</span>' : ""}</td><td><a href="/maghale/${encodeURIComponent(a.slug)}" target="_blank" dir="ltr">/maghale/${esc(a.slug)}</a></td><td>${a.published ? "منتشرشده" : "پیش‌نویس"}</td><td>${when(a.updated)}</td><td style="white-space:nowrap"><button class="btn btn--line btn--sm" data-edit="${esc(a.slug)}">ویرایش</button> <button class="btn btn--ghost btn--sm" data-del="${esc(a.slug)}">حذف</button></td></tr>`).join("")}
       </tbody></table></div>` : '<p class="muted">هنوز مقاله‌ای ننوشته‌اید.</p>'}</div>`;
     const bind = () => {
       $("#artForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const f = e.target;
         try {
-          await api("admin/article", { title: f.title.value, slug: f.slug.value, summary: f.summary.value, city_key: f.city_key.value, body: f.body.value, published: f.published.checked });
+          await api("admin/article", { title: f.title.value, slug: f.slug.value, summary: f.summary.value, city_key: f.city_key.value, body: f.body.value, video_url: f.video_url.value.trim(), published: f.published.checked });
           toast("ذخیره شد"); articles();
         } catch (err) { toast(err.message); }
       });
