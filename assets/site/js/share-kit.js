@@ -111,7 +111,7 @@
 
   /* پنجرهٔ پایین‌صفحه (psheet) با پشتیبانی برگشت؛ onClosed وقتی صدا زده می‌شود که پنجره بسته شد (برای نشان دادن دوبارهٔ منوی قبلی) */
   FM.sheet = function (html, onClosed) {
-    var d = document.createElement("div"); d.className = "psheet"; d.innerHTML = '<div class="psheet__box" role="dialog" aria-modal="true">' + html + "</div>";
+    var d = document.createElement("div"); d.className = "psheet"; d.innerHTML = '<div class="psheet__box" role="dialog" aria-modal="true" data-lenis-prevent>' + html + "</div>";
     document.body.appendChild(d);
     d.close = FM.backable(d, function (all) { d.remove(); if (onClosed && !all) onClosed(); });
     d.addEventListener("click", function (e) { if (e.target === d || e.target.closest("[data-x]")) d.close(); });
