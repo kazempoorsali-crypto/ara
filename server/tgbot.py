@@ -729,8 +729,9 @@ class Assistant:
         if not phone:
             self.send(chat, "هشدار فرصت‌های تازه ویژهٔ مشترکان است. اول حساب سایت را به ربات وصل کنید:")
             return self.ask_contact(chat, then="alert")
-        if not (u and u["active"]):
-            return self.send(chat, "🔔 هشدار فوری فرصت‌های تازهٔ محله ویژهٔ مشترکان است.", kb=self.sub_kb())
+        from alerts import allowed
+        if not allowed(u):
+            return self.send(chat, "🔔 هشدار فوری فرصت‌های تازهٔ محله ویژهٔ مشترکان است (برای ثبت‌نامی‌های تازه ۵ روز رایگان).", kb=self.sub_kb())
         al = self.app.alerts
         city, dist = self.pref(chat)
         if here:

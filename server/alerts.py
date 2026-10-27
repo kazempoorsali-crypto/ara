@@ -16,11 +16,17 @@ CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, phone T
   day TEXT, sent_day INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
 CREATE INDEX IF NOT EXISTS ix_alerts_phone ON alerts(phone);
 CREATE TABLE IF NOT EXISTS alerts_sent (alert_id INTEGER, listing_id TEXT, at INTEGER, PRIMARY KEY (alert_id, listing_id));
+CREATE TABLE IF NOT EXISTS alerts_trial_end (phone TEXT PRIMARY KEY, at INTEGER);
 """
 MAX_PER_USER = 5      # هر کاربر حداکثر ۵ هشدار
 MAX_PER_DAY = 8       # هر هشدار حداکثر ۸ پیام در روز (مزاحمت نشود)
 MAX_PER_RUN = 3
 LABEL_FA = {"gold": "✦ فرصت طلایی", "good": "فرصت مناسب"}
+
+
+def allowed(u) -> bool:
+    """«خبرم کن»: مشترکان، و ثبت‌نامی‌های تازه در دورهٔ رایگان."""
+    return bool(u and (u["active"] or u.get("alert_trial_left", 0) > 0))
 
 
 def _fa(n) -> str:
@@ -71,8 +77,8 @@ class Alerts:
 
     def add(self, phone, data: dict) -> dict:
         u = self.billing.user(phone)
-        if not (u and u["active"]):
-            raise ValueError("هشدار فرصت‌های تازه برای مشترکان است؛ اول اشتراک را فعال کنید")
+        if not allowed(u):
+            raise ValueError("دورهٔ رایگان «خبرم کن» تمام شده است؛ برای ادامه، اشتراک را فعال کنید")
         ch = "telegram" if data.get("channel") == "telegram" else "bale"
         b = self.bot(ch)
         if not b.ready():
@@ -129,7 +135,9 @@ class Alerts:
                 if not b.ready():
                     continue
                 chat = b.chat_of(a["phone"])
-                if not (u and u["active"] and chat):
+                if u and chat and not allowed(u):
+                    self.trial_ended(a["phone"], b, chat)
+                if not (allowed(u) and chat):
                     continue
                 sent_day = a["sent_day"] if a["day"] == today else 0
                 room = min(MAX_PER_RUN, MAX_PER_DAY - sent_day)
@@ -164,6 +172,14 @@ class Alerts:
                 self.state["last_error"] = str(e)[:200]
         self.state.update(last_run=now, sent=self.state["sent"] + sent_total)
         return sent_total
+
+    def trial_ended(self, phone, b, chat):
+        """یک بار پیام پایان دورهٔ رایگان «خبرم کن» در همان پیام‌رسان."""
+        if self.store.q("SELECT 1 FROM alerts_trial_end WHERE phone=?", (phone,), one=True):
+            return
+        if b.send(chat, "⏳ دورهٔ رایگان ۵ روزهٔ «خبرم کن» تمام شد و ارسال هشدار فرصت‌های تازه متوقف شده است.\n"
+                        "با فعال کردن اشتراک، هشدارهای شما دوباره و بدون نیاز به ثبت مجدد ارسال می‌شود:\nhttps://forsatmelk.ir/account.html?subscribe=1"):
+            self.store.x("INSERT OR REPLACE INTO alerts_trial_end VALUES(?,?)", (phone, int(time.time())))
 
     @staticmethod
     def text(d: dict) -> str:

@@ -1264,3 +1264,20 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .alrt__st.is-ok { border-style: solid; border-color: #2fbf71; background: rgba(47,191,113,.1); color: #1f9a58; }
 .alrt__tag { font-style: normal; font-size: .72rem; font-weight: 800; padding: .1rem .45rem; margin-inline-end: .45rem; border-radius: 999px; background: rgba(127,127,127,.12); white-space: nowrap; }
 @media (max-width: 420px) { .alrt__ch { grid-template-columns: 1fr 1fr; } }
+
+/* «خبرم کن»: وضعیت کلی، مرحله‌ها و هشدار چشمک‌زن وقتی هنوز هشداری ثبت نشده */
+.alrt__banner { display: grid; gap: .2rem; padding: .75rem .9rem; border-radius: 14px; font-weight: 900; font-size: .92rem; }
+.alrt__banner small { font-weight: 600; font-size: .78rem; line-height: 1.8; }
+.alrt__banner.is-ok { background: rgba(47,191,113,.12); border: 1.5px solid #2fbf71; color: #1f9a58; }
+.alrt__banner.is-warn { background: rgba(232,150,30,.13); border: 1.5px solid #e8961e; color: #b86e05; animation: alrtBlink 1.6s ease-in-out infinite; }
+@keyframes alrtBlink { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,150,30,.0); } 50% { box-shadow: 0 0 0 5px rgba(232,150,30,.28); } }
+.alrt__trial { margin: 0; font-size: .8rem; font-weight: 700; color: var(--gold); }
+.alrt__step { display: grid; gap: .15rem; padding: .6rem .8rem; border-radius: 12px; border: 1.5px solid var(--line); font-size: .82rem; }
+.alrt__step b { font-size: .86rem; }
+.alrt__step span { color: var(--ink-faint); line-height: 1.8; }
+.alrt__step.is-done { border-color: #2fbf71; }
+.alrt__step.is-done b::after { content: " ✓"; color: #2fbf71; }
+.alrt__step.is-todo { border-color: #e8961e; background: rgba(232,150,30,.08); animation: alrtBlink 1.6s ease-in-out infinite; }
+.alrt__step.is-todo span { color: inherit; font-weight: 700; }
+.alrt__step.is-wait { opacity: .6; border-style: dashed; }
+@media (prefers-reduced-motion: reduce) { .alrt__banner.is-warn, .alrt__step.is-todo { animation: none; } }

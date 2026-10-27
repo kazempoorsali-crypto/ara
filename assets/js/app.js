@@ -2301,7 +2301,9 @@ const App = (() => {
       ${ex.fair_low && ex.fair_high && !v.approx ? `<p class="small">بازهٔ قیمت منصفانه برای همین خانه: <b>${money(ex.fair_low)}</b> تا <b>${money(ex.fair_high)}</b> تومان (با در نظر گرفتن پراکندگی قیمت‌های این محله).</p>` : ""}
       ${ex.disagree ? `<p class="small note-soft">${icon("info", 'width="16"')} فرصت اعلام نشد: مدل قیمت فاصلهٔ زیادی نشان می‌دهد، ولی نزدیک‌ترین آگهی‌های مشابه همین محله این فاصله را تأیید نمی‌کنند.</p>` : ""}
       ${v.wide ? `<p class="small note-soft">${icon("info", 'width="16"')} منصفانه با این فاصله: قیمت‌های این محله خیلی پراکنده‌اند و این فاصله هنوز در دامنهٔ عادی محله است.</p>` : ""}
-      <p class="small">${v.approx ? "قیمت مورد انتظار، بازهٔ قیمت منصفانه و درصد دقیق برای مشترکان نمایش داده می‌شود." : diff != null && Math.abs(v.delta) > 0.005 ? `یعنی حدود <b>${money(Math.abs(diff))} تومان ${diff < 0 ? "کمتر" : "بیشتر"}</b> از قیمتی که برای همین خانه در همین محله انتظار می‌رود.` : "تقریباً همان قیمتی است که برای همین خانه در همین محله انتظار می‌رود."}</p>
+      <p class="small">${v.approx ? "قیمت مورد انتظار، بازهٔ قیمت منصفانه و درصد دقیق برای مشترکان نمایش داده می‌شود." : ex.fair_low && ex.fair_high && askVal && l.deal !== "daily"
+        ? (askVal < ex.fair_low ? `یعنی حدود <b>${money(ex.fair_low - askVal)} تومان پایین‌تر</b> از کفِ این بازه.` : askVal > ex.fair_high ? `یعنی حدود <b>${money(askVal - ex.fair_high)} تومان بالاتر</b> از سقفِ این بازه.` : "یعنی قیمت این آگهی درون همین بازه است.")
+        : diff != null && Math.abs(v.delta) > 0.005 ? `یعنی حدود <b>${money(Math.abs(diff))} تومان ${diff < 0 ? "کمتر" : "بیشتر"}</b> از قیمتی که برای همین خانه در همین محله انتظار می‌رود.` : "تقریباً همان قیمتی است که برای همین خانه در همین محله انتظار می‌رود."}</p>
       <p class="small muted">امتیاز ۰ تا ۱۰۰ رتبهٔ آگهی در محلهٔ خودش است؛ ۱۰۰ یعنی بهترین فرصت همین محله، نه اطمینان کامل.</p>
     </div>`;
   }
@@ -2340,28 +2342,39 @@ const App = (() => {
     if (l.locked) {
       return `<div class="pcard pcard--lock"><div class="pcard__row">
         <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
-        <div><span>ارزش برآوردی بازار</span><b class="blur">۰٫۰ میلیارد</b><small>🔒</small></div>
-        <div><span>سود احتمالی</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
-        <p class="pcard__note">${esc(UI.gapText(v))}؛ ارزش برآوردی و سود احتمالی این خرید برای مشترکان نمایش داده می‌شود.</p>
-        <button type="button" class="btn btn--gold btn--block" data-pcard-sub>دیدن ارزش برآوردی و سود (اشتراک)</button></div>`;
+        <div><span>بازهٔ ارزش برآوردی</span><b class="blur">۰٫۰ تا ۰٫۰</b><small>🔒</small></div>
+        <div><span>فاصله تا کف بازه</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
+        <p class="pcard__note">${esc(UI.gapText(v))}؛ بازهٔ ارزش برآوردی و فاصلهٔ قیمت با آن برای مشترکان نمایش داده می‌شود.</p>
+        <button type="button" class="btn btn--gold btn--block" data-pcard-sub>دیدن بازهٔ ارزش برآوردی (اشتراک)</button></div>`;
     }
     const fair = l.fair_price || (v.delta != null ? ask / (1 + v.delta) : null);
     if (!fair) return "";
-    // حکم کارت همان برچسب سایت است؛ سود فقط برای «فرصت»ها و محتاطانه (کران پایین بازهٔ ارزش منهای قیمت آگهی)
+    // عدد قطعی «ارزش کارشناسی» نشان داده نمی‌شود (هم دقیق نیست و هم فروشنده را به بالا بردن قیمت وسوسه می‌کند)؛
+    // بازهٔ ارزش برآوردی و فاصلهٔ قیمت آگهی با کف یا سقف همان بازه نشان داده می‌شود تا اعداد با هم سازگار باشند
     const opp = l.label === "gold" || l.label === "good", bad = l.label === "high" || l.label === "over";
     const tone = opp ? "good" : bad ? "bad" : "fair";
+    const lo = ex.fair_low, hi = ex.fair_high, range = lo && hi && hi > lo;
     const pctv = (fair - ask) / fair;
-    const head = opp ? "زیر قیمت بازار محله" : bad ? "بالاتر از قیمت بازار محله" : "در محدودهٔ قیمت بازار محله";
-    const gain = opp ? (ex.estimated_profit || 0) : bad ? ask - fair : 0;
+    const head = opp ? "زیر بازهٔ قیمت بازار محله" : bad ? "بالاتر از بازهٔ قیمت بازار محله" : "در محدودهٔ قیمت بازار محله";
+    const unit = (x) => (x || "").replace(/ (میلیارد|میلیون|هزار)$/, "");
+    const rangeTxt = range ? (money(lo).split(" ").pop() === money(hi).split(" ").pop() ? `${unit(money(lo))} تا ${money(hi)}` : `${money(lo)} تا ${money(hi)}`) : null;
+    const below = range ? lo - ask : 0, above = range ? ask - hi : 0;
+    const gap = opp ? (below > 0 ? below : ex.estimated_profit || 0) : bad ? (range ? above : ask - fair) : 0;
+    const gapLabel = opp ? "فاصله تا کف بازه" : bad ? "بالاتر از سقف بازه" : "فاصله با بازه";
+    const gapSub = gap > 0 ? (opp ? "تومان زیر کمترین برآورد" : "تومان بیشتر از بیشترین برآورد") : "قیمت درون بازهٔ برآوردی است";
     const unk = (ex.unknown || []).length ? `<p class="pcard__note">${esc(ex.unknown.join(" و "))} در آگهی نیامده؛ برآورد با احتیاط بیشتری انجام شد و پیش از تصمیم باید پرسیده شود.</p>` : "";
+    const note = range
+      ? (opp && gap > 0 ? `قیمت این آگهی حدود ${money(gap)} تومان پایین‌تر از کفِ بازهٔ برآوردی است. ` : bad && gap > 0 ? `قیمت این آگهی حدود ${money(gap)} تومان بالاتر از سقفِ بازهٔ برآوردی است. ` : "")
+        + "این بازه از آگهی‌های همین محله با تعدیل سن بنا، طبقه، آسانسور و دیگر مشخصات به دست آمده و برآوردی آماری است، نه قیمت کارشناسی؛ برای همین عدد قطعی اعلام نمی‌کنیم."
+      : "برآورد آماری از آگهی‌های همین محله، نه قیمت کارشناسی.";
     return `<div class="pcard pcard--${tone}">
-      <div class="pcard__head"><b>${head}</b>${opp || bad ? `<span>${opp ? "−" : "+"}${fa(Math.round(Math.abs(pctv) * 100))}٪</span>` : ""}</div>
+      <div class="pcard__head"><b>${head}</b>${opp || bad ? `<span title="نسبت به میانهٔ بازه">${opp ? "−" : "+"}${fa(Math.round(Math.abs(pctv) * 100))}٪</span>` : ""}</div>
       <div class="pcard__row">
         <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
-        <div><span>ارزش برآوردی بازار</span><b>${money(fair)}</b><small>تومان</small></div>
-        <div class="pcard__gain"><span>${opp ? "سود احتمالی (محتاطانه)" : bad ? "بیشتر از ارزش" : "تفاوت با بازار"}</span><b>${gain > 0 ? money(gain) : "—"}</b><small>${gain > 0 ? "تومان" : "ناچیز یا در بازهٔ خطای برآورد"}</small></div>
+        <div><span>بازهٔ ارزش برآوردی</span><b>${rangeTxt || "حدود " + money(fair)}</b><small>تومان</small></div>
+        <div class="pcard__gain"><span>${gapLabel}</span><b>${gap > 0 ? money(gap) : "—"}</b><small>${gapSub}</small></div>
       </div>
-      ${ex.fair_low && ex.fair_high ? `<p class="pcard__note">بازهٔ ارزش برآوردی: ${money(ex.fair_low)} تا ${money(ex.fair_high)} تومان. این عدد برآورد آماری از آگهی‌های همین محله با تعدیل سن بنا، طبقه، آسانسور و دیگر مشخصات است، نه کارشناسی رسمی؛ سود محتاطانه از کران پایین این بازه حساب شده است.</p>` : `<p class="pcard__note">برآورد آماری از آگهی‌های همین محله، نه کارشناسی رسمی.</p>`}
+      <p class="pcard__note">${note}</p>
       ${unk}
     </div>`;
   }

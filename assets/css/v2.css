@@ -471,3 +471,13 @@
 .art-video__frame { position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; background: #000; border: 1px solid rgba(213,166,38,.35); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
 .art-video__frame iframe, .art-video__frame video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
 .art-video figcaption { margin-top: 8px; font-size: .85rem; opacity: .7; text-align: center; }
+
+/* دکمهٔ دستیار مثل صفحهٔ اصلی: دایرهٔ تیره با حباب گفت‌وگو و موج طلایی که پخش می‌شود */
+.ai-fab.ai-fab--chat, body[data-page] .ai-fab.ai-fab--chat { width: 62px; height: 62px; min-height: 62px; padding: 0; justify-content: center; border-radius: 50%; background: #0e1a13; border: 1px solid rgba(246,243,234,.2); box-shadow: 0 16px 44px -12px rgba(0,0,0,.65); }
+.ai-fab--chat svg { width: 34px; height: 34px; animation: none; }
+.ai-fab--chat b { display: none; }
+@media (hover: hover) { .ai-fab.ai-fab--chat:hover { transform: scale(1.08); } }
+.ai-fab__ping { position: absolute; inset: -4px; border-radius: 50%; border: 1px solid #d5a626; animation: aiFabPing 2.4s ease-out infinite; pointer-events: none; }
+@keyframes aiFabPing { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+@media (max-width: 560px) { .ai-fab.ai-fab--chat, body[data-page] .ai-fab.ai-fab--chat { width: 54px; height: 54px; min-height: 54px; } }
+@media (prefers-reduced-motion: reduce) { .ai-fab__ping { animation: none; opacity: 0; } }
