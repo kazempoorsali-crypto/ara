@@ -1281,3 +1281,14 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .alrt__step.is-todo span { color: inherit; font-weight: 700; }
 .alrt__step.is-wait { opacity: .6; border-style: dashed; }
 @media (prefers-reduced-motion: reduce) { .alrt__banner.is-warn, .alrt__step.is-todo { animation: none; } }
+
+/* «خبرم کن» ساده: یک جملهٔ اصلی، یک دکمهٔ اصلی */
+.alrt__lead { margin: 0; font-size: .98rem; font-weight: 800; line-height: 2; }
+.alrt__blink { color: #b86e05; padding: .7rem .85rem; border-radius: 14px; background: rgba(232,150,30,.12); border: 1.5px solid #e8961e; animation: alrtBlink 1.6s ease-in-out infinite; }
+.alrt__go { min-height: 52px; font-size: 1rem; animation: alrtBlink 1.6s ease-in-out infinite; }
+.alrt__seg { display: flex; gap: .4rem; }
+.alrt__seg button { flex: 1; min-height: 40px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+.alrt__seg button.is-on { border-color: #2fbf71; background: rgba(47,191,113,.12); }
+@media (prefers-reduced-motion: reduce) { .alrt__blink, .alrt__go { animation: none; } }
+.alrt__list li > span { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 0; }
+.alrt__list .alrt__tag { margin: 0; }
