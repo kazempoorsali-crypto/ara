@@ -295,6 +295,72 @@
       "skillPath": "skills/theme-factory/SKILL.md",
       "computedHash": "598ddfa9784ae2a8c55be5dbb047b98564d875dea6f4669168a87ae1ea1a4ed3"
     },
+    "trader-alerts": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-alerts/SKILL.md",
+      "computedHash": "af2f24664ee77de92bf9006cb33c0bf72db88aa1b4703c1bf7ee5b14d3e9d08c"
+    },
+    "trader-analyst": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-analyst/SKILL.md",
+      "computedHash": "a26725b79bf4a8d244fde500fee67c16a729d286641b63e31ab1d0312aec77dd"
+    },
+    "trader-broker": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-broker/SKILL.md",
+      "computedHash": "432ec21f74c04690ded0afec99cf205e678e3cfd59dd3898c154e583fcd28135"
+    },
+    "trader-budget": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-budget/SKILL.md",
+      "computedHash": "9d39b97e220220bf0ffd2431c2702d1b17f43d29e64c59641aef17bda0b73041"
+    },
+    "trader-entry": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-entry/SKILL.md",
+      "computedHash": "ee6146251fae0cf039d5babf767a3c14868d765258f09ec89c96a6a37873d2a0"
+    },
+    "trader-exit": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-exit/SKILL.md",
+      "computedHash": "6cf8e1113994ca68f2b56fc3a6804fdb6d86292b3a85ac00491be2a93cf15b37"
+    },
+    "trader-news": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-news/SKILL.md",
+      "computedHash": "4170d6378a970584ca00e052dd60bc8397a23a898477170e84d8c2105e1f1662"
+    },
+    "trader-pelosi": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-pelosi/SKILL.md",
+      "computedHash": "a89ad62cc731620409b189fca7c38a864e2210a3f0ddda04967f138d48171df8"
+    },
+    "trader-risk": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-risk/SKILL.md",
+      "computedHash": "f2015ff7db29d9adc76c83c037cb2951330727e9db494d74fe813e408e9edfd8"
+    },
+    "trader-scanner": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-scanner/SKILL.md",
+      "computedHash": "a816ad1c69aff86fa4c26bf908a95c098ae858de78a8889b13c29fc3dab66985"
+    },
+    "trader-timemachine": {
+      "source": "Jakeschincariol/day-trader-skill",
+      "sourceType": "github",
+      "skillPath": "trader-timemachine/SKILL.md",
+      "computedHash": "4ffee1ca1b5d6e642985e6c62f645aababfbb7a91076a629feb19e4404e13375"
+    },
     "ui-styling": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
