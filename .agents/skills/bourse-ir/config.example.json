@@ -1,0 +1,12 @@
+{
+  "_help": "Copy to bourse/config.json. All money in RIAL (toman x 10). Ask the user for every null; never guess commission rates.",
+  "budget_rial": null,
+  "max_loss_per_trade_rial": null,
+  "max_position_pct": 25,
+  "cash_buffer_pct": 10,
+  "commission_buy": null,
+  "commission_sell": null,
+  "_commission_help": "Fractions, e.g. 0.004 for 0.4%. Take the exact buy and sell rates (sell includes tax) from the user's broker.",
+  "tick_rial": 1,
+  "min_reward_risk": 1.5
+}
