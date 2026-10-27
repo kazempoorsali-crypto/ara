@@ -316,8 +316,10 @@ def adjust(bars, tol=0.001):
     """Back-adjust for capital increases and dividends.
 
     TSETMC sets a day's 'yesterday price' to the adjusted reference after a
-    corporate action, so yclose[t] / close[t-1] != 1 marks one. Every earlier
-    bar is scaled by that ratio; the latest bar keeps its real price.
+    corporate action, so yclose[t] / close[t-1] < 1 marks one. Every earlier
+    bar is scaled by that ratio; the latest bar keeps its real price. A ratio
+    above 1 cannot be a capital increase or dividend; it means days are
+    missing from the data, so nothing is scaled.
     Returns (adjusted_bars, events).
     """
     out = [None] * len(bars)
@@ -333,7 +335,7 @@ def adjust(bars, tol=0.001):
         out[i] = nb
         if i > 0:
             prev, yc = bars[i - 1]["close"], b.get("yclose")
-            if prev and yc and abs(yc / prev - 1) > tol:
+            if prev and yc and yc / prev < 1 - tol:
                 ratio = yc / prev
                 events.append({"date": b["date"], "jdate": jdate(b["date"]), "ratio": round(ratio, 6),
                                "before": prev, "reference": yc})
@@ -552,6 +554,10 @@ def import_table(path, symbol):
     if not rows:
         raise SystemExit("فایل خالی است")
     keys = [_header_key(h) for h in rows[0]]
+    raw_heads = [norm(h).lower().strip("<> ") for h in rows[0]]
+    # TSETMC's own export has both <FIRST> (first trade) and <OPEN>, and its <OPEN> is yesterday's final price.
+    if "first" in raw_heads and "open" in raw_heads:
+        keys[raw_heads.index("open")] = "yclose"
     need = {"date", "high", "low", "close"}
     if not need <= set(keys):
         raise SystemExit(f"ستون‌های لازم (تاریخ، بیشترین، کمترین، پایانی) شناخته نشد. سرستون‌ها: {rows[0]}")
@@ -568,7 +574,8 @@ def import_table(path, symbol):
         bars.append(_bar(d, to_num(rec.get("open")) or c, to_num(rec.get("high")), to_num(rec.get("low")), c,
                          to_num(rec.get("last")) or c, to_num(rec.get("yclose")), to_num(rec.get("volume")) or 0,
                          to_num(rec.get("value")), to_num(rec.get("count"))))
-    bars = [b for b in bars if b["close"] and b["high"] and b["low"]]
+    # Days without trades (TSETMC fills them with zero prices) carry no information.
+    bars = [b for b in bars if b["close"] and b["high"] and b["low"] and (b["volume"] or 0) > 0]
     bars.sort(key=lambda b: b["date"])
     # Without a 'yesterday' column, yesterday = previous close (no corporate-action adjustment possible).
     for i, b in enumerate(bars):

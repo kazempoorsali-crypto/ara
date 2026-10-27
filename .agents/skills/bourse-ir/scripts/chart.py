@@ -71,8 +71,11 @@ def build(symbol, bars_all, analysis, plan, days):
         s.append(f'<text x="{x(i):.1f}" y="{vtop + VOL_H + 18}" font-size="11" text-anchor="middle">'
                  f'{escape(tse.jdate(bars[i]["date"]))}</text>')
     bw = max(1.0, step * 0.6)
+    first = len(bars_all) - len(bars)
     for i, b in enumerate(bars):
-        col = UP if b["close"] >= b["open"] else DOWN
+        # Coloured by the change from yesterday, as on Iranian boards: a day locked in a queue has open == close.
+        prev = bars_all[first + i - 1]["close"] if first + i > 0 else b["open"]
+        col = UP if b["close"] >= prev else DOWN
         s.append(f'<line x1="{x(i):.1f}" x2="{x(i):.1f}" y1="{y(b["high"]):.1f}" y2="{y(b["low"]):.1f}" stroke="{col}" stroke-width="1"/>')
         top, bot = y(max(b["open"], b["close"])), y(min(b["open"], b["close"]))
         s.append(f'<rect x="{x(i) - bw / 2:.1f}" y="{top:.1f}" width="{bw:.1f}" height="{max(bot - top, 1):.1f}" fill="{col}"/>')

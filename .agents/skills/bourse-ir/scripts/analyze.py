@@ -151,6 +151,25 @@ def technical(bars, raw):
     locked_up = sum(1 for b in raw60 if b["high"] == b["low"] and b.get("yclose") and b["close"] > b["yclose"])
     out["limit_days_60"] = {"locked_down": locked_dn, "locked_up": locked_up,
                             "max_up_pct": max(chg) if chg else None, "max_down_pct": min(chg) if chg else None}
+    # Consecutive locked days ending today: a running buy or sell queue.
+    streak, side = 0, None
+    for b in reversed(raw):
+        if b["high"] != b["low"] or not b.get("yclose") or b["close"] == b["yclose"]:
+            break
+        s = "down" if b["close"] < b["yclose"] else "up"
+        if side and s != side:
+            break
+        side, streak = s, streak + 1
+    out["lock_streak"] = {"days": streak, "side": side}
+    # Long pauses in trading (halts) inside the data.
+    import datetime as _dt
+    halts = []
+    for p, q in zip(raw, raw[1:]):
+        gap = (_dt.date(q["date"] // 10000, q["date"] // 100 % 100, q["date"] % 100)
+               - _dt.date(p["date"] // 10000, p["date"] // 100 % 100, p["date"] % 100)).days
+        if gap > 20:
+            halts.append({"from": tse.jdate(p["date"]), "to": tse.jdate(q["date"]), "days": gap})
+    out["halts"] = halts
     return out
 
 
@@ -241,6 +260,12 @@ def signals(t, mf, live_q):
         pos.append("سهم اکنون در صف خرید است (خرید در صف ممکن است انجام نشود)")
     elif live_q == "صف فروش":
         neg.append("سهم اکنون در صف فروش است")
+    ls = t.get("lock_streak") or {}
+    if ls.get("days", 0) >= 2:
+        if ls["side"] == "down":
+            neg.append(f"سهم {ls['days']} روز پیاپی تا امروز در صف فروش (قفل در حد پایین) بسته شده است")
+        else:
+            pos.append(f"سهم {ls['days']} روز پیاپی تا امروز در صف خرید (قفل در حد بالا) بسته شده است")
     if t["limit_days_60"]["locked_down"] >= 3:
         neg.append(f"در ۶۰ روز اخیر {t['limit_days_60']['locked_down']} روز قفل در حد پایین بوده؛ ریسک اجرانشدن حد ضرر")
     return pos, neg
@@ -265,7 +290,8 @@ def toman(rial, unit="b"):
 
 def report(a):
     t, mf, fu, lv = a["technical"], a["flow"], a["fundamentals"], a["live"]
-    L = [f"# تحلیل سهم {a['symbol']}" + (f" ({a['name']})" if a.get("name") else ""),
+    name = (a.get("name") or "").strip("()")
+    L = [f"# تحلیل سهم {a['symbol']}" + (f" ({name})" if name else ""),
          "",
          f"آخرین دادهٔ روزانه: {t['jdate']} · {t['days']} روز معاملاتی · منبع: {a['source']} · قیمت‌ها به ریال",
          ""]
@@ -305,6 +331,12 @@ def report(a):
     ld = t["limit_days_60"]
     L += ["", f"در ۶۰ روز اخیر {ld['locked_down']} روز قفل در حد پایین و {ld['locked_up']} روز قفل در حد بالا ثبت شده است"
           f" (بیشترین رشد روزانه {f1(ld['max_up_pct'], '٪')} و بیشترین افت {f1(ld['max_down_pct'], '٪')}).", ""]
+    ls = t.get("lock_streak") or {}
+    if ls.get("days"):
+        L += [f"**وضعیت صف در پایان داده:** {ls['days']} روز پیاپی قفل در "
+              + ("حد پایین (صف فروش)" if ls["side"] == "down" else "حد بالا (صف خرید)") + ".", ""]
+    if t.get("halts"):
+        L += ["توقف‌های طولانی معاملات در داده: " + "، ".join(f"{h['from']} تا {h['to']} ({h['days']} روز)" for h in t["halts"]) + ".", ""]
 
     L += ["## جریان پول حقیقی و حقوقی", ""]
     if mf:
