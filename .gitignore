@@ -9,3 +9,6 @@ data/
 *.db-wal
 *.db-shm
 server.log
+
+# bourse-ir working cache (regenerable)
+/bourse/cache/
