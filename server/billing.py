@@ -15,6 +15,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+ALERT_TRIAL_DAYS = 5   # روزهای رایگان «خبرم کن» از زمان ثبت‌نام
 DEFAULT_BILLING = {
     "weekly_price": 98000, "monthly_price": 248000, "weekly_days": 7, "monthly_days": 30,
     "gateway": "", "merchant_id": "", "sandbox": False, "test_mode": False,
@@ -288,7 +289,9 @@ class Billing:
         return {"phone": r["phone"], "sub_until": r["sub_until"] or 0, "plan": r["plan"],
                 "active": (r["sub_until"] or 0) > now, "days_left": max(0, -(-((r["sub_until"] or 0) - now) // 86400)),
                 "trial": r["plan"] == "trial", "first_name": d.get("first_name") or "", "last_name": d.get("last_name") or "",
-                "email": d.get("email") or "", "username": d.get("username") or "", "has_password": bool(d.get("pw_hash"))}
+                "email": d.get("email") or "", "username": d.get("username") or "", "has_password": bool(d.get("pw_hash")),
+                # «خبرم کن» برای ثبت‌نامی‌های تازه چند روز رایگان است (بقیهٔ امکانات همچنان ویژهٔ مشترکان)
+                "alert_trial_left": max(0, -(-((r["created"] or 0) + ALERT_TRIAL_DAYS * 86400 - now) // 86400)) if r["created"] else 0}
 
     def logout(self, token):
         self.store.x("DELETE FROM user_sessions WHERE token=?", (token,))

@@ -43,17 +43,30 @@
       var bot = c.bot ? "@" + String(c.bot).replace(/^@/, "") : "ربات فرصت ملک";
       var can = cur.province || cur.city;
       var pick = chans.length > 1 ? '<div class="alrt__ch" role="radiogroup" aria-label="پیام کجا بیاید؟">' + chans.map(function (k) {
-        return '<button type="button" class="alrt__c' + (k === ch ? " is-on" : "") + '" role="radio" aria-checked="' + (k === ch) + '" data-ch="' + k + '"><i>' + ICONS[k] + "</i><span><b>" + NAMES[k] + "</b><small>" + (info[k].linked ? "متصل است" : "وصل نشده") + "</small></span></button>";
+        return '<button type="button" class="alrt__c' + (k === ch ? " is-on" : "") + '" role="radio" aria-checked="' + (k === ch) + '" data-ch="' + k + '"><i>' + ICONS[k] + "</i><span><b>" + NAMES[k] + "</b><small>" + (info[k].linked ? "ربات وصل است" : "ربات وصل نشده") + "</small></span></button>";
       }).join("") + "</div>" : "";
       var status = c.linked
-        ? '<div class="alrt__st is-ok">' + ICONS[ch] + " متصل به " + name + "<small>پیام‌ها در گفت‌وگو با " + E(bot) + " می‌آید</small></div>"
-        : '<div class="alrt__st">' + ICONS[ch] + " هنوز به " + name + " وصل نیستید<small>یک بار ربات را باز کنید و «" + (ch === "telegram" ? "Start" : "شروع") + "» را بزنید؛ سپس به همین صفحه برگردید.</small></div>" +
+        ? '<div class="alrt__st is-ok">' + ICONS[ch] + " ربات " + name + " به حساب شما وصل است<small>پیام‌ها در گفت‌وگو با " + E(bot) + " می‌آید؛ این فقط راه رسیدن پیام است، خود هشدار را در مرحلهٔ ۳ ثبت کنید.</small></div>"
+        : '<div class="alrt__st">' + ICONS[ch] + " ربات " + name + " هنوز وصل نیست<small>یک بار ربات را باز کنید و «" + (ch === "telegram" ? "Start" : "شروع") + "» را بزنید؛ سپس به همین صفحه برگردید.</small></div>" +
           (c.connect ? '<a class="btn btn--gold alrt__link" href="' + E(c.connect) + '" target="_blank" rel="noopener" data-connect>اتصال به ' + name + "</a>" : "");
+      var n = (r.items || []).length, me = FM.api.me || {};
+      var trial = !me.active && me.alert_trial_left > 0 ? '<p class="alrt__trial">🎁 «خبرم کن» برای شما تا ' + FM.fa(me.alert_trial_left) + " روز دیگر رایگان است؛ پس از آن با اشتراک ادامه پیدا می‌کند.</p>" : "";
+      var banner = n
+        ? '<div class="alrt__banner is-ok">✅ ' + FM.fa(n) + " هشدار فعال دارید؛ آگهی‌های تازهٔ مناسب همان لحظه برایتان فرستاده می‌شود.</div>"
+        : '<div class="alrt__banner is-warn" role="status">⚠️ هنوز هیچ هشداری ثبت نکرده‌اید<small>وصل بودن بله یا تلگرام به‌تنهایی پیامی نمی‌فرستد؛ هر سه مرحلهٔ زیر را کامل کنید.</small></div>';
+      var step1 = can
+        ? '<div class="alrt__step is-done"><b>۱. محدوده</b><span>' + E(alertLabel(cur)) + "</span></div>"
+        : '<div class="alrt__step is-todo"><b>۱. محدوده</b><span>اول در فیلتر بالای صفحه استان، شهر یا محله را انتخاب کنید، بعد دوباره «خبرم کن» را بزنید.</span></div>';
+      var step3 = can && c.linked
+        ? '<button type="button" class="btn btn--gold" data-add>۳. ثبت هشدار برای: ' + E(alertLabel(cur)) + "</button>"
+        : '<div class="alrt__step is-wait"><b>۳. ثبت هشدار</b><span>' + (!can ? "بعد از انتخاب محدوده" : "بعد از اتصال ربات " + name) + " فعال می‌شود.</span></div>";
       box.innerHTML = '<b class="psheet__t">🔔 خبرم کن</b>' +
-        '<p class="alrt__p">هر وقت آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در این فیلتر پیدا شود، همان لحظه خبرتان می‌کنیم؛ حداکثر ۸ پیام در روز.</p>' +
-        pick + status +
+        banner + trial +
+        '<p class="alrt__p">هر وقت آگهی تازه‌ای با امتیاز بالا (فرصت طلایی یا مناسب) در محدودهٔ شما پیدا شود، همان لحظه خبرتان می‌کنیم؛ حداکثر ۸ پیام در روز.</p>' +
+        step1 +
+        '<b class="alrt__h">۲. پیام کجا بیاید؟</b>' + pick + status +
+        step3 +
         (msg ? '<p class="alrt__ok">' + msg + "</p>" : "") +
-        (c.linked ? (can ? '<button type="button" class="btn btn--gold" data-add>افزودن هشدار برای: ' + E(alertLabel(cur)) + "</button>" : '<p class="alrt__p">اول در فیلتر بالا استان یا شهر را انتخاب کنید.</p>') : "") +
         (r.items && r.items.length ? '<b class="alrt__h">هشدارهای فعال شما</b><ul class="alrt__list">' + r.items.map(function (a) {
           var k = a.channel === "telegram" ? "telegram" : "bale";
           return '<li><span><em class="alrt__tag">' + ICONS[k] + " " + NAMES[k] + "</em>" + E(alertLabel(a)) + '</span><button type="button" data-rm="' + a.id + '">حذف</button></li>';
@@ -84,7 +97,7 @@
   FM.alertGate = function (cur) {
     if (!FM.api || !FM.account) return;
     if (!FM.api.me) return FM.account.login(function () { FM.openAlerts(cur); });
-    if (!FM.api.me.active) { (FM.toast || alert)("«خبرم کن» برای مشترکان است؛ با اشتراک، فرصت‌های تازه را زودتر از همه در بله یا تلگرام ببینید."); return FM.account.subscribe(); }
+    if (!FM.api.me.active && !(FM.api.me.alert_trial_left > 0)) { (FM.toast || alert)("دورهٔ رایگان «خبرم کن» تمام شده است؛ با اشتراک، فرصت‌های تازه را زودتر از همه در بله یا تلگرام ببینید."); return FM.account.subscribe(); }
     FM.openAlerts(cur);
   };
 })();
