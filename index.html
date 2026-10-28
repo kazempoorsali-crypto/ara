@@ -33,15 +33,14 @@
     })();
   </script>
   <link rel="preload" href="/assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
-  <!-- پیش‌واکشی هوشمند (Speculation Rules): صفحهٔ «قیمت از دید آسمان» در زمان بیکاری، صفحهٔ هر ملک به محض قصد کاربر
-       (نزدیک شدن نشانگر یا لمس)؛ فقط HTML دانلود می‌شود، پس صفحهٔ اصلی کند نمی‌شود -->
+  <!-- پیش‌واکشی هوشمند (Speculation Rules): فقط با قصد کاربر (نزدیک شدن نشانگر یا لمس پیوند)؛ هیچ صفحه‌ای از پیش
+       دانلود نمی‌شود تا پهنای باند موبایل صرف خود صفحهٔ اول شود -->
   <script type="speculationrules">
   {
     "prerender": [
       { "source": "document", "where": { "or": [ { "href_matches": "/sky.html" }, { "href_matches": "/ad/*" } ] }, "eagerness": "moderate" }
     ],
     "prefetch": [
-      { "source": "list", "urls": ["/sky.html"], "eagerness": "eager" },
       { "source": "document", "where": { "or": [ { "href_matches": "/ad/*" }, { "href_matches": "/app.html" }, { "href_matches": "/account.html" } ] }, "eagerness": "moderate" }
     ]
   }
@@ -128,10 +127,10 @@
     <div class="menu__grid" data-lenis-prevent>
       <div class="menu__visual" aria-hidden="true">
         <div class="menu__imgs-track" data-menu-track>
-          <figure class="menu__img is-1"><img src="/assets/img/cards/idea-1.jpeg" alt=""></figure>
-          <figure class="menu__img is-2"><img src="/assets/img/scene/living-1280.webp" alt=""></figure>
-          <figure class="menu__img is-3"><img src="/assets/img/cards/penthouse-view.jpg" alt=""></figure>
-          <figure class="menu__img is-4"><img src="/assets/img/cards/forest-house.jpg" alt=""></figure>
+          <figure class="menu__img is-1"><img data-src="/assets/img/cards/idea-1.jpeg" alt="" decoding="async"></figure>
+          <figure class="menu__img is-2"><img data-src="/assets/img/scene/living-1280.webp" alt="" decoding="async"></figure>
+          <figure class="menu__img is-3"><img data-src="/assets/img/cards/penthouse-view.jpg" alt="" decoding="async"></figure>
+          <figure class="menu__img is-4"><img data-src="/assets/img/cards/forest-house.jpg" alt="" decoding="async"></figure>
         </div>
       </div>
       <div class="menu__links-w">

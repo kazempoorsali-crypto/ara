@@ -52,7 +52,7 @@ html.theming .searchbar, html.theming .deck__stage, html.theming .chat { transit
   --font: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
-@font-face { font-family: "Vazirmatn"; src: url("../fonts/Vazirmatn-Variable.woff2") format("woff2-variations"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/Vazirmatn-Variable.woff2") format("woff2-variations"); font-weight: 100 900; font-display: swap; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html.lenis, html.lenis body { height: auto; }
@@ -104,6 +104,9 @@ select { font: inherit; }
 /* ---------- Intro ---------- */
 .intro { position: fixed; inset: 0; z-index: 1000; background: var(--bg); display: grid; place-items: center; clip-path: inset(0 0 0 0); transition: clip-path .95s var(--ease); overflow: hidden; }
 .intro.is-done { clip-path: inset(0 0 100% 0); pointer-events: none; }
+/* بیمه: اگر اسکریپت‌ها روی اینترنت کند دیر برسند، پردهٔ ابتدایی خودش پس از ۳ ثانیه کنار می‌رود و صفحه دیده می‌شود */
+.intro { animation: introAutoHide .9s ease 3s forwards; }
+@keyframes introAutoHide { to { clip-path: inset(0 0 100% 0); pointer-events: none; visibility: hidden; } }
 .intro__sun-track { position: absolute; left: 50%; top: 58%; transform: translate(-50%,-50%); width: 1px; height: 1px; }
 .intro__sun { position: absolute; width: clamp(120px, 22vw, 240px); aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle at 38% 34%, #ff9a57, #e0531f 58%, #b23a10); box-shadow: 0 0 90px 30px rgba(224, 83, 31, .35), 0 0 220px 90px rgba(224, 83, 31, .12); }
 .intro__build { position: relative; width: clamp(220px, 34vw, 330px); color: var(--ink); }

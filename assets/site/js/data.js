@@ -124,9 +124,11 @@ id: l.id,
     stats: B.stats || {},
     thresholds: th,
     /* استان ← شهر ← محله؛ price = میانهٔ قیمت هر متر به میلیون تومان (از جدول بازار) */
-    regions: (B.regions || []).map(function (p) {
+    // محله‌ها از فایل جدای /boot/regions.js (فشرده: [نام، قیمت هر متر، تعداد، چارک پایین، چارک بالا])
+    regions: (B.regions || window.FM_REGIONS || []).map(function (p) {
       return { id: p.id, name: p.name, cities: (p.cities || []).map(function (c) {
-        return { id: c.id, name: c.name, n: c.n, lat: c.lat, lon: c.lng, lng: c.lng, districts: (c.districts || []).map(function (d) {
+        var dl = c.districts || (c.d || []).map(function (x) { return { id: x[0], name: x[0], ppm: x[1], n: x[2], p25: x[3], p75: x[4] }; });
+        return { id: c.id, name: c.name, n: c.n, lat: c.lat, lon: c.lng, lng: c.lng, districts: dl.map(function (d) {
           return { id: d.id, name: d.name, n: d.n, price: Math.round(d.ppm / 1e5) / 10, ppm: d.ppm, p25: d.p25, p75: d.p75 };
         }).sort(function(a, b){ return (a.name || "").localeCompare(b.name || "", "fa"); }) };
       }).sort(function(a, b){ return (a.name || "").localeCompare(b.name || "", "fa"); }) };
