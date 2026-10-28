@@ -190,19 +190,35 @@ def mark_sub(html: str) -> str:
                   ("<html" + re.sub(r'class="', 'class="is-sub ', m.group(1), 1) + ">" if 'class="' in m.group(1) else "<html" + m.group(1) + ' class="is-sub">'), html, count=1)
 
 
+def regions_js(app):
+    """فهرست استان‌ها، شهرها و محله‌ها (با میانهٔ قیمت) به‌صورت فایل جدا و فشرده: در HTML نمی‌آید تا صفحه فوراً دیده شود،
+    و چون نشانی‌اش نسخه‌دار است، در مرورگر یک سال می‌ماند. هر محله: [نام، قیمت هر متر، تعداد، چارک پایین، چارک بالا]."""
+    def build():
+        import hashlib
+        regs = common(app)["regions"]
+        compact = [{"id": p["id"], "name": p["name"], "cities": [
+            {"id": c["id"], "name": c["name"], "lat": c["lat"], "lng": c["lng"], "n": c["n"],
+             "d": [[d["name"], d["ppm"], d["n"], d["p25"], d["p75"]] for d in c["districts"]]} for c in p["cities"]]} for p in regs]
+        body = ("window.FM_REGIONS=" + json.dumps(compact, ensure_ascii=False, separators=(",", ":")) + ";").encode()
+        return hashlib.md5(body).hexdigest()[:10], body
+    return cached("regions-js", 60, build)
+
+
 def boot(handler, page, qs):
     """داده‌ای که در صفحه با window.FM_BOOT در دسترس است.
     کاربر واردشده (کوکی fy_t): حساب و فرصت‌ها از همان اول برای خودش ساخته می‌شود؛ مشترک قفل نمی‌بیند."""
     app = handler.app
-    data = {"page": page, **common(app)}
+    data = {"page": page, **{k: v for k, v in common(app).items() if k != "regions"}}   # محله‌ها در /boot/regions.js
     u = handler.page_user()
     if u:
         data["me"] = u
     if page in ("home", "sky"):
         if u and u.get("active"):   # فهرست مشترکان برای همهٔ مشترکان یکی است
-            data["properties"] = cached("top-sub", 60, lambda: _top(handler, u))
+            props = cached("top-sub", 60, lambda: _top(handler, u))
         else:
-            data["properties"] = cached("top", 60, lambda: _top(handler))
+            props = cached("top", 60, lambda: _top(handler))
+        # ویترین فقط چند عکس و خلاصهٔ توضیح لازم دارد؛ متن کامل در صفحهٔ خود آگهی است (حجم HTML صفحهٔ اول کم شود)
+        data["properties"] = [{**x, "description": (x.get("description") or "")[:240], "images": (x.get("images") or [])[:5]} for x in props]
     if page == "property":
         lid = (qs.get("id") or "").strip()
         d = app.store.get(lid) if lid else None
@@ -254,7 +270,7 @@ def video_embed(url: str):
 
 def video_html(app) -> str:
     """بخش ویدیوی معرفی صفحهٔ اول؛ پیوند، عنوان و توضیح از پنل مدیریت (تنظیمات سایت)."""
-    site = app.store.get_setting("site") or {}
+    site = cached("site-setting", 60, lambda: app.store.get_setting("site") or {})
     esc = lambda t: str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     # ویدیوهای فعال (فهرست پنل؛ برای سازگاری، پیوند تکی قدیمی هم)؛ هر بازدید یکی به‌تصادف
     pool = [v for v in (site.get("videos") or []) if isinstance(v, dict) and v.get("on") and video_embed(v.get("url") or "")]
@@ -265,8 +281,9 @@ def video_html(app) -> str:
     desc = esc(pick.get("desc") or site.get("video_desc") or "در چند دقیقه ببینید فرصت ملک چطور قیمت هر آگهی را با محلهٔ خودش می‌سنجد و فرصت‌های واقعی را پیدا می‌کند.")
     emb = video_embed(pick.get("url") or "")
     if emb and emb[0] == "iframe":
-        player = (f'<iframe src="{esc(emb[1])}" title="{title}" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" '
-                  'allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>')
+        # پیش‌نمایش سبک: پخش‌کنندهٔ سنگین آپارات/یوتیوب فقط با کلیک کاربر بار می‌شود (صفحهٔ اول سریع باز شود)
+        player = (f'<button type="button" class="vid__play" data-vid-src="{esc(emb[1])}" data-vid-title="{title}" aria-label="پخش ویدیو: {title}">'
+                  f'<i aria-hidden="true">▶</i><b>پخش ویدیو</b></button>')
     elif emb:
         player = f'<video src="{esc(emb[1])}" controls preload="metadata" playsinline></video>'
     else:

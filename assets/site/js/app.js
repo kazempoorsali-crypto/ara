@@ -138,6 +138,22 @@
 
     /* ویدیوی معرفی: دکمهٔ تمام‌صفحه کنار پخش‌کننده (صدا و تمام‌صفحهٔ خود آپارات هم داخل پخش‌کننده هست).
        آیفون تمام‌صفحهٔ iframe را پشتیبانی نمی‌کند؛ آن‌جا دکمهٔ تمام‌صفحهٔ داخل پخش‌کننده کار می‌کند و این دکمه پنهان است */
+    /* ویدیو: پخش‌کنندهٔ آپارات (حدود ۳۰۰ کیلوبایت) فقط با کلیک کاربر بار می‌شود */
+    document.querySelectorAll("[data-vid-src]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var f = document.createElement("iframe");
+        f.src = b.getAttribute("data-vid-src"); f.title = b.getAttribute("data-vid-title") || "";
+        f.allow = "autoplay; fullscreen; picture-in-picture"; f.setAttribute("allowfullscreen", ""); f.referrerPolicy = "strict-origin-when-cross-origin";
+        b.replaceWith(f);
+      });
+    });
+    var gg = document.querySelector(".gglobe");
+    if (gg) {
+      if ("IntersectionObserver" in window) {
+        var gio = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { gg.classList.add("is-in"); gio.disconnect(); } }, { rootMargin: "400px" });
+        gio.observe(gg);
+      } else gg.classList.add("is-in");
+    }
     document.querySelectorAll("[data-vid-fs]").forEach(function (b) {
       var box = b.parentNode.querySelector(".vid__frame"), v = box && box.querySelector("video");
       var can = box && (box.requestFullscreen || box.webkitRequestFullscreen || (v && v.webkitEnterFullscreen));
@@ -237,6 +253,7 @@
   }
   var menuPushed = false;
   function openMenu() {
+    document.querySelectorAll(".menu__img img[data-src]").forEach(function (im) { im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); });
     var menu = document.getElementById("menu");
     if (menuOpen || !menu || !document.getElementById("menuBtn")) return;
     menuOpen = true;
@@ -781,14 +798,6 @@
     document.addEventListener("touchstart", function (e) {
       var a = e.target.closest && e.target.closest("a[href]"); if (internal(a)) pf(a.pathname + a.search);
     }, { passive: true });
-    addEventListener("load", function () {
-      var idle = window.requestIdleCallback || function (f) { setTimeout(f, 1500); };
-      idle(function () {
-        pf("/sky.html");
-        var tag = ((document.querySelector('script[src*="/assets/site/js/app.js"]') || {}).src || "").split("?v=")[1];
-        if (tag) { pf("/assets/site/js/sky.js?v=" + tag); pf("/assets/site/css/pages.css?v=" + tag); }
-      });
-    });
   })();
 
   /* گرم کردن «قیمت از دید آسمان» برای همهٔ مرورگرها: بعد از بار شدن صفحه و در زمان بیکاری، فایل‌های سنگین آن
@@ -814,8 +823,10 @@
       "/assets/js/data.js" + v, "/assets/js/nlp.js" + v, "/assets/js/api.js" + v, "/assets/js/ui.js" + v, "/assets/js/ribbons.js" + v,
       "/assets/js/app.js" + v, "/assets/js/cine.js" + v, "/assets/js/fx.js" + v];
     function warm() { SKY.forEach(function (u) { pf(u); }); }
-    var go = function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1200); })(warm, { timeout: 4000 }); };
-    if (document.readyState === "complete") setTimeout(go, 800); else addEventListener("load", function () { setTimeout(go, 800); });
+    // خودکار فقط روی رایانه با اینترنت پرسرعت و دیرتر (۸ ثانیه پس از بار شدن)؛ روی موبایل هرگز، تا پهنای باند صرف خود صفحه شود
+    var fast = conn && conn.effectiveType === "4g" && !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    var go = function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1200); })(warm, { timeout: 6000 }); };
+    if (fast) { if (document.readyState === "complete") setTimeout(go, 8000); else addEventListener("load", function () { setTimeout(go, 8000); }); }
     // نیت کاربر: موس یا لمس روی هر پیوند به آسمان ← همان لحظه
     function intent(e) { var a = e.target.closest && e.target.closest('a[href*="sky.html"]'); if (a) warm(); }
     document.addEventListener("pointerover", intent, { passive: true });

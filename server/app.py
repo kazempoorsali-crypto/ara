@@ -582,6 +582,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.app.analytics.bot_hit(self.headers.get("user-agent") or "")
                 except Exception:  # noqa: BLE001
                     pass
+            if url.path == "/boot/regions.js":
+                ver, js = sitepage.regions_js(self.app)
+                # نسخهٔ درست: یک سال در مرورگر؛ نسخهٔ کهنه یا بدون نسخه: داده تازه ولی بدون کش طولانی
+                return self.send_text(js.decode(), "application/javascript; charset=utf-8",
+                                      cache="public, max-age=31536000, immutable" if qs.get("v") == ver else "no-cache")
             if url.path == "/robots.txt":
                 return self.send_text(seo.robots(self.base_url()), "text/plain; charset=utf-8")
             if url.path in ("/llms.txt", "/llms-full.txt"):
@@ -614,9 +619,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_text("<!doctype html><meta charset=utf-8><title>یافت نشد</title><p>این آگهی پیدا نشد. <a href='/'>صفحهٔ اصلی</a></p>",
                                           "text/html; charset=utf-8", status=404, cache="no-cache")
                 body = sitepage.inject(self.versioned((ROOT / fname).read_bytes()), data).decode()
+                # فهرست محله‌ها فایل جدا و ماندگار در کش، درست پیش از data.js (پس از نمایش صفحه)
+                body = body.replace('<script src="/assets/site/js/data.js', f'<script src="/boot/regions.js?v={sitepage.regions_js(self.app)[0]}"></script>\n  <script src="/assets/site/js/data.js', 1)
                 ua = self.headers.get("user-agent") or ""
-                if page == "home" and self.base_url().startswith("https://") and self.app.store.get_setting("public_base") != self.base_url():
+                if page == "home" and self.base_url().startswith("https://") and sitepage.cached("public-base", 3600, lambda: self.app.store.get_setting("public_base")) != self.base_url():
                     self.app.store.set_setting("public_base", self.base_url())   # برای گزارش IndexNow
+                    sitepage._CACHE["public-base"] = (time.time(), self.base_url())
                 if page == "home" and re.search(r"bot|crawl|spider|slurp|lighthouse|pagespeed|headless|gtmetrix|preview", ua, re.I):
                     body = sitepage.html_class(body, "intro-fast")   # خزنده‌ها و ابزارهای سنجش سرعت پردهٔ ابتدایی را نمی‌بینند
                 if page == "home":
@@ -625,11 +633,12 @@ class Handler(BaseHTTPRequestHandler):
                     body = re.sub(r'data-count="0" data-stat="(\w+)" data-suffix="">۰</b>',
                                   lambda m: f'data-count="{int(stt.get(m.group(1)) or 0)}" data-stat="{m.group(1)}" data-suffix="">{sitepage.fa_num(int(stt.get(m.group(1)) or 0))}</b>', body)
                     body = body.replace("<!--FM_ARTICLES-->", sitepage.articles_html(self.app), 1)
-                    body = body.replace("<!--FM_VIDEO-->", sitepage.video_html(self.app), 1)
+                    body = body.replace("<!--FM_VIDEO-->", sitepage.video_html(self.app), 1)   # تنظیمات سایت از کش ۶۰ ثانیه‌ای
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
                 # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
-                sp = seo.page(self.app, self.base_url(), "/" if page == "home" else url.path if mad else "") if page not in ("sky", "article") else None
+                sp = (sitepage.cached("seo-home|" + self.base_url(), 120, lambda: seo.page(self.app, self.base_url(), "/")) if page == "home"
+                      else seo.page(self.app, self.base_url(), url.path if mad else "") if page not in ("sky", "article") else None)
                 if page == "article":
                     ar = self.app.store.q("SELECT * FROM articles WHERE slug='asansor-arzesh'", one=True)
                     vid = seo.article_video(dict(ar) if ar else {}, "آسانسور ارزش")
