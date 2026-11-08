@@ -488,3 +488,5 @@
 .psheet__box { width: min(440px, 100%); max-height: 92dvh; overflow-y: auto; background: var(--bg, #fff); color: inherit; border-radius: 22px 22px 0 0; padding: 1.1rem; display: grid; gap: .8rem; text-align: right; }
 @media (min-width: 700px) { .psheet { place-items: center; } .psheet__box { border-radius: 22px; } }
 .psheet__x { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+
+.ownlock { grid-column: 1 / -1; display: grid; gap: 10px; justify-items: start; padding: 20px; border-radius: 18px; border: 1.5px solid rgba(213,166,38,.5); background: rgba(213,166,38,.1); line-height: 2; }
