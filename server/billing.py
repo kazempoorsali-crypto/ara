@@ -20,7 +20,7 @@ ALERT_TRIAL_DAYS = 5   # روزهای رایگان «خبرم کن» از زما
 DEFAULT_BILLING = {
     "weekly_price": 98000, "monthly_price": 248000, "weekly_days": 7, "monthly_days": 30,
     "gateway": "", "merchant_id": "", "sandbox": False, "test_mode": False,
-    "free_preview": 0,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود
+    "free_preview": 2,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود (نمونهٔ اعتمادساز)
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,

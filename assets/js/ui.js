@@ -118,6 +118,8 @@ const UI = (() => {
   /* ---------- قیمت ---------- */
   function priceHTML(l, big = false) {
     const m = (v) => money(v);
+    // غیرمشترک: فقط بازهٔ قیمت (قیمت دقیق، آگهی را در منبع پیدا می‌کند)
+    if (l.pp_lo || l.deposit_lo) return `<b>🔒 حدود ${m(l.pp_lo || l.deposit_lo)} تا ${m(l.pp_hi || l.deposit_hi)}</b><small>قیمت دقیق ویژهٔ اعضا</small>`;
     if (l.deal === "rent") {
       if (!l.deposit && !l.rent) return `<b>توافقی</b>`;
       return `<b>${m(l.deposit) || "بدون ودیعه"}</b><small>ودیعه</small>${l.rent ? `<span class="sep">|</span><b>${m(l.rent)}</b><small>ماهانه</small>` : ""}`;
@@ -126,6 +128,7 @@ const UI = (() => {
     return `<b>${m(l.price)}</b><small>${l.deal === "daily" ? "تومان / شب" : "تومان"}</small>`;
   }
   function pinLabel(p) {
+    if (p.pp_lo || p.deposit_lo) return "حدود " + money(p.pp_lo || p.deposit_lo);
     if (p.deal === "rent") return p.deposit ? "ودیعه " + money(p.deposit) : p.rent ? money(p.rent) + "/ماه" : "توافقی";
     if (!p.price) return "توافقی";
     return money(p.price) + (p.deal === "daily" ? "/شب" : "");

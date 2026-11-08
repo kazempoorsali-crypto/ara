@@ -335,7 +335,6 @@
   var colTweens = [];
 
   function ncardEl(p, cardIdx) {
-    var showFreeFair = FM.isSub() || (typeof cardIdx === 'number' && cardIdx < 3);
     var a = document.createElement("a");
     a.className = "ncard";
     a.href = FM.propUrl(p.id);
@@ -350,7 +349,7 @@
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
       '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
-      (p.fairPrice && showFreeFair ? '<span class="ncard__fair" style="display:block;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(32,151,106,0.14);color:#20976A;font-size:12.5px;font-weight:700;text-align:center;">💎 ارزش برآوردی: ' + E(FM.money(p.fairPrice)) + (p.profit > 5e7 ? ' (' + E(FM.money(p.profit)) + ' زیر قیمت)' : '') + '</span>' : (p.locked ? '<span class="ncard__lock" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(213,166,38,0.13);color:#b8860b;font-size:12px;font-weight:700;">💎 ارزش کارشناسی و سود خالص: <i>🔒 ویژه اعضا</i></span>' : '')) + "</span>";
+      FM.savingLine(p) + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8).map(function (u) { return FM.thumb(u); }));
     return a;
   }
@@ -453,7 +452,6 @@
       col.innerHTML = "";
       perCol[ci].forEach(function (p, ii) {
         var el = ncardEl(p, p._gIdx);
-        if (ii === 0 && ci === 1) el.classList.add("is-offset");
         col.appendChild(el);
       });
       gsap.fromTo(col.children, { autoAlpha: 0, y: 30 }, {
@@ -461,18 +459,7 @@
       });
     });
 
-    /* حرکت پلکانی ستون‌ها */
-    if (!FM.lite && !matchMedia("(max-width: 860px)").matches) {
-      cols.forEach(function (col) {
-        var dir = col.getAttribute("data-col-speed") === "0.8" ? 1 : -1;
-        var t = gsap.fromTo(col, { y: dir * 70 }, {
-          y: -dir * 70,
-          ease: "none",
-          scrollTrigger: { trigger: wrap, start: "top bottom", end: "bottom top", scrub: 0.6 },
-        });
-        colTweens.push(t);
-      });
-    }
+    /* ستون‌ها ثابت و هم‌تراز (حرکت خلاف‌جهت ستون‌ها حذف شد تا کارت‌ها راحت مقایسه شوند) */
     if (window.ScrollTrigger) ScrollTrigger.refresh();
   }
 
@@ -528,7 +515,25 @@
   var hunts = bootHunts();
   renderHunts(hunts);
   if (htrack && hunts.length < 3) { var hs = document.querySelector("[data-hscroll]"); if (hs) { hs.hidden = false; hs.classList.add("is-static"); } hpin = null; }
-  var hfree = !hpin || !htrack || FM.lite || matchMedia("(max-width: 860px)").matches;
+  /* رادار کاهش قیمت: همیشه نوار افقی آزاد (کشیدن، چرخ موس افقی، دکمه‌های قبلی/بعدی)؛ اسکرول عمودی صفحه هرگز قفل نمی‌شود */
+  var hfree = true;
+  (function hNav() {
+    var box = document.querySelector("[data-hscroll]"); if (!box || !htrack) return;
+    var head = box.querySelector(".hscroll__head");
+    var nav = document.createElement("div"); nav.className = "hscroll__nav";
+    nav.innerHTML = '<button type="button" aria-label="قبلی" data-hs="-1">›</button><button type="button" aria-label="بعدی" data-hs="1">‹</button>';
+    (head || box).appendChild(nav);
+    nav.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-hs]"); if (!b) return;
+      var step = Math.max(260, htrack.clientWidth * 0.8) * (+b.dataset.hs);
+      htrack.scrollBy({ left: -step, behavior: "smooth" });   // راست‌به‌چپ: «بعدی» به سمت چپ
+    });
+    var down = false, sx = 0, sl = 0, moved = false;
+    htrack.addEventListener("pointerdown", function (e) { if (e.pointerType !== "mouse") return; down = true; moved = false; sx = e.clientX; sl = htrack.scrollLeft; });
+    addEventListener("pointermove", function (e) { if (!down) return; var dx = e.clientX - sx; if (Math.abs(dx) > 4) moved = true; htrack.scrollLeft = sl - dx; });
+    addEventListener("pointerup", function () { down = false; });
+    htrack.addEventListener("click", function (e) { if (moved) { e.preventDefault(); moved = false; } }, true);
+  })();
   /* بدون پین (گوشی، دستگاه ضعیف): نوار با انگشت یا اسکرول افقی خودش جابه‌جا می‌شود */
   if (hfree) { var hsx = document.querySelector("[data-hscroll]"); if (hsx) hsx.classList.add("is-free"); }
   if (!hfree) {

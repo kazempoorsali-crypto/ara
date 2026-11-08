@@ -336,8 +336,11 @@ class Assistant:
         city = d.get("city_name") or (CITY_BY_KEY.get(d.get("city_key")) or {}).get("name") or ""
         where = "، ".join(x for x in (d.get("district"), city) if x)
         bits = []
-        if d.get("area"):
+        if d.get("area") and sub:
             bits.append(f"{fa_int(d['area'])} متر")
+        elif d.get("area"):   # غیرمشترک: متراژ و قیمت دقیق نه (آگهی در منبع پیدا نشود)
+            lo = int(d["area"]) // 10 * 10
+            bits.append(f"حدود {fa(lo)} تا {fa(lo + 10)} متر")
         if d.get("rooms"):
             bits.append(f"{fa(int(d['rooms']))} خواب")
         if d.get("year"):
@@ -345,8 +348,13 @@ class Assistant:
         if sub:
             title = fa(clean_title(d.get("title") or "", d.get("kind"), d.get("area"), d.get("district"))[0] or kind)
         else:
-            title = f"{kind}{(' ' + fa_int(d['area']) + ' متری') if d.get('area') else ''}"
-        if d.get("deal") == "rent":
+            title = kind
+        if not sub:
+            v = float((d.get("deposit") if d.get("deal") == "rent" else d.get("pp") or d.get("price")) or 0)
+            step = 1e9 if v >= 1e10 else 5e8 if v >= 2e9 else 1e8 if v >= 5e8 else 5e7
+            lo = v // step * step
+            price = f"🔒 حدود {money(lo)} تا {money(lo + step)}" if v else "—"
+        elif d.get("deal") == "rent":
             price = f"ودیعه {money(d.get('deposit'))} · اجاره {money(d.get('rent'))}"
         else:
             price = money(d.get("pp") or d.get("price"))
@@ -362,7 +370,9 @@ class Assistant:
             else:
                 lines.append(lab)
         di = d.get("drop_info")
-        if di:
+        if di and not sub:   # قیمت قبل و بعد، قیمت دقیق را لو می‌دهد
+            lines.append(f"📉 کاهش قیمت: {fa_pct(di['pct'])}٪")
+        elif di:
             lines.append(f"📉 کاهش قیمت: از {money(di['prev'])} به {money(di['now'])} ({fa_pct(di['pct'])}٪)")
         btns = [{"text": "📄 شناسنامهٔ قیمت در سایت", "url": f"{self.base()}/ad/{d['id']}"}]
         if sub and d.get("url"):

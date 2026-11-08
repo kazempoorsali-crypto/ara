@@ -2330,7 +2330,7 @@ const App = (() => {
   function profitCard(l) {
     const v = l.verdict;
     if (!v || l.excluded || l.label === "sus" || l.deal === "rent" || l.deal === "daily") return "";
-    const ask = l.pp || l.price;
+    const ask = l.pp || l.price || l.pp_lo;   // غیرمشترک: فقط بازهٔ قیمت
     if (!ask) return "";
     const ex = l.explain || {};
     // سند براتی، قول‌نامه‌ای یا وکالتی: با آگهی‌های سند‌دار محله مقایسه‌پذیر نیست؛ ارزش و سود ساختگی نشان داده نمی‌شود
@@ -2341,7 +2341,7 @@ const App = (() => {
     }
     if (l.locked) {
       return `<div class="pcard pcard--lock"><div class="pcard__row">
-        <div><span>قیمت آگهی</span><b>${money(ask)}</b><small>تومان</small></div>
+        <div><span>قیمت آگهی</span><b>${l.pp_lo ? "حدود " + money(l.pp_lo) + " تا " + money(l.pp_hi) : money(ask)}</b><small>${l.pp_lo ? "🔒 دقیقش ویژهٔ اعضا" : "تومان"}</small></div>
         <div><span>بازهٔ ارزش برآوردی</span><b class="blur">۰٫۰ تا ۰٫۰</b><small>🔒</small></div>
         <div><span>فاصله تا کف بازه</span><b class="blur">۰۰۰ میلیون</b><small>🔒</small></div></div>
         <p class="pcard__note">${esc(UI.gapText(v))}؛ بازهٔ ارزش برآوردی و فاصلهٔ قیمت با آن برای مشترکان نمایش داده می‌شود.</p>
@@ -2643,7 +2643,7 @@ const App = (() => {
     const m = (x) => (UI.money(x) ? UI.money(x) + " تومان" : "");
     return {
       id: l.id, title: l.title || "", loc: [l.district, l.city_name].filter(Boolean).join("، "), area: l.area, rooms: l.rooms,
-      priceText: l.deal === "rent" && l.deposit != null ? "ودیعه " + m(l.deposit) + (l.rent ? "، اجاره " + m(l.rent) : "") : m(l.price || l.pp),
+      priceText: l.pp_lo || l.deposit_lo ? "🔒 حدود " + m(l.pp_lo || l.deposit_lo) + " تا " + m(l.pp_hi || l.deposit_hi) : l.deal === "rent" && l.deposit != null ? "ودیعه " + m(l.deposit) + (l.rent ? "، اجاره " + m(l.rent) : "") : m(l.price || l.pp),
       diffText: v && v.delta != null ? UI.gapText(v) : "", label: l.label, score: l.score != null ? Math.round(l.score) : null,
       img: !u ? "" : /^(https?:|\/)/.test(u) ? u : "/" + u, raw: l,
     };
