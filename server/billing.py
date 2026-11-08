@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import secrets
 import time
 import urllib.error
@@ -25,6 +26,9 @@ DEFAULT_BILLING = {
     "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
     # مبلغ یکتا: قیمت طرح ± چند گام (پیش‌فرض گام هزار تومانی؛ برای قیمت ۵۰۰ هزار: ۴۹۸، ۴۹۹، ۵۰۰، ۵۰۱، ۵۰۲ هزار ...)
     "card_step": 1000, "card_span": 100,
+    # تأیید خودکار کارت‌به‌کارت با پیامک بانک: گوشی اندرویدی صاحب کارت پیامک واریز را به سایت می‌فرستد
+    # (برنامهٔ Incoming SMS to URL forwarder)؛ مبلغ واریز با مبلغ یکتای پرداخت تطبیق داده و اشتراک فوراً فعال می‌شود
+    "bank_sms_enabled": False, "bank_sms_key": "", "bank_sms_senders": "", "bank_sms_unit": "rial",
     # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
     "trial_enabled": False, "trial_days": 3,
     # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
@@ -100,6 +104,10 @@ class Billing:
         self.telegram = None
         from accounts import ensure_schema
         ensure_schema(store)
+        with store.lock:
+            store.db.execute("CREATE TABLE IF NOT EXISTS bank_sms (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER, sender TEXT, body TEXT, "
+                             "amount INTEGER, status TEXT, payment_id INTEGER, hash TEXT UNIQUE)")
+            store.db.commit()
 
     def cfg(self):
         return {**DEFAULT_BILLING, **(self.store.get_setting("billing") or {})}
@@ -462,7 +470,93 @@ class Billing:
         amount = self.unique_amount(plan["price"], exclude=pid)
         self.store.x("UPDATE payments SET amount=?, note='در انتظار رسید کارت‌به‌کارت' WHERE id=?", (amount, pid))
         return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"]},
-                "payment_id": pid, "amount": amount, "price": plan["price"], "plan": plan["name"], "auto": bool(c["card_auto_activate"])}
+                "payment_id": pid, "amount": amount, "price": plan["price"], "plan": plan["name"], "auto": bool(c["card_auto_activate"]),
+                "sms": self.bank_sms_ready()}
+
+    # ---------------------------------------------------------- پیامک واریز بانک (تأیید آنی کارت‌به‌کارت)
+    def bank_sms_ready(self) -> bool:
+        c = self.cfg()
+        return bool(c.get("bank_sms_enabled") and c.get("bank_sms_key"))
+
+    def bank_sms_key(self) -> str:
+        """کلید محرمانهٔ نشانی دریافت پیامک؛ اولین بار ساخته و ذخیره می‌شود."""
+        c = self.cfg()
+        if not c.get("bank_sms_key"):
+            cur = self.store.get_setting("billing") or {}
+            cur["bank_sms_key"] = secrets.token_urlsafe(18)
+            self.store.set_setting("billing", cur)
+            return cur["bank_sms_key"]
+        return c["bank_sms_key"]
+
+    @staticmethod
+    def parse_deposit(text: str):
+        """مبلغ واریز از متن پیامک بانک (همان عدد پیامک، معمولاً ریال). برداشت، خرید و پیامک بی‌مبلغ: None. مانده کنار گذاشته می‌شود."""
+        t = (text or "").translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
+        t = t.replace("٬", ",").replace("،", ",").replace("٫", ".")
+        t = re.sub(r"(مانده|موجودی|موجودي|balance|bal)\s*[:：]?\s*[+-]?\s*[\d,.]+\s*[+-]?", " ", t, flags=re.I)
+        num = r"(\d{1,3}(?:,\d{3})+|\d{4,})"
+        dep = r"(واریز|واريز|بستانکار|انتقال\s*به|نشست|deposit|credit)"
+        if re.search(r"(برداشت|خرید|خريد|کسر|كسر|withdraw|debit)", t, re.I):
+            return None
+        m = re.search(num + r"\s*\+", t) or re.search(r"\+\s*" + num, t)
+        if m:
+            return int(m.group(1).replace(",", ""))
+        if not re.search(dep, t, re.I):
+            return None
+        m = re.search(r"مبلغ[^\d]{0,15}" + num, t)
+        if m:
+            return int(m.group(1).replace(",", ""))
+        m = re.search(dep + r"[^\d]{0,40}?" + num, t, re.I)
+        if m:
+            return int(m.group(2).replace(",", ""))
+        m = re.search(dep + r".{0,80}?(\d{1,3}(?:,\d{3})+)", t, re.I | re.S)
+        return int(m.group(2).replace(",", "")) if m else None
+
+    @staticmethod
+    def _sender_key(x: str) -> str:
+        k = re.sub(r"[^0-9a-z\u0600-\u06FF]", "", (x or "").lower().translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))).lstrip("0")
+        return k[-10:] if k.isdigit() and len(k) > 10 else k
+
+    def bank_sms_receive(self, sender: str, body: str) -> dict:
+        """پیامک رسیده از گوشی صاحب کارت: ثبت، تطبیق با پرداخت کارت‌به‌کارتِ هم‌مبلغ و فعال‌سازی فوری اشتراک.
+        وضعیت: matched | unmatched | ambiguous | ignored | rejected | duplicate"""
+        import hashlib
+        c = self.cfg()
+        sender, body = (sender or "").strip()[:40], (body or "").strip()[:2000]
+        allowed = [self._sender_key(a) for a in str(c.get("bank_sms_senders") or "").split(",") if a.strip()]
+        sk = self._sender_key(sender)
+        ok = not allowed or any(sk == a or (sk.isdigit() and a.isdigit() and min(len(sk), len(a)) >= 5 and (sk.endswith(a) or a.endswith(sk))) for a in allowed)
+        raw = self.parse_deposit(body) if ok else None
+        amount = None
+        if raw is not None:
+            amount = (raw // 10 if raw % 10 == 0 else None) if c.get("bank_sms_unit", "rial") == "rial" else raw
+        status, pid = ("rejected" if not ok else "ignored" if amount is None else "unmatched"), None
+        h = hashlib.sha256(f"{sender}|{body}".encode()).hexdigest()
+        if self.store.q("SELECT 1 FROM bank_sms WHERE hash=?", (h,), one=True):
+            return {"status": "duplicate", "amount": amount}
+        if amount is not None:
+            rows = self.store.q("SELECT * FROM payments WHERE gateway='card' AND amount=? AND status IN ('pending','review') AND created>? ORDER BY id DESC",
+                                (amount, int(time.time()) - 3 * 86400))
+            if len(rows) == 1:
+                pay = rows[0]
+                pid, status = pay["id"], "matched"
+                if pay["status"] == "review" and "فعال‌شده" in (pay["note"] or ""):   # پیش‌تر با رسید فعال شده بود: فقط قطعی می‌شود
+                    self.store.x("UPDATE payments SET status='paid', paid_at=?, note=? WHERE id=?",
+                                 (int(time.time()), "واریز با پیامک بانک تأیید شد", pid))
+                else:
+                    self.activate(pay["phone"], pay["plan"], pid, "SMS")
+                    self.store.x("UPDATE payments SET note='واریز با پیامک بانک خودکار تأیید شد' WHERE id=?", (pid,))
+            elif len(rows) > 1:
+                status = "ambiguous"
+        if amount is None:   # پیامک غیرواریزی ذخیره نمی‌شود (ممکن است رمز یکبار مصرف داشته باشد)
+            body = "— متن پیامک غیرواریزی ذخیره نشد —"
+        self.store.x("INSERT INTO bank_sms (at, sender, body, amount, status, payment_id, hash) VALUES (?,?,?,?,?,?,?)",
+                     (int(time.time()), sender, body, amount, status, pid, h))
+        self.store.x("DELETE FROM bank_sms WHERE at < ?", (int(time.time()) - 90 * 86400,))
+        return {"status": status, "amount": amount, "payment": pid}
+
+    def bank_sms_list(self, limit=40):
+        return [dict(r) for r in self.store.q("SELECT id, at, sender, body, amount, status, payment_id FROM bank_sms ORDER BY id DESC LIMIT ?", (limit,))]
 
     def unique_amount(self, price: int, exclude=None) -> int:
         """نزدیک‌ترین مبلغ آزاد به قیمت طرح با گام ثابت (۰، −۱، +۱، −۲، +۲ ... گام) تا هر واریز با مبلغش شناخته شود."""

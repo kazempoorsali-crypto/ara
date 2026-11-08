@@ -408,14 +408,30 @@
       </ol>` : `<ol class="pay-steps">
         <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
         <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button>${r.card.holder ? `<span class="pay-holder">به نام <b>${esc(r.card.holder)}</b></span>` : ""}</li>
-        <li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="/app.html#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>
+        ${r.sms ? `<li><span>همین صفحه را باز بگذار؛ چند ثانیه پس از واریز، پرداختت خودکار شناخته و اشتراک ${esc(r.plan)} باز می‌شود. نیازی به رسید نیست.</span><b class="pay-wait" id="cpWait">⏳ در انتظار واریز…</b></li>`
+          : `<li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="/app.html#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>`}
       </ol>`}
+      ${r.sms ? `<details class="pay-fallback"><summary>اگر تا ۱۰ دقیقه پس از واریز فعال نشد، رسید را ثبت کن</summary>` : ""}
       <form class="form-grid" id="rcForm">
         <label class="field"><span>کد پیگیری یا شمارهٔ مرجع</span><input class="input input--ltr" id="rcTrack" inputmode="numeric" autocomplete="off"></label>
         <label class="field"><span>عکس رسید (اختیاری، تا ۵ مگابایت)</span><input class="input" type="file" id="rcFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
         <button class="btn btn--hot btn--lg" id="rcBtn">${icon("upload")} ${r.auto ? "ثبت رسید و فعال‌سازی" : "ثبت رسید"}</button>
         <p class="small muted">اگر واریز با مبلغ و رسید نخواند، روزهای اشتراک پس گرفته می‌شود. تمدید خودکار نداریم.</p>
-      </form>`);
+      </form>${r.sms ? "</details>" : ""}`);
+    // تأیید خودکار با پیامک بانک: هر ۶ ثانیه (حداکثر ۴۵ دقیقه) وضعیت پرسیده می‌شود
+    if (r.sms && r.payment_id) {
+      const t0 = Date.now();
+      const poll = async () => {
+        if (!$("#cpWait")) return;
+        try {
+          const st = await API.payCheck(r.payment_id);
+          if (st.status === "paid") { $("#dlg").close(); await API.refreshMe(); updateAccount(); showInvoice(r.payment_id); return; }
+        } catch { /* */ }
+        if (Date.now() - t0 < 45 * 60e3) setTimeout(poll, 6000);
+        else if ($("#cpWait")) $("#cpWait").textContent = "واریزی با این مبلغ هنوز نرسیده؛ اگر واریز کرده‌اید، رسید را ثبت کنید.";
+      };
+      setTimeout(poll, 6000);
+    }
     $("#cpCard")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
     $("#rcForm").addEventListener("submit", async (e) => {
       e.preventDefault();

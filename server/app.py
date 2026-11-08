@@ -465,6 +465,20 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             raise ValueError("JSON نامعتبر")
 
+    def bank_sms(self, qs, data):
+        """پیامک واریز بانک از گوشی صاحب کارت (برنامهٔ Incoming SMS to URL forwarder): /api/pay/sms?key=…"""
+        import hmac as _hm
+        b = self.app.billing
+        key = qs.get("key") or self.headers.get("x-forsatmelk-key") or ""
+        if not (b.bank_sms_ready() and _hm.compare_digest(str(key), str(b.cfg().get("bank_sms_key") or ""))):
+            return self.send_json({"ok": False}, 403)
+        src = {**qs, **data}
+        pick = lambda keys: next((str(src[k]) for k in keys if str(src.get(k) or "").strip()), "")
+        text = pick(("text", "message", "body", "msg", "content", "sms"))
+        if not text:
+            return self.send_json({"ok": False, "error": "empty"}, 400)
+        return self.send_json({"ok": True, **b.bank_sms_receive(pick(("from", "sender", "phone", "number", "address", "originatingAddress")), text)})
+
     def is_admin(self) -> bool:
         tok = self.headers.get("x-admin-token") or ""
         exp = SESSIONS.get(tok)
@@ -729,6 +743,8 @@ class Handler(BaseHTTPRequestHandler):
                                                               self.headers.get("user-agent") or "", (self.headers.get("host") or "").split(":")[0], bool(u)))
             if url.path == "/pay/callback":
                 return self.pay_callback({**{k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}, **data})
+            if url.path == "/api/pay/sms":
+                return self.bank_sms({k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}, data if isinstance(data, dict) else {})
             return self.api_post(url.path, data)
         except ValueError as e:
             return self.send_json({"error": str(e)}, 400)
@@ -1061,6 +1077,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(a.public_config(self.is_local()))
         if path == "/api/pay/bezan/hook":
             return self.api_post(path, {})
+        if path == "/api/pay/sms":
+            return self.bank_sms(qs, {})
         if path == "/api/pay/check":
             # خریدار منتظر تطبیق کارت‌به‌کارت خودکار است؛ وضعیت فقط برای صاحب پرداخت
             u = self.user()
@@ -1070,6 +1088,9 @@ class Handler(BaseHTTPRequestHandler):
             pay = a.store.q("SELECT gateway FROM payments WHERE id=? AND phone=?", (pid, u["phone"]), one=True)
             if not pay:
                 return self.send_json({"error": "پرداخت پیدا نشد"}, 404)
+            if pay["gateway"] == "card":   # کارت‌به‌کارت با تأیید پیامک بانک: صفحهٔ خریدار منتظر همین وضعیت است
+                st = a.store.q("SELECT status FROM payments WHERE id=?", (pid,), one=True)["status"]
+                return self.send_json({"status": "paid" if st == "paid" else "pending"})
             st = a.billing.bezan_check(pid) if pay["gateway"] == "bezan" else "missing"
             return self.send_json({"status": st})
         if path == "/api/pay/invoice":
@@ -1301,7 +1322,9 @@ class Handler(BaseHTTPRequestHandler):
                 "expansion": a.ingest.expansion(), "province_progress": a.ingest.province_progress(),
                 "pending_details": s.q("SELECT COUNT(*) n FROM listings WHERE source IN ('divar','sheypoor') AND detail_at IS NULL AND status='active'", one=True)["n"],
                 "tickets_unread": a.support.unread_admin(), "flags": a.flags.counts(), "sms_last_notify": s.get_setting("sms_last_notify"),
-                "billing": {**a.billing.cfg(), "bezan_api_key": "•••" if a.billing.cfg().get("bezan_api_key") else ""}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
+                "billing": {**a.billing.cfg(), "bezan_api_key": "•••" if a.billing.cfg().get("bezan_api_key") else ""},
+                # نشانی محرمانهٔ دریافت پیامک واریز (برای برنامهٔ گوشی) و پیامک‌های اخیر
+                "bank_sms": {"url": self.base_url() + "/api/pay/sms?key=" + a.billing.bank_sms_key(), "recent": a.billing.bank_sms_list()}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
                 "telegram": {**a.telegram.cfg(), "token": "•••" if a.telegram.cfg()["token"] else ""},
