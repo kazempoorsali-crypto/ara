@@ -977,10 +977,33 @@ class Handler(BaseHTTPRequestHandler):
                 d.pop(k, None)
             # حذف نام خیابان و جزئیات لوکیشن از عنوان و توضیحات برای تمام آگهی‌ها تا کاربر نتواند در دیوار پیدا کند
             k_fa = {"apartment": "آپارتمان", "villa": "ویلا", "land": "زمین", "shop": "مغازه", "office": "دفتر کار", "garden": "باغ", "suite": "سوئیت"}.get(d.get("kind"), "ملک")
-            a_fa = f" {int(d['area'])} متری" if d.get("area") else ""
-            r_fa = f" {int(d['rooms'])} خواب" if d.get("rooms") else ""
+            # متراژ و قیمت دقیق با هم، آگهی را در منبع پیدا می‌کنند؛ برای غیرمشترک فقط بازه می‌آید
+            if d.get("area"):
+                a_lo = int(d["area"]) // 10 * 10
+                d["area_lo"], d["area_hi"] = a_lo, a_lo + 10
+            a_fa = f" حدود {d['area_lo']} تا {d['area_hi']} متری" if d.get("area_lo") else ""
+            r_fa = f" ({int(d['rooms'])} خواب)" if d.get("rooms") else ""
             loc_fa = d.get("district") or d.get("city_name") or ""
-            d["title"] = f"{k_fa}{a_fa}{r_fa}" + (f" (محدوده {loc_fa})" if loc_fa else "")
+            d["title"] = (f"{k_fa}{a_fa}{r_fa}" + (f" — محدوده {loc_fa}" if loc_fa else "")).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+            def band(v, kind="price"):
+                v = float(v or 0)
+                if v <= 0:
+                    return None
+                step = (1e9 if v >= 1e10 else 5e8 if v >= 2e9 else 1e8 if v >= 5e8 else 5e7) if kind == "price" else \
+                       (1e7 if v >= 1e8 else 2e6 if v >= 1e7 else 5e5)
+                lo = int(v // step * step)
+                return [lo, int(lo + step)]
+            for k, kind in (("pp", "price"), ("deposit", "price"), ("rent", "rent")):
+                b = band(d.get(k), kind)
+                if b:
+                    d[k + "_lo"], d[k + "_hi"] = b
+            for k in ("pp", "price", "deposit", "rent", "ppm", "area", "fair_price", "fair_ppm", "history", "drop_info", "price_drop"):
+                d.pop(k, None)
+            if d.get("estimated_profit"):   # سود فقط به‌صورت کران پایین گرد (مبلغ دقیق با درصد، قیمت را لو می‌دهد)
+                d["estimated_profit"] = int(float(d["estimated_profit"]) // 1e8 * 1e8)
+                d["profit_min"] = True
+            if isinstance(d.get("verdict"), dict):
+                d["verdict"] = {k: v for k, v in d["verdict"].items() if k not in ("fair", "fair_ppm", "estimated_profit")}
             d["claims"] = []
             d["description"] = "🔒 نام خیابان، آدرس دقیق، توضیحات مالک، شماره تماس و لینک مستقیم آگهی اصلی ویژهٔ اعضای دارای اشتراک است. با تهیه اشتراک به تمامی مشخصات و لینک منبع دسترسی خواهید داشت."
             if isinstance(d.get("feat"), dict):
@@ -991,7 +1014,7 @@ class Handler(BaseHTTPRequestHandler):
                 d["lat"], d["lng"], d["latlng_exact"] = round(d["lat"], 2), round(d["lng"], 2), 0
             ex = d.get("explain") or {}
             if full:
-                keep = ("estimated_profit", "base_ppm", "fair_low", "fair_high", "adj", "effects", "district_n", "city_n", "filled", "label", "district_median", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial", "caution", "sus", "flags", "deed_weak", "unknown")
+                keep = ("adj", "effects", "district_n", "city_n", "filled", "label", "district_raw_n", "wide", "disagree", "rank", "rank_n", "trust_score", "sellers", "spatial", "caution", "sus", "flags", "deed_weak", "unknown")
                 d["explain"] = {**{k: ex.get(k) for k in keep}, "effects_count": len(ex.get("effects") or [])}
                 if ex.get("presale"):  # مشخصات پیش‌فروش بله، مرجع قیمت و نسبت (که قیمت منصفانه را لو می‌دهد) نه
                     d["explain"]["presale"] = {k: ex["presale"].get(k) for k in ("months", "months_assumed", "progress", "installments")}
@@ -1049,7 +1072,11 @@ class Handler(BaseHTTPRequestHandler):
         return self.gate(d, u, full=True)
 
     def free_ids(self):
-        return set()
+        """چند فرصت برتر ویترین که بدون اشتراک کامل دیده می‌شوند (نمونهٔ اعتمادساز؛ تعداد از پنل: free_preview)."""
+        n = int(self.app.billing.cfg().get("free_preview") or 0)
+        if n <= 0:
+            return set()
+        return set(sitepage.top_ids(self.app)[:n])
 
     def similar(self, d):
         """مشابه‌ها: همان محله و نوع و معامله، هم‌خواب، نزدیک‌ترین متراژ؛ هر کدام با قیمت محلهٔ خودش."""

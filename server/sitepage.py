@@ -15,7 +15,8 @@ import catalog
 KEEP = ("id", "title", "kind", "deal", "city_key", "city_name", "province", "district", "price", "pp", "ppm",
         "deposit", "rent", "area", "rooms", "year", "floor", "images", "image", "amenities", "description",
         "label", "score", "discount", "confidence", "verdict", "locked", "presale", "first_seen", "price_drop",
-        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "estimated_profit", "detail_pending", "contact_mode", "why", "drop_info")
+        "lat", "lng", "latlng_exact", "history", "similar", "fair_price", "fair_ppm", "estimated_profit", "detail_pending", "contact_mode", "why", "drop_info",
+        "area_lo", "area_hi", "pp_lo", "pp_hi", "deposit_lo", "deposit_hi", "rent_lo", "rent_hi", "profit_min")
 
 
 def _img_key(u: str) -> str:
@@ -139,7 +140,15 @@ def _common(app):
 
 def _top(handler, user=None):
     """برترین فرصت‌های خالص برای ویترین صفحه اول (بدون پیش‌فروش، بدون اقساطی/معاوضه و بدون هشدار مشکوک)."""
-    app = handler.app
+    return [_trim(handler.gate(dict(x), user)) for x in top_raw(handler.app)]
+
+
+def top_ids(app):
+    """شناسهٔ فرصت‌های ویترین به همان ترتیب (برای نمونه‌های رایگان؛ بدون گذر از دروازهٔ اشتراک)."""
+    return cached("top-ids", 60, lambda: [x["id"] for x in top_raw(app)])
+
+
+def top_raw(app):
     raw_items = app.store.search({"opp": 1, "deal": "sale", "sort": "score", "limit": 120, "imgs": 1})["items"]
     bad_words = ("پیش فروش", "پیش‌فروش", "اقساط", "قسطی", "معاوضه", "مشارکت", "اسکلت", "نیمه کاره", "نیمه‌کاره", "قولنامه", "نسق", "وکالتی")
     clean_top = []
@@ -170,7 +179,7 @@ def _top(handler, user=None):
                 clean_top.append(x)
                 if len(clean_top) >= 24:
                     break
-    return [_trim(handler.gate(dict(x), user)) for x in clean_top[:24]]
+    return clean_top[:24]
 
 
 def fa_num(n) -> str:

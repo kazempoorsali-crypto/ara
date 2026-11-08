@@ -90,7 +90,10 @@ id: l.id,
       loc: [l.district, l.city_name].filter(Boolean).join("، "),
       region: { province: l.province || "", city: l.city_key || "", district: l.district || "" },
       price: price / 1e6, area: l.area || 0, rooms: l.rooms || 0, year: l.year || 0, floor: l.floor || 0, floorsCount: 0,
-      priceText: l.deal === "rent" && l.deposit != null ? "ودیعه " + FM.money(l.deposit) + (l.rent ? "، اجاره " + FM.money(l.rent) : "") : FM.money(price),
+      // غیرمشترک: قیمت و متراژ دقیق نمی‌آید (آگهی در منبع پیدا نشود)؛ فقط بازه
+      priceText: l.pp_lo || l.deposit_lo ? "🔒 قیمت دقیق ویژهٔ اعضا · حدود " + FM.moneyRange(l.pp_lo || l.deposit_lo, l.pp_hi || l.deposit_hi)
+        : l.deal === "rent" && l.deposit != null ? "ودیعه " + FM.money(l.deposit) + (l.rent ? "، اجاره " + FM.money(l.rent) : "") : FM.money(price),
+      priceLocked: !!(l.pp_lo || l.deposit_lo),
       diffText: FM.gapText(v),
       status: STATUS[label] || "mid",
       label: label,
@@ -106,8 +109,24 @@ id: l.id,
       fairPrice: l.fair_price || (l.verdict && l.verdict.fair) || 0,
       fairPpm: l.fair_ppm || (l.verdict && l.verdict.fair_ppm) || 0,
       profit: l.estimated_profit || (l.verdict && l.verdict.estimated_profit) || 0,   // فقط سود محتاطانهٔ فرصت‌ها؛ نه فاصلهٔ خام تا برآورد
+      profitMin: !!l.profit_min,   // غیرمشترک: کران پایینِ گرد
+      gap: v && v.delta != null && v.delta < 0 ? -v.delta : 0,
       why: l.why || null,
     };
+  };
+  /* سود خرید روی کارت: همیشه با یک تعریف (فاصلهٔ قیمت آگهی تا کفِ بازهٔ ارزش برآوردی محله) تا اعداد هیچ‌جا ناسازگار نشوند */
+  /* «۸٫۵ تا ۹ میلیارد تومان» (واحد مشترک یک بار) */
+  FM.moneyRange = function (lo, hi) {
+    var a = FM.money(lo), b = FM.money(hi), ua = a.split(" ").slice(1).join(" "), ub = b.split(" ").slice(1).join(" ");
+    return ua && ua === ub ? a.split(" ")[0] + " تا " + b : a + " تا " + b;
+  };
+  FM.savingLine = function (p) {
+    if (!p || (p.label !== "gold" && p.label !== "good")) return "";
+    var amt = p.profit > 5e7 ? (p.profitMin ? "بیش از " : "دست‌کم ") + FM.money(p.profit) + " زیر کفِ ارزش برآوردی محله" : "";
+    var pct = p.gap ? fa(Math.round(p.gap * 100)) + "٪ ارزان‌تر از میانهٔ برآورد" : "";
+    var main = amt || pct; if (!main) return "";
+    return '<span class="ncard__save">💎 ' + FM.esc(main) + "</span>" +
+      (p.locked ? '<span class="ncard__unlock">🔓 نمایش آگهی، قیمت دقیق و تماس</span>' : "");
   };
   /* «چرا ارزان‌تر است؟» روی کارت: عوامل کاهندهٔ قیمت همین خانه که در برآورد لحاظ شده‌اند، و نشان «استعلام لازم» */
   FM.whyLine = function (p) {

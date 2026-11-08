@@ -440,8 +440,14 @@
         : [{ r: 60, b: 30 }, { r: 80, b: 40 }, { r: 66, b: 46 }, { r: 86, b: 27 }];
       if (mobile) spots.classList.add("is-mini");
       var slotIdx = 0, propIdx = 0, paused = false, live = [];
+      /* بدون لگ: فقط وقتی بخش اول دیده می‌شود و کاربر بالای صفحه است؛ هم‌زمان حداکثر یک کارت */
+      var heroOn = true;
+      if ("IntersectionObserver" in window) {
+        new IntersectionObserver(function (es) { heroOn = es[0].isIntersecting; }).observe(stage);
+      }
       var spawn = function () {
-        if (paused || document.hidden || !topProps.length) return;
+        if (paused || document.hidden || !topProps.length || !heroOn || window.scrollY > 150) return;
+        if (live.some(function (x) { return !x.classList.contains("is-out"); })) return;
         /* جایی که هنوز کارت قبلی رویش است رد می‌شود تا دو کارت روی هم نیفتند */
         var si = -1;
         for (var k = 0; k < SLOTS.length; k++) {
@@ -472,7 +478,8 @@
           /* گوشی: کارت در فاصلهٔ میان دکمه‌ها و ساختمان‌ها می‌نشیند تا پرتو تا پنجره دیده شود */
           var winT = sr.bottom;
           heroBtns.forEach(function (b) { var r = b.getBoundingClientRect(); if (r.height) btnB = Math.max(btnB, r.bottom); });
-          winEls.forEach(function (el) { var r = el.getBoundingClientRect(); if (r.width && r.top < winT) winT = r.top; });
+          if (!winBox) measureWins();
+          winBox.forEach(function (b) { var t = b.top - window.scrollY; if (b.w && t < winT) winT = t; });
           cardY = Math.max(btnB + 8 + h, Math.min(winT - 26, btnB + 8 + h + 40));
           a.style.bottom = Math.round(sr.bottom - cardY) + "px";
         }
@@ -509,18 +516,25 @@
       };
       /* نزدیک‌ترین پنجرهٔ پیدای زیر کارت (چند گزینهٔ نزدیک، یکی تصادفی) */
       var winEls = Array.prototype.slice.call(document.querySelectorAll("[data-hero] .win-lights rect"));
+      var winBox = null;   // مختصات پنجره‌ها نسبت به سند؛ یک بار و در resize (نه در هر نوبت تایمر)
+      var measureWins = function () {
+        var sy = window.scrollY, sx = window.scrollX;
+        winBox = winEls.map(function (el) { var r = el.getBoundingClientRect(); return { el: el, w: r.width, x: r.left + sx + r.width / 2, y: r.top + sy + r.height / 2, top: r.top + sy }; });
+      };
+      var mt = null;
+      addEventListener("resize", function () { clearTimeout(mt); mt = setTimeout(measureWins, 250); }, { passive: true });
       var heroBtns = Array.prototype.slice.call(document.querySelectorAll("[data-hero] .hero__content .btn"));
       var heroHint = document.querySelector("[data-hero-hint]");
       var pickWindow = function (sr, cx, cardY) {
         var cand = [];
         var fab = document.getElementById("chatFab"), fabR = fab && fab.offsetParent ? fab.getBoundingClientRect() : null;
         var busyX = live.filter(function (a) { return !a.classList.contains("is-out") && a._wx != null; }).map(function (a) { return a._wx; });
-        for (var i = 0; i < winEls.length; i++) {
-          var el = winEls[i];
+        if (!winBox) measureWins();
+        for (var i = 0; i < winBox.length; i++) {
+          var el = winBox[i].el;
           if (el.classList.contains("is-calling")) continue;
-          var r = el.getBoundingClientRect();
-          if (!r.width) continue;
-          var x = r.left + r.width / 2, y = r.top + r.height / 2;
+          if (!winBox[i].w) continue;
+          var x = winBox[i].x - window.scrollX, y = winBox[i].y - window.scrollY;
           if (mobile && x > sr.right - 60) continue;
           if (fabR && x > fabR.left - 8 && x < fabR.right + 8 && y > fabR.top - 30) continue;   // پرتو پشت دکمهٔ دستیار نرود
           if (busyX.some(function (bx) { return Math.abs(bx - x) < (mobile ? 40 : 70); })) continue;   // پرتوها روی هم نیفتند
@@ -540,34 +554,31 @@
     var beam = document.querySelector("[data-beam]");
     var tags = document.querySelectorAll(".hero__tag");
     if (beam && tags.length) {
+      /* مکان افقی برچسب‌ها و پایهٔ پرتو یک بار (و در resize) اندازه گرفته می‌شود؛ در هر فریم فقط عدد مقایسه می‌شود */
+      var tagX = [], beam0 = 0;
+      var measureTags = function () {
+        var cur = gsap.getProperty(beam, "x") || 0, br = beam.getBoundingClientRect();
+        beam0 = br.left - cur + br.width / 2;
+        tagX = Array.prototype.map.call(tags, function (t) { var tr = t.getBoundingClientRect(); return tr.left + tr.width / 2; });
+      };
+      measureTags();
+      addEventListener("resize", function () { setTimeout(measureTags, 260); }, { passive: true });
       var sweep = gsap.fromTo(beam, { x: "0vw" }, {
         x: "106vw", duration: 7, repeat: -1, yoyo: true, ease: "sine.inOut",
         onUpdate: function () {
-          var br = beam.getBoundingClientRect();
-          var bx = br.left + br.width / 2;
-          tags.forEach(function (t) {
-            var tr = t.getBoundingClientRect();
-            var near = Math.abs(tr.left + tr.width / 2 - bx) < 170;
-            t.classList.toggle("is-lit", near);
-          });
+          var bx = beam0 + (gsap.getProperty(beam, "x") || 0);
+          for (var i = 0; i < tags.length; i++) tags[i].classList.toggle("is-lit", Math.abs(tagX[i] - bx) < 170);
         },
       });
+      if ("IntersectionObserver" in window) {
+        new IntersectionObserver(function (es) { if (es[0].isIntersecting) sweep.resume(); else sweep.pause(); }).observe(stage);
+      }
       /* توقف با هاوس برای مطالعه */
       stage.addEventListener("pointerenter", function () { sweep.pause(); });
       stage.addEventListener("pointerleave", function () { sweep.resume(); });
     }
 
-    /* تیلت سه‌بعدی ملایم کل صحنه با موس */
-    if (!LITE) {
-      var tiltX = gsap.quickTo(stage, "rotationX", { duration: 1.2, ease: "power3" });
-      var tiltY = gsap.quickTo(stage, "rotationY", { duration: 1.2, ease: "power3" });
-      gsap.set(stage, { transformPerspective: 1200 });
-      stage.addEventListener("pointermove", function (e) {
-        tiltX((e.clientY / innerHeight - 0.5) * -3.4);
-        tiltY((e.clientX / innerWidth - 0.5) * 4.2);
-      });
-      stage.addEventListener("pointerleave", function () { tiltX(0); tiltY(0); });
-    }
+    /* تیلت سه‌بعدی کل صحنه با موس حذف شد (بازنقاشی پیوستهٔ کل صفحه و افت فریم) */
 
     /* اسکرول: لایه‌ها از هم باز می‌شوند و متن محو */
     gsap.timeline({

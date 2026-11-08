@@ -16,7 +16,8 @@
   <script>
     // صفحهٔ بارگذاری: بار دوم در همین زبانه کوتاه‌تر پخش شود
     // پردهٔ ابتدایی فقط یک بار برای هر بازدیدکننده (نه هر بار که مرورگر بسته و باز شود)
-    try { if (sessionStorage.getItem("fmIntro2") === "1" || localStorage.getItem("fmIntroSeen") === "1") document.documentElement.classList.add("intro-fast"); } catch (e) {}
+    // پردهٔ ابتدایی حذف شد: صفحه از لحظهٔ اول دیده می‌شود
+    document.documentElement.classList.add("intro-fast");
     (function () {
       // نشانی‌های قدیمی (#/...) به صفحهٔ درست می‌روند
       var h = location.hash, m;
@@ -341,7 +342,7 @@
           <div class="hscroll__head">
             <div>
               <p class="eyebrow">رادار کاهش قیمت — فروشنده‌هایی که تازه قیمت را پایین آورده‌اند</p>
-              <h3 class="hscroll__title">تازه ارزان‌شده‌ها — با اسکرول ببینید <i>←</i></h3>
+              <h3 class="hscroll__title">تازه ارزان‌شده‌ها <i>←</i></h3>
             </div>
             <a class="hscroll__more" href="/app.html#/s?drop=1&amp;sort=drop" data-drops-all>مشاهدهٔ همه ←</a>
           </div>
