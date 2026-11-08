@@ -2563,6 +2563,7 @@ const App = (() => {
             <div class="ad__price">${UI.priceHTML(l, true)}</div>
           </header>
           ${profitCard(l)}
+          ${l.verdict && !l.excluded && l.deal !== "rent" && l.deal !== "daily" ? `<button type="button" class="btn btn--line btn--block ad__sheet" data-adsheet>📄 برگهٔ تحلیل قیمت (ویژهٔ مشاوران و مذاکرهٔ خرید)</button>` : ""}
           <div class="facts">${facts.filter(([, x]) => x).map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>
           <div class="mobile-only">${valuationCard(l)}</div>
           ${l.history && l.history.length > 1 ? `<section class="block"><h2>تاریخچه قیمت</h2>${UI.spark(l.history, l.deal)}</section>` : ""}
@@ -2625,6 +2626,21 @@ const App = (() => {
     };
     $("#adShare")?.addEventListener("click", handleShare);
     window.__fmAdShare = handleShare;   // دکمه‌های اشتراک کنار عنوان، روی عکس و در نمای بزرگ عکس
+    /* برگهٔ تحلیل قیمت همین آگهی (فقط اعداد همان ارزیابی؛ بدون پیوند آگهی اصلی) */
+    window.__fmAdSheet = () => {
+      const ex = l.explain || {}, c2 = UI.cityOf(l.city_key);
+      const rows = [];
+      if (l.pp) rows.push(["قیمت آگهی", money(l.pp) + " تومان"]);
+      if (ex.fair_low && ex.fair_high) rows.push(["بازهٔ ارزش برآوردی", money(ex.fair_low) + " تا " + money(ex.fair_high) + " تومان"]);
+      if (l.area) rows.push(["متراژ", fa(l.area) + " متر"]);
+      if (l.year) rows.push(["سال ساخت", fa(l.year)]);
+      if (l.floor != null && l.floor !== "") rows.push(["طبقه", fa(l.floor)]);
+      if (l.verdict && l.verdict.label) rows.push(["ارزیابی", UI.gapText(l.verdict)]);
+      window.FMPriceSheet && FMPriceSheet.open({
+        title: UI.tt(l.title), place: [l.district, c2 ? c2.name : l.city_name].filter(Boolean).join("، "),
+        rows, ppm: l.ppm, basePpm: ex.base_ppm, n: ex.district_n, effects: (ex.effects || []).filter((e) => Array.isArray(e) && e.length === 2),
+      }, DataLayer.me, () => subscribeDialog());
+    };
     $("#topShareBtn")?.addEventListener("click", handleShare);
     const paywall = () => (DataLayer.me ? go("#/account") : loginDialog(() => go("#/account")));
     $("#divarBtn")?.addEventListener("click", paywall);
@@ -3403,6 +3419,7 @@ const App = (() => {
     view().addEventListener("click", (e) => {
       const f = e.target.closest("[data-fav]"); if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); }
       if (e.target.closest("[data-pcard-sub]")) { e.preventDefault(); subscribeDialog(); return; }
+      if (e.target.closest("[data-adsheet]")) { e.preventDefault(); window.__fmAdSheet && window.__fmAdSheet(); return; }
       const sh = e.target.closest("[data-adshare]"); if (sh) { e.preventDefault(); e.stopPropagation(); window.__fmAdShare && window.__fmAdShare(); return; }
       const cs = e.target.closest("[data-cshare]");
       if (cs) {

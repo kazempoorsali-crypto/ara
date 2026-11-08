@@ -317,7 +317,7 @@ class Assistant:
                              kb={"inline_keyboard": [[{"text": "ثبت‌نام در سایت", "url": self.base() + "/account.html"}]]})
         if u["active"]:
             from seo import jdate
-            plan = {"weekly": "هفتگی", "monthly": "ماهانه", "trial": "آزمایشی"}.get(u["plan"], u["plan"] or "")
+            plan = {"weekly": "هفتگی", "monthly": "ماهانه", "trial": "آزمایشی", "pass48": "۴۸ ساعته", "vip": "حرفه‌ای (VIP)"}.get(u["plan"], u["plan"] or "")
             return self.send(chat, (f"👤 <b>حساب من</b>\nشماره: {fa(masked)}\n✅ اشتراک {esc(plan)} فعال است\n"
                                     f"اعتبار تا {esc(jdate(u['sub_until']))} ({fa(u['days_left'])} روز مانده)\n\n"
                                     "همهٔ امکانات ربات برای شما باز است: شکارهای طلایی، رادار کاهش قیمت، جزئیات کامل آگهی‌ها و هشدار محله."),

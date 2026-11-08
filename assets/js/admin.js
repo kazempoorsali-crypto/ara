@@ -474,6 +474,10 @@
         <label class="field"><span>مدت هفتگی (روز)</span><input class="input" name="weekly_days" type="number" min="1" value="${b.weekly_days}"></label>
         <label class="field"><span>اشتراک ماهانه</span><input class="input" name="monthly_price" type="number" min="0" value="${b.monthly_price || ""}"></label>
         <label class="field"><span>مدت ماهانه (روز)</span><input class="input" name="monthly_days" type="number" min="1" value="${b.monthly_days}"></label>
+        <label class="field"><span>گذرنامهٔ ۴۸ ساعته (خالی = پنهان)</span><input class="input" name="pass48_price" type="number" min="0" value="${b.pass48_price || ""}"></label>
+        <label class="field"><span>مدت گذرنامه (روز)</span><input class="input" name="pass48_days" type="number" min="1" value="${b.pass48_days || 2}"></label>
+        <label class="field"><span>اشتراک حرفه‌ای مشاوران VIP (خالی = پنهان)</span><input class="input" name="vip_price" type="number" min="0" value="${b.vip_price || ""}"></label>
+        <label class="field"><span>مدت VIP (روز)</span><input class="input" name="vip_days" type="number" min="1" value="${b.vip_days || 30}"></label>
         <label class="field"><span>طول دورهٔ رایگان ثبت‌نام (روز؛ ۰ = بدون دورهٔ رایگان)</span><input class="input" name="trial_days" type="number" min="0" max="365" value="${b.trial_days ?? 3}"></label>
         <label class="switch" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="trial_enabled" ${b.trial_enabled ? "checked" : ""}><i></i>دورهٔ رایگان: هر کس تازه ثبت‌نام کند، همهٔ امکانات برایش باز است</label>
         <label class="field"><span>تعداد نتیجهٔ رایگان هر جست‌وجو (بدون اشتراک)</span><input class="input" name="free_results" type="number" min="0" max="100" value="${b.free_results}"></label>
@@ -617,7 +621,7 @@
       e.preventDefault();
       const f = e.target;
       const body = {
-        billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30,
+        billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30, pass48_price: +f.pass48_price.value || 0, pass48_days: +f.pass48_days.value || 2, vip_price: +f.vip_price.value || 0, vip_days: +f.vip_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked && +f.trial_days.value > 0, trial_days: f.trial_days.value === "" ? 3 : Math.max(0, +f.trial_days.value),
           card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, bank_sms_enabled: f.bank_sms_enabled.checked, bank_sms_senders: f.bank_sms_senders.value.trim(), bank_sms_unit: f.bank_sms_unit.value, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
