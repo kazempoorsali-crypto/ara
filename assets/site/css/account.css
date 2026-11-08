@@ -1297,3 +1297,7 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .vid__play i { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 28px; background: rgba(233,185,73,.9); color: #16120a; box-shadow: 0 0 0 10px rgba(233,185,73,.15); transition: transform .25s; }
 .vid__play b { font-size: 1rem; }
 .vid__play:hover i { transform: scale(1.08); }
+/* کارت‌به‌کارت با تأیید پیامک بانک: وضعیت انتظار و رسید اختیاری */
+.fmx .pay-wait { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(213,166,38,.14); font-weight: 800; animation: alrtBlink 1.6s ease-in-out infinite; }
+.fmx .pay-fallback { margin-top: 6px; }
+.fmx .pay-fallback summary { cursor: pointer; font-size: .86rem; color: var(--ink-faint, #888); margin-bottom: 8px; }
