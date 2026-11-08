@@ -19,6 +19,8 @@ import urllib.request
 ALERT_TRIAL_DAYS = 5   # روزهای رایگان «خبرم کن» از زمان ثبت‌نام
 DEFAULT_BILLING = {
     "weekly_price": 98000, "monthly_price": 248000, "weekly_days": 7, "monthly_days": 30,
+    # طرح‌های تازه؛ قیمت فقط از پنل (۰ = پنهان): گذرنامهٔ ۴۸ ساعته (قلاب اعتماد) و اشتراک حرفه‌ای مشاوران (VIP)
+    "pass48_price": 0, "pass48_days": 2, "vip_price": 0, "vip_days": 30,
     "gateway": "", "merchant_id": "", "sandbox": False, "test_mode": False,
     "free_preview": 2,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود (نمونهٔ اعتمادساز)
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
@@ -38,6 +40,12 @@ DEFAULT_BILLING = {
     # تا کلید API برسد: لینک پرداخت ثابت «بزن به کارت»؛ کاربر پرداخت می‌کند و کد پیگیری را ثبت می‌کند (مثل کارت‌به‌کارت)
     "bezan_link": "https://bezanbecard.ir/pay/link/tSwM5reKIc",
 }
+PLAN_INFO = (
+    ("pass48", "گذرنامهٔ ۴۸ ساعته (تست و بررسی سریع)", "برای بررسی صحت ارزیابی‌ها و باز کردن قفل فرصت‌ها به مدت ۲ روز کامل"),
+    ("weekly", "هفتگی", "دسترسی کامل یک هفته‌ای"),
+    ("monthly", "ویژهٔ خریدار و سرمایه‌گذار (ماهانه)", "قفل همهٔ فرصت‌های سراسر ایران، پیوند آگهی اصلی و تماس، و ۵ هشدار «خبرم کن» در تلگرام و بله"),
+    ("vip", "حرفه‌ای مشاوران املاک و دپارتمان‌ها (VIP)", "همهٔ امکانات خریدار + برگهٔ تحلیل قیمت با نام و تماس خود مشاور + فیلتر آگهی‌های شخصی + ۲۰ هشدار «خبرم کن»"),
+)
 PAY_METHODS = [("bale", "بله‌پی (پرداخت در پیام‌رسان بله)"), ("bezan", "کارت‌به‌کارت خودکار (بزن به کارت)"),
                ("zarinpal", "درگاه زرین‌پال"), ("card", "کارت‌به‌کارت با ثبت رسید")]
 BEZAN_API = os.environ.get("ARA_BEZAN_API") or "https://bezanbecard.ir/api/v1"
@@ -145,10 +153,11 @@ class Billing:
     def plans(self):
         c = self.cfg()
         out = []
-        for key, name in (("weekly", "هفتگی"), ("monthly", "ماهانه")):
+        for key, name, desc in PLAN_INFO:
             price = int(c.get(f"{key}_price") or 0)
             if price > 0:
-                out.append({"id": key, "name": name, "price": price, "days": int(c.get(f"{key}_days") or 7)})
+                out.append({"id": key, "name": name, "desc": desc, "price": price,
+                            "days": int(c.get(f"{key}_days") or {"pass48": 2, "weekly": 7}.get(key, 30))})
         return out
 
     def enabled_methods(self):
@@ -307,7 +316,7 @@ class Billing:
     # ---------------------------------------------------------- payment
     def activate(self, phone, plan_id, pay_id=None, ref=None, notify=True):
         plan = next((p for p in self.plans() if p["id"] == plan_id), None)
-        days = plan["days"] if plan else (7 if plan_id == "weekly" else 30)
+        days = plan["days"] if plan else {"weekly": 7, "pass48": 2}.get(plan_id, 30)
         now = int(time.time())
         r = self.store.q("SELECT sub_until FROM users WHERE phone=?", (phone,), one=True)
         start = max(now, (r["sub_until"] or 0) if r else 0)

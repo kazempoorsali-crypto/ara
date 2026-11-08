@@ -481,3 +481,10 @@
 @keyframes aiFabPing { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
 @media (max-width: 560px) { .ai-fab.ai-fab--chat, body[data-page] .ai-fab.ai-fab--chat { width: 54px; height: 54px; min-height: 54px; } }
 @media (prefers-reduced-motion: reduce) { .ai-fab__ping { animation: none; opacity: 0; } }
+
+.ad__sheet { margin: 10px 0 4px; min-height: 46px; font-weight: 800; }
+/* پنجرهٔ برگهٔ تحلیل در صفحهٔ آگهی (همان سبک پنجره‌های سایت) */
+.psheet { position: fixed; inset: 0; z-index: 1200; background: rgba(4,8,6,.62); display: grid; place-items: end center; }
+.psheet__box { width: min(440px, 100%); max-height: 92dvh; overflow-y: auto; background: var(--bg, #fff); color: inherit; border-radius: 22px 22px 0 0; padding: 1.1rem; display: grid; gap: .8rem; text-align: right; }
+@media (min-width: 700px) { .psheet { place-items: center; } .psheet__box { border-radius: 22px; } }
+.psheet__x { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }

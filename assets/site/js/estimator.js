@@ -77,7 +77,28 @@
         (fx ? '<div class="est__fx"><b>اثر مشخصات این ملک بر قیمت</b><ul>' + fx + "</ul></div>" : "") +
         '<p class="est__note">' + (d.method === "rule" ? "برای این شهر مدل آماری کافی نیست؛ اثر ویژگی‌ها با ضریب‌های عرف بازار و تقریبی حساب شد. " : d.model ? "مدل قیمت با " + fa(d.model.n) + " آگهی ساخته شده است. " : "") +
           "این برآورد آماری است، نه قیمت قطعی؛ پیش از معامله بازدید و استعلام لازم است.</p>" +
-        '<a class="est__link" href="/app.html#/s?city=' + encodeURIComponent(q.city) + "&district=" + encodeURIComponent(q.district) + '&opp=1">مشاهدهٔ املاک زیر قیمت همین محله ←</a>';
+        '<div class="est__cta" data-est-cta hidden></div>' +
+        '<div class="est__acts"><a class="est__link" href="/app.html#/s?city=' + encodeURIComponent(q.city) + "&district=" + encodeURIComponent(q.district) + '&opp=1&sort=score">🔍 مشاهدهٔ املاک زیر قیمت همین محله ←</a>' +
+        '<button type="button" class="est__sheet" data-est-sheet>📄 برگهٔ تحلیل قیمت این محاسبه</button></div>';
+      // شکارهای موجود همین محله (عدد واقعی از جست‌وجوی سایت)
+      fetch("/api/listings?" + ["city=" + encodeURIComponent(q.city), "district=" + encodeURIComponent(q.district), "opp=1", "limit=1", "points=0"].join("&"))
+        .then(function (r) { return r.json(); }).then(function (lr) {
+          var box = res.querySelector("[data-est-cta]"); if (!box || !lr || !lr.total) return;
+          box.innerHTML = "🔥 <b>شکارهای همین منطقه:</b> همین حالا در " + E(q.district) + " " + fa(lr.total) + " آگهی زیر ارزش برآوردی محله (فرصت طلایی یا مناسب) ثبت شده است.";
+          box.hidden = false;
+        }).catch(function () {});
+      var bs = res.querySelector("[data-est-sheet]");
+      if (bs) bs.addEventListener("click", function () {
+        var cityName = (selC.options[selC.selectedIndex] || {}).text || "";
+        window.FMPriceSheet && FMPriceSheet.open({
+          title: (kind === "villa" ? "ویلا" : kind === "land" ? "زمین" : "آپارتمان") + (area ? " " + fa(area) + " متری" : ""),
+          place: q.district + "، " + cityName.replace(/\s*\(.*\)$/, ""),
+          rows: [["ارزش منصفانهٔ برآوردی", FM.money(Math.round(d.total))], ["قیمت هر متر برآوردی", FM.money(Math.round(d.ppm))],
+                 ["میانهٔ هر متر محله", FM.money(Math.round(d.base_ppm))], ["پشتوانهٔ برآورد", fa(d.n || 0) + " آگهی معتبر محله"]]
+                 .concat(q.year ? [["سال ساخت", fa(q.year)]] : []),
+          ppm: d.ppm, basePpm: d.base_ppm, n: d.n, effects: d.effects || [],
+        }, FM.api && FM.api.me, function () { FM.account && FM.account.subscribe(); });
+      });
     }).catch(function () { go.disabled = false; res.innerHTML = '<p class="est__err">ارتباط با سرور برقرار نشد؛ دوباره امتحان کنید.</p>'; });
   });
 

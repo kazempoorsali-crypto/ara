@@ -487,11 +487,12 @@
     const all = CFG().pay_methods || [];
     let ms = all.filter((x) => x.id === "bale" || x.id === "bezan");
     if (!ms.length) ms = all;
-    let sel = plans.some((p) => p.id === planId) ? planId : plans[plans.length - 1].id;
+    let sel = plans.some((p) => p.id === planId) ? planId : (plans.find((p) => p.id === "monthly") || plans[plans.length - 1]).id;
     openDialog(`<div class="dlg__head"><h2>فعال‌سازی اشتراک</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
       <p class="muted small" style="margin-bottom:12px">همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل، پیوند مستقیم هر آگهی اصلی و جزئیات کامل ارزش‌گذاری باز می‌شود. بدون تمدید خودکار.</p>
       <div class="subp" role="radiogroup" aria-label="طرح اشتراک">${plans.map((p) => `<button type="button" class="subp__opt" role="radio" data-p="${p.id}">
-        <span><b>${esc(p.name)}</b><small>${fa(p.days)} روز دسترسی کامل</small></span><em>${fa(p.price)} <small>تومان</small></em></button>`).join("")}</div>
+        <span><b>${esc(p.name)}${p.id === "monthly" ? ' <i class="subp__pop">محبوب‌ترین</i>' : ""}</b><small>${p.desc ? esc(p.desc) + " · " : ""}${fa(p.days)} روز</small></span><em>${fa(p.price)} <small>تومان</small></em></button>`).join("")}</div>
+      <p class="subp__trust">🛡️ تضمین کیفیت داده‌ها: همهٔ آگهی‌ها روزانه از منابع معتبر پایش می‌شوند و پیوند مستقیم آگهی اصلی بلافاصله پس از فعال‌سازی در اختیار شماست.</p>
       <h3 class="subp__h">روش پرداخت</h3>
       <div class="paym">${ms.map((m) => `<button type="button" class="paym__opt${m.ready ? "" : " is-off"}" data-m="${m.id}" aria-disabled="${!m.ready}">
         <i>${icon(PAY_ICON[m.id] || "spark")}</i><span><b>${esc(m.name)}</b><small>${m.ready ? PAY_NOTE[m.id] || "" : "فعلاً فعال نیست"}</small></span>${m.ready ? icon("arrow") : "<em>به‌زودی</em>"}</button>`).join("") || `<p class="muted small">هنوز روش پرداختی فعال نشده است.</p>`}</div>`);

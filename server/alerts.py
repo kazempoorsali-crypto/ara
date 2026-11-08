@@ -84,8 +84,9 @@ class Alerts:
         if not b.ready():
             raise ValueError("ارسال هشدار در " + ("تلگرام" if ch == "telegram" else "بله") + " فعلاً در دسترس نیست")
         n = self.store.q("SELECT COUNT(*) n FROM alerts WHERE phone=? AND active=1", (phone,), one=True)["n"]
-        if n >= MAX_PER_USER:
-            raise ValueError(f"حداکثر {_fa(MAX_PER_USER)} هشدار فعال می‌توانید داشته باشید؛ یکی را حذف کنید")
+        cap = 20 if (u or {}).get("plan") == "vip" else MAX_PER_USER   # مشاوران (VIP): فایلینگ خودکار چند منطقه
+        if n >= cap:
+            raise ValueError(f"حداکثر {_fa(cap)} هشدار فعال می‌توانید داشته باشید؛ یکی را حذف کنید")
         clean = lambda k, m=80: str(data.get(k) or "").strip()[:m]
         city, prov = clean("city", 200), clean("province")
         if not (city or prov):
