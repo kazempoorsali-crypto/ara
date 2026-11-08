@@ -189,7 +189,7 @@ select { font: inherit; }
 .menu__foot i { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
 
 /* ---------- Hero: افق شهرِ فرصت ---------- */
-.hero { position: relative; height: 240vh; }
+.hero { position: relative; height: 170vh; }
 .hero__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: grid; place-items: center; }
 .hero__topo { position: absolute; inset: 0; color: var(--ink); opacity: .13; }
 .topo-lines { width: 100%; height: 100%; }
@@ -804,7 +804,7 @@ a.hero__stat:hover b { color: #ecd07c; }
 @media (max-width: 760px) {
   :root { --nav-h: 64px; }
   .nav__cta { display: none; }
-  .hero { height: 200vh; }
+  .hero { height: 140vh; }
   .hero__sun { left: 8%; top: 11%; width: clamp(110px, 24vw, 150px); }
   .hero__stats { display: none; }
   .hero__tag { display: none; }

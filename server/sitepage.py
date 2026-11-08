@@ -128,7 +128,15 @@ def _common(app):
     st = store.stats()
     regs = regions(store)
     th = {**{"opp": 0.15, "gold": 0.22, "over": 0.30}, **(store.get_setting("thresholds") or {})}
+    # نوار «نبض امروز بازار»: میانهٔ قیمت هر متر آپارتمان پرآگهی‌ترین شهرها و تعداد فرصت‌های ۲۰٪+ در ۲۴ ساعت (همه از دادهٔ واقعی)
+    cities = st.get("cities") or {}
+    top = sorted(((ck, info) for ck, info in cities.items() if (info.get("ppm") or {}).get("apartment") and ck in catalog.CITY_BY_KEY),
+                 key=lambda t: -t[1].get("n", 0))[:8]
+    hot = store.q("SELECT COUNT(*) n FROM listings WHERE status='active' AND hidden=0 AND COALESCE(excluded,0)=0 AND label IN ('gold','good') "
+                  "AND discount >= 0.2 AND COALESCE(posted_at, first_seen) > ?", (int(time.time()) - 86400,), one=True)["n"]
+    ticker = {"cities": [[catalog.CITY_BY_KEY[ck]["name"], info["ppm"]["apartment"]] for ck, info in top], "hot": hot or 0}
     return {
+        "ticker": ticker,
         "stats": {"total": st.get("estate") or 0, "deals": st.get("deals") or 0, "gold": st.get("gold") or 0,
                   "today": st.get("today") or 0, "updated": st.get("updated") or 0,
                   "cities": sum(len(p["cities"]) for p in regs),
@@ -211,6 +219,21 @@ def regions_js(app):
         body = ("window.FM_REGIONS=" + json.dumps(compact, ensure_ascii=False, separators=(",", ":")) + ";").encode()
         return hashlib.md5(body).hexdigest()[:10], body
     return cached("regions-js", 60, build)
+
+
+def ticker_html(app) -> str:
+    """محتوای نوار متحرک صفحهٔ اول از دادهٔ واقعی (دو بار پشت هم برای چرخش بی‌درز)."""
+    t = common(app).get("ticker") or {}
+    esc = lambda x: str(x or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    parts = ["<span>📊 نبض امروز بازار (میانهٔ هر متر آپارتمان)</span><i>✦</i>"]
+    for name, ppm in t.get("cities") or []:
+        parts.append(f"<span>{esc(name)} {fa_num(round(ppm / 1e6, 1)).replace('.', '٫')} میلیون</span><i>✦</i>")
+    if t.get("hot"):
+        parts.append(f"<span>🔥 {fa_num(t['hot'])} فایل دست‌کم ۲۰٪ زیر برآورد در ۲۴ ساعت گذشته</span><i>✦</i>")
+    if len(parts) == 1:
+        return ""
+    one = "".join(parts)
+    return one + one
 
 
 def boot(handler, page, qs):
