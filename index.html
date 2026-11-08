@@ -233,6 +233,26 @@
             <a class="btn btn--drop btn--lg" href="#drops" data-scroll-to><i class="bico bico--flame" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="f1" d="M12 2c1 3.2 4.6 5.4 4.6 10.2A4.6 4.6 0 0 1 12 17a4.6 4.6 0 0 1-4.6-4.8c0-2.2 1.1-3.6 2.2-4.8.2 1.6.9 2.6 2 3 0-3 .2-5.6.4-8.4z"/><path class="f2" d="M12 22a3.4 3.4 0 0 1-3.4-3.5c0-1.7 1.3-2.9 2.3-3.8.1 1.1.6 1.8 1.4 2.1.1-1.3.4-2.4 1.1-3.4.9 1.4 2 2.7 2 4.9A3.4 3.4 0 0 1 12 22z"/></svg></i><span class="btn__label" data-flip><span>تازه ارزان‌شده‌ها</span><span aria-hidden="true">تازه ارزان‌شده‌ها</span></span></a>
             <a class="btn btn--sky btn--lg" href="/sky.html" data-navpage><i class="bico bico--globe" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><ellipse class="g1" cx="12" cy="12" rx="4" ry="9"/><ellipse class="g2" cx="12" cy="12" rx="4" ry="9"/><path d="M3.5 9h17M3.5 15h17"/></svg></i><span class="btn__label" data-flip><span>قیمت از دید آسمان</span><span aria-hidden="true">قیمت از دید آسمان</span></span></a>
           </div>
+          <!-- جعبهٔ دوتبه بالای صفحه: شکار فرصت در قطب‌های اصلی یا ماشین‌حساب رایگان، بدون اسکرول -->
+          <div class="hbox" data-hbox>
+            <div class="hbox__tabs" role="tablist">
+              <button type="button" role="tab" class="is-on" aria-selected="true" data-hbox-tab="hunt">🔍 شکار املاک زیر قیمت</button>
+              <button type="button" role="tab" aria-selected="false" data-hbox-tab="calc">🧮 ماشین‌حساب قیمت منصفانه (رایگان)</button>
+            </div>
+            <div class="hbox__panel" data-hbox-panel="hunt">
+              <a href="/app.html#/s?province=tehran,alborz&amp;sort=score&amp;opp=1">🏙 تهران و البرز</a>
+              <a href="/app.html#/s?province=gilan&amp;sort=score&amp;opp=1">🌧 رشت و گیلان</a>
+              <a href="/app.html#/s?province=mazandaran,golestan&amp;sort=score&amp;opp=1">🌊 مازندران و ساحلی</a>
+              <a href="/app.html#/s?city=mashhad&amp;sort=score&amp;opp=1">🕌 مشهد</a>
+              <a href="/app.html#/s?city=isfahan,shiraz&amp;sort=score&amp;opp=1">🏛 اصفهان و شیراز</a>
+              <a href="/app.html#/s?sort=score&amp;opp=1">🔥 همهٔ ایران</a>
+            </div>
+            <div class="hbox__panel" data-hbox-panel="calc" hidden>
+              <span>شهر، محله، متراژ و سال ساخت را بدهید؛ بازهٔ قیمت منصفانهٔ ملک همان لحظه حساب می‌شود.</span>
+              <a class="btn btn--gold" href="#estimatorBox" data-scroll-to>شروع محاسبه ←</a>
+            </div>
+          </div>
+
         </div>
 
         <div class="hero__stats" data-hero-stats>

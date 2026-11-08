@@ -648,6 +648,9 @@ class Handler(BaseHTTPRequestHandler):
                                   lambda m: f'data-count="{int(stt.get(m.group(1)) or 0)}" data-stat="{m.group(1)}" data-suffix="">{sitepage.fa_num(int(stt.get(m.group(1)) or 0))}</b>', body)
                     body = body.replace("<!--FM_ARTICLES-->", sitepage.articles_html(self.app), 1)
                     body = body.replace("<!--FM_VIDEO-->", sitepage.video_html(self.app), 1)   # تنظیمات سایت از کش ۶۰ ثانیه‌ای
+                    tk = sitepage.ticker_html(self.app)   # نوار متحرک: نبض واقعی بازار به جای شعار
+                    if tk:
+                        body = re.sub(r'(<div class="marquee__track" data-marquee-track>).*?(</div>)', lambda m: m.group(1) + tk + m.group(2), body, count=1, flags=re.S)
                 # سربرگ سئو (عنوان، توضیح، پیوند متعارف، دادهٔ ساختاریافته) و متن کامل برای خزنده‌ها و دستیارهای هوش مصنوعی؛
                 # متن برای کاربر جمع است و با یک کلیک باز می‌شود
                 # صفحهٔ «قیمت از دید آسمان» عنوان و پیوند متعارف خودش را دارد (نه سئوی صفحهٔ اصلی)
