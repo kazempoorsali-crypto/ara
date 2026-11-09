@@ -96,7 +96,16 @@
           rows: [["ارزش منصفانهٔ برآوردی", FM.money(Math.round(d.total))], ["قیمت هر متر برآوردی", FM.money(Math.round(d.ppm))],
                  ["میانهٔ هر متر محله", FM.money(Math.round(d.base_ppm))], ["پشتوانهٔ برآورد", fa(d.n || 0) + " آگهی معتبر محله"]]
                  .concat(q.year ? [["سال ساخت", fa(q.year)]] : []),
-          ppm: d.ppm, basePpm: d.base_ppm, n: d.n, effects: d.effects || [],
+          ppm: d.ppm, basePpm: d.base_ppm, n: d.n, effects: d.effects || [], fair: Math.round(d.total),
+          compare: (function () {
+            // فقط اعداد واقعی: همین برآورد، میانه و چارک‌های قیمت هر متر همان محله (از جدول بازار سایت)
+            var c = FM.cityById ? FM.cityById(q.city) : null, dd = c ? (c.districts || []).filter(function (x) { return x.id === q.district || x.name === q.district; })[0] : null;
+            var out = [["این ملک (برآورد)", d.ppm, "me"]];
+            if (dd && dd.p25) out.push(["چارک ارزان محله", dd.p25, ""]);
+            out.push(["میانهٔ محله", d.base_ppm, "base"]);
+            if (dd && dd.p75) out.push(["چارک گران محله", dd.p75, ""]);
+            return out;
+          })(),
         }, FM.api && FM.api.me, function () { FM.account && FM.account.subscribe(); });
       });
     }).catch(function () { go.disabled = false; res.innerHTML = '<p class="est__err">ارتباط با سرور برقرار نشد؛ دوباره امتحان کنید.</p>'; });

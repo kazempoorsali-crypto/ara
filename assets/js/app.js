@@ -2639,9 +2639,20 @@ const App = (() => {
       if (l.year) rows.push(["سال ساخت", fa(l.year)]);
       if (l.floor != null && l.floor !== "") rows.push(["طبقه", fa(l.floor)]);
       if (l.verdict && l.verdict.label) rows.push(["ارزیابی", UI.gapText(l.verdict)]);
+      if (l.ppm) rows.push(["قیمت هر متر این ملک", money(l.ppm) + " تومان"]);
+      if (ex.base_ppm) rows.push(["میانهٔ هر متر محله", money(ex.base_ppm) + " تومان"]);
+      if (ex.district_n) rows.push(["پشتوانهٔ برآورد", fa(ex.district_n) + " آگهی معتبر محله"]);
       window.FMPriceSheet && FMPriceSheet.open({
         title: UI.tt(l.title), place: [l.district, c2 ? c2.name : l.city_name].filter(Boolean).join("، "),
         rows, ppm: l.ppm, basePpm: ex.base_ppm, n: ex.district_n, effects: (ex.effects || []).filter((e) => Array.isArray(e) && e.length === 2),
+        id: l.id, ask: l.pp, fairLow: ex.fair_low, fairHigh: ex.fair_high,
+        delta: l.verdict && !l.verdict.approx && l.verdict.delta != null ? l.verdict.delta : null,
+        levelName: l.verdict ? UI.LABELS[l.verdict.label] || "" : "",
+        // مقایسه با همسایه‌ها: همین آگهی، مشابه‌های هم‌محله (قیمت هر متر واقعی) و میانهٔ محله
+        compare: [["همین ملک", l.ppm || (l.pp && l.area ? l.pp / l.area : 0), "me"]]
+          .concat((l.similar || []).filter((x) => x.pp && x.area && x.deal === l.deal).slice(0, 4)
+            .map((x) => ["مشابه " + fa(x.area) + " متری", x.pp / x.area, ""]))
+          .concat(ex.base_ppm ? [["میانهٔ محله", ex.base_ppm, "base"]] : []),
       }, DataLayer.me, () => subscribeDialog());
     };
     $("#topShareBtn")?.addEventListener("click", handleShare);
