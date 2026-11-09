@@ -119,4 +119,18 @@ st.x("UPDATE otps SET sent_at=0"); c = bill.send_otp(NEW, local=True)["dev_code"
 err(lambda: bill.check_otp(NEW, "00000" if c != "00000" else "11111"), "۴ تلاش", "کد نادرست: تعداد تلاش باقی‌مانده گفته می‌شود")
 st.x("UPDATE otps SET expires=0 WHERE phone=?", (NEW,))
 err(lambda: bill.check_otp(NEW, c), "منقضی", "کد منقضی رد می‌شود")
+# اشتراک تجمیعی: خرید طرح تازه روی اشتراک فعال، روزهای باقی‌مانده را نمی‌سوزاند (new_exp = max(now, current_exp) + days)
+import time  # noqa: E402
+st.x("UPDATE users SET sub_until=0 WHERE phone=?", (PH,))
+t0 = int(time.time())
+bill.activate(PH, "weekly", notify=False)
+e1 = st.q("SELECT sub_until FROM users WHERE phone=?", (PH,), one=True)["sub_until"]
+ok(t0 + 7 * 86400 <= e1 <= int(time.time()) + 7 * 86400, "اشتراک تازه از همین لحظه شروع شد")
+bill.activate(PH, "weekly", notify=False)
+e2 = st.q("SELECT sub_until FROM users WHERE phone=?", (PH,), one=True)["sub_until"]
+ok(e2 == e1 + 7 * 86400, "طرح دوم پس از پایان اشتراک فعلی شروع شد و روزها جمع شد")
+st.x("UPDATE users SET sub_until=? WHERE phone=?", (t0 - 5 * 86400, PH))
+bill.activate(PH, "weekly", notify=False)
+e3 = st.q("SELECT sub_until FROM users WHERE phone=?", (PH,), one=True)["sub_until"]
+ok(t0 + 7 * 86400 <= e3 <= int(time.time()) + 7 * 86400, "اشتراک منقضی: طرح تازه از اکنون شروع شد (نه از تاریخ قدیمی)")
 print("همهٔ آزمون‌های حساب کاربری موفق بود.")

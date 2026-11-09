@@ -479,6 +479,20 @@
       document.addEventListener("pointerdown", off);
     });
   }
+  /* زمان باقی‌ماندهٔ اشتراک فعال («۳ روز و ۵ ساعت») از پایان واقعی اشتراک */
+  function leftText(me) {
+    const s = Math.max(0, (me.sub_until || 0) - Date.now() / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600);
+    return d ? `${fa(d)} روز${h ? " و " + fa(h) + " ساعت" : ""}` : `${fa(Math.max(1, h))} ساعت`;
+  }
+  /* اشتراک فعال: طرح بعدی بعد از پایان همین اشتراک شروع می‌شود (روزهای فعلی نمی‌سوزد) */
+  const STACK_T = "🔄 ارتقا یا رزرو خودکار اشتراک بعدی (بدون سوخت شدن روزهای فعلی)";
+  function stackBox(me) {
+    const plans = CFG().plans || [];
+    if (!me || !me.active || !plans.length) return "";
+    return `<div class="substack"><h3>${STACK_T}</h3>
+      <p class="muted small">از اشتراک فعلی شما <b>${leftText(me)}</b> باقی مانده است. طرح جدید پس از پایان همین اشتراک شروع می‌شود و روزهایش به آن اضافه می‌شود.</p>
+      <div class="substack__list">${plans.map((p) => `<button type="button" class="substack__opt" data-stack="${esc(p.id)}"><b>${esc(p.name)}</b><small>${fa(p.days)} روز · ${fa(p.price)} تومان</small></button>`).join("")}</div></div>`;
+  }
   /* خرید اشتراک در یک پنجره: انتخاب طرح (هفتگی/ماهانه) و سپس پرداخت با بله‌پی یا بزن به کارت */
   function subscribeDialog(planId) {
     if (!API.me) { loginDialog(() => subscribeDialog(planId)); return; }
@@ -488,7 +502,9 @@
     let ms = all.filter((x) => x.id === "bale" || x.id === "bezan");
     if (!ms.length) ms = all;
     let sel = plans.some((p) => p.id === planId) ? planId : (plans.find((p) => p.id === "monthly") || plans[plans.length - 1]).id;
-    openDialog(`<div class="dlg__head"><h2>فعال‌سازی اشتراک</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+    const act = API.me && API.me.active;
+    openDialog(`<div class="dlg__head"><h2>${act ? "تمدید یا ارتقای اشتراک" : "فعال‌سازی اشتراک"}</h2><button class="icon-btn" data-close aria-label="بستن">${icon("x")}</button></div>
+      ${act ? `<div class="substack substack--dlg"><h3>${STACK_T}</h3><p class="muted small">اشتراک فعلی شما ${leftText(API.me)} دیگر اعتبار دارد؛ طرحی که انتخاب کنید پس از پایان آن شروع می‌شود و روزهایش جمع می‌شود.</p></div>` : ""}
       <p class="muted small" style="margin-bottom:12px">همهٔ نتیجه‌ها، آگهی‌های مشکوک همراه با دلیل، پیوند مستقیم هر آگهی اصلی و جزئیات کامل ارزش‌گذاری باز می‌شود. بدون تمدید خودکار.</p>
       <div class="subp" role="radiogroup" aria-label="طرح اشتراک">${plans.map((p) => `<button type="button" class="subp__opt" role="radio" data-p="${p.id}">
         <span><b>${esc(p.name)}${p.id === "monthly" ? ' <i class="subp__pop">محبوب‌ترین</i>' : ""}</b><small>${p.desc ? esc(p.desc) + " · " : ""}${fa(p.days)} روز</small></span><em>${fa(p.price)} <small>تومان</small></em></button>`).join("")}</div>
@@ -520,10 +536,12 @@
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
           <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
+          ${me.active ? `<div><span class="muted small">زمان باقی‌مانده</span><b>${leftText(me)}</b></div>` : ""}
           ${me.active ? "" : `<button class="btn btn--hot" id="subBtn">فعال‌سازی اشتراک</button>`}
           <a class="btn btn--line" href="/app.html#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
         </div>
+        ${stackBox(me)}
         <form class="tool profile" id="profForm" autocomplete="on">
           <h3>مشخصات و رمز عبور</h3>
           ${me.has_password ? "" : `<p class="note-bad small">برای این حساب هنوز رمز عبور تعیین نشده؛ یک رمز بگذارید تا دفعهٔ بعد با شماره و رمز وارد شوید.</p>`}
@@ -539,6 +557,7 @@
     $("#loginBtn")?.addEventListener("click", () => loginDialog());
     $("#subBtn")?.addEventListener("click", () => subscribeDialog());
     $("#subBtn2")?.addEventListener("click", () => subscribeDialog());
+    $$("[data-stack]").forEach((b) => b.addEventListener("click", () => subscribeDialog(b.dataset.stack)));
     // کارت‌به‌کارت خودکار: تا تطبیق واریز، هر ۸ ثانیه (حداکثر ۴۵ دقیقه) وضعیت پرسیده می‌شود
     if (params.pending && me) {
       const pid = params.pending, t0 = Date.now();
