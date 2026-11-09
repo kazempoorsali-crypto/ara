@@ -1343,6 +1343,7 @@ class Handler(BaseHTTPRequestHandler):
                 "feeds": feeds,
                 "log": [dict(r) for r in s.q("SELECT * FROM requests_log ORDER BY at DESC LIMIT 60")],
                 "stats": s.stats(),
+                "autoupdate": {**__import__("autoupdate").STATE, **__import__("autoupdate").cfg(a)},
                 "sheypoor_cats": (s.get_setting("sheypoor_map") or {}).get("categories") or [],
                 "images": dict(s.q("SELECT COUNT(*) n, SUM(image IS NOT NULL AND image != '') w FROM listings WHERE status='active'", one=True)),
                 "by_source": {r["source"]: r["n"] for r in s.q("SELECT source, COUNT(*) n FROM listings WHERE status='active' GROUP BY source")},
@@ -1407,7 +1408,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def admin_post(self, path, data):
         a, s = self.app, self.app.store
+        if path == "/api/admin/update_now":
+            import autoupdate
+            if not (ROOT / ".git").exists():
+                raise ValueError("این نصب از گیت‌هاب نیست")
+            if autoupdate.check(ROOT):
+                threading.Thread(target=autoupdate.restart, args=(a,), daemon=True).start()
+                return self.send_json({"ok": True, "updated": True, "version": autoupdate.STATE["local"]})
+            return self.send_json({"ok": True, "updated": False, "version": autoupdate.STATE["local"], "error": autoupdate.STATE["last_error"]})
         if path == "/api/admin/settings":
+            if isinstance(data.get("autoupdate"), dict):
+                au = data["autoupdate"]
+                s.set_setting("autoupdate", {"enabled": bool(au.get("enabled", True)),
+                                             "interval": max(60, min(3600, int(au.get("interval") or 180)))})
             if isinstance(data.get("display"), dict) and data["display"].get("contact_mode") not in (None, "none", "owner", "all"):
                 raise ValueError("حالت نمایش شماره نامعتبر است")
             if isinstance(data.get("billing"), dict) and data["billing"].get("bezan_api_key") in ("•••", None):
@@ -1642,6 +1655,8 @@ def main():
     Handler.app.alerts.start()
     threading.Thread(target=seo.indexnow_loop, args=(Handler.app,), name="indexnow", daemon=True).start()
     Handler.app.billing.start_bezan_poller()
+    import autoupdate
+    autoupdate.start(Handler.app, ROOT)
     httpd = BoundedServer((args.host, args.port), Handler)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
     print("=" * 56)

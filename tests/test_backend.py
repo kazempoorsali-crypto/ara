@@ -100,7 +100,7 @@ check(it == {"area": 120, "year": 1398, "rooms": 2}, "ویژگی‌ها")
 
 def run(mode):
     data = tempfile.mkdtemp()
-    env = {**os.environ, "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0",
+    env = {**os.environ, "ARA_AUTOUPDATE": "0", "ARA_DIVAR_API": "http://127.0.0.1:8799", "ARA_SHEYPOOR_API": "http://127.0.0.1:8799/api/v10.0.0",
            "ARA_PAYAMAK_URL": "http://127.0.0.1:8799/api/SendSMS/BaseServiceNumber", "ARA_INGEST_DEFAULT": "0"}
     srv = subprocess.Popen([sys.executable, "server/app.py", "--port", "8788", "--data", data, "--no-browser"], cwd=ROOT, env=env)
     time.sleep(1.5)
