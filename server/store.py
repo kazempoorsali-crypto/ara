@@ -306,6 +306,9 @@ class Store:
             where.append("image IS NOT NULL AND image != ''")
         if f.get("drop"):
             where.append("price_drop > 0")
+        if f.get("owner"):   # فقط آگهی‌های شخصی (مالک مستقیم)، بدون دفاتر و مشاوران املاک
+            where.append("COALESCE(LOWER(seller_type),'') NOT IN ('business','real-estate-business','shop') "
+                         "AND COALESCE(feat,'') NOT LIKE '%\"agency\": 1%' AND COALESCE(feat,'') NOT LIKE '%\"agency\":1%'")
         if f.get("ids"):
             ids = f["ids"].split(",")[:100]
             add(f"id IN ({','.join('?' * len(ids))})", *ids)

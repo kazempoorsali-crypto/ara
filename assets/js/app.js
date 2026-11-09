@@ -1994,7 +1994,7 @@ const App = (() => {
           <button type="button" class="chip ${F.opp ? "is-on" : ""}" id="oppChip" aria-pressed="${!!F.opp}">${icon("spark", 'width="14"')} فقط فرصت‌ها</button>
           <button type="button" class="chip ${!F.opp ? "is-on" : ""}" id="allAdsChip" aria-pressed="${!F.opp}">${icon("list", 'width="14"')} همه آگهی‌ها</button>
         </div>
-        <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">کاهش قیمت</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
+        <button type="button" class="chip ${F.drop ? "is-on" : ""}" id="dropChip">📉 فروشندهٔ پول‌لازم (کاهش قیمت)</button><button type="button" class="chip ${F.owner ? "is-on" : ""}" id="ownerChip" title="بدون آگهی‌های دفاتر و مشاوران املاک؛ ویژهٔ مشترکان">👤 فقط آگهی‌های شخصی</button><button type="button" class="chip chip--sus ${F.sus ? "is-on" : ""}" id="susChip" title="فقط برای مشترکان، همراه با دلیل مشکوک بودن">${icon("lock", 'width="14"')} آگهی‌های مشکوک</button>`;
       $("#dds").innerHTML = html;
       UI.hscroll($("#dds"));
       $("#ddMulti")?.addEventListener("change", (e) => { multiPick = e.target.checked; });
@@ -2007,6 +2007,7 @@ const App = (() => {
       $("#oppChip").addEventListener("click", () => set({ opp: 1, ranked: "" }));
       $("#allAdsChip")?.addEventListener("click", () => set({ opp: "", ranked: "" }));
       $("#dropChip").addEventListener("click", () => set({ drop: F.drop ? "" : 1 }));
+      $("#ownerChip").addEventListener("click", () => set({ owner: F.owner ? "" : 1 }));
       $("#susChip").addEventListener("click", () => {
         if (!active()) { toast("نمایش آگهی‌های مشکوک فقط برای مشترکان است"); return go("#/account"); }
         set({ sus: F.sus ? "" : 1 });
@@ -2126,6 +2127,7 @@ const App = (() => {
       (F.amenities || "").split(",").filter(Boolean).forEach((a) => t.push(["amenities:" + a, AMENITIES.find((x) => x.id === a)?.name || a]));
       if (F.ranked) t.push(["ranked", "دارای امتیاز"]);
       if (F.drop) t.push(["drop", "کاهش قیمت"]);
+      if (F.owner) t.push(["owner", "آگهی‌های شخصی"]);
       $("#atags").innerHTML = t.map(([k, v]) => `<button class="atag" data-rm="${esc(k)}">${esc(v)} ${icon("x", 'width="12" aria-hidden="true"')}</button>`).join("");
     }
 
@@ -2181,7 +2183,8 @@ const App = (() => {
       if (picked) r.items = r.items.filter((l) => l.id !== picked.id);
       $("#sTitle").innerHTML = `${esc(titleOf())}<small>${fa(r.total)} آگهی</small>`;
       document.title = `${titleOf()} | ${cfg.site.name}`;
-      $("#grid").innerHTML = r.items.length || r.locked_more ? r.items.map((l) => UI.card(l)).join("") + (r.locked_more ? UI.lockCard(r.locked_more) : "")
+      $("#grid").innerHTML = r.owner_locked ? `<div class="ownlock"><b>🔥 ${fa(r.locked_more)} آگهی شخصی (مالک مستقیم) با این فیلترها پیدا شد</b><span>فیلتر «فقط آگهی‌های شخصی» ویژهٔ مشترکان است؛ برای دیدن این آگهی‌ها قفل را باز کنید.</span><button type="button" class="btn btn--gold" data-pcard-sub>🔓 بازکردن قفل (اشتراک)</button></div>`
+        : r.items.length || r.locked_more ? r.items.map((l) => UI.card(l)).join("") + (r.locked_more ? UI.lockCard(r.locked_more) : "")
         : `<div class="empty" style="grid-column:1/-1">${icon("search")}<h3>آگهی‌ای با این مشخصات نیست</h3><p>چند فیلتر را بردارید یا از دستیار بخواهید گزینه نزدیک پیدا کند.</p><a class="btn btn--ink" href="#/s?sort=score">نمایش همه</a></div>`;
       if (!r.items.length && !r.locked_more) relaxHints(id);
       const pages = r.locked_more ? 1 : Math.ceil(r.total / PER);
@@ -2224,7 +2227,7 @@ const App = (() => {
       if (picked) requestAnimationFrame(() => box.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
     }
     async function relaxHints(id) {
-      const names = { presale: "با و بدون پیش‌فروش", fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
+      const names = { presale: "با و بدون پیش‌فروش", fresh: "هر زمان درج", settle: "شهری و روستایی", opp: "همهٔ آگهی‌ها، نه فقط فرصت‌ها", ageMax: "هر سن بنا", depMax: "بدون سقف ودیعه", rentMax: "بدون سقف اجاره", amenities: "بدون امکانات انتخابی", rooms: "هر تعداد خواب", areaMin: "هر متراژ", areaMax: "هر متراژ", kinds: "همه انواع ملک", max: "بدون سقف قیمت", min: "بدون کف قیمت", deal: "همه معامله‌ها", drop: "همه آگهی‌ها", owner: "همهٔ فروشنده‌ها", ranked: "شامل آگهی‌های بی‌امتیاز", district: "همه محله‌ها", city: "کل استان" };
       const opts = [];
       for (const k of Object.keys(names).filter((k) => F[k])) {
         const f = { ...F }; delete f[k];

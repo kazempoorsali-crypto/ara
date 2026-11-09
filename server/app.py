@@ -1142,6 +1142,8 @@ class Handler(BaseHTTPRequestHandler):
             if qs.get("sus") and not sub:
                 qs.pop("sus")
             r = a.store.search(qs)
+            if qs.get("owner") and not sub:   # فیلتر «آگهی‌های شخصی» ویژهٔ مشترکان: فقط تعداد نتیجه
+                return self.send_json({**r, "items": [], "points": [], "locked_more": r["total"], "owner_locked": True, "sub": False})
             free = int(a.billing.cfg().get("free_results") or 0)
             offset = int(qs.get("offset") or 0)
             if not sub and not qs.get("ids") and free:
