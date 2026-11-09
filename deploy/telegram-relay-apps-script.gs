@@ -14,7 +14,14 @@ function relay(e, method) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   var opt = { method: method, muteHttpExceptions: true };
-  if (method === "post") {
+  // سرور سایت (با گزینهٔ «بدنه در نشانی» در پنل) بدنه را URL-encoded در پارامتر body و با GET می‌فرستد،
+  // چون ریدایرکت اسکریپت گوگل بدنهٔ POST را از بین می‌برد؛ این‌جا همان بدنه با POST به تلگرام می‌رود
+  var qbody = e && e.parameter && e.parameter.body;
+  if (qbody) {
+    opt.method = "post";
+    opt.contentType = "application/json";
+    opt.payload = qbody;
+  } else if (method === "post") {
     opt.contentType = "application/json";
     opt.payload = (e.postData && e.postData.contents) || "{}";
   }

@@ -69,9 +69,7 @@ class Bale:
     def call(self, method, body=None, timeout=30):
         from divar_client import NET, _opener
         c = self.cfg()
-        req = urllib.request.Request(self.api_url(c, method),
-                                     data=json.dumps(body or {}).encode(), method="POST",
-                                     headers={"content-type": "application/json"})
+        req = self.request(c, method, body)
         with _opener(NET["proxy"]).open(req, timeout=timeout) as r:
             res = json.loads(r.read().decode() or "{}")
         if not res.get("ok"):
@@ -80,6 +78,11 @@ class Bale:
 
     def api_url(self, c, method) -> str:
         return self.API.format(token=c["token"], method=method)
+
+    def request(self, c, method, body=None):
+        """درخواست HTTP یک متد ربات (پیش‌فرض: POST با بدنهٔ JSON)."""
+        return urllib.request.Request(self.api_url(c, method), data=json.dumps(body or {}).encode(), method="POST",
+                                      headers={"content-type": "application/json"})
 
     def send(self, chat_id, text, **extra):
         try:
@@ -289,7 +292,8 @@ TG_API = "https://api.telegram.org/bot{token}/{method}"
 DEFAULT_TG = {"token": "", "bot_username": "", "alerts": True,
               "assistant": True,   # دستیار هوشمند: منو، جست‌وجو، ماشین‌حساب، پرسش‌ها و پشتیبانی (tgbot.py)
               "notify": True,      # رسید پرداخت، پاسخ تیکت و یادآوری تمدید در تلگرام
-              "api_base": ""}      # نشانی واسط (مثلاً Cloudflare Worker) وقتی api.telegram.org از سرور فیلتر است
+              "api_base": "",      # نشانی واسط (مثلاً Cloudflare Worker) وقتی api.telegram.org از سرور فیلتر است
+              "relay_get": False}  # واسط اسکریپت گوگل: بدنه در کوئری (&body=...) با GET؛ فقط پس از به‌روزرسانی اسکریپت روشن شود
 
 
 class Telegram(Bale):
@@ -317,6 +321,24 @@ class Telegram(Bale):
         if "script.google.com" in base:   # اسکریپت گوگل مسیر اضافه پس از /exec را فقط با ورود به حساب می‌پذیرد؛ مسیر در پارامتر می‌رود
             return f"{base}?path=" + urllib.parse.quote(f"bot{c['token']}/{method}", safe="/:")
         return f"{base}/bot{c['token']}/{method}"
+
+    # سقف طول نشانی برای GET از اسکریپت گوگل؛ پیام بلندتر همان POST عادی می‌رود (اسکریپت هر دو را می‌پذیرد)
+    GET_MAX = 7000
+
+    def request(self, c, method, body=None):
+        """واسط اسکریپت گوگل: با روشن بودن relay_get بدنه URL-encoded در کوئری و با GET می‌رود (ریدایرکت گوگل بدنهٔ POST را می‌اندازد)؛
+        مسیر Cloudflare Worker و اتصال مستقیم همان POST عادی می‌ماند."""
+        base = (c.get("api_base") or "").strip()
+        if "script.google.com" in base:
+            ua = {"user-agent": "Mozilla/5.0"}
+            if c.get("relay_get"):
+                url = self.api_url(c, method) + "&body=" + urllib.parse.quote(json.dumps(body or {}, ensure_ascii=False, separators=(",", ":")), safe="")
+                if len(url) <= self.GET_MAX:
+                    return urllib.request.Request(url, method="GET", headers=ua)
+            req = super().request(c, method, body)
+            req.add_header("user-agent", "Mozilla/5.0")
+            return req
+        return super().request(c, method, body)
 
     def poll_wait(self) -> int:
         # پشت واسط (اسکریپت گوگل و…) انتظار کوتاه‌تر: درخواست طولانی از واسط و ریدایرکت آن با مهلت‌ها برخورد نکند

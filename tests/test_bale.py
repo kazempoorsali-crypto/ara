@@ -157,4 +157,23 @@ try:
 finally:
     urllib.request.urlopen = orig_urlopen
 
+# تلگرام از واسط: Cloudflare Worker و اتصال مستقیم همان POST؛ اسکریپت گوگل با relay_get بدنه را در کوئری با GET می‌فرستد
+from bale import Telegram  # noqa: E402
+import urllib.parse  # noqa: E402
+tg = Telegram(st, bill)
+TOK = "123:abc"
+body = {"chat_id": 5, "text": "سلام فرصت ملک"}
+r0 = tg.request({"token": TOK, "api_base": ""}, "sendMessage", body)
+ok(r0.get_method() == "POST" and r0.full_url == "https://api.telegram.org/bot123:abc/sendMessage" and json.loads(r0.data)["text"] == body["text"], "اتصال مستقیم: POST عادی")
+r1 = tg.request({"token": TOK, "api_base": "https://x.y.workers.dev"}, "sendMessage", body)
+ok(r1.get_method() == "POST" and r1.full_url == "https://x.y.workers.dev/bot123:abc/sendMessage", "Cloudflare Worker: بدون تغییر، POST عادی")
+GS = "https://script.google.com/macros/s/ID/exec"
+r2 = tg.request({"token": TOK, "api_base": GS}, "sendMessage", body)
+ok(r2.get_method() == "POST" and r2.get_header("User-agent") == "Mozilla/5.0" and "?path=bot123:abc/sendMessage" in r2.full_url, "اسکریپت گوگل بدون گزینهٔ GET: همان POST قبلی (سازگار با اسکریپت قدیمی)")
+r3 = tg.request({"token": TOK, "api_base": GS, "relay_get": True}, "sendMessage", body)
+q = urllib.parse.parse_qs(urllib.parse.urlsplit(r3.full_url).query)
+ok(r3.get_method() == "GET" and r3.data is None and r3.get_header("User-agent") == "Mozilla/5.0", "اسکریپت گوگل با گزینهٔ GET: درخواست GET با User-Agent مرورگر")
+ok(q["path"] == ["bot123:abc/sendMessage"] and json.loads(q["body"][0]) == body, "بدنه URL-encoded در پارامتر body و مسیر در path")
+r4 = tg.request({"token": TOK, "api_base": GS, "relay_get": True}, "sendMessage", {"chat_id": 5, "text": "ی" * 3000})
+ok(r4.get_method() == "POST", "پیام خیلی بلند (نشانی طولانی): همان POST عادی")
 print("همهٔ آزمون‌های بله موفق بود.")
