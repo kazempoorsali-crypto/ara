@@ -9,6 +9,31 @@
   let token = sessionStorage.getItem("ara-admin") || "";
   let S = null, tab = location.hash.slice(1) || "dash", timer = null;
 
+  /* به‌روزرسانی خودکار از گیت‌هاب: وضعیت، روشن/خاموش و «به‌روزرسانی الان» */
+  function autoBox(u) {
+    if (!u) return "";
+    const ago = (t) => t ? fa(Math.max(0, Math.round((Date.now() / 1000 - t) / 60))) + " دقیقه پیش" : "هنوز نه";
+    const st = !u.active ? "غیرفعال (سرور زیر systemd اجرا نمی‌شود)" : !u.enabled ? "خاموش" : u.last_error ? "خطا: " + esc(u.last_error) : "روشن · آخرین بررسی " + ago(u.last_check);
+    return `<div class="note" style="margin-bottom:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center" data-au>
+      <span>🔄 <b>به‌روزرسانی خودکار از گیت‌هاب</b>: ${st}${u.local ? ` · نسخه <bdi dir="ltr">${esc(u.local)}</bdi>` : ""}${u.last_update ? " · آخرین نصب " + ago(u.last_update) : ""}</span>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-au-on ${u.enabled ? "checked" : ""}> خودکار</label>
+      <button type="button" class="btn" data-au-now>به‌روزرسانی الان</button></div>`;
+  }
+  document.addEventListener("click", async (e) => {
+    const now = e.target.closest("[data-au-now]"), on = e.target.closest("[data-au-on]");
+    if (now) {
+      now.disabled = true; now.textContent = "در حال بررسی…";
+      try {
+        const r = await api("admin/update_now", {});
+        if (r.updated) { toast("نسخهٔ " + r.version + " نصب شد؛ سایت چند ثانیه دیگر تازه می‌شود"); setTimeout(() => location.reload(), 9000); }
+        else toast(r.error ? "خطا: " + r.error : "سایت همین الان آخرین نسخه است (" + r.version + ")");
+      } catch (err) { toast(err.message); }
+      now.disabled = false; now.textContent = "به‌روزرسانی الان";
+    } else if (on) {
+      try { await api("admin/settings", { autoupdate: { enabled: on.checked } }); toast(on.checked ? "به‌روزرسانی خودکار روشن شد" : "به‌روزرسانی خودکار خاموش شد"); }
+      catch (err) { toast(err.message); }
+    }
+  });
   function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("is-on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("is-on"), 2800); }
   async function api(path, body) {
     const r = await fetch("api/" + path, { method: body ? "POST" : "GET", headers: { "content-type": "application/json", "x-admin-token": token }, body: body ? JSON.stringify(body) : undefined });
@@ -89,6 +114,7 @@
     if (S.billing.test_mode) missing.push("خاموش کردن «حالت آزمایشی پرداخت» (از اینترنت کار نمی‌کند، ولی پیش از انتشار خاموشش کنید)");
     main().innerHTML = `<h1>داشبورد</h1><p class="muted">نمای کلی سایت و موتور دریافت آگهی${S.version ? ` · نسخهٔ نصب‌شده: <bdi dir="ltr">v ${esc(S.version.replace("|", " — "))}</bdi>` : ""}</p>
       ${missing.length ? `<div class="note" style="margin-bottom:18px">برای شروع: ${missing.join("، ")} را در بخش «اشتراک، درگاه و پیامک» تنظیم کنید.</div>` : ""}
+      ${autoBox(S.autoupdate)}
       <div class="kpis">
         <div><b>${fa(st.total)}</b><span>آگهی فعال</span></div>
         <div><b>${fa(st.today)}</b><span>جدید در ۲۴ ساعت</span></div>
