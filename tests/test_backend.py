@@ -331,14 +331,16 @@ except divar_client.SourceError as e:
 
 mock = subprocess.Popen([sys.executable, "tests/mock_divar.py", "8799"], cwd=ROOT)
 time.sleep(0.8)
-os.environ["http_proxy"] = "http://127.0.0.1:9"  # پروکسی خاموش
 try:
-    st_, _, _ = divar_client._http("GET", "http://127.0.0.1:8799/api/v10.0.0/general/locations", timeout=5)
-    check(st_ == 200, "پروکسی سیستم خاموش: اتصال خودکار بدون پروکسی")
-except divar_client.SourceError as e:
-    check(False, f"بازگشت از پروکسی خاموش: {e}")
-del os.environ["http_proxy"]
-try:
+    os.environ["http_proxy"] = "http://127.0.0.1:9"  # پروکسی خاموش
+    saved_np = {k: os.environ.pop(k) for k in ("no_proxy", "NO_PROXY") if k in os.environ}  # مثل CI: بدون استثنای پروکسی
+    try:
+        st_, _, _ = divar_client._http("GET", "http://127.0.0.1:8799/api/v10.0.0/general/locations", timeout=5)
+        check(st_ == 200, "پروکسی سیستم خاموش: اتصال خودکار بدون پروکسی")
+    except divar_client.SourceError as e:
+        check(False, f"بازگشت از پروکسی خاموش: {e}")
+    del os.environ["http_proxy"]
+    os.environ.update(saved_np)
     run("mcp")
     run("direct")
 finally:

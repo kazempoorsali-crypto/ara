@@ -101,18 +101,20 @@ def diagnose(url: str, err: Exception, tried_direct: bool = False) -> str:
 
 def _http(method, url, body=None, headers=None, timeout=30):
     data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
-    for k, v in {"user-agent": UA, "accept": "application/json", "accept-language": "fa-IR,fa;q=0.9", **(headers or {})}.items():
-        req.add_header(k, v)
-    if data is not None:
-        req.add_header("content-type", "application/json")
+    def make_req():  # هر تلاش درخواست تازه: ProxyHandler درخواست قبلی را به پروکسی گره می‌زند (set_proxy)
+        req = urllib.request.Request(url, data=data, method=method)
+        for k, v in {"user-agent": UA, "accept": "application/json", "accept-language": "fa-IR,fa;q=0.9", **(headers or {})}.items():
+            req.add_header(k, v)
+        if data is not None:
+            req.add_header("content-type", "application/json")
+        return req
     tries = [NET["proxy"]]
     if NET["proxy"] == "auto" and _system_proxies():
         tries.append("none")  # اگر پروکسی سیستم خاموش بود، یک بار بدون پروکسی
     last = None
     for proxy in tries:
         try:
-            with _opener(proxy).open(req, timeout=timeout) as r:
+            with _opener(proxy).open(make_req(), timeout=timeout) as r:
                 return r.status, dict(r.headers), r.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:600]
