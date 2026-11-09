@@ -149,10 +149,12 @@ def run(mode):
         check("report" in M and M["report"]["funnel"][0]["n"] >= M["report"]["overview"]["valid"], f"[{mode}] گزارش بازار و قیف ({M['report']['funnel'][0]['n']} خوانده‌شده)")
         call("/api/admin/settings", {"billing": {"free_results": 0}}, tok)
         L = call("/api/listings?sort=cheap")
-        pp = [x["pp"] for x in L["items"] if x["pp"]]
+        # مهمان قیمت دقیق نمی‌بیند (آگهی در منبع پیدا نشود)؛ فقط بازهٔ قیمت که با همان ترتیب بالا می‌رود
+        pp = [x.get("pp_lo") for x in L["items"] if x.get("pp_lo")]
         check(pp == sorted(pp), f"[{mode}] مرتب‌سازی قیمت")
         one = L["items"][0]
         check("url" not in one and one["locked"], f"[{mode}] پیوند دیوار برای مهمان قفل است")
+        check(all("pp" not in x and "area" not in x for x in L["items"]), f"[{mode}] قیمت و متراژ دقیق برای مهمان فرستاده نمی‌شود")
         check(call("/api/auth/otp", {"phone": "123"}).get("status") == 400, f"[{mode}] شماره نامعتبر رد شد")
         rq = urllib.request.Request(B + "/api/auth/otp", data=json.dumps({"phone": "09350000000"}).encode(), method="POST",
                                     headers={"content-type": "application/json", "x-forwarded-for": "5.6.7.8"})
@@ -160,10 +162,11 @@ def run(mode):
             with urllib.request.urlopen(rq) as rr: pub = json.loads(rr.read())
         except urllib.error.HTTPError as e: pub = json.loads(e.read())
         check("dev_code" not in pub, f"[{mode}] کد آزمایشی ورود از اینترنت نمایش داده نمی‌شود")
-        # دورهٔ رایگان ۱۰ روزه برای ثبت‌نام تازه (پیش‌فرض روشن)
+        # دورهٔ رایگان ثبت‌نام: از «قفل سخت» (مهاجرت mig_strict_lock_v1) پیش‌فرض خاموش است؛ این‌جا روشن و سنجیده می‌شود
+        call("/api/admin/settings", {"billing": {"trial_enabled": True, "trial_days": 3}}, tok)
         ot = call("/api/auth/otp", {"phone": "09123334444"})
         vt = call("/api/auth/verify", {"phone": "09123334444", "code": ot["dev_code"]})
-        check(vt["user"]["active"] and vt["user"]["trial"] and vt["user"]["days_left"] == 3 and vt.get("trial_days") == 3, f"[{mode}] ثبت‌نام تازه: ۳ روز دسترسی کامل رایگان (پیش‌فرض)")
+        check(vt["user"]["active"] and vt["user"]["trial"] and vt["user"]["days_left"] == 3 and vt.get("trial_days") == 3, f"[{mode}] ثبت‌نام تازه: ۳ روز دسترسی کامل رایگان (وقتی روشن است)")
         call("/api/admin/settings", {"billing": {"trial_enabled": False}}, tok)
         check(call("/api/config")["trial_days"] == 0, f"[{mode}] دورهٔ رایگان خاموش شد")
         o = call("/api/auth/otp", {"phone": "۰۹۱۲۱۲۳۴۵۶۷"})
@@ -183,8 +186,10 @@ def run(mode):
             try:
                 with urllib.request.urlopen(B + path) as r: return r.status, r.read().decode(errors="replace")
             except urllib.error.HTTPError as e: return e.code, e.read().decode()
-        sm = raw("/sitemap.xml")[1]
-        check("/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
+        # sitemap.xml فهرستِ نقشه‌هاست؛ صفحه‌ها، محله‌ها و آگهی‌ها در نقشه‌های جدا
+        idx = raw("/sitemap.xml")[1]
+        sm = "".join(raw(f"/sitemap-{k}.xml")[1] for k in ("pages", "places", "ads"))
+        check("sitemap-ads.xml" in idx and "/melk/rasht</loc>" in sm and "/ad/" in sm and "Sitemap:" in raw("/robots.txt")[1], f"[{mode}] نقشهٔ سایت و robots.txt")
         hs0, hh0 = raw("/")
         vs = re.findall(r'assets/(?:site/)?(?:css|js)/[a-z]+\.(?:css|js)\?v=([^"]+)"', hh0)
         check(len(vs) >= 6 and len(set(vs)) == 1 and not vs[0].startswith("20261009"), f"[{mode}] همهٔ فایل‌های css و js با نسخهٔ واقعی (شکستن کش): {sorted(set(vs))}")
@@ -212,11 +217,11 @@ def run(mode):
         ar = call("/api/admin/article", {"title": "راهنمای خرید آپارتمان در رشت", "summary": "آزمون", "city_key": "rasht",
                                          "body": "## بخش اول\nاین یک متن آزمایشی برای مقاله است که باید بیش از پنجاه نویسه داشته باشد.\n- مورد [رشت](/melk/rasht)"}, tok)
         mst, mh = raw("/maghale/" + urllib.parse.quote(ar["slug"]))
-        check(ar.get("ok") and mst == 200 and "<h2>بخش اول</h2>" in mh and 'href="/melk/rasht"' in mh and "/maghale/" in raw("/sitemap.xml")[1], f"[{mode}] مقاله منتشر شد و در نقشهٔ سایت است")
+        check(ar.get("ok") and mst == 200 and "<h2>بخش اول</h2>" in mh and 'href="/melk/rasht"' in mh and "/maghale/" in raw("/sitemap-pages.xml")[1], f"[{mode}] مقاله منتشر شد و در نقشهٔ سایت است")
         check(call("/api/page?path=/rahnama/ejare").get("body"), f"[{mode}] نمایش راهنما درون برنامه")
         pub = call("/api/listings?limit=60&sort=score")["items"]
-        check(all(x.get("discount") is None or abs(x["discount"] * 20 - round(x["discount"] * 20)) < 1e-9 for x in pub)
-              and all(x.get("verdict") is None or x["verdict"].get("approx") for x in pub), f"[{mode}] غیرمشترک فقط بازهٔ ۵ درصدی می‌بیند")
+        check(all(not (x.get("verdict") or {}).get(k) for x in pub if x.get("locked") for k in ("fair", "fair_ppm", "estimated_profit")),
+              f"[{mode}] غیرمشترک قیمت منصفانهٔ دقیق را نمی‌بیند")
         p = ucall("/api/pay/start", {"plan": "weekly"})
         check(p.get("activated"), f"[{mode}] خرید اشتراک هفتگی (حالت آزمایشی پرداخت)")
         me = ucall("/api/me")["user"]
@@ -239,10 +244,10 @@ def run(mode):
         # کارت‌به‌کارت با مبلغ یکتا و رسید
         call("/api/admin/settings", {"billing": {"test_mode": False, "gateway": "card", "card_number": "6037-9900-0000-0000", "card_holder": "آزمون"}}, tok)
         check(call("/api/config")["gateway"] == "card", f"[{mode}] درگاه کارت‌به‌کارت فعال")
-        c = ucall("/api/pay/start", {"plan": "monthly"})
+        c = ucall("/api/pay/start", {"plan": "monthly", "method": "card"})
         check(c.get("card") and c["amount"] == 600000, f"[{mode}] مبلغ یکتا برای کارت‌به‌کارت، اولین نفر خود قیمت: {c.get('amount')}")
-        c2 = ucall("/api/pay/start", {"plan": "monthly"})
-        c3 = ucall("/api/pay/start", {"plan": "monthly"})
+        c2 = ucall("/api/pay/start", {"plan": "monthly", "method": "card"})
+        c3 = ucall("/api/pay/start", {"plan": "monthly", "method": "card"})
         check({c2.get("amount"), c3.get("amount")} == {599000, 601000}, f"[{mode}] مبلغ‌های بعدی با گام هزار تومانی: {c2.get('amount')}، {c3.get('amount')}")
         call("/api/admin/settings", {"sms": {"provider": "payamak", "username": "user", "api_key": "pass", "template": "123456", "notify_template": "777"}}, tok)
         check(ucall("/api/pay/receipt", {"payment_id": c["payment_id"], "tracking": "12"}).get("status") == 400, f"[{mode}] رسید بی‌کد رد شد")
@@ -270,7 +275,7 @@ def run(mode):
         gl = hcall("/api/tickets", headers={"x-ticket-keys": g["key"]})["items"]
         check(len(gl) == 1 and gl[0]["messages"][-1]["sender"] == "auto", f"[{mode}] تیکت مهمان با کلید دیده می‌شود و پاسخ خودکار دارد")
         check(hcall("/api/tickets")["items"] == [], f"[{mode}] بدون کلید تیکت دیگران دیده نمی‌شود")
-        c4 = ucall("/api/pay/start", {"plan": "weekly"})
+        c4 = ucall("/api/pay/start", {"plan": "weekly", "method": "card"})
         utk = ucall("/api/tickets", {"category": "payment", "body": "واریز کردم", "image": png})
         mine = ucall("/api/tickets")["items"]
         tk = next((x for x in mine if x["id"] == utk.get("id")), {})

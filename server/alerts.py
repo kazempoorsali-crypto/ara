@@ -64,7 +64,9 @@ class Alerts:
         tg = self.tg
         linked = bool(self.bale.chat_of(phone))
         # تلگرام فقط وقتی پیشنهاد می‌شود که ربات واقعاً با سرور تلگرام در ارتباط باشد (نه فقط توکن وارد شده باشد)
-        tg_ok = bool(tg and tg.ready() and (time.time() - (tg.state.get("last_ok") or 0)) < 900)
+        st = getattr(tg, "state", None) if tg else None
+        # ربات واقعی: فقط اگر همین تازگی با تلگرام ارتباط موفق داشته؛ بدون وضعیت (جایگزین آزمون) فقط ready
+        tg_ok = bool(tg and tg.ready() and (st is None or (time.time() - (st.get("last_ok") or 0)) < 900))
         tg_linked = bool(tg and tg.chat_of(phone))
         out = {"items": rows, "linked": linked, "bot": self.bale.cfg().get("bot_username") or "", "ready": self.bale.ready(),
                "telegram": {"ready": tg_ok, "linked": tg_linked, "bot": (tg.cfg().get("bot_username") or "") if tg else ""}}
