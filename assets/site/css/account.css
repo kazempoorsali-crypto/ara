@@ -1351,3 +1351,43 @@ body.adv-open .chatfab, body.adv-open #chatFab, body.adv-open .totop { visibilit
 .pros__card p { margin: 0; line-height: 2; color: var(--ink-faint); font-size: .92rem; }
 [data-theme="light"] .pros__card { background: #fff; box-shadow: 0 12px 32px rgba(15,28,22,.07); }
 @media (max-width: 860px) { .pros__grid { grid-template-columns: 1fr; } }
+
+/* ── فاز ۱: جعبهٔ دوتبه در گوشی و تبلت؛ کارت مستقل و مات زیر نوار «نبض امروز بازار» ── */
+.hbox-dock { display: none; }
+@media (max-width: 768px) {
+  .hero { height: 118vh; }
+  .hero__hint { display: none !important; }
+  .hero__cta { gap: .45rem !important; margin-top: 1rem; }
+  .hero__cta .btn--lg { min-height: 46px; padding-block: .55rem !important; }
+  .hbox-dock.is-on { display: block; position: relative; z-index: 15; padding: 16px 16px 4px; background: var(--bg); }
+  .hbox-dock .hbox { margin: 0 auto; max-width: 640px; padding: 12px; border-radius: 18px; background: #fff; border: 1.5px solid rgba(213, 166, 38, .45); box-shadow: 0 16px 40px rgba(15, 28, 22, .14); backdrop-filter: none; -webkit-backdrop-filter: none; color: #16241f; }
+  [data-theme="dark"] .hbox-dock .hbox { background: #13221d; border-color: rgba(213, 166, 38, .55); box-shadow: 0 16px 40px rgba(0, 0, 0, .35); color: #f4f1e9; }
+  .hbox-dock .hbox__tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .hbox-dock .hbox__tabs button { height: 100%; min-height: 54px; font-size: 13px; font-weight: 700; line-height: 1.55; padding: 6px 8px; border: 1.5px solid rgba(22, 36, 31, .24); background: #fff; color: #16241f; }
+  [data-theme="dark"] .hbox-dock .hbox__tabs button { border-color: rgba(213, 166, 38, .35); background: #172a24; color: #f4f1e9; }
+  .hbox-dock .hbox__tabs button.is-on { background: #d5a626; border-color: #d5a626; color: #191307; }
+  .hbox-dock .hbox__panel[data-hbox-panel="hunt"]:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hbox-dock .hbox__panel a:not(.btn) { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 6px; border-radius: 12px; background: #f7f4ec; border: 1px solid rgba(22, 36, 31, .18); color: #16241f; font-size: 13px; font-weight: 700; text-align: center; }
+  [data-theme="dark"] .hbox-dock .hbox__panel a:not(.btn) { background: #1c2f29; border-color: rgba(244, 241, 233, .16); color: #f4f1e9; }
+  .hbox-dock .hbox__panel span { font-size: 13px; }
+}
+
+/* ── فاز ۳ و ۴: ویترین سبک ۶ کارتی، نمونه‌های باز و شفافیت بازه‌ها ── */
+.rtrust { width: min(1180px, calc(100% - 2rem)); margin: 0 auto 1.2rem; padding: 14px 16px; border-radius: 16px; background: rgba(213, 166, 38, .1); border: 1px solid rgba(213, 166, 38, .45); line-height: 2; }
+.rtrust[hidden] { display: none; }
+.rtrust b { display: block; font-size: .95rem; color: var(--ink); }
+.rtrust p { margin: .2rem 0 0; font-size: .86rem; color: var(--ink-dim); }
+[data-theme="light"] .rtrust { background: #fffaf0; }
+.ncard__sample { position: absolute; bottom: .55rem; right: .55rem; z-index: 3; padding: 3px 10px; border-radius: 999px; background: #20976A; color: #fff; font-size: .74rem; font-weight: 900; box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .5); }
+.ncard__lockline { display: block; margin-top: .35rem; padding: 6px 9px; border-radius: 10px; background: rgba(224, 83, 31, .1); color: #E0531F; font-size: .76rem; font-weight: 800; line-height: 1.7; }
+.ncard__price.is-range { font-size: .76rem !important; color: var(--ink-faint); font-weight: 700; }
+.ncard.is-locked .ncard__save { font-size: 1.02rem; padding: 10px 11px; }
+.masonry__all.is-big { width: min(760px, calc(100% - 2rem)); padding: 1.1rem 1.4rem; border-radius: 18px; background: linear-gradient(135deg, #f4d788, #d5a626); color: #191307; border-color: #d5a626; box-shadow: 0 16px 40px -14px rgba(213, 166, 38, .7); }
+.masonry__all.is-big b { font-size: 1.02rem; line-height: 1.8; }
+.masonry__all.is-big small { color: rgba(25, 19, 7, .75); }
+.masonry__all.is-big:hover { background: linear-gradient(135deg, #f7e09c, #dcb03a); }
+@media (max-width: 560px) { .masonry__all.is-big b { font-size: .92rem; } }
+.masonry__all.is-big { flex-wrap: wrap; text-align: center; gap: .3rem .9rem; }
+.masonry__all.is-big svg { display: none; }
+/* فاز ۳: پردهٔ بارگذاری کاملاً خاموش (صفحه از لحظهٔ اول دیده می‌شود) */
+html.intro-fast .intro { display: none !important; }

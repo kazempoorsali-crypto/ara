@@ -269,6 +269,31 @@
     return true;
   }
 
+  /* مشترک فعال (از /api/me یا همان دادهٔ آغازین صفحه برای کاربر واردشده) */
+  function subNow() { return FM.isSub() || !!(window.FM_BOOT && FM_BOOT.me && FM_BOOT.me.active && !(FM.api && FM.api.me)); }
+  /* بنر شفافیت بازه‌ها بالای گالری (فقط غیرمشترک)؛ عدد نمونه‌های باز از free_preview واقعی سرور */
+  function renderTrust() {
+    var gal = document.querySelector("[data-gallery]"); if (!gal) return;
+    var box = document.getElementById("rangeTrust");
+    if (subNow()) { if (box) box.hidden = true; return; }
+    if (!box) {
+      box = document.createElement("div"); box.id = "rangeTrust"; box.className = "rtrust";
+      var head = gal.querySelector(".gallery__head");
+      if (head) head.after(box); else gal.prepend(box);
+    }
+    var n = +(freePreview()) || 0;
+    box.hidden = false;
+    box.innerHTML = '<b>🔒 چرا متراژ و قیمت برخی کارت‌ها به صورت «محدوده» نوشته شده است؟</b>' +
+      "<p>سیستم فرصت ملک قیمت و متراژ دقیق تمام آگهی‌ها را دارد؛ اما برای حفظ انحصار شکارها برای مشترکین، در کارت‌های قفل‌شده اعداد به صورت بازه نمایش داده می‌شوند." +
+      (n > 0 ? " (" + FM.fa(n) + " کارت اول به عنوان نمونه کاملاً باز " + (n > 1 ? "هستند" : "است") + ".)" : "") + "</p>";
+  }
+  function freePreview() { return (window.FM_BOOT && FM_BOOT.free_preview != null) ? FM_BOOT.free_preview : (FM.api && FM.api.config && FM.api.config.free_preview) || 0; }
+  /* دکمهٔ بزرگ زیر ویترین با تعداد واقعی آگهی‌های سنجیده‌شده (آمار سرور) */
+  function allLabel() {
+    var t = +((FM.data.stats || {}).total) || 0;
+    return "🔍 مشاهده و فیلتر تمام " + (t ? FM.fa(t.toLocaleString("en-US").replace(/,/g, "٬")) + " " : "") + "آگهی کارشناسی‌شده در جست‌وجوی پیشرفته ←";
+  }
+
   function applyFilterUI() {
     if (!hasFilters) return;
     var label = FM.regionLabel(FM.region) || "همهٔ مناطق";
@@ -276,7 +301,8 @@
     statusEl.innerHTML = any ? "گالری و شکارهای بازار با فیلتر <b>" + E(label) + "</b>" + (advActive() ? " + " + FM.fa(advActive()) + " فیلتر پیشرفته" : "") : "نمایش همهٔ املاک ویترین";
     btnReset.hidden = !reg;
     if (allCount) allCount.textContent = any ? "همهٔ آگهی‌های " + label + " با فیلتر کامل" : "جست‌وجوی کامل با فیلتر و نقشه";
-    if (allBtn) allBtn.querySelector("b").textContent = any ? "مشاهدهٔ همه در جست‌وجوی فرصت‌ها" : "جست‌وجوی همهٔ فرصت‌ها";
+    if (allBtn) allBtn.querySelector("b").textContent = any ? "مشاهدهٔ همه در جست‌وجوی فرصت‌ها" : allLabel();
+    if (allBtn) allBtn.classList.toggle("is-big", !any);
   }
 
   if (hasFilters) {
@@ -340,15 +366,22 @@
     a.href = FM.propUrl(p.id);
     a.dataset.status = p.status;
     if (p.noimg) a.classList.add("is-noimg");
+    if (p.locked) a.classList.add("is-locked");
+    /* غیرمشترک: کارت باز ویترین «نمونهٔ باز» است (تعداد از free_preview سرور) */
+    var sample = !p.locked && !subNow();
     a.innerHTML =
       '<span class="ncard__media">' + FM.badge(p, "ncard__badge") + FM.cardActs(p) +
+      (sample ? '<span class="ncard__sample">🔓 نمونه باز</span>' : "") +
       '<img src="' + E(FM.thumb(p.img)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=FM.NOIMG">' +
       (p.imgs.length > 1 ? '<span class="ncard__swap">' + FM.fa(p.imgs.length) + " عکس</span>" + '<span class="ncard__dots">' + p.imgs.slice(0, 8).map(function (_, i) { return "<i" + (i ? "" : ' class="is-on"') + "></i>"; }).join("") + "</span>" : "") +
       "</span>" +
       '<span class="ncard__body"><b>' + E(p.title) + "</b>" +
       '<span class="ncard__meta"><small>' + E(p.loc) + "</small>" +
       '<small class="st-text" data-status="' + p.status + '">' + E(p.diffText || p.tag) + "</small></span>" +
-      '<span class="ncard__price">' + E(p.priceText) + "</span>" + FM.whyLine(p) +
+      (p.locked
+        ? '<span class="ncard__lockline">🔒 قیمت و متراژ دقیق: مخفی (بازگشایی با اشتراک)</span>' +
+          (p.raw && p.raw.pp_lo ? '<span class="ncard__price is-range">حدود ' + E(FM.moneyRange(p.raw.pp_lo, p.raw.pp_hi)) + "</span>" : "")
+        : '<span class="ncard__price">' + E(p.priceText) + "</span>") + FM.whyLine(p) +
       FM.savingLine(p) + "</span>";
     if (p.imgs.length > 1) slideshow(a, p.imgs.slice(0, 8).map(function (u) { return FM.thumb(u); }));
     return a;
@@ -404,10 +437,13 @@
     return box;
   }
 
+  /* ویترین سبک صفحهٔ اول: بدون فیلتر فقط ۶ کارت؛ بقیه در جست‌وجوی پیشرفته */
+  var SHOWCASE = 6;
   function renderMasonry(animate) {
     if (!wrap || !cols.length) return;
-    var items = current;
     var limited = anyFilter();
+    var items = limited ? current : current.slice(0, SHOWCASE);
+    renderTrust();
     if (limited) {
       statusEl.innerHTML = items.length
         ? "بهترین‌های <b>" + E(FM.regionLabel(FM.region) || "همهٔ مناطق") + "</b> با این فیلترها" + (current.total > items.length ? "؛ " + FM.fa(current.total) + " آگهی پیدا شد" : "") + (current.locked ? " — بقیه با اشتراک در جست‌وجوی کامل" : "")
@@ -421,7 +457,7 @@
     clearColTweens();
     /* چند شهر: هر شهر یک بخش جدا، به ترتیب انتخاب */
     var groupsBox = document.querySelector("[data-cgroups]");
-    var grouped = !!(current.groups && current.groups.filter(function (g) { return g.name; }).length > 1 && current === items);
+    var grouped = !!(limited && current.groups && current.groups.filter(function (g) { return g.name; }).length > 1);
     if (!groupsBox) { groupsBox = document.createElement("div"); groupsBox.className = "cgroups"; groupsBox.setAttribute("data-cgroups", ""); wrap.after(groupsBox); }
     wrap.hidden = grouped; groupsBox.hidden = !grouped;
     var lt = document.querySelector("[data-lockslot]");

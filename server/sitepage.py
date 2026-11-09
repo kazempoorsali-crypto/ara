@@ -251,6 +251,8 @@ def boot(handler, page, qs):
             props = cached("top", 60, lambda: _top(handler))
         # ویترین فقط چند عکس و خلاصهٔ توضیح لازم دارد؛ متن کامل در صفحهٔ خود آگهی است (حجم HTML صفحهٔ اول کم شود)
         data["properties"] = [{**x, "description": (x.get("description") or "")[:240], "images": (x.get("images") or [])[:5]} for x in props]
+        # تعداد نمونه‌های باز ویترین (از تنظیمات پرداخت) برای بنر شفافیت بازه‌ها
+        data["free_preview"] = int(app.billing.cfg().get("free_preview") or 0)
     if page == "property":
         lid = (qs.get("id") or "").strip()
         d = app.store.get(lid) if lid else None

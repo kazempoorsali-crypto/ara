@@ -272,6 +272,16 @@
         <span>برترین فرصت‌های امروز</span><i>✦</i><span>برآورد بازار، محله به محله</span><i>✦</i><span>هر فروشنده یک رأی</span><i>✦</i><span>کشف فرصت طلایی</span><i>✦</i><span>قیمت منصفانه</span><i>✦</i>
       </div>
     </div>
+    <!-- گوشی و تبلت: جعبهٔ دوتبه کارت مستقل و مات زیر نوار «نبض امروز بازار»، بیرون از گرافیک ساختمان‌های Hero
+         (پیش از نقاشی صفحه جابه‌جا می‌شود، پس پرش ظاهر ندارد) -->
+    <div class="hbox-dock" id="hboxDock"></div>
+    <script>
+      (function () {
+        if (!window.matchMedia || !matchMedia("(max-width: 768px)").matches) return;
+        var d = document.getElementById("hboxDock"), b = document.querySelector("[data-hbox]");
+        if (d && b) { d.appendChild(b); d.classList.add("is-on"); }
+      })();
+    </script>
 
     <!-- ══════════ فیلتر منطقه — گالری زیر آن را تغییر می‌دهد ══════════ -->
     <!-- ══════════ فیلتر منطقه + دکمه‌های انتخاب سریع شهرها + ماشین‌حساب تخمین قیمت ══════════ -->
