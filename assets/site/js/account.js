@@ -405,9 +405,18 @@
         <li><span>مبلغ اشتراک ${esc(r.plan)}:</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
         <li><span>صفحهٔ پرداخت «بزن به کارت» را باز کن و همین مبلغ را بپرداز.</span><a class="btn btn--hot btn--block" href="${esc(r.link)}" target="_blank" rel="noopener">باز کردن صفحهٔ پرداخت ${icon("arrow")}</a><small class="muted">اگر صفحهٔ پرداخت باز نشد، فیلترشکن (VPN) را خاموش کنید یا روش دیگری را انتخاب کنید.</small></li>
         <li><span>بعد از پرداخت، کد پیگیری یا عکس رسید را همین‌جا ثبت کن. ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و پرداخت بعداً بررسی می‌شود.` : `پس از تأیید پرداخت، اشتراک ${esc(r.plan)} باز می‌شود.`}</span></li>
-      </ol>` : `<ol class="pay-steps">
-        <li><span>دقیقاً همین مبلغ را واریز کن، نه بیشتر و نه کمتر. این مبلغ فقط برای تو رزرو شده و پرداختت با آن شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}.</span><b class="pay-amt">${fa(r.amount)} <small>تومان</small></b></li>
-        <li><span>به این کارت${r.card.bank ? " (" + esc(r.card.bank) + ")" : ""}:</span><button class="pay-card" id="cpCard" type="button"><bdi dir="ltr">${num16}</bdi> ${icon("copy", 'width="16"')}</button>${r.card.holder ? `<span class="pay-holder">به نام <b>${esc(r.card.holder)}</b></span>` : ""}</li>
+      </ol>` : `<div class="cbox">
+        <div class="cbox__row"><span class="cbox__k">مبلغ دقیق قابل پرداخت (یکتا، فقط برای شما)</span>
+          <b class="cbox__v">${fa(Number(r.amount).toLocaleString("en-US")).replace(/,/g, "٬")} <small>تومان</small></b>
+          <div class="cbox__copies"><button type="button" data-cp="${Number(r.amount)}" data-cpm="مبلغ به تومان کپی شد">📋 کپی به تومان</button><button type="button" data-cp="${Number(r.amount) * 10}" data-cpm="مبلغ به ریال کپی شد">📋 کپی به ریال</button></div></div>
+        <div class="cbox__row"><span class="cbox__k">شمارهٔ کارت${r.card.holder ? " · به نام " + esc(r.card.holder) : ""}${r.card.bank ? " · " + esc(r.card.bank) : ""}</span>
+          <b class="cbox__v cbox__mono" dir="ltr">${num16.replace(/-/g, " ")}</b>
+          <div class="cbox__copies"><button type="button" id="cpCard" data-cp="${esc(r.card.number.replace(/\D/g, ""))}" data-cpm="شماره کارت کپی شد">📋 کپی شماره کارت</button></div></div>
+        ${r.card.sheba ? `<div class="cbox__row"><span class="cbox__k">شمارهٔ شبا</span><b class="cbox__v cbox__mono cbox__sm" dir="ltr">${esc(r.card.sheba)}</b>
+          <div class="cbox__copies"><button type="button" data-cp="${esc(r.card.sheba)}" data-cpm="شماره شبا کپی شد">📋 کپی شبا</button></div></div>` : ""}
+        <p class="cbox__note">دقیقاً همین مبلغ را واریز کنید، نه بیشتر و نه کمتر؛ پرداخت شما با همین مبلغ شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}. پس از واریز می‌توانید این پنجره را ببندید؛ وضعیت و رسید در «حساب من ← پرداخت‌ها و رسیدها» می‌ماند.</p>
+      </div>
+      <ol class="pay-steps">
         ${r.sms ? `<li><span>همین صفحه را باز بگذار؛ چند ثانیه پس از واریز، پرداختت خودکار شناخته و اشتراک ${esc(r.plan)} باز می‌شود. نیازی به رسید نیست.</span><b class="pay-wait" id="cpWait">⏳ در انتظار واریز…</b></li>`
           : `<li><span>عکس رسید یا کد پیگیری را همین‌جا بفرست (یا بعداً از بخش <a href="/app.html#/support">پشتیبانی</a>). ${r.auto ? `اشتراک ${esc(r.plan)} همان لحظه باز می‌شود و واریز بعداً بررسی می‌شود.` : `پس از تطبیق واریز، اشتراک ${esc(r.plan)} باز می‌شود.`} پس از فعال‌سازی پیامک «دسترسی شما باز شد» می‌گیری.</span></li>`}
       </ol>`}
@@ -432,7 +441,14 @@
       };
       setTimeout(poll, 6000);
     }
-    $("#cpCard")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(r.card.number.replace(/\D/g, "")); toast("شماره کارت کپی شد"); } catch { /* */ } });
+    $$("#dlg [data-cp]").forEach((b) => b.addEventListener("click", async () => {
+      const v = b.dataset.cp;
+      let done = false;
+      try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(v); done = true; } } catch { /* */ }
+      if (!done) { const ta = document.createElement("textarea"); ta.value = v; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch { /* */ } ta.remove(); }
+      b.classList.add("is-done"); setTimeout(() => b.classList.remove("is-done"), 1600);
+      toast(b.dataset.cpm || "کپی شد");
+    }));
     $("#rcForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = $("#rcBtn"); btn.disabled = true;
@@ -451,6 +467,26 @@
   }
 
 
+  /* «پرداخت‌ها و رسیدها» در حساب من: ادامهٔ کارت‌به‌کارت نیمه‌تمام و دیدن رسید هر پرداخت */
+  const PAY_ST = { paid: ["✅ پرداخت‌شده", "ok"], review: ["🧾 رسید ثبت شد", "ok"], pending: ["⏳ در انتظار واریز", "wait"], failed: ["ناموفق", "bad"], rejected: ["رد شد", "bad"] };
+  async function myPays() {
+    const box = $("#myPays"); if (!box) return;
+    let d;
+    try { d = await API.myPayments(); } catch { return; }
+    if (!d || (!(d.items || []).length && !d.pending)) return;
+    const jd = (t) => (t ? new Date(t * 1000).toLocaleDateString("fa-IR", { month: "long", day: "numeric", year: "numeric" }) : "—");
+    box.hidden = false;
+    box.innerHTML = `<h3>💳 پرداخت‌ها و رسیدها</h3>
+      ${d.pending ? `<div class="mypays__pend"><div><b>کارت‌به‌کارت ${esc(d.pending.plan)}</b><small>مبلغ یکتا: ${fa(Number(d.pending.amount).toLocaleString("en-US")).replace(/,/g, "٬")} تومان · هنوز واریزی با این مبلغ شناخته نشده</small></div>
+        <button type="button" class="btn btn--hot" id="payResume">ادامهٔ پرداخت و کپی شماره کارت</button></div>` : ""}
+      <div class="mypays__list">${(d.items || []).map((p) => { const st = PAY_ST[p.status] || [esc(p.status), ""]; return `<div class="mypays__row">
+        <span><b>${esc(p.plan)}</b><small>${jd(p.paid_at || p.created)} · ${esc(p.gateway)}</small></span>
+        <span class="mypays__amt">${fa(Number(p.amount || 0).toLocaleString("en-US")).replace(/,/g, "٬")} <small>تومان</small></span>
+        <span class="mypays__st is-${st[1]}">${st[0]}</span>
+        ${p.status === "paid" || p.status === "review" ? `<a class="btn btn--line btn--sm" href="/account.html?invoice=${encodeURIComponent(p.id)}">دیدن رسید</a>` : "<span></span>"}</div>`; }).join("")}</div>`;
+    $("#payResume")?.addEventListener("click", () => cardDialog(d.pending));
+  }
+
   /* منوی «حساب من»: با ورود، دکمهٔ حساب یک منوی کوچک باز می‌کند؛ بدون اشتراک فعال، «فعال‌سازی اشتراک» بالای منوست */
   function closeAcctMenu() { const m = $("#acctMenu"); if (!m) return; m.remove(); $("#accountBtn")?.setAttribute("aria-expanded", "false"); }
   function acctMenu() {
@@ -460,7 +496,7 @@
     m.id = "acctMenu"; m.className = "amenu fmx"; m.setAttribute("role", "menu");
     m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
       ${me.active ? "" : `<button type="button" class="amenu__sub" role="menuitem" data-a="sub">${icon("spark")}<span><b>فعال‌سازی اشتراک</b><small>هفتگی یا ماهانه، با بله‌پی یا بزن به کارت</small></span></button>`}
-      <a role="menuitem" href="/account.html">${icon("user")} حساب من</a>
+      <a role="menuitem" href="/account.html">${icon("user")} حساب من، پرداخت‌ها و رسیدها</a>
       <a role="menuitem" href="/app.html#/support">${icon("chat")} پشتیبانی و تیکت‌ها</a>
       <button type="button" role="menuitem" data-a="out">${icon("logout")} خروج</button>`;
     document.body.append(m);
@@ -499,7 +535,7 @@
     const plans = CFG().plans || [];
     if (!plans.length) { toast("تعرفهٔ اشتراک هنوز تعیین نشده است"); return; }
     const all = CFG().pay_methods || [];
-    let ms = all.filter((x) => x.id === "bale" || x.id === "bezan");
+    let ms = all.filter((x) => x.id === "bale" || x.id === "bezan" || x.id === "card");
     if (!ms.length) ms = all;
     let sel = plans.some((p) => p.id === planId) ? planId : (plans.find((p) => p.id === "monthly") || plans[plans.length - 1]).id;
     const act = API.me && API.me.active;
@@ -542,6 +578,7 @@
           <button class="btn btn--line" id="logoutBtn">خروج</button>
         </div>
         ${stackBox(me)}
+        <div class="mypays" id="myPays" hidden></div>
         <form class="tool profile" id="profForm" autocomplete="on">
           <h3>مشخصات و رمز عبور</h3>
           ${me.has_password ? "" : `<p class="note-bad small">برای این حساب هنوز رمز عبور تعیین نشده؛ یک رمز بگذارید تا دفعهٔ بعد با شماره و رمز وارد شوید.</p>`}
@@ -558,6 +595,7 @@
     $("#subBtn")?.addEventListener("click", () => subscribeDialog());
     $("#subBtn2")?.addEventListener("click", () => subscribeDialog());
     $$("[data-stack]").forEach((b) => b.addEventListener("click", () => subscribeDialog(b.dataset.stack)));
+    if (me && API.myPayments) myPays();
     // کارت‌به‌کارت خودکار: تا تطبیق واریز، هر ۸ ثانیه (حداکثر ۴۵ دقیقه) وضعیت پرسیده می‌شود
     if (params.pending && me) {
       const pid = params.pending, t0 = Date.now();

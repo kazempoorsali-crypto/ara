@@ -25,12 +25,14 @@ DEFAULT_BILLING = {
     "free_preview": 2,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود (نمونهٔ اعتمادساز)
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
-    "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
+    "card_number": "", "card_holder": "", "card_bank": "", "card_sheba": "", "card_auto_activate": True,
     # مبلغ یکتا: قیمت طرح ± چند گام (پیش‌فرض گام هزار تومانی؛ برای قیمت ۵۰۰ هزار: ۴۹۸، ۴۹۹، ۵۰۰، ۵۰۱، ۵۰۲ هزار ...)
     "card_step": 1000, "card_span": 100,
     # تأیید خودکار کارت‌به‌کارت با پیامک بانک: گوشی اندرویدی صاحب کارت پیامک واریز را به سایت می‌فرستد
     # (برنامهٔ Incoming SMS to URL forwarder)؛ مبلغ واریز با مبلغ یکتای پرداخت تطبیق داده و اشتراک فوراً فعال می‌شود
     "bank_sms_enabled": False, "bank_sms_key": "", "bank_sms_senders": "", "bank_sms_unit": "rial",
+    # گزارش روزانهٔ کارت‌به‌کارت و پیامک‌های بانک، هر روز ساعت ۸ صبح تهران در بلهٔ همین شماره (خالی = خاموش)
+    "report_phone": "09119041271",
     # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
     "trial_enabled": False, "trial_days": 3,
     # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
@@ -478,7 +480,12 @@ class Billing:
             raise ValueError("شماره کارت هنوز در پنل وارد نشده است")
         amount = self.unique_amount(plan["price"], exclude=pid)
         self.store.x("UPDATE payments SET amount=?, note='در انتظار رسید کارت‌به‌کارت' WHERE id=?", (amount, pid))
-        return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"]},
+        return self._card_info(pid, amount, plan)
+
+    def _card_info(self, pid, amount, plan):
+        """دادهٔ صفحهٔ پرداخت کارت‌به‌کارت (برای شروع یا ادامهٔ همان پرداخت)."""
+        c = self.cfg()
+        return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"], "sheba": c.get("card_sheba") or ""},
                 "payment_id": pid, "amount": amount, "price": plan["price"], "plan": plan["name"], "auto": bool(c["card_auto_activate"]),
                 "sms": self.bank_sms_ready()}
 
@@ -662,6 +669,22 @@ class Billing:
         return ok
 
     # ---------------------------------------------------------- invoice
+    GW_NAMES = {"bale": "بله‌پی", "bezan": "کارت‌به‌کارت خودکار", "zarinpal": "زرین‌پال", "idpay": "آیدی‌پی", "card": "کارت‌به‌کارت", "test": "آزمایشی"}
+
+    def my_payments(self, phone) -> dict:
+        """پرداخت‌ها و رسیدهای خود کاربر (صفحهٔ حساب) و کارت‌به‌کارتِ نیمه‌تمام برای ادامهٔ پرداخت."""
+        rows = self.store.q("SELECT * FROM payments WHERE phone=? AND (status IN ('paid','review') OR created>?) ORDER BY id DESC LIMIT 20",
+                            (phone, int(time.time()) - 3 * 86400))
+        names = {p["id"]: p["name"] for p in self.plans()}
+        items = [{"id": r["id"], "plan": names.get(r["plan"], r["plan"]), "amount": r["amount"], "gateway": self.GW_NAMES.get(r["gateway"], r["gateway"]),
+                  "status": r["status"], "created": r["created"], "paid_at": r["paid_at"]} for r in rows]
+        pend = next((r for r in rows if r["gateway"] == "card" and r["status"] == "pending" and r["created"] > time.time() - 3 * 86400), None)
+        pending = None
+        if pend and self.method_ready("card"):
+            plan = next((p for p in self.plans() if p["id"] == pend["plan"]), None) or {"name": pend["plan"], "price": pend["amount"]}
+            pending = self._card_info(pend["id"], pend["amount"], plan)
+        return {"items": items, "pending": pending}
+
     def invoice(self, phone, pid) -> dict:
         """فاکتور یک پرداخت برای صاحبش (صفحهٔ «پرداخت موفق»)."""
         pay = self.store.q("SELECT * FROM payments WHERE id=? AND phone=?", (int(pid or 0), phone), one=True)

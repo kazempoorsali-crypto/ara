@@ -56,6 +56,7 @@ FM.api = (function () {
     startPayment: function (plan, method) { return post("pay/start", { plan: plan, method: method }); },
     payCheck: function (pid) { return get("pay/check", { pid: pid }); },
     invoice: function (pid) { return get("pay/invoice", { pid: pid }); },
+    myPayments: function () { return get("pay/mine"); },
     submitReceipt: function (pid, tracking, image) { return post("pay/receipt", { payment_id: pid, tracking: tracking, image: image }); },
     alerts: function () { return get("alerts"); },
     alertAdd: function (d) { return post("alerts", d); },

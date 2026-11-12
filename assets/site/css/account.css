@@ -1402,3 +1402,36 @@ html.intro-fast .intro { display: none !important; }
 .substack__opt { display: grid; gap: 2px; text-align: right; padding: 10px 12px; min-height: 52px; border-radius: 12px; border: 1px solid var(--line, rgba(127,127,127,.3)); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .substack__opt:hover { border-color: #d5a626; }
 .substack__opt small { color: var(--ink-faint, #888); font-size: .78rem; }
+
+/* ── کارت‌به‌کارت: کپی تک‌لمسی مبلغ یکتا، شماره کارت و شبا (مثل متدا) ── */
+.cbox { display: grid; gap: 10px; margin: 4px 0 12px; padding: 12px; border-radius: 16px; border: 1.5px solid rgba(213, 166, 38, .45); background: rgba(213, 166, 38, .07); }
+.cbox__row { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--panel, rgba(127,127,127,.06)); border: 1px solid var(--line, rgba(127,127,127,.2)); }
+.cbox__k { font-size: .8rem; color: var(--ink-faint, #888); line-height: 1.8; }
+.cbox__v { font-size: 1.35rem; font-weight: 900; line-height: 1.6; }
+.cbox__v small { font-size: .8rem; font-weight: 700; }
+.cbox__mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: clamp(1.02rem, 4.6vw, 1.3rem); letter-spacing: .04em; text-align: left; direction: ltr; white-space: nowrap; }
+.cbox__sm { font-size: clamp(.72rem, 3.2vw, .92rem); white-space: normal; word-break: break-all; }
+.cbox__copies { display: flex; flex-wrap: wrap; gap: 8px; }
+.cbox__copies button { min-height: 42px; padding: 6px 14px; border-radius: 999px; border: 1px solid #d5a626; background: transparent; color: inherit; font: inherit; font-size: .85rem; font-weight: 800; cursor: pointer; }
+.cbox__copies button:hover { background: rgba(213, 166, 38, .14); }
+.cbox__copies button.is-done { background: #20976A; border-color: #20976A; color: #fff; }
+.cbox__note { margin: 0; font-size: .82rem; line-height: 1.9; color: var(--ink-dim, inherit); }
+
+/* حساب من: پرداخت‌ها و رسیدها */
+.mypays { margin: 1rem 0; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line, rgba(127,127,127,.25)); background: var(--panel, transparent); }
+.mypays[hidden] { display: none; }
+.mypays h3 { margin: 0 0 .6rem; font-size: 1rem; }
+.mypays__pend { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px; margin-bottom: 10px; border-radius: 12px; border: 1px solid rgba(224, 83, 31, .4); background: rgba(224, 83, 31, .08); }
+.mypays__pend b, .mypays__row b { display: block; }
+.mypays__pend small, .mypays__row small { color: var(--ink-faint, #888); font-size: .78rem; }
+.mypays__list { display: grid; gap: 6px; }
+.mypays__row { display: grid; grid-template-columns: minmax(0, 1.6fr) auto auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line, rgba(127,127,127,.18)); }
+.mypays__amt { font-weight: 800; white-space: nowrap; }
+.mypays__st { font-size: .8rem; font-weight: 800; white-space: nowrap; }
+.mypays__st.is-ok { color: #20976A; }
+.mypays__st.is-wait { color: #d5a626; }
+.mypays__st.is-bad { color: #E0531F; }
+@media (max-width: 560px) {
+  .mypays__row { grid-template-columns: 1fr auto; }
+  .mypays__row > :nth-child(4) { grid-column: 1 / -1; justify-self: start; }
+}
