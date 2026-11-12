@@ -543,6 +543,11 @@
           <label class="field"><span>شماره یا نام فرستندهٔ پیامک بانک (چندتا با ویرگول)</span><input class="input input--ltr" name="bank_sms_senders" value="${esc(b.bank_sms_senders || "")}" placeholder="مثلاً BankMellat یا +9830009..."></label>
           <label class="field"><span>واحد مبلغ در پیامک</span><select class="select" name="bank_sms_unit"><option value="rial" ${b.bank_sms_unit !== "toman" ? "selected" : ""}>ریال (بیشتر بانک‌ها)</option><option value="toman" ${b.bank_sms_unit === "toman" ? "selected" : ""}>تومان</option></select></label>
         </div>
+        <div class="grid2" style="margin-top:8px">
+          <label class="field"><span>گزارش روزانه (ساعت ۸ صبح) در بله به این موبایل</span><input class="input input--ltr" name="report_phone" value="${esc(b.report_phone || "")}" inputmode="tel" placeholder="09xxxxxxxxx"></label>
+          <div class="field"><span>&nbsp;</span><button type="button" class="btn btn--line" id="reportTest">ارسال آزمایشی گزارش همین حالا</button><small id="reportRes" class="hint"></small></div>
+        </div>
+        <p class="hint">گزارش دیروزِ پرداخت‌ها و پیامک‌های بانک هر روز یک بار از ساعت ۸ صبح تهران فرستاده می‌شود. این شماره باید یک بار با «دریافت کد در بله» در سایت وارد شده باشد تا به ربات بله وصل شود. خالی = خاموش.</p>
         <label class="field" style="margin-top:8px"><span>نشانی برای برنامهٔ گوشی (محرمانه؛ در خانهٔ URL برنامه بگذارید)</span><input class="input input--ltr" readonly value="${esc((S.bank_sms || {}).url || "")}" onclick="this.select()"></label>
         <p class="hint">برنامهٔ «Incoming SMS to URL forwarder» روی گوشی‌ای که سیم‌کارتِ پیامک‌های همین کارت در آن است: فرستنده = همان نام بالای پیامک بانک، URL = نشانی بالا، بقیه پیش‌فرض. مبلغ واریز با مبلغ یکتای هر خرید تطبیق داده می‌شود. پیامک‌های غیرواریزی ذخیره نمی‌شوند.</p>
         ${((S.bank_sms || {}).recent || []).length ? `<table class="table" style="margin-top:8px"><thead><tr><th>زمان</th><th>فرستنده</th><th>مبلغ (تومان)</th><th>نتیجه</th></tr></thead><tbody>${S.bank_sms.recent.slice(0, 12).map((m) => `<tr><td>${when(m.at)}</td><td dir="ltr">${esc(m.sender)}</td><td>${m.amount ? fa(m.amount) : "—"}</td><td>${{ matched: "✅ تأیید شد" + (m.payment_id ? " (پرداخت " + fa(m.payment_id) + ")" : ""), unmatched: "واریز بدون خرید هم‌مبلغ", ambiguous: "چند خرید هم‌مبلغ؛ دستی بررسی کنید", ignored: "واریز نبود", rejected: "فرستندهٔ ناشناس" }[m.status] || esc(m.status)}</td></tr>`).join("")}</tbody></table>` : `<p class="hint">هنوز پیامکی نرسیده است. پس از تنظیم برنامه، دکمهٔ Test را در برنامه بزنید و این صفحه را تازه کنید.</p>`}
@@ -636,6 +641,11 @@
       try { const r = await api("admin/bale-test", {}); $("#baleRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.bot.first_name || "")} @${esc(r.bot.username || "")}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
       catch (err) { $("#baleRes").textContent = err.message; }
     });
+    $("#reportTest")?.addEventListener("click", async () => {
+      $("#reportRes").textContent = "در حال ارسال… (اگر شماره را تازه وارد کرده‌اید، اول «ذخیره» را بزنید)";
+      try { const r = await api("admin/daily-report-test", {}); $("#reportRes").innerHTML = r.ok ? `<span class="ok">گزارش در بله فرستاده شد ✓</span>` : `<span class="bad">${esc(r.error || "ارسال نشد")}</span>`; }
+      catch (err) { $("#reportRes").textContent = err.message; }
+    });
     $("#bezanTest")?.addEventListener("click", async () => {
       $("#bezanRes").textContent = "در حال آزمون… (اگر کلید را تازه وارد کرده‌اید، اول «ذخیره» را بزنید)";
       try { const r = await api("admin/bezan-test", {}); $("#bezanRes").innerHTML = r.ok ? `<span class="ok">متصل است: ${esc(r.store || "")}${r.subscription?.status ? " · اشتراک: " + esc(r.subscription.status) : ""}</span>` : `<span class="bad">${esc(r.error)}</span>`; }
@@ -650,7 +660,7 @@
       const body = {
         billing: { weekly_price: +f.weekly_price.value || 0, weekly_days: +f.weekly_days.value || 7, monthly_price: +f.monthly_price.value || 0, monthly_days: +f.monthly_days.value || 30, pass48_price: +f.pass48_price.value || 0, pass48_days: +f.pass48_days.value || 2, vip_price: +f.vip_price.value || 0, vip_days: +f.vip_days.value || 30,
           free_preview: +f.free_preview.value || 0, free_results: +f.free_results.value || 0, trial_enabled: f.trial_enabled.checked && +f.trial_days.value > 0, trial_days: f.trial_days.value === "" ? 3 : Math.max(0, +f.trial_days.value),
-          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, bank_sms_enabled: f.bank_sms_enabled.checked, bank_sms_senders: f.bank_sms_senders.value.trim(), bank_sms_unit: f.bank_sms_unit.value, gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
+          card_number: f.card_number.value.trim(), card_holder: f.card_holder.value.trim(), card_bank: f.card_bank.value.trim(), card_auto_activate: f.card_mode.value === "auto", card_step: +f.card_step.value || 1000, card_span: +f.card_span.value || 100, bank_sms_enabled: f.bank_sms_enabled.checked, bank_sms_senders: f.bank_sms_senders.value.trim(), bank_sms_unit: f.bank_sms_unit.value, report_phone: f.report_phone.value.trim(), gateway: f.gateway.value, merchant_id: f.merchant_id.value.trim(), bezan_api_key: f.bezan_api_key.value.trim(), bezan_link: f.bezan_link.value.trim(), bezan_expiry: Math.min(120, Math.max(15, +f.bezan_expiry.value || 30)), sandbox: f.sandbox.checked, test_mode: f.test_mode.checked,
           pay_methods: (S.pay_methods || []).map((m) => m.id).filter((id) => f["pm_" + id] && f["pm_" + id].checked) },
         email: { host: f.em_host.value.trim(), port: +f.em_port.value || 465, security: f.em_sec.value, user: f.em_user.value.trim(), password: f.em_pass.value, from_addr: f.em_from.value.trim() },
         telegram: { token: f.tg_token.value.trim(), bot_username: f.tg_bot.value.trim(), alerts: f.tg_alerts.checked, assistant: f.tg_assistant.checked, notify: f.tg_notify.checked, api_base: f.tg_api.value.trim(), relay_get: f.tg_relay_get.checked },

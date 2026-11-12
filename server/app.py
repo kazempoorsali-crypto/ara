@@ -263,6 +263,13 @@ class App:
             self.store.set_setting("billing", {**b, "free_preview": 0, "trial_enabled": False, "weekly_price": b.get("weekly_price") or 98000, "monthly_price": b.get("monthly_price") or 248000})
             self.store.x("UPDATE users SET sub_until=0 WHERE plan='trial'")
             self.store.set_setting("mig_strict_lock_v1", int(time.time()))
+        if not self.store.get_setting("mig_card_on_v1"):   # کارت‌به‌کارت (با کپی شماره کارت و مبلغ یکتا) پیش‌فرض روشن
+            b = self.store.get_setting("billing") or {}
+            ms = list(b.get("pay_methods") or DEFAULT_BILLING["pay_methods"])
+            if "card" not in ms:
+                ms.append("card")
+            self.store.set_setting("billing", {**b, "pay_methods": ms})
+            self.store.set_setting("mig_card_on_v1", int(time.time()))
         # نام قدیمی سایت که در پنل ذخیره شده بود ← «فرصت ملک» (نیم‌فاصلهٔ نام قبلی در برخی دستگاه‌ها مربع دیده می‌شد)
         site = self.store.get_setting("site") or {}
         if re.sub(r"[\s\u200c\u200d\u200f\u200e]", "", site.get("name") or "") in ("فرصتیاب", "ملکیاب"):
@@ -1123,6 +1130,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"status": "paid" if st == "paid" else "pending"})
             st = a.billing.bezan_check(pid) if pay["gateway"] == "bezan" else "missing"
             return self.send_json({"status": st})
+        if path == "/api/pay/mine":
+            u = self.user()
+            if not u:
+                return self.send_json({"error": "ابتدا وارد شوید"}, 401)
+            return self.send_json(a.billing.my_payments(u["phone"]))
         if path == "/api/pay/invoice":
             u = self.user()
             if not u:
@@ -1559,6 +1571,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True, "bot": a.telegram.test()})
             except Exception as e:  # noqa: BLE001
                 return self.send_json({"ok": False, "error": str(e)[:200]})
+        if path == "/api/admin/daily-report-test":
+            import dailyreport
+            return self.send_json(dailyreport.send(a, force=True))
         if path == "/api/admin/bale-test":
             try:
                 me = a.bale.test()
@@ -1651,6 +1666,8 @@ def main():
     Handler.app = App(Path(args.data))
     Handler.app.ingest.start()
     Handler.app.bale.start()
+    import dailyreport
+    dailyreport.start(Handler.app)   # گزارش روزانهٔ کارت‌به‌کارت در بله (ساعت ۸ صبح تهران)
     Handler.app.telegram.start()
     Handler.app.alerts.start()
     threading.Thread(target=seo.indexnow_loop, args=(Handler.app,), name="indexnow", daemon=True).start()
