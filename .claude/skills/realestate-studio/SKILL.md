@@ -1,6 +1,6 @@
 ---
 name: realestate-studio
-description: "Master orchestrator for any real estate or website request. Use FIRST whenever a request touches real estate (property, listing, agency, realtor, brokerage, rent, buy, sell, invest, market, neighborhood, tenant, deal, offer) or website/brand work (site, landing page, UI, logo, copy, funnel, lead capture), especially when the request spans several of these. Decides which installed skills and subagents to combine, in what order, and merges their outputs into one deliverable. Persian triggers: املاک، مشاور املاک، بنگاه، آژانس املاک، دلالی، ملک، خانه، آپارتمان، زمین، مغازه، خرید و فروش ملک، رهن و اجاره، سرمایه‌گذاری ملکی، آگهی، فایل ملک، طراحی سایت، سایت املاک، لوگو، برند، صفحه فرود، جذب مشتری، بازاریابی ملک."
+description: "Master orchestrator for any real estate or website request. Use FIRST whenever a request touches real estate (property, listing, agency, realtor, brokerage, rent, buy, sell, invest, market, neighborhood, tenant, deal, offer) or website/brand work (site, landing page, UI, logo, copy, funnel, lead capture) or starting/testing a business (business idea, startup, pricing, offer, unit economics, business plan, launch), especially when the request spans several of these. Decides which installed skills and subagents to combine, in what order, and merges their outputs into one deliverable. Persian triggers: املاک، مشاور املاک، بنگاه، آژانس املاک، دلالی، ملک، خانه، آپارتمان، زمین، مغازه، خرید و فروش ملک، رهن و اجاره، سرمایه‌گذاری ملکی، آگهی، فایل ملک، طراحی سایت، سایت املاک، لوگو، برند، صفحه فرود، جذب مشتری، بازاریابی ملک، ایده کسب‌وکار، راه‌اندازی کسب‌وکار، استارتاپ، طرح کسب‌وکار، قیمت‌گذاری."
 ---
 
 # Real Estate Studio — Orchestrator
@@ -34,6 +34,12 @@ Read the prompt and tag every intent it contains (one prompt often has several):
 | Relocating client guide | `relocation-welcome-package` | `realestate-neighborhood` |
 | Competitors | `competitive-teardown` | `decision-council` |
 | A business decision ("should I…") | `decision-council` | — |
+| New business idea / startup (incl. opening a new agency or service) | `founder-board` | full founder pipeline below |
+| Pricing a product or service | `founder-pricing` | `founder-consumer`, `founder-cfo`, `founder-competitors` |
+| Sales offer / service package | `founder-offer` | `scope-of-work-generator` (real estate fees), `founder-cfo` |
+| Profitability / break-even / startup cash | `founder-cfo` | `founder-ops` (real costs) |
+| Business plan / feasibility study | `founder-plan` | every founder-* output it compiles |
+| Launching a business | `founder-launch` | `founder-marketing`, `funnel-building` |
 
 Subagents in `.claude/agents/` (persona specialists such as `realestate-listing-agent`, `realestate-market-analyst`, `realestate-creative-director`, `realestate-legal-compliance`, and the build crew `planner` / `builder` / `reviewer` / `researcher`) may be launched in parallel when parts of the work are independent.
 
@@ -51,6 +57,8 @@ Order skills so each one feeds the next: **research → strategy → content →
 
 Use only the skills the request actually needs; a one-line request for a listing ad does not need a website pipeline.
 
+For a new business or a new line of service, run the founder pipeline in this order, skipping what the user already has: `founder-board` → `founder-competitors` → `founder-consumer` → `founder-pricing` → `founder-offer` → `founder-cfo` → `founder-marketing` → `founder-brand` → `founder-ops` → `founder-launch` → `founder-plan`. The founder skills write their working files to a `founder/` folder; `founder-plan` compiles them and computes the verdict. If the business needs a website, continue into the website pipeline above using `founder-brand` and `founder-marketing` as the brief.
+
 ## Step 3 — Resolve overlaps
 
 Several skills cover the same ground. Use one as the lead and others as inputs, never run all of them and paste the results side by side:
@@ -59,6 +67,9 @@ Several skills cover the same ground. Use one as the lead and others as inputs, 
 - Valuation: lead = `cma-generator`; `realestate-comps` supplies the comparable-sales table.
 - Investment: lead = `investment-property-underwriter`; `realestate-invest` adds the BRRRR/flip/hold scenario comparison.
 - Market: lead = `market-report-generator`; `realestate-market` adds the market score.
+- Competitors: for a new business use `founder-competitors` (market map and gap); for an existing product vs. a named rival use `competitive-teardown`.
+- Brand: `founder-brand` writes the name, voice and visual brief; `svg-logo-designer` draws the logo from that brief.
+- Marketing: `founder-marketing` for the business as a whole; `property-marketing-plan` for a single listing.
 
 ## Step 4 — Adapt to the user's market
 
@@ -69,6 +80,8 @@ These skills were written for the US market (MLS, Fair Housing Act, escrow, TCPA
 - Use local units and currency (متر مربع، تومان/ریال، رهن و اجاره) as the user does.
 
 ## Step 5 — Data honesty (non-negotiable)
+
+`founder-consumer` produces a *simulated* buyer panel, and `founder-board` gives *simulated* opinions. Always label their results as simulations, never as survey data or market evidence, and recommend the real-world test in `founder-launch` before money is committed.
 
 Never fabricate prices, comparable sales, rents, market statistics, crime or school data, testimonials, or legal citations. If a number is not supplied by the user or retrieved from a verifiable source in this session, leave a clearly marked placeholder such as `[قیمت هر متر: نیاز به داده]` and list all such gaps at the end. Label every estimate as an estimate with its basis.
 

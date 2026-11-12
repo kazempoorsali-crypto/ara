@@ -86,6 +86,22 @@ License: MIT
 - `realestate-screen`
 - `realestate`
 
+## [Jakeschincariol/founder-skill](https://github.com/Jakeschincariol/founder-skill)
+
+License: MIT. Installed 2026-11-12. Changes: Persian trigger keywords appended to `description`. Scripts (`unit_economics.py`, `panel.py`, `van_westendorp.py`, `compile.py`) need Python 3.8+ and no packages; they are called through `${CLAUDE_SKILL_DIR}`.
+
+- `founder-board`
+- `founder-competitors`
+- `founder-consumer`
+- `founder-pricing`
+- `founder-offer`
+- `founder-cfo`
+- `founder-marketing`
+- `founder-brand`
+- `founder-ops`
+- `founder-launch`
+- `founder-plan`
+
 ## Subagents (`.claude/agents/`)
 
 - `builder`
