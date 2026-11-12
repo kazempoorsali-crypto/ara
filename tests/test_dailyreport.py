@@ -62,13 +62,13 @@ ok(not D.send(app, now=now_810 + 2 * 86400)["ok"], "شمارهٔ خالی در �
 # «پرداخت‌ها و رسیدها» در حساب کاربر: کارت‌به‌کارتِ نیمه‌تمام برای ادامه، با شماره کارت و مبلغ یکتا
 import time  # noqa: E402
 U = "09125556677"
-st.set_setting("billing", {**(st.get_setting("billing") or {}), "card_number": "6037-0000-0000-0000", "card_holder": "آزمون", "card_sheba": "IR000000000000000000000000",
+st.set_setting("billing", {**(st.get_setting("billing") or {}), "card_number": "6037-0000-0000-0000", "card_holder": "آزمون",
                            "pay_methods": ["card"]})
 st.x("INSERT INTO payments (phone, plan, amount, gateway, status, created) VALUES (?,?,?,?,?,?)", (U, "monthly", 249000, "card", "pending", int(time.time()) - 600))
 st.x("INSERT INTO payments (phone, plan, amount, gateway, status, created, paid_at) VALUES (?,?,?,?,?,?,?)", (U, "weekly", 98000, "card", "paid", int(time.time()) - 9 * 86400, int(time.time()) - 9 * 86400))
 st.x("INSERT INTO payments (phone, plan, amount, gateway, status, created) VALUES (?,?,?,?,?,?)", ("09120000009", "monthly", 250000, "card", "pending", int(time.time())))
 m = bill.my_payments(U)
 ok(len(m["items"]) == 2 and {x["status"] for x in m["items"]} == {"pending", "paid"}, "فقط پرداخت‌های خود کاربر (رسید قدیمی هم می‌ماند)")
-ok(m["pending"] and m["pending"]["amount"] == 249000 and m["pending"]["card"]["number"].startswith("6037") and m["pending"]["card"]["sheba"].startswith("IR"),
-   "کارت‌به‌کارت نیمه‌تمام با همان مبلغ یکتا، شماره کارت و شبا برای ادامه")
+ok(m["pending"] and m["pending"]["amount"] == 249000 and m["pending"]["card"]["number"].startswith("6037"),
+   "کارت‌به‌کارت نیمه‌تمام با همان مبلغ یکتا و شماره کارت برای ادامه")
 print("همهٔ آزمون‌های گزارش روزانه موفق بود.")

@@ -412,8 +412,6 @@
         <div class="cbox__row"><span class="cbox__k">شمارهٔ کارت${r.card.holder ? " · به نام " + esc(r.card.holder) : ""}${r.card.bank ? " · " + esc(r.card.bank) : ""}</span>
           <b class="cbox__v cbox__mono" dir="ltr">${num16.replace(/-/g, " ")}</b>
           <div class="cbox__copies"><button type="button" id="cpCard" data-cp="${esc(r.card.number.replace(/\D/g, ""))}" data-cpm="شماره کارت کپی شد">📋 کپی شماره کارت</button></div></div>
-        ${r.card.sheba ? `<div class="cbox__row"><span class="cbox__k">شمارهٔ شبا</span><b class="cbox__v cbox__mono cbox__sm" dir="ltr">${esc(r.card.sheba)}</b>
-          <div class="cbox__copies"><button type="button" data-cp="${esc(r.card.sheba)}" data-cpm="شماره شبا کپی شد">📋 کپی شبا</button></div></div>` : ""}
         <p class="cbox__note">دقیقاً همین مبلغ را واریز کنید، نه بیشتر و نه کمتر؛ پرداخت شما با همین مبلغ شناخته می‌شود${r.price && r.price !== r.amount ? ` (قیمت طرح ${fa(r.price)} تومان است)` : ""}. پس از واریز می‌توانید این پنجره را ببندید؛ وضعیت و رسید در «حساب من ← پرداخت‌ها و رسیدها» می‌ماند.</p>
       </div>
       <ol class="pay-steps">

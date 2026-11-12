@@ -25,7 +25,7 @@ DEFAULT_BILLING = {
     "free_preview": 2,   # تعداد فرصت برتر که بدون اشتراک کامل نمایش داده می‌شود (نمونهٔ اعتمادساز)
     "free_results": 10,  # تعداد نتیجهٔ اول هر جست‌وجو که برای همه نمایش داده می‌شود
     # کارت‌به‌کارت: مبلغ هر پرداخت با سه رقم یکتا پایان می‌یابد تا واریز بدون نیاز به انسان قابل شناسایی باشد
-    "card_number": "", "card_holder": "", "card_bank": "", "card_sheba": "", "card_auto_activate": True,
+    "card_number": "", "card_holder": "", "card_bank": "", "card_auto_activate": True,
     # مبلغ یکتا: قیمت طرح ± چند گام (پیش‌فرض گام هزار تومانی؛ برای قیمت ۵۰۰ هزار: ۴۹۸، ۴۹۹، ۵۰۰، ۵۰۱، ۵۰۲ هزار ...)
     "card_step": 1000, "card_span": 100,
     # تأیید خودکار کارت‌به‌کارت با پیامک بانک: گوشی اندرویدی صاحب کارت پیامک واریز را به سایت می‌فرستد
@@ -485,7 +485,7 @@ class Billing:
     def _card_info(self, pid, amount, plan):
         """دادهٔ صفحهٔ پرداخت کارت‌به‌کارت (برای شروع یا ادامهٔ همان پرداخت)."""
         c = self.cfg()
-        return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"], "sheba": c.get("card_sheba") or ""},
+        return {"ok": True, "card": {"number": c["card_number"], "holder": c["card_holder"], "bank": c["card_bank"]},
                 "payment_id": pid, "amount": amount, "price": plan["price"], "plan": plan["name"], "auto": bool(c["card_auto_activate"]),
                 "sms": self.bank_sms_ready()}
 
