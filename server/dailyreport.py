@@ -71,23 +71,37 @@ def send(app, force=False, now=None) -> dict:
         return {"ok": False, "error": "ربات بله متصل نیست"}
     now = int(now or time.time())
     _, _, today = day_range(now, back=0)
-    if not force:
-        hour = time.gmtime(now + TEHRAN).tm_hour
-        if hour < SEND_HOUR or (app.store.get_setting("daily_report") or {}).get("day") == today:
-            return {"ok": False, "skipped": True}
     chat = app.bale.chat_of(phone)
     if not chat:
         return {"ok": False, "error": f"شمارهٔ {phone} هنوز به ربات بلهٔ سایت وصل نشده است (یک بار با همین شماره در سایت وارد شوید و «دریافت کد در بله» را بزنید)"}
+    if not force:
+        hour = time.gmtime(now + TEHRAN).tm_hour
+        # فقط یک بار در روز و فقط در بازهٔ ۸ تا ۱۰ صبح تهران؛ اگر سرور در این بازه خاموش بود، آن روز چیزی فرستاده نمی‌شود
+        if not (SEND_HOUR <= hour < SEND_HOUR + 2):
+            return {"ok": False, "skipped": True}
+        with _LOCK:
+            if (app.store.get_setting("daily_report") or {}).get("day") == today:
+                return {"ok": False, "skipped": True}
+            # پیش از ارسال علامت زده می‌شود: خطا یا کندی بله هرگز به ارسال دوباره در همان روز نمی‌انجامد
+            app.store.set_setting("daily_report", {"day": today, "at": now})
     try:
         app.bale.call("sendMessage", {"chat_id": chat, "text": text(app, now)})
     except Exception as e:  # noqa: BLE001
+        if not force:
+            app.store.set_setting("daily_report", {"day": today, "at": now, "error": str(e)[:200]})
         return {"ok": False, "error": f"ارسال در بله: {e}"[:200]}
-    if not force:
-        app.store.set_setting("daily_report", {"day": today, "at": now})
     return {"ok": True}
 
 
+_LOCK = threading.Lock()
+_STARTED = []
+
+
 def start(app):
+    if _STARTED:   # فقط یک رشتهٔ گزارش در هر فرایند
+        return
+    _STARTED.append(1)
+
     def loop():
         while True:
             time.sleep(300)
