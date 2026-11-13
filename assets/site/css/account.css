@@ -1435,3 +1435,8 @@ html.intro-fast .intro { display: none !important; }
   .mypays__row { grid-template-columns: 1fr auto; }
   .mypays__row > :nth-child(4) { grid-column: 1 / -1; justify-self: start; }
 }
+/* گالری املاک: سایه‌های محوکنندهٔ بالا و پایین برداشته شد تا عکس کارت‌ها با رنگ طبیعی دیده شوند */
+.masonry-wrap .masonry__mask { display: none; }
+/* دکمهٔ بازگشت به بالا: کمی پایین‌تر از وسط صفحه (گوشی و رایانه) */
+.totop { top: 62% !important; bottom: auto !important; transform: translateY(-50%) !important; }
+.totop:hover { transform: translateY(-50%) scale(1.08) !important; }

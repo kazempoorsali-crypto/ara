@@ -437,8 +437,8 @@
     return box;
   }
 
-  /* ویترین سبک صفحهٔ اول: بدون فیلتر فقط ۶ کارت؛ بقیه در جست‌وجوی پیشرفته */
-  var SHOWCASE = 6;
+  /* ویترین سبک صفحهٔ اول: بدون فیلتر فقط ۵ کارت؛ بقیه در جست‌وجوی پیشرفته */
+  var SHOWCASE = 5;
   function renderMasonry(animate) {
     if (!wrap || !cols.length) return;
     var limited = anyFilter();
