@@ -56,6 +56,16 @@ ok(D.send(app, now=now_730).get("skipped") and not sent, "پیش از ساعت �
 ok(D.send(app, now=now_810)["ok"] and sent and sent[-1][1]["chat_id"] == 4242, "ساعت ۸:۱۰ گزارش به بلهٔ همان شماره رفت")
 ok(D.send(app, now=now_810 + 3600).get("skipped") and len(sent) == 1, "همان روز دوباره فرستاده نمی‌شود")
 ok(D.send(app, now=now_810 + 86400)["ok"] and len(sent) == 2, "فردا دوباره فرستاده می‌شود")
+ok(D.send(app, now=now_810 + 2 * 86400 + 3 * 3600).get("skipped") and len(sent) == 2, "بعد از ساعت ۱۰ صبح (مثلاً پس از راه‌اندازی دوبارهٔ سرور) چیزی فرستاده نمی‌شود")
+# خطای بله: همان روز دوباره تلاش نمی‌شود (هیچ پیام تکراری)
+orig = bale.call
+bale.call = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("timeout"))
+ok(not D.send(app, now=now_810 + 3 * 86400)["ok"], "خطای ارسال گزارش می‌شود")
+bale.call = orig
+ok(D.send(app, now=now_810 + 3 * 86400 + 900).get("skipped") and len(sent) == 2, "پس از خطا، همان روز دوباره فرستاده نمی‌شود")
+for k in range(12):   # هر ۵ دقیقه یک بار بررسی در بازهٔ ۸ تا ۹: فقط یک پیام
+    D.send(app, now=now_810 + 4 * 86400 + k * 300)
+ok(len(sent) == 3, "بررسی هر ۵ دقیقه در طول یک ساعت: فقط یک پیام")
 bill_cfg = st.get_setting("billing") or {}
 st.set_setting("billing", {**bill_cfg, "report_phone": ""})
 ok(not D.send(app, now=now_810 + 2 * 86400)["ok"], "شمارهٔ خالی در پنل = گزارش خاموش")
