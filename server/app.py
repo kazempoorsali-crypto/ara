@@ -1369,7 +1369,7 @@ class Handler(BaseHTTPRequestHandler):
                 "tickets_unread": a.support.unread_admin(), "flags": a.flags.counts(), "sms_last_notify": s.get_setting("sms_last_notify"),
                 "billing": {**a.billing.cfg(), "bezan_api_key": "•••" if a.billing.cfg().get("bezan_api_key") else ""},
                 # نشانی محرمانهٔ دریافت پیامک واریز (برای برنامهٔ گوشی) و پیامک‌های اخیر
-                "bank_sms": {"url": self.base_url() + "/api/pay/sms?key=" + a.billing.bank_sms_key(), "recent": a.billing.bank_sms_list()}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
+                "bank_sms": {"url": self.base_url() + "/api/pay/sms?key=" + a.billing.bank_sms_key(), "recent": a.billing.bank_sms_list()}, "daily_report": {**(s.get_setting("daily_report_status") or {}), "last_day": (s.get_setting("daily_report") or {}).get("day")}, "sms": {**a.billing.sms_cfg(), "api_key": "•••" if a.billing.sms_cfg()["api_key"] else ""},
                 "bale": {**a.bale.cfg(), "token": "•••" if a.bale.cfg()["token"] else "", "provider_token": "•••" if a.bale.cfg()["provider_token"] else ""},
                 "bale_state": {**a.bale.state, "links": s.q("SELECT COUNT(*) n FROM bale_links", one=True)["n"]},
                 "telegram": {**a.telegram.cfg(), "token": "•••" if a.telegram.cfg()["token"] else ""},
@@ -1668,6 +1668,8 @@ def main():
     Handler.app.bale.start()
     import dailyreport
     dailyreport.start(Handler.app)   # گزارش روزانهٔ کارت‌به‌کارت در بله (ساعت ۸ صبح تهران)
+    import reminders
+    reminders.start(Handler.app)     # یادآوری پایان اشتراک: فقط سه روز مانده و هنگام پایان، هر کدام یک بار
     Handler.app.telegram.start()
     Handler.app.alerts.start()
     threading.Thread(target=seo.indexnow_loop, args=(Handler.app,), name="indexnow", daemon=True).start()

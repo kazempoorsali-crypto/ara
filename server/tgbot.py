@@ -201,21 +201,8 @@ class Assistant:
             self.bot.state["last_error"] = f"تنظیم منوی ربات: {e}"[:200]
 
     def tick(self):
-        """یادآوری پایان اشتراک: دو روز مانده و پس از پایان (هر کدام یک بار برای هر دورهٔ اشتراک)."""
-        now = int(time.time())
-        for r in self.store.q("SELECT l.phone, l.chat_id, u.sub_until FROM tg_links l JOIN users u ON u.phone=l.phone "
-                              "WHERE u.sub_until BETWEEN ? AND ?", (now - 86400, now + 2 * 86400)):
-            until = r["sub_until"]
-            kind = "ended" if until <= now else "soon"
-            if self.store.q("SELECT 1 FROM tg_remind WHERE phone=? AND kind=? AND until=?", (r["phone"], kind, until), one=True):
-                continue
-            if kind == "soon":
-                left = max(1, -(-(until - now) // 86400))
-                txt = f"⏰ اشتراک فرصت ملک شما {fa(left)} روز دیگر تمام می‌شود. برای اینکه شکارهای طلایی و هشدارهای محله قطع نشود، اشتراک را تمدید کنید."
-            else:
-                txt = "اشتراک فرصت ملک شما به پایان رسید. با تمدید، دوباره به شکارهای طلایی، رادار کاهش قیمت و هشدار فرصت‌های تازه دسترسی دارید."
-            if self.send(r["chat_id"], txt, kb=self.sub_kb()):
-                self.store.x("INSERT OR IGNORE INTO tg_remind VALUES(?,?,?)", (r["phone"], kind, until))
+        """یادآوری پایان اشتراک به reminders.py منتقل شد (یک پیام سه روز مانده و یک پیام پس از پایان، برای بله و تلگرام با هم)."""
+        return
 
     # ---------------------------------------------------------- entry
     def handle(self, u: dict):

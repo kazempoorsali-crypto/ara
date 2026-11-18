@@ -545,7 +545,7 @@
         </div>
         <div class="grid2" style="margin-top:8px">
           <label class="field"><span>گزارش روزانه (ساعت ۸ صبح) در بله به این موبایل</span><input class="input input--ltr" name="report_phone" value="${esc(b.report_phone || "")}" inputmode="tel" placeholder="09xxxxxxxxx"></label>
-          <div class="field"><span>&nbsp;</span><button type="button" class="btn btn--line" id="reportTest">ارسال آزمایشی گزارش همین حالا</button><small id="reportRes" class="hint"></small></div>
+          <div class="field"><span>&nbsp;</span><button type="button" class="btn btn--line" id="reportTest">ارسال آزمایشی گزارش همین حالا</button><small id="reportRes" class="hint">${(() => { const d = S.daily_report || {}; if (!d.at) return "هنوز گزارشی فرستاده نشده است."; return (d.ok ? "✅ آخرین ارسال موفق در " + esc(d.via || "") + ": " : "⚠️ آخرین تلاش ناموفق: " + esc(d.error || "") + " — ") + when(d.at); })()}</small></div>
         </div>
         <p class="hint">گزارش دیروزِ پرداخت‌ها و پیامک‌های بانک هر روز یک بار از ساعت ۸ صبح تهران فرستاده می‌شود. این شماره باید یک بار با «دریافت کد در بله» در سایت وارد شده باشد تا به ربات بله وصل شود. خالی = خاموش.</p>
         <label class="field" style="margin-top:8px"><span>نشانی برای برنامهٔ گوشی (محرمانه؛ در خانهٔ URL برنامه بگذارید)</span><input class="input input--ltr" readonly value="${esc((S.bank_sms || {}).url || "")}" onclick="this.select()"></label>
