@@ -67,13 +67,24 @@ def send(app, force=False, now=None) -> dict:
     phone = norm_phone(str(app.billing.cfg().get("report_phone") or ""))
     if not phone:
         return {"ok": False, "error": "شمارهٔ گیرندهٔ گزارش در پنل تعیین نشده است"}
-    if not app.bale.ready():
-        return {"ok": False, "error": "ربات بله متصل نیست"}
     now = int(now or time.time())
     _, _, today = day_range(now, back=0)
-    chat = app.bale.chat_of(phone)
+    # اول بله؛ اگر این شماره به ربات بله وصل نبود، تلگرام (هر کدام که وصل باشد)
+    bot = chat = None
+    for b in (getattr(app, "bale", None), getattr(app, "telegram", None)):
+        try:
+            if b and b.ready():
+                c = b.chat_of(phone)
+                if c:
+                    bot, chat = b, c
+                    break
+        except Exception:  # noqa: BLE001
+            continue
     if not chat:
-        return {"ok": False, "error": f"شمارهٔ {phone} هنوز به ربات بلهٔ سایت وصل نشده است (یک بار با همین شماره در سایت وارد شوید و «دریافت کد در بله» را بزنید)"}
+        err = (f"شمارهٔ {phone} به ربات بله یا تلگرام سایت وصل نیست؛ یک بار با همین شماره در سایت وارد شوید و «دریافت کد در بله» را بزنید"
+               if app.bale.ready() else "ربات بله در پنل متصل نیست")
+        app.store.set_setting("daily_report_status", {"at": now, "ok": False, "error": err})
+        return {"ok": False, "error": err}
     if not force:
         hour = time.gmtime(now + TEHRAN).tm_hour
         # فقط یک بار در روز و فقط در بازهٔ ۸ تا ۱۰ صبح تهران؛ اگر سرور در این بازه خاموش بود، آن روز چیزی فرستاده نمی‌شود
@@ -85,12 +96,14 @@ def send(app, force=False, now=None) -> dict:
             # پیش از ارسال علامت زده می‌شود: خطا یا کندی بله هرگز به ارسال دوباره در همان روز نمی‌انجامد
             app.store.set_setting("daily_report", {"day": today, "at": now})
     try:
-        app.bale.call("sendMessage", {"chat_id": chat, "text": text(app, now)})
+        bot.call("sendMessage", {"chat_id": chat, "text": text(app, now)})
     except Exception as e:  # noqa: BLE001
         if not force:
             app.store.set_setting("daily_report", {"day": today, "at": now, "error": str(e)[:200]})
-        return {"ok": False, "error": f"ارسال در بله: {e}"[:200]}
-    return {"ok": True}
+        app.store.set_setting("daily_report_status", {"at": now, "ok": False, "error": f"ارسال: {e}"[:200]})
+        return {"ok": False, "error": f"ارسال در {bot.NAME}: {e}"[:200]}
+    app.store.set_setting("daily_report_status", {"at": now, "ok": True, "via": bot.NAME})
+    return {"ok": True, "via": bot.NAME}
 
 
 _LOCK = threading.Lock()

@@ -30,7 +30,7 @@ r = D.send(app, force=True)
 ok(not r["ok"] and "بله" in r["error"], "ربات بله تنظیم نشده: چیزی فرستاده نمی‌شود")
 st.set_setting("bale", {"token": "1:abc", "bot_username": "fm_bot"})
 r = D.send(app, force=True)
-ok(not r["ok"] and "وصل نشده" in r["error"], "شماره هنوز به ربات وصل نشده: پیام روشن")
+ok(not r["ok"] and "وصل نیست" in r["error"], "شماره هنوز به ربات وصل نشده: پیام روشن")
 st.x("INSERT INTO bale_links VALUES(?,?,?,?)", ("09119041271", 4242, 1, 1))
 
 # روز آزمایشی: ۱۰ آبان (تهران)؛ «اکنون» ساعت ۷:۳۰ و سپس ۸:۱۰ صبح تهران روز بعد

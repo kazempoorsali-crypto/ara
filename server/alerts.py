@@ -180,9 +180,10 @@ class Alerts:
         """یک بار پیام پایان دورهٔ رایگان «خبرم کن» در همان پیام‌رسان."""
         if self.store.q("SELECT 1 FROM alerts_trial_end WHERE phone=?", (phone,), one=True):
             return
-        if b.send(chat, "⏳ دورهٔ رایگان ۵ روزهٔ «خبرم کن» تمام شد و ارسال هشدار فرصت‌های تازه متوقف شده است.\n"
-                        "با فعال کردن اشتراک، هشدارهای شما دوباره و بدون نیاز به ثبت مجدد ارسال می‌شود:\nhttps://forsatmelk.ir/account.html?subscribe=1"):
-            self.store.x("INSERT OR REPLACE INTO alerts_trial_end VALUES(?,?)", (phone, int(time.time())))
+        # پیش از ارسال علامت زده می‌شود: حتی اگر پاسخ پیام‌رسان خالی یا خطا باشد، این پیام هرگز تکرار نمی‌شود
+        self.store.x("INSERT OR REPLACE INTO alerts_trial_end VALUES(?,?)", (phone, int(time.time())))
+        b.send(chat, "⏳ دورهٔ رایگان ۵ روزهٔ «خبرم کن» تمام شد و ارسال هشدار فرصت‌های تازه متوقف شده است.\n"
+                     "با فعال کردن اشتراک، هشدارهای شما دوباره و بدون نیاز به ثبت مجدد ارسال می‌شود:\nhttps://forsatmelk.ir/account.html?subscribe=1")
 
     @staticmethod
     def text(d: dict) -> str:
