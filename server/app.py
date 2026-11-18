@@ -263,6 +263,11 @@ class App:
             self.store.set_setting("billing", {**b, "free_preview": 0, "trial_enabled": False, "weekly_price": b.get("weekly_price") or 98000, "monthly_price": b.get("monthly_price") or 248000})
             self.store.x("UPDATE users SET sub_until=0 WHERE plan='trial'")
             self.store.set_setting("mig_strict_lock_v1", int(time.time()))
+        if not self.store.get_setting("mig_report_phone_v2"):   # گیرندهٔ گزارش روزانه: شمارهٔ تازهٔ مدیر (فقط اگر همان شمارهٔ قبلی یا خالی بود)
+            b = self.store.get_setting("billing") or {}
+            if str(b.get("report_phone") or "").strip() in ("", "09119041271"):
+                self.store.set_setting("billing", {**b, "report_phone": "09015725191"})
+            self.store.set_setting("mig_report_phone_v2", int(time.time()))
         if not self.store.get_setting("mig_card_on_v1"):   # کارت‌به‌کارت (با کپی شماره کارت و مبلغ یکتا) پیش‌فرض روشن
             b = self.store.get_setting("billing") or {}
             ms = list(b.get("pay_methods") or DEFAULT_BILLING["pay_methods"])
