@@ -25,13 +25,13 @@ sent = []
 bale.call = lambda method, body=None, timeout=30: sent.append((method, body)) or {"ok": True}
 app = SimpleNamespace(store=st, billing=bill, bale=bale)
 
-ok(bill.cfg()["report_phone"] == "09119041271", "شمارهٔ پیش‌فرض گیرندهٔ گزارش")
+ok(bill.cfg()["report_phone"] == "09015725191", "شمارهٔ پیش‌فرض گیرندهٔ گزارش")
 r = D.send(app, force=True)
 ok(not r["ok"] and "بله" in r["error"], "ربات بله تنظیم نشده: چیزی فرستاده نمی‌شود")
 st.set_setting("bale", {"token": "1:abc", "bot_username": "fm_bot"})
 r = D.send(app, force=True)
 ok(not r["ok"] and "وصل نیست" in r["error"], "شماره هنوز به ربات وصل نشده: پیام روشن")
-st.x("INSERT INTO bale_links VALUES(?,?,?,?)", ("09119041271", 4242, 1, 1))
+st.x("INSERT INTO bale_links VALUES(?,?,?,?)", ("09015725191", 4242, 1, 1))
 
 # روز آزمایشی: ۱۰ آبان (تهران)؛ «اکنون» ساعت ۷:۳۰ و سپس ۸:۱۰ صبح تهران روز بعد
 start, end, _ = D.day_range(1_700_000_000)
