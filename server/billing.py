@@ -213,6 +213,12 @@ class Billing:
             raise ValueError("شماره موبایل معتبر نیست")
         now = int(time.time())
         row = self.store.q("SELECT * FROM otps WHERE phone=?", (phone,), one=True)
+        # بله، شمارهٔ هنوز وصل‌نشده: کد فقط پس از «اشتراک شمارهٔ من» در ربات ساخته و فرستاده می‌شود؛
+        # پس در مهلت ارسال دوباره هم پیوند ربات برمی‌گردد تا کاربر در صفحهٔ کد گیر نکند
+        if (channel == "bale" and self.bale and self.bale.otp_ready() and not self.bale.chat_of(phone)
+                and row and now - (row["sent_at"] or 0) < OTP_RESEND):
+            r = self.bale.start_otp(phone, None)
+            return {"ok": True, "phone": phone, "channel": "bale", **r}
         if row and now - (row["sent_at"] or 0) < OTP_RESEND:
             raise ValueError(f"کد قبلی هنوز معتبر است؛ {str(OTP_RESEND - (now - row['sent_at'])).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} ثانیه دیگر دوباره امتحان کنید")
         if channel == "bale":

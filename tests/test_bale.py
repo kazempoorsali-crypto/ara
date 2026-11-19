@@ -157,6 +157,18 @@ try:
 finally:
     urllib.request.urlopen = orig_urlopen
 
+# شمارهٔ تازه (وصل‌نشده به ربات) دو بار پشت سر هم «دریافت کد در بله» می‌زند: هر دو بار پیوند ربات برمی‌گردد (گیر نمی‌کند)
+NEWP = "09015550000"
+r1 = bill.send_otp(NEWP, local=False, channel="bale")
+r2 = bill.send_otp(NEWP, local=False, channel="bale")
+ok(not r1["sent"] and r1["link"] and not r2["sent"] and "start=otp_" in r2["link"], "درخواست دوباره در مهلت ۹۰ ثانیه: باز هم پیوند ربات (نه خطای «کد قبلی هنوز معتبر است»)")
+try:
+    bill.send_otp(PHONE, local=False, channel="bale")
+    bill.send_otp(PHONE, local=False, channel="bale")
+    ok(False, "شمارهٔ وصل‌شده باید محدودیت ارسال دوباره داشته باشد")
+except ValueError as e:
+    ok("ثانیه" in str(e), "شمارهٔ وصل‌شده: محدودیت ارسال دوباره همچنان برقرار است")
+
 # تلگرام از واسط: Cloudflare Worker و اتصال مستقیم همان POST؛ اسکریپت گوگل با relay_get بدنه را در کوئری با GET می‌فرستد
 from bale import Telegram  # noqa: E402
 import urllib.parse  # noqa: E402

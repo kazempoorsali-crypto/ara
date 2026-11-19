@@ -218,9 +218,11 @@
           if (r.dev_code || r.sent) input.focus();
           sentOk = true;
         } catch (x) {
-          note.innerHTML = ""; err.textContent = x.message;
+          // خطای درخواست کد در کادر بالای ورودی می‌ماند (با زدن «تأیید» پاک نمی‌شود) و «ارسال دوباره» فعال است
+          note.innerHTML = `<div class="auth__dev auth__fail">⚠️ ${esc(x.message || "ارسال کد ممکن نشد")}</div>`;
           const m = /(\d+)\s*ثانیه/.exec(faDigits(x.message));   // کد قبلی هنوز معتبر است
           if (m) { sentAt = Date.now() / 1000 - (90 - +m[1]); if (!expires) expires = sentAt + 180; btn.disabled = false; clearInterval(timer); timer = setInterval(tick, 1000); tick(); }
+          else { resend.disabled = false; resend.classList.add("is-hot"); }
         }
         busy = false;
         return sentOk;
