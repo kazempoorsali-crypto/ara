@@ -32,7 +32,9 @@ DEFAULT_BILLING = {
     # (برنامهٔ Incoming SMS to URL forwarder)؛ مبلغ واریز با مبلغ یکتای پرداخت تطبیق داده و اشتراک فوراً فعال می‌شود
     "bank_sms_enabled": False, "bank_sms_key": "", "bank_sms_senders": "", "bank_sms_unit": "rial",
     # گزارش روزانهٔ کارت‌به‌کارت و پیامک‌های بانک، هر روز ساعت ۸ صبح تهران در بلهٔ همین شماره (خالی = خاموش)
-    "report_phone": "09015725191",
+    "report_phone": "09119041271",
+    # شماره‌های مدیر: همیشه دسترسی کامل (مثل VIP بی‌پایان)، بدون قفل و بدون یادآوری تمدید؛ چندتا با ویرگول
+    "owner_phones": "09119041271",
     # دورهٔ رایگان: هر کس تازه ثبت‌نام کند، این تعداد روز به همهٔ امکانات دسترسی کامل دارد
     "trial_enabled": False, "trial_days": 3,
     # روش‌های پرداخت روشن (هر روش جداگانه؛ روش آماده‌نشده در سایت «فعلاً فعال نیست» نشان داده می‌شود)
@@ -305,12 +307,21 @@ class Billing:
         r = self.store.q("SELECT phone FROM user_sessions WHERE token=? AND expires>?", (token, int(time.time())), one=True)
         return self.user(r["phone"]) if r else None
 
+    def owner_phones(self) -> set:
+        """شماره‌های مدیر سایت (از پنل): دسترسی کامل و دائمی."""
+        return {p for p in (norm_phone(x) for x in str(self.cfg().get("owner_phones") or "").replace("،", ",").split(",")) if p}
+
     def user(self, phone):
         r = self.store.q("SELECT * FROM users WHERE phone=?", (phone,), one=True)
         if not r:
             return None
         now = int(time.time())
         d = dict(r)
+        if r["phone"] in self.owner_phones():   # مدیر: همهٔ بخش‌ها باز، مثل VIP بی‌پایان
+            return {"phone": r["phone"], "sub_until": now + 3650 * 86400, "plan": "vip", "owner": True, "active": True, "days_left": 3650,
+                    "trial": False, "first_name": d.get("first_name") or "", "last_name": d.get("last_name") or "",
+                    "email": d.get("email") or "", "username": d.get("username") or "", "has_password": bool(d.get("pw_hash")),
+                    "alert_trial_left": 0}
         return {"phone": r["phone"], "sub_until": r["sub_until"] or 0, "plan": r["plan"],
                 "active": (r["sub_until"] or 0) > now, "days_left": max(0, -(-((r["sub_until"] or 0) - now) // 86400)),
                 "trial": r["plan"] == "trial", "first_name": d.get("first_name") or "", "last_name": d.get("last_name") or "",

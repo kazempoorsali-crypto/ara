@@ -25,7 +25,7 @@
   const route = () => { updateAccount(); if (onAccountPage()) accountPage({}); };
   function updateAccount() {
     const me = API.me, el = $("#accountLabel");
-    if (el) el.textContent = me ? (me.active ? "اشتراک فعال، " + fa(me.days_left) + " روز" : "حساب من") : "ورود و اشتراک";
+    if (el) el.textContent = me ? (me.owner ? "دسترسی کامل مدیر" : me.active ? "اشتراک فعال، " + fa(me.days_left) + " روز" : "حساب من") : "ورود و اشتراک";
     document.documentElement.classList.toggle("is-sub", !!(me && me.active));   // مشترک: نشانه‌های قفل پنهان
     if (me) dispatchEvent(new CustomEvent("fm:me", { detail: me }));
   }
@@ -494,7 +494,7 @@
     if ($("#acctMenu")) { closeAcctMenu(); return; }
     const m = document.createElement("div");
     m.id = "acctMenu"; m.className = "amenu fmx"; m.setAttribute("role", "menu");
-    m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
+    m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.owner ? "دسترسی کامل و دائمی (مدیر)" : me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
       ${me.active ? "" : `<button type="button" class="amenu__sub" role="menuitem" data-a="sub">${icon("spark")}<span><b>فعال‌سازی اشتراک</b><small>هفتگی یا ماهانه، با بله‌پی یا بزن به کارت</small></span></button>`}
       <a role="menuitem" href="/account.html">${icon("user")} حساب من، پرداخت‌ها و رسیدها</a>
       <a role="menuitem" href="/app.html#/support">${icon("chat")} پشتیبانی و تیکت‌ها</a>
@@ -524,7 +524,7 @@
   const STACK_T = "🔄 ارتقا یا رزرو خودکار اشتراک بعدی (بدون سوخت شدن روزهای فعلی)";
   function stackBox(me) {
     const plans = CFG().plans || [];
-    if (!me || !me.active || !plans.length) return "";
+    if (!me || !me.active || me.owner || !plans.length) return "";
     return `<div class="substack"><h3>${STACK_T}</h3>
       <p class="muted small">از اشتراک فعلی شما <b>${leftText(me)}</b> باقی مانده است. طرح جدید پس از پایان همین اشتراک شروع می‌شود و روزهایش به آن اضافه می‌شود.</p>
       <div class="substack__list">${plans.map((p) => `<button type="button" class="substack__opt" data-stack="${esc(p.id)}"><b>${esc(p.name)}</b><small>${fa(p.days)} روز · ${fa(p.price)} تومان</small></button>`).join("")}</div></div>`;
@@ -570,9 +570,9 @@
       ${me && !me.active && (CFG().plans || []).length ? `<div class="subcta"><div><b>اشتراک فعال ندارید</b><small>با اشتراک هفتگی یا ماهانه، همهٔ نتیجه‌ها، آگهی‌های مشکوک با دلیل و پیوند مستقیم هر آگهی اصلی باز می‌شود.</small></div><button class="btn btn--hot btn--lg" id="subBtn2">فعال‌سازی اشتراک</button></div>` : ""}
       ${me ? `<div class="account">
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
-          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
-          ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
-          ${me.active ? `<div><span class="muted small">زمان باقی‌مانده</span><b>${leftText(me)}</b></div>` : ""}
+          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.owner ? "دسترسی کامل و دائمی (مدیر)" : me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
+          ${me.active && !me.owner ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
+          ${me.active && !me.owner ? `<div><span class="muted small">زمان باقی‌مانده</span><b>${leftText(me)}</b></div>` : ""}
           ${me.active ? "" : `<button class="btn btn--hot" id="subBtn">فعال‌سازی اشتراک</button>`}
           <a class="btn btn--line" href="/app.html#/support">پشتیبانی و تیکت‌ها</a>
           <button class="btn btn--line" id="logoutBtn">خروج</button>
