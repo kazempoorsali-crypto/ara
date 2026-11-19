@@ -44,7 +44,7 @@ const App = (() => {
   }
   function updateAccount() {
     const me = DataLayer.me;
-    $("#accountLabel").textContent = me ? (me.active ? `اشتراک فعال، ${fa(me.days_left)} روز` : "حساب من") : "ورود و اشتراک";
+    $("#accountLabel").textContent = me ? (me.owner ? "دسترسی کامل مدیر" : me.active ? `اشتراک فعال، ${fa(me.days_left)} روز` : "حساب من") : "ورود و اشتراک";
   }
   const active = () => !!(DataLayer.me && DataLayer.me.active);
 
@@ -55,7 +55,7 @@ const App = (() => {
     if ($("#acctMenu")) { closeAcctMenu(); return; }
     const m = document.createElement("div");
     m.id = "acctMenu"; m.className = "amenu"; m.setAttribute("role", "menu");
-    m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
+    m.innerHTML = `<div class="amenu__head"><b dir="ltr">${esc(me.phone || "")}</b><span class="${me.active ? "ok-text" : ""}">${me.owner ? "دسترسی کامل و دائمی (مدیر)" : me.active ? `${me.trial ? "دورهٔ رایگان" : "اشتراک فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</span></div>
       ${me.active ? "" : `<button type="button" class="amenu__sub" role="menuitem" data-a="sub">${icon("spark")}<span><b>فعال‌سازی اشتراک</b><small>هفتگی یا ماهانه، با بله‌پی یا بزن به کارت</small></span></button>`}
       <a role="menuitem" href="#/account">${icon("user")} حساب من</a>
       <a role="menuitem" href="#/support">${icon("chat")} پشتیبانی و تیکت‌ها</a>
@@ -1651,7 +1651,7 @@ const App = (() => {
       <div class="sec-head"><div><span class="kicker">حساب من</span><h2>${me ? "اشتراک و حساب کاربری" : "ورود و اشتراک"}</h2></div></div>
       ${me ? `<div class="account">
           <div><span class="muted small">شماره موبایل</span><b dir="ltr">${esc(me.phone)}</b></div>
-          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
+          <div><span class="muted small">وضعیت اشتراک</span><b class="${me.active ? "ok-text" : ""}">${me.owner ? "دسترسی کامل و دائمی (مدیر)" : me.active ? `${me.trial ? "دورهٔ رایگان" : "فعال"}، ${fa(me.days_left)} روز باقی‌مانده` : "بدون اشتراک فعال"}</b></div>
           ${me.active ? `<div><span class="muted small">پایان اشتراک</span><b>${new Date(me.sub_until * 1000).toLocaleDateString("fa-IR", { dateStyle: "long" })}</b></div>` : ""}
           ${me.active ? "" : `<button class="btn btn--hot" id="subBtn">فعال‌سازی اشتراک</button>`}
           <a class="btn btn--line" href="#/support">پشتیبانی و تیکت‌ها</a>

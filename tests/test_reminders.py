@@ -66,4 +66,17 @@ ok(len(sent) == 2, "پس از خطای ارسال، همان یادآوری دو
 st.x("UPDATE users SET sub_until=? WHERE phone=?", (until + 30 * 86400, P))
 R.run_once(app, until + 27 * 86400 + 60)
 ok(len(sent) == 3 and sent[-1][1] == 22, "پس از تمدید، دورهٔ تازه یادآوری خودش را دارد")
+# شمارهٔ مدیر (owner_phones): همیشه فعال و VIP، بدون یادآوری تمدید، حتی با sub_until منقضی
+OW = "09119041271"
+st.x("INSERT OR REPLACE INTO users (phone, created, sub_until, plan) VALUES (?,?,?,?)", (OW, 1, NOW + 86400, "weekly"))
+st.x("INSERT OR REPLACE INTO bale_links VALUES(?,?,?,?)", (OW, 99, 1, 1))
+u = bill.user(OW)
+ok(u["active"] and u["plan"] == "vip" and u.get("owner"), "شمارهٔ مدیر: دسترسی کامل VIP")
+before = len(sent)
+for h in range(80):
+    R.run_once(app, NOW + h * 3600)
+ok(not any(x[1] == 99 for x in sent[before:]), "شمارهٔ مدیر یادآوری تمدید نمی‌گیرد")
+st.x("UPDATE users SET sub_until=0 WHERE phone=?", (OW,))
+ok(bill.user(OW)["active"], "شمارهٔ مدیر بدون اشتراک خریده‌شده هم فعال است")
+ok(not bill.user("09110000002").get("owner"), "کاربر عادی مدیر حساب نمی‌شود")
 print("همهٔ آزمون‌های یادآوری اشتراک موفق بود.")

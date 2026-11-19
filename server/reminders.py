@@ -64,8 +64,11 @@ def run_once(app, now=None) -> int:
         s.set_setting("remind_v2_init", now)
     sent = 0
     rows = s.q("SELECT phone, sub_until FROM users WHERE sub_until BETWEEN ? AND ?", (now - 86400, now + SOON_DAYS * 86400))
+    owners = app.billing.owner_phones() if hasattr(app.billing, "owner_phones") else set()
     for r in rows:
         phone, until = r["phone"], int(r["sub_until"] or 0)
+        if phone in owners:   # مدیر سایت اشتراک دائمی دارد؛ یادآوری تمدید نمی‌گیرد
+            continue
         kind = "ended" if until <= now else "soon"
         with _LOCK:
             if s.q("SELECT 1 FROM tg_remind WHERE phone=? AND kind=? AND until=?", (phone, kind, until), one=True):
