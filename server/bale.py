@@ -116,7 +116,7 @@ class Bale:
     def start_otp(self, phone, code) -> dict:
         """کد را در بله می‌فرستد؛ اگر شماره هنوز به ربات وصل نیست، پیوند ربات برمی‌گردد و کد پس از تأیید شماره ارسال می‌شود."""
         chat = self.chat_of(phone)
-        if chat and self.send(chat, f"کد ورود شما به فرصت ملک: {code}\nاین کد تا ۳ دقیقه معتبر است. آن را به کسی ندهید."):
+        if chat and code and self.send(chat, f"کد ورود شما به فرصت ملک: {code}\nاین کد تا ۳ دقیقه معتبر است. آن را به کسی ندهید."):
             return {"sent": True}
         n = self._nonce("otp", phone)
         return {"sent": False, "link": self.link_url("otp_" + n)}
